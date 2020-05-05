@@ -1,0 +1,7 @@
+domain: fluxcd.io
+repo: github.com/fluxcd/helm-controller
+resources:
+- group: helm
+  kind: HelmRelease
+  version: v2alpha1
+version: "2"
