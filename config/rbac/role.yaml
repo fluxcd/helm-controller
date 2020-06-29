@@ -1,4 +1,3 @@
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -26,3 +25,17 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - source.fluxcd.io
+  resources:
+  - helmcharts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - source.fluxcd.io
+  resources:
+  - helmcharts/status
+  verbs:
+  - get

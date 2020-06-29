@@ -15,6 +15,8 @@ spec:
     plural: helmreleases
     singular: helmrelease
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: HelmRelease is the Schema for the helmreleases API
@@ -34,13 +36,84 @@ spec:
         spec:
           description: HelmReleaseSpec defines the desired state of HelmRelease
           properties:
-            foo:
-              description: Foo is an example field of HelmRelease. Edit HelmRelease_types.go
-                to remove/update
+            interval:
+              description: Interval at which to reconcile the Helm release.
               type: string
+            maxHistory:
+              description: MaxHistory is the number of revisions saved by Helm for
+                this release. Use '0' for an unlimited number of revisions; defaults
+                to '10'.
+              type: integer
+            sourceRef:
+              description: SourceRef of the HelmChart source.
+              properties:
+                apiGroup:
+                  description: APIGroup is the group for the resource being referenced.
+                    If APIGroup is not specified, the specified Kind must be in the
+                    core API group. For any other third-party types, APIGroup is required.
+                  type: string
+                kind:
+                  description: Kind is the type of resource being referenced
+                  type: string
+                name:
+                  description: Name is the name of resource being referenced
+                  type: string
+              required:
+              - kind
+              - name
+              type: object
+            values:
+              description: Values holds the values for this Helm release.
+              type: object
+            wait:
+              description: Wait tells the reconciler to wait with marking a Helm action
+                as successful until all resources are in a ready state. When set,
+                it will wait for as long as 'Timeout'.
+              type: boolean
+          required:
+          - interval
+          - sourceRef
           type: object
         status:
           description: HelmReleaseStatus defines the observed state of HelmRelease
+          properties:
+            conditions:
+              items:
+                description: Condition contains condition information for a HelmRelease.
+                properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the timestamp corresponding
+                      to the last status change of this condition.
+                    format: date-time
+                    type: string
+                  message:
+                    description: Message is a human readable description of the details
+                      of the last transition, complementing reason.
+                    type: string
+                  reason:
+                    description: Reason is a brief machine readable explanation for
+                      the condition's last transition.
+                    type: string
+                  status:
+                    description: Status of the condition, one of ('True', 'False',
+                      'Unknown').
+                    type: string
+                  type:
+                    description: Type of the condition, currently ('Ready').
+                    type: string
+                required:
+                - status
+                - type
+                type: object
+              type: array
+            lastAppliedRevision:
+              description: LastAppliedRevision is the revision of the last successfully
+                applied source.
+              type: string
+            lastReleaseRevision:
+              description: LastReleaseRevision is the revision of the last successfully
+                Helm release.
+              type: integer
           type: object
       type: object
   version: v2alpha1

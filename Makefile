@@ -35,12 +35,26 @@ uninstall: manifests
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
-	cd config/manager && kustomize edit set image controller=${IMG}
+	cd config/manager && kustomize edit set image fluxcd/helm-controller=${IMG}
 	kustomize build config/default | kubectl apply -f -
+
+# Deploy controller dev image in the configured Kubernetes cluster in ~/.kube/config
+dev-deploy: manifests
+	mkdir -p config/dev && cp config/default/* config/dev
+	cd config/dev && kustomize edit set image fluxcd/helm-controller=${IMG}
+	kustomize build config/dev | kubectl apply -f -
+	rm -rf config/dev
+
+# Delete dev deployment and CRDs
+dev-cleanup: manifests
+	mkdir -p config/dev && cp config/default/* config/dev
+	cd config/dev && kustomize edit set image fluxcd/helm-controller=${IMG}
+	kustomize build config/dev | kubectl delete -f -
+	rm -rf config/dev
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:crd:artifacts:config=config/crd/bases
 
 # Run go fmt against code
 fmt:
