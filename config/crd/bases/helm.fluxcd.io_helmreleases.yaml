@@ -64,7 +64,7 @@ spec:
               type: object
             values:
               description: Values holds the values for this Helm release.
-              type: object
+              x-kubernetes-preserve-unknown-fields: true
             wait:
               description: Wait tells the reconciler to wait with marking a Helm action
                 as successful until all resources are in a ready state. When set,

@@ -208,7 +208,7 @@ func (r *HelmReleaseReconciler) install(cfg *action.Configuration, chart *chart.
 	install.ReleaseName = hr.Name
 	install.Namespace = hr.Namespace
 
-	return install.Run(chart, hr.Spec.Values.Data)
+	return install.Run(chart, hr.GetValues())
 }
 
 func (r *HelmReleaseReconciler) upgrade(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (*release.Release, error) {
@@ -217,7 +217,7 @@ func (r *HelmReleaseReconciler) upgrade(cfg *action.Configuration, chart *chart.
 	// TODO(hidde): make this configurable
 	upgrade.ResetValues = true
 
-	return upgrade.Run(hr.Name, chart, hr.Spec.Values.Data)
+	return upgrade.Run(hr.Name, chart, hr.GetValues())
 }
 
 func (r *HelmReleaseReconciler) lock(name string) (unlock func(), err error) {

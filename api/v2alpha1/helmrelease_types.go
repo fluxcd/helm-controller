@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -46,52 +47,7 @@ type HelmReleaseSpec struct {
 
 	// Values holds the values for this Helm release.
 	// +optional
-	Values Values `json:"values,omitempty"`
-}
-
-type Values struct {
-	// Data holds the configuration keys and values.
-	// Work around for https://github.com/kubernetes-sigs/kubebuilder/issues/528
-	Data map[string]interface{} `json:"-"`
-}
-
-// MarshalJSON marshals the Values data to a JSON blob.
-func (in Values) MarshalJSON() ([]byte, error) {
-	return json.Marshal(in.Data)
-}
-
-// UnmarshalJSON sets the Values to a copy of data.
-func (in *Values) UnmarshalJSON(data []byte) error {
-	var out map[string]interface{}
-	err := json.Unmarshal(data, &out)
-	if err != nil {
-		return err
-	}
-	in.Data = out
-	return nil
-}
-
-// DeepCopyInto is an deepcopy function, copying the receiver, writing
-// into out. In must be non-nil. Declaring this here prevents it from
-// being generated in zz_generated.deepcopy.go.
-//
-// This is defined here to work around https://github.com/kubernetes/code-generator/issues/50,
-// and partially around https://github.com/kubernetes-sigs/controller-tools/pull/126
-// and https://github.com/kubernetes-sigs/controller-tools/issues/294.
-func (in *Values) DeepCopyInto(out *Values) {
-	b, err := json.Marshal(in.Data)
-	if err != nil {
-		// The marshal should have been performed cleanly as otherwise
-		// the resource would not have been created by the API server.
-		panic(err)
-	}
-	var c map[string]interface{}
-	err = json.Unmarshal(b, &c)
-	if err != nil {
-		panic(err)
-	}
-	out.Data = c
-	return
+	Values apiextensionsv1.JSON `json:"values,omitempty"`
 }
 
 // HelmReleaseStatus defines the observed state of HelmRelease
@@ -187,6 +143,14 @@ type HelmRelease struct {
 
 	Spec   HelmReleaseSpec   `json:"spec,omitempty"`
 	Status HelmReleaseStatus `json:"status,omitempty"`
+}
+
+// GetValues unmarshals the raw values to a map[string]interface{}
+// and returns the result.
+func (in *HelmRelease) GetValues() map[string]interface{} {
+	var values map[string]interface{}
+	_ = json.Unmarshal(in.Spec.Values.Raw, &values)
+	return values
 }
 
 // +kubebuilder:object:root=true
