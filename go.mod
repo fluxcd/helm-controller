@@ -3,6 +3,7 @@ module github.com/fluxcd/helm-controller
 go 1.13
 
 require (
+	github.com/fluxcd/pkg v0.0.2
 	github.com/fluxcd/source-controller v0.0.1
 	github.com/go-logr/logr v0.1.0
 	github.com/onsi/ginkgo v1.11.0

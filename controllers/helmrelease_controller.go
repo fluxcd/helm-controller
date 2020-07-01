@@ -44,10 +44,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 
-	_ "helm.sh/helm/v3/pkg/action"
+	"github.com/fluxcd/pkg/lockedfile"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2alpha1"
-	"github.com/fluxcd/helm-controller/internal/lockedfile"
 )
 
 // HelmReleaseReconciler reconciles a HelmRelease object
