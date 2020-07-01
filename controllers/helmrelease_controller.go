@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -109,7 +110,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{}, nil
 	}
 
-	reconciledHr, err := r.release(hr, source)
+	reconciledHr, err := r.release(log, hr, source)
 	if err != nil {
 		log.Error(err, "HelmRelease reconciliation failed", "revision", source.GetArtifact().Revision)
 	}
@@ -140,7 +141,7 @@ func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmRele
 		Complete(r)
 }
 
-func (r *HelmReleaseReconciler) release(hr v2.HelmRelease, source sourcev1.Source) (v2.HelmRelease, error) {
+func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, source sourcev1.Source) (v2.HelmRelease, error) {
 	// Acquire lock
 	unlock, err := r.lock(fmt.Sprintf("%s-%s", hr.GetName(), hr.GetNamespace()))
 	if err != nil {
@@ -169,19 +170,19 @@ func (r *HelmReleaseReconciler) release(hr v2.HelmRelease, source sourcev1.Sourc
 	}
 
 	// Initialize config
-	cfg, err := r.newActionCfg(hr)
+	cfg, err := r.newActionCfg(log, hr)
 	if err != nil {
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to initialize Helm action configuration"), err
 	}
 
 	// Get the current release
 	rel, err := cfg.Releases.Deployed(hr.Name)
-	if err != nil && err != driver.ErrReleaseNotFound {
+	if err != nil && !errors.Is(err, driver.ErrNoDeployedReleases) {
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to determine if release exists"), err
 	}
 
 	// Install or upgrade the release
-	if err == driver.ErrReleaseNotFound {
+	if errors.Is(err, driver.ErrNoDeployedReleases) {
 		if rel, err = r.install(cfg, loadedChart, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionFalse, v2.InstallFailedReason, err.Error())
 			// TODO(hidde): conditional uninstall?
@@ -250,7 +251,7 @@ func (r *HelmReleaseReconciler) download(url, tmpDir string) (string, error) {
 	return fp, nil
 }
 
-func (r *HelmReleaseReconciler) newActionCfg(hr v2.HelmRelease) (*action.Configuration, error) {
+func (r *HelmReleaseReconciler) newActionCfg(log logr.Logger, hr v2.HelmRelease) (*action.Configuration, error) {
 	cfg := new(action.Configuration)
 	// TODO(hidde): write our own init
 	err := cfg.Init(&genericclioptions.ConfigFlags{
@@ -258,6 +259,12 @@ func (r *HelmReleaseReconciler) newActionCfg(hr v2.HelmRelease) (*action.Configu
 		APIServer:   &r.Config.Host,
 		CAFile:      &r.Config.CAFile,
 		BearerToken: &r.Config.BearerToken,
-	}, hr.Namespace, "secret", r.Log.Info)
+	}, hr.Namespace, "secret", actionLogger(log))
 	return cfg, err
+}
+
+func actionLogger(logger logr.Logger) func(format string, v ...interface{}) {
+	return func(format string, v ...interface{}) {
+		logger.Info(fmt.Sprintf(format, v...))
+	}
 }

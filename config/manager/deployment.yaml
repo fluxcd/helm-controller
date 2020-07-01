@@ -23,7 +23,7 @@ spec:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
         ports:
-          - containerPort: 8282
+          - containerPort: 8080
             name: http-prom
         env:
           - name: RUNTIME_NAMESPACE
