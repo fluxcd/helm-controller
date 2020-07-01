@@ -48,13 +48,24 @@ type Condition struct {
 }
 
 const (
-	// ReadyCondition represents the fact that the HelmRelease has been successfully
-	// enrolled on the cluster.
+	// ReadyCondition represents the fact that the HelmRelease has been successfully reconciled.
 	ReadyCondition string = "Ready"
+
+	// InstallCondition represents the fact that the HelmRelease has been successfully installed.
+	InstallCondition string = "Install"
+
+	// UpgradeCondition represents the fact that the HelmRelease has been successfully upgraded.
+	UpgradeCondition string = "Upgrade"
 )
 
 const (
-	// InstallSucceededReason represents the fact that the Helm install for the release succeed.
+	// ReconciliationSucceededReason represents the fact that the reconciliation of the release has succeeded.
+	ReconciliationSucceededReason string = "ReconciliationSucceeded"
+
+	// ReconciliationFailedReason represents the fact that the reconciliation of the release has failed.
+	ReconciliationFailedReason string = "ReconciliationFailed"
+
+	// InstallSucceededReason represents the fact that the Helm install for the release succeeded.
 	InstallSucceededReason string = "InstallSucceeded"
 
 	// InstallFailedReason represents the fact that the Helm install for the release failed.
@@ -66,33 +77,12 @@ const (
 	// UpgradeFailedReason represents the fact that the Helm upgrade for the release failed.
 	UpgradeFailedReason string = "UpgradeFailed"
 
-	// TestSucceededReason represents the fact that the Helm test for the release succeeded.
-	TestSucceededReason string = "TestSucceeded"
-
-	// TestFailedReason represents the fact that the Helm test for the release failed.
-	TestFailedReason string = "TestFailed"
-
-	// RollbackSucceededReason represents the fact that the Helm rollback for the release succeeded.
-	RollbackSucceededReason string = "RollbackSucceeded"
-
-	// RollbackFailedReason represent the fact that the Helm rollback for the release failed.
-	RollbackFailedReason string = "RollbackFailed"
-
 	// ArtifactFailedReason represents the fact that the artifact download for the release failed.
 	ArtifactFailedReason string = "ArtifactFailed"
 
 	// InitFailedReason represents the fact that the initialization of the Helm configuration failed.
 	InitFailedReason string = "InitFailed"
 
-	// DependencyNotReady represents the fact that the one of the dependencies is not ready.
-	DependencyNotReadyReason string = "DependencyNotReady"
-
-	// InitializedReason represents the fact that a given resource has been initialized.
-	InitializedReason string = "Initialized"
-
 	// ProgressingReason represents the fact that the reconciliation for the resource is underway.
 	ProgressingReason string = "Progressing"
-
-	// SuspendedReason represents the fact that the HelmRelease reconciliation is suspended.
-	SuspendedReason string = "Suspended"
 )

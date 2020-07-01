@@ -108,6 +108,8 @@ type HelmReleaseStatus struct {
 	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`
 }
 
+// HelmReleaseProgressing resets the conditions of the given HelmRelease to a single
+// ReadyCondition with status ConditionUnknown.
 func HelmReleaseProgressing(hr HelmRelease) HelmRelease {
 	hr.Status.Conditions = []Condition{
 		{
@@ -121,29 +123,45 @@ func HelmReleaseProgressing(hr HelmRelease) HelmRelease {
 	return hr
 }
 
+// SetHelmReleaseCondition sets the given condition with the given status, reason and message
+// on the HelmRelease.
+func SetHelmReleaseCondition(hr *HelmRelease, condition string, status corev1.ConditionStatus, reason, message string) {
+	hr.Status.Conditions = filterOutCondition(hr.Status.Conditions, condition)
+	hr.Status.Conditions = append(hr.Status.Conditions, Condition{
+		Type:               condition,
+		Status:             status,
+		LastTransitionTime: metav1.Now(),
+		Reason:             reason,
+		Message:            message,
+	})
+}
+
+// HelmReleaseNotReady sets the status of the ReadyCondition of the given HelmRelease to
+// ConditionFalse including the given reason and message.
 func HelmReleaseNotReady(hr HelmRelease, reason, message string) HelmRelease {
-	hr.Status.Conditions = []Condition{
-		{
-			Type:               ReadyCondition,
-			Status:             corev1.ConditionFalse,
-			LastTransitionTime: metav1.Now(),
-			Reason:             reason,
-			Message:            message,
-		},
-	}
+	hr.Status.Conditions = filterOutCondition(hr.Status.Conditions, ReadyCondition)
+	hr.Status.Conditions = append(hr.Status.Conditions, Condition{
+		Type:               ReadyCondition,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             reason,
+		Message:            message,
+	})
 	return hr
 }
 
+// HelmReleaseReady sets the status of the ReadyCondition of the given HelmRelease to
+// ConditionTrue including the given reason and message, and sets the LastAppliedRevision
+// and LastReleaseRevision to the given values.
 func HelmReleaseReady(hr HelmRelease, revision string, releaseRevision int, reason, message string) HelmRelease {
-	hr.Status.Conditions = []Condition{
-		{
-			Type:               ReadyCondition,
-			Status:             corev1.ConditionTrue,
-			LastTransitionTime: metav1.Now(),
-			Reason:             reason,
-			Message:            message,
-		},
-	}
+	hr.Status.Conditions = filterOutCondition(hr.Status.Conditions, ReadyCondition)
+	hr.Status.Conditions = append(hr.Status.Conditions, Condition{
+		Type:               ReadyCondition,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             reason,
+		Message:            message,
+	})
 	hr.Status.LastAppliedRevision = revision
 	hr.Status.LastReleaseRevision = releaseRevision
 	return hr
@@ -182,4 +200,17 @@ type HelmReleaseList struct {
 
 func init() {
 	SchemeBuilder.Register(&HelmRelease{}, &HelmReleaseList{})
+}
+
+// filterOutCondition returns a new slice of conditions without the
+// condition of the given type.
+func filterOutCondition(conditions []Condition, condition string) []Condition {
+	var newConditions []Condition
+	for _, c := range conditions {
+		if c.Type == condition {
+			continue
+		}
+		newConditions = append(newConditions, c)
+	}
+	return newConditions
 }

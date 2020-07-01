@@ -35,6 +35,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -77,9 +78,10 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{Requeue: true}, err
 	}
 
+	// Get the artifact
 	var source sourcev1.Source
-	// Get artifact source from HelmChart
-	if hr.Spec.SourceRef.Kind == "HelmChart" {
+	switch hr.Spec.SourceRef.Kind {
+	case "HelmChart":
 		var helmChart sourcev1.HelmChart
 		chartName := types.NamespacedName{
 			Namespace: hr.GetNamespace(),
@@ -91,9 +93,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 			return ctrl.Result{Requeue: true}, err
 		}
 		source = &helmChart
-	}
-
-	if source == nil {
+	default:
 		err := fmt.Errorf("source '%s' kind '%s' not supported", hr.Spec.SourceRef.Name, hr.Spec.SourceRef.Kind)
 		return ctrl.Result{}, err
 	}
@@ -164,7 +164,7 @@ func (r *HelmReleaseReconciler) release(hr v2.HelmRelease, source sourcev1.Sourc
 	}
 
 	// Load chart
-	chart, err := loader.Load(artifactPath)
+	loadedChart, err := loader.Load(artifactPath)
 	if err != nil {
 		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, "failed to load chart"), err
 	}
@@ -172,24 +172,35 @@ func (r *HelmReleaseReconciler) release(hr v2.HelmRelease, source sourcev1.Sourc
 	// Initialize config
 	cfg, err := r.newActionCfg(hr)
 	if err != nil {
-		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to initialize Helm configuration"), err
+		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to initialize Helm action configuration"), err
 	}
 
+	// Get the current release
 	rel, err := cfg.Releases.Deployed(hr.Name)
 	if err != nil && err != driver.ErrReleaseNotFound {
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to determine if release exists"), err
 	}
 
+	// Install or upgrade the release
 	if err == driver.ErrReleaseNotFound {
-		rel, err = r.install(cfg, chart, hr)
-		if err != nil {
-			return v2.HelmReleaseNotReady(hr, v2.InstallFailedReason, err.Error()), err
+		if rel, err = r.install(cfg, loadedChart, hr); err != nil {
+			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionFalse, v2.InstallFailedReason, err.Error())
+			// TODO(hidde): conditional uninstall?
+			return v2.HelmReleaseNotReady(hr, v2.ReconciliationFailedReason, "Helm install failed"), err
 		}
+		v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionTrue, v2.InstallSucceededReason, "Helm installation succeeded")
 	} else {
-		// upgrade
+		if rel, err = r.upgrade(cfg, loadedChart, hr); err != nil {
+			v2.SetHelmReleaseCondition(&hr, v2.UpgradeCondition, corev1.ConditionFalse, v2.UpgradeFailedReason, err.Error())
+			return v2.HelmReleaseNotReady(hr, v2.ReconciliationFailedReason, "Helm upgrade failed"), err
+		}
+		v2.SetHelmReleaseCondition(&hr, v2.UpgradeCondition, corev1.ConditionTrue, v2.UpgradeSucceededReason, "Helm upgrade succeeded")
 	}
 
-	return v2.HelmReleaseReady(hr, source.GetArtifact().Revision, rel.Version, v2.InstallSucceededReason, "installation succeeded"), nil
+	// TODO(hidde): check if test needs to be run
+	// TODO(hidde): check if rollback needs to be performed
+
+	return v2.HelmReleaseReady(hr, source.GetArtifact().Revision, rel.Version, v2.ReconciliationSucceededReason, "successfully reconciled HelmRelease"), nil
 }
 
 func (r *HelmReleaseReconciler) install(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (*release.Release, error) {
@@ -198,6 +209,15 @@ func (r *HelmReleaseReconciler) install(cfg *action.Configuration, chart *chart.
 	install.Namespace = hr.Namespace
 
 	return install.Run(chart, hr.Spec.Values.Data)
+}
+
+func (r *HelmReleaseReconciler) upgrade(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (*release.Release, error) {
+	upgrade := action.NewUpgrade(cfg)
+	upgrade.Namespace = hr.Namespace
+	// TODO(hidde): make this configurable
+	upgrade.ResetValues = true
+
+	return upgrade.Run(hr.Name, chart, hr.Spec.Values.Data)
 }
 
 func (r *HelmReleaseReconciler) lock(name string) (unlock func(), err error) {
