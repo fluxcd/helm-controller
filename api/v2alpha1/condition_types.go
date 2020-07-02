@@ -59,6 +59,9 @@ const (
 
 	// TestCondition represents the fact that the HelmRelease has been successfully tested.
 	TestCondition string = "Test"
+
+	// RollbackCondition represents the fact that the HelmRelease has been successfully rolled back.
+	RollbackCondition string = "Rollback"
 )
 
 const (
@@ -85,6 +88,12 @@ const (
 
 	// TestFailedReason represents the fact that the Helm test for the release failed.
 	TestFailedReason string = "TestFailed"
+
+	// RollbackSucceededReason represents the fact that the Helm test for the release failed.
+	RollbackSucceededReason string = "RollbackSucceeded"
+
+	// RollbackFailedReason represents the fact that the Helm test for the release failed.
+	RollbackFailedReason string = "RollbackFailed"
 
 	// ArtifactFailedReason represents the fact that the artifact download for the release failed.
 	ArtifactFailedReason string = "ArtifactFailed"

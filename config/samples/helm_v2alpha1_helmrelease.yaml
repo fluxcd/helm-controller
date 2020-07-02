@@ -9,3 +9,5 @@ spec:
     name: podinfo-v2
   test:
     enable: true
+  rollback:
+    enable: true

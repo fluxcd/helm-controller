@@ -52,6 +52,9 @@ type HelmReleaseSpec struct {
 	// +optional
 	Test Test `json:"test,omitempty"`
 
+	// +optional
+	Rollback Rollback `json:"rollback,omitempty"`
+
 	// Values holds the values for this Helm release.
 	// +optional
 	Values apiextensionsv1.JSON `json:"values,omitempty"`
@@ -87,6 +90,40 @@ func (in Test) GetOnConditions() []Condition {
 }
 
 func (in Test) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
+	switch in.Timeout {
+	case nil:
+		return defaultTimeout
+	default:
+		return *in.Timeout
+	}
+}
+
+type Rollback struct {
+	// +optional
+	Enable bool `json:"enable,omitempty"`
+
+	// +optional
+	OnCondition *[]Condition `json:"onCondition,omitempty"`
+
+	// +optional
+	Timeout *metav1.Duration `json:"timeout,omitempty"`
+}
+
+func (in Rollback) GetOnConditions() []Condition {
+	switch in.OnCondition {
+	case nil:
+		return []Condition{
+			{
+				Type:   UpgradeCondition,
+				Status: corev1.ConditionFalse,
+			},
+		}
+	default:
+		return *in.OnCondition
+	}
+}
+
+func (in Rollback) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	switch in.Timeout {
 	case nil:
 		return defaultTimeout
