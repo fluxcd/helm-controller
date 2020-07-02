@@ -7,3 +7,5 @@ spec:
   sourceRef:
     kind: HelmChart
     name: podinfo-v2
+  test:
+    enable: true

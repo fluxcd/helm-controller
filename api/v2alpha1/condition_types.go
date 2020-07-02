@@ -56,6 +56,9 @@ const (
 
 	// UpgradeCondition represents the fact that the HelmRelease has been successfully upgraded.
 	UpgradeCondition string = "Upgrade"
+
+	// TestCondition represents the fact that the HelmRelease has been successfully tested.
+	TestCondition string = "Test"
 )
 
 const (
@@ -76,6 +79,12 @@ const (
 
 	// UpgradeFailedReason represents the fact that the Helm upgrade for the release failed.
 	UpgradeFailedReason string = "UpgradeFailed"
+
+	// TestFailedReason represents the fact that the Helm test for the release failed.
+	TestSucceededReason string = "TestSucceeded"
+
+	// TestFailedReason represents the fact that the Helm test for the release failed.
+	TestFailedReason string = "TestFailed"
 
 	// ArtifactFailedReason represents the fact that the artifact download for the release failed.
 	ArtifactFailedReason string = "ArtifactFailed"

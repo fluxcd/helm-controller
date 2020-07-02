@@ -197,7 +197,15 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 		v2.SetHelmReleaseCondition(&hr, v2.UpgradeCondition, corev1.ConditionTrue, v2.UpgradeSucceededReason, "Helm upgrade succeeded")
 	}
 
-	// TODO(hidde): check if test needs to be run
+	// Run tests
+	if r.shouldTest(&hr) {
+		if rel, err = r.test(cfg, hr); err != nil {
+			v2.SetHelmReleaseCondition(&hr, v2.TestCondition, corev1.ConditionFalse, v2.TestFailedReason, err.Error())
+		} else {
+			v2.SetHelmReleaseCondition(&hr, v2.TestCondition, corev1.ConditionTrue, v2.TestSucceededReason, "Helm test succeeded")
+		}
+	}
+
 	// TODO(hidde): check if rollback needs to be performed
 
 	return v2.HelmReleaseReady(hr, source.GetArtifact().Revision, rel.Version, v2.ReconciliationSucceededReason, "successfully reconciled HelmRelease"), nil
@@ -220,6 +228,14 @@ func (r *HelmReleaseReconciler) upgrade(cfg *action.Configuration, chart *chart.
 	return upgrade.Run(hr.Name, chart, hr.GetValues())
 }
 
+func (r *HelmReleaseReconciler) test(cfg *action.Configuration, hr v2.HelmRelease) (*release.Release, error) {
+	test := action.NewReleaseTesting(cfg)
+	test.Namespace = hr.Namespace
+	test.Timeout = hr.Spec.Test.GetTimeout(hr.GetTimeout()).Duration
+
+	return test.Run(hr.Name)
+}
+
 func (r *HelmReleaseReconciler) shouldUpgrade(hr *v2.HelmRelease, source sourcev1.Source, rel *release.Release) bool {
 	switch {
 	case hr.Status.LatestAppliedRevision != source.GetArtifact().Revision:
@@ -231,6 +247,20 @@ func (r *HelmReleaseReconciler) shouldUpgrade(hr *v2.HelmRelease, source sourcev
 	default:
 		return false
 	}
+}
+
+func (r *HelmReleaseReconciler) shouldTest(hr *v2.HelmRelease) bool {
+	if !hr.Spec.Test.Enable {
+		return false
+	}
+	for _, c := range hr.Spec.Test.GetOnConditions() {
+		for i := len(hr.Status.Conditions) - 1; i >= 0; i-- {
+			if hr.Status.Conditions[i].Type == c.Type && hr.Status.Conditions[i].Status == c.Status {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (r *HelmReleaseReconciler) lock(name string) (unlock func(), err error) {

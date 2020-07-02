@@ -34,6 +34,10 @@ type HelmReleaseSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
+	// Timeout
+	// +optional
+	Timeout *metav1.Duration `json:"timeout,omitempty"`
+
 	// Wait tells the reconciler to wait with marking a Helm action as
 	// successful until all resources are in a ready state. When set, it will
 	// wait for as long as 'Timeout'.
@@ -45,9 +49,50 @@ type HelmReleaseSpec struct {
 	// +optional
 	MaxHistory *int `json:"maxHistory,omitempty"`
 
+	// +optional
+	Test Test `json:"test,omitempty"`
+
 	// Values holds the values for this Helm release.
 	// +optional
 	Values apiextensionsv1.JSON `json:"values,omitempty"`
+}
+
+type Test struct {
+	// +optional
+	Enable bool `json:"enable,omitempty"`
+
+	// +optional
+	OnCondition *[]Condition `json:"onCondition,omitempty"`
+
+	// +optional
+	Timeout *metav1.Duration `json:"timeout,omitempty"`
+}
+
+func (in Test) GetOnConditions() []Condition {
+	switch in.OnCondition {
+	case nil:
+		return []Condition{
+			{
+				Type:   InstallCondition,
+				Status: corev1.ConditionTrue,
+			},
+			{
+				Type:   UpgradeCondition,
+				Status: corev1.ConditionTrue,
+			},
+		}
+	default:
+		return *in.OnCondition
+	}
+}
+
+func (in Test) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
+	switch in.Timeout {
+	case nil:
+		return defaultTimeout
+	default:
+		return *in.Timeout
+	}
 }
 
 // HelmReleaseStatus defines the observed state of HelmRelease
@@ -156,6 +201,15 @@ func (in *HelmRelease) GetValues() map[string]interface{} {
 	var values map[string]interface{}
 	_ = json.Unmarshal(in.Spec.Values.Raw, &values)
 	return values
+}
+
+func (in *HelmRelease) GetTimeout() metav1.Duration {
+	switch in.Spec.Timeout {
+	case nil:
+		return in.Spec.Interval
+	default:
+		return *in.Spec.Timeout
+	}
 }
 
 // +kubebuilder:object:root=true
