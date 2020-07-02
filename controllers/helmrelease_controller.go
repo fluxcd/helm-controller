@@ -189,7 +189,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 			return v2.HelmReleaseNotReady(hr, v2.ReconciliationFailedReason, "Helm install failed"), err
 		}
 		v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionTrue, v2.InstallSucceededReason, "Helm installation succeeded")
-	} else {
+	} else if r.shouldUpgrade(&hr, source, rel) {
 		if rel, err = r.upgrade(cfg, loadedChart, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.UpgradeCondition, corev1.ConditionFalse, v2.UpgradeFailedReason, err.Error())
 			return v2.HelmReleaseNotReady(hr, v2.ReconciliationFailedReason, "Helm upgrade failed"), err
@@ -218,6 +218,19 @@ func (r *HelmReleaseReconciler) upgrade(cfg *action.Configuration, chart *chart.
 	upgrade.ResetValues = true
 
 	return upgrade.Run(hr.Name, chart, hr.GetValues())
+}
+
+func (r *HelmReleaseReconciler) shouldUpgrade(hr *v2.HelmRelease, source sourcev1.Source, rel *release.Release) bool {
+	switch {
+	case hr.Status.LatestAppliedRevision != source.GetArtifact().Revision:
+		return true
+	case hr.Status.LatestReleaseRevision != rel.Version:
+		return true
+	case hr.Generation != hr.Status.ObservedGeneration:
+		return true
+	default:
+		return false
+	}
 }
 
 func (r *HelmReleaseReconciler) lock(name string) (unlock func(), err error) {

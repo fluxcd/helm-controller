@@ -53,15 +53,18 @@ type HelmReleaseSpec struct {
 // HelmReleaseStatus defines the observed state of HelmRelease
 type HelmReleaseStatus struct {
 	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// +optional
 	Conditions []Condition `json:"conditions,omitempty"`
 
-	// LastAppliedRevision is the revision of the last successfully applied source.
+	// LatestAppliedRevision is the revision of the last successfully applied source.
 	// +optional
-	LastAppliedRevision string `json:"lastAppliedRevision,omitempty"`
+	LatestAppliedRevision string `json:"lastAppliedRevision,omitempty"`
 
-	// LastReleaseRevision is the revision of the last successfully Helm release.
+	// LatestReleaseRevision is the revision of the last successfully Helm release.
 	// +optional
-	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`
+	LatestReleaseRevision int `json:"lastReleaseRevision,omitempty"`
 }
 
 // HelmReleaseProgressing resets the conditions of the given HelmRelease to a single
@@ -103,6 +106,7 @@ func HelmReleaseNotReady(hr HelmRelease, reason, message string) HelmRelease {
 		Reason:             reason,
 		Message:            message,
 	})
+	hr.Status.ObservedGeneration = hr.Generation
 	return hr
 }
 
@@ -118,8 +122,9 @@ func HelmReleaseReady(hr HelmRelease, revision string, releaseRevision int, reas
 		Reason:             reason,
 		Message:            message,
 	})
-	hr.Status.LastAppliedRevision = revision
-	hr.Status.LastReleaseRevision = releaseRevision
+	hr.Status.ObservedGeneration = hr.Generation
+	hr.Status.LatestAppliedRevision = revision
+	hr.Status.LatestReleaseRevision = releaseRevision
 	return hr
 }
 
