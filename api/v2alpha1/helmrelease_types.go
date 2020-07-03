@@ -145,7 +145,7 @@ func (in Uninstall) GetOnConditions() []Condition {
 	case nil:
 		return []Condition{
 			{
-				Type: InstallCondition,
+				Type:   InstallCondition,
 				Status: corev1.ConditionFalse,
 			},
 		}
