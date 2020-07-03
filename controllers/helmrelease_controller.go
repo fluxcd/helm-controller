@@ -187,7 +187,6 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 		if rel, err = r.install(cfg, loadedChart, hr); err != nil {
 			success = false
 			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionFalse, v2.InstallFailedReason, err.Error())
-			// TODO(hidde): conditional uninstall?
 		} else {
 			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionTrue, v2.InstallSucceededReason, "Helm installation succeeded")
 		}
@@ -216,6 +215,15 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 			v2.SetHelmReleaseCondition(&hr, v2.RollbackCondition, corev1.ConditionFalse, v2.RollbackFailedReason, err.Error())
 		} else {
 			v2.SetHelmReleaseCondition(&hr, v2.RollbackCondition, corev1.ConditionTrue, v2.RollbackSucceededReason, "Helm rollback succeeded")
+		}
+	}
+
+	// Run uninstall
+	if r.shouldUninstall(&hr) {
+		if err = r.uninstall(cfg, hr); err != nil {
+			v2.SetHelmReleaseCondition(&hr, v2.UninstallCondition, corev1.ConditionFalse, v2.UninstallFailedReason, err.Error())
+		} else {
+			v2.SetHelmReleaseCondition(&hr, v2.UninstallCondition, corev1.ConditionTrue, v2.UninstallSucceededReason, "Helm uninstall succeeded")
 		}
 	}
 
@@ -257,6 +265,12 @@ func (r *HelmReleaseReconciler) rollback(cfg *action.Configuration, hr v2.HelmRe
 	return rollback.Run(hr.Name)
 }
 
+func (r *HelmReleaseReconciler) uninstall(cfg *action.Configuration, hr v2.HelmRelease) error {
+	uninstall := action.NewUninstall(cfg)
+	_, err := uninstall.Run(hr.Name)
+	return err
+}
+
 func (r *HelmReleaseReconciler) shouldUpgrade(hr *v2.HelmRelease, source sourcev1.Source, rel *release.Release) bool {
 	switch {
 	case hr.Status.LatestAppliedRevision != source.GetArtifact().Revision:
@@ -289,6 +303,17 @@ func (r *HelmReleaseReconciler) shouldRollback(hr *v2.HelmRelease) bool {
 		return false
 	}
 	for _, c := range hr.Spec.Rollback.GetOnConditions() {
+		for i := len(hr.Status.Conditions) - 1; i >= 0; i-- {
+			if hr.Status.Conditions[i].Type == c.Type && hr.Status.Conditions[i].Status == c.Status {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (r *HelmReleaseReconciler) shouldUninstall(hr *v2.HelmRelease) bool {
+	for _, c := range hr.Spec.Uninstall.GetOnConditions() {
 		for i := len(hr.Status.Conditions) - 1; i >= 0; i-- {
 			if hr.Status.Conditions[i].Type == c.Type && hr.Status.Conditions[i].Status == c.Status {
 				return true

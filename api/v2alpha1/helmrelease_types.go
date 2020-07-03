@@ -55,6 +55,9 @@ type HelmReleaseSpec struct {
 	// +optional
 	Rollback Rollback `json:"rollback,omitempty"`
 
+	// +optional
+	Uninstall Uninstall `json:"uninstall,omitempty"`
+
 	// Values holds the values for this Helm release.
 	// +optional
 	Values apiextensionsv1.JSON `json:"values,omitempty"`
@@ -129,6 +132,25 @@ func (in Rollback) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 		return defaultTimeout
 	default:
 		return *in.Timeout
+	}
+}
+
+type Uninstall struct {
+	// +optional
+	OnCondition *[]Condition `json:"onCondition,omitempty"`
+}
+
+func (in Uninstall) GetOnConditions() []Condition {
+	switch in.OnCondition {
+	case nil:
+		return []Condition{
+			{
+				Type: InstallCondition,
+				Status: corev1.ConditionFalse,
+			},
+		}
+	default:
+		return *in.OnCondition
 	}
 }
 

@@ -62,6 +62,9 @@ const (
 
 	// RollbackCondition represents the fact that the HelmRelease has been successfully rolled back.
 	RollbackCondition string = "Rollback"
+
+	// UninstallCondition represents the fact that the HelmRelease has been successfully uninstalled.
+	UninstallCondition string = "Uninstall"
 )
 
 const (
@@ -89,11 +92,17 @@ const (
 	// TestFailedReason represents the fact that the Helm test for the release failed.
 	TestFailedReason string = "TestFailed"
 
-	// RollbackSucceededReason represents the fact that the Helm test for the release failed.
+	// RollbackSucceededReason represents the fact that the Helm rollback for the release succeeded.
 	RollbackSucceededReason string = "RollbackSucceeded"
 
 	// RollbackFailedReason represents the fact that the Helm test for the release failed.
 	RollbackFailedReason string = "RollbackFailed"
+
+	// UninstallSucceededReason represents the fact that the Helm uninstall for the release succeeded.
+	UninstallSucceededReason string = "UninstallSucceeded"
+
+	// UninstallFailedReason represents the fact that the Helm uninstall for the release failed.
+	UninstallFailedReason string = "UninstallFailed"
 
 	// ArtifactFailedReason represents the fact that the artifact download for the release failed.
 	ArtifactFailedReason string = "ArtifactFailed"

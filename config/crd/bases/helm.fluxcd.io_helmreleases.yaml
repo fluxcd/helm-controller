@@ -137,6 +137,38 @@ spec:
             timeout:
               description: Timeout
               type: string
+            uninstall:
+              properties:
+                onCondition:
+                  items:
+                    description: Condition contains condition information for a HelmRelease.
+                    properties:
+                      lastTransitionTime:
+                        description: LastTransitionTime is the timestamp corresponding
+                          to the last status change of this condition.
+                        format: date-time
+                        type: string
+                      message:
+                        description: Message is a human readable description of the
+                          details of the last transition, complementing reason.
+                        type: string
+                      reason:
+                        description: Reason is a brief machine readable explanation
+                          for the condition's last transition.
+                        type: string
+                      status:
+                        description: Status of the condition, one of ('True', 'False',
+                          'Unknown').
+                        type: string
+                      type:
+                        description: Type of the condition, currently ('Ready').
+                        type: string
+                    required:
+                    - status
+                    - type
+                    type: object
+                  type: array
+              type: object
             values:
               description: Values holds the values for this Helm release.
               x-kubernetes-preserve-unknown-fields: true
