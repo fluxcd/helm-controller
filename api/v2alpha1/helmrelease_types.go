@@ -44,10 +44,8 @@ type HelmReleaseSpec struct {
 	// +optional
 	Wait bool `json:"wait,omitempty"`
 
-	// MaxHistory is the number of revisions saved by Helm for this release.
-	// Use '0' for an unlimited number of revisions; defaults to '10'.
 	// +optional
-	MaxHistory *int `json:"maxHistory,omitempty"`
+	Upgrade Upgrade `json:"upgrade,omitempty"`
 
 	// +optional
 	Test Test `json:"test,omitempty"`
@@ -63,6 +61,14 @@ type HelmReleaseSpec struct {
 	Values apiextensionsv1.JSON `json:"values,omitempty"`
 }
 
+type Upgrade struct {
+	// +optional
+	Timeout *metav1.Duration `json:"timeout,omitempty"`
+
+	// +optional
+	MaxRetries int `json:"maxRetries,omitempty"`
+}
+
 type Test struct {
 	// +optional
 	Enable bool `json:"enable,omitempty"`
@@ -74,7 +80,7 @@ type Test struct {
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 }
 
-func (in Test) GetOnConditions() []Condition {
+func (in Test) On() []Condition {
 	switch in.OnCondition {
 	case nil:
 		return []Condition{
@@ -112,7 +118,7 @@ type Rollback struct {
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 }
 
-func (in Rollback) GetOnConditions() []Condition {
+func (in Rollback) On() []Condition {
 	switch in.OnCondition {
 	case nil:
 		return []Condition{
@@ -140,7 +146,7 @@ type Uninstall struct {
 	OnCondition *[]Condition `json:"onCondition,omitempty"`
 }
 
-func (in Uninstall) GetOnConditions() []Condition {
+func (in Uninstall) On() []Condition {
 	switch in.OnCondition {
 	case nil:
 		return []Condition{
@@ -162,13 +168,20 @@ type HelmReleaseStatus struct {
 	// +optional
 	Conditions []Condition `json:"conditions,omitempty"`
 
-	// LatestAppliedRevision is the revision of the last successfully applied source.
+	// LastAppliedRevision is the revision of the last successfully applied source.
 	// +optional
-	LatestAppliedRevision string `json:"lastAppliedRevision,omitempty"`
+	LastAppliedRevision string `json:"lastAppliedRevision,omitempty"`
 
-	// LatestReleaseRevision is the revision of the last successfully Helm release.
+	// LastAttemptedRevision is the revision of the last reconciliation attempt.
 	// +optional
-	LatestReleaseRevision int `json:"lastReleaseRevision,omitempty"`
+	LastAttemptedRevision string `json:"lastAttemptedRevision,omitempty"`
+
+	// LastReleaseRevision is the revision of the last successfully Helm release.
+	// +optional
+	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`
+
+	// +optional
+	Failures int64 `json:"failures,omitempty"`
 }
 
 // HelmReleaseProgressing resets the conditions of the given HelmRelease to a single
@@ -201,7 +214,7 @@ func SetHelmReleaseCondition(hr *HelmRelease, condition string, status corev1.Co
 
 // HelmReleaseNotReady sets the status of the ReadyCondition of the given HelmRelease to
 // ConditionFalse including the given reason and message.
-func HelmReleaseNotReady(hr HelmRelease, reason, message string) HelmRelease {
+func HelmReleaseNotReady(hr HelmRelease, revision string, releaseRevision int, reason, message string) HelmRelease {
 	hr.Status.Conditions = filterOutCondition(hr.Status.Conditions, ReadyCondition)
 	hr.Status.Conditions = append(hr.Status.Conditions, Condition{
 		Type:               ReadyCondition,
@@ -211,6 +224,9 @@ func HelmReleaseNotReady(hr HelmRelease, reason, message string) HelmRelease {
 		Message:            message,
 	})
 	hr.Status.ObservedGeneration = hr.Generation
+	hr.Status.LastAttemptedRevision = revision
+	hr.Status.LastReleaseRevision = releaseRevision
+	hr.Status.Failures = hr.Status.Failures + 1
 	return hr
 }
 
@@ -227,8 +243,10 @@ func HelmReleaseReady(hr HelmRelease, revision string, releaseRevision int, reas
 		Message:            message,
 	})
 	hr.Status.ObservedGeneration = hr.Generation
-	hr.Status.LatestAppliedRevision = revision
-	hr.Status.LatestReleaseRevision = releaseRevision
+	hr.Status.LastAppliedRevision = revision
+	hr.Status.LastAttemptedRevision = hr.Status.LastAppliedRevision
+	hr.Status.LastReleaseRevision = releaseRevision
+	hr.Status.Failures = 0
 	return hr
 }
 

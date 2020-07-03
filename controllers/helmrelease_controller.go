@@ -101,7 +101,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	// Check source readiness
 	if source.GetArtifact() == nil {
 		msg := "Source is not ready"
-		hr = v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg)
+		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.ArtifactFailedReason, msg)
 		if err := r.Status().Update(ctx, &hr); err != nil {
 			log.Error(err, "unable to update HelmRelease status")
 			return ctrl.Result{Requeue: true}, err
@@ -146,7 +146,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	unlock, err := r.lock(fmt.Sprintf("%s-%s", hr.GetName(), hr.GetNamespace()))
 	if err != nil {
 		err = fmt.Errorf("tmp dir error: %w", err)
-		return v2.HelmReleaseNotReady(hr, sourcev1.StorageOperationFailedReason, err.Error()), err
+		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, sourcev1.StorageOperationFailedReason, err.Error()), err
 	}
 	defer unlock()
 
@@ -160,43 +160,43 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	// Download artifact
 	artifactPath, err := r.download(source.GetArtifact().URL, tmpDir)
 	if err != nil {
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, "artifact acquisition failed"), err
+		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.ArtifactFailedReason, "artifact acquisition failed"), err
 	}
 
 	// Load chart
 	loadedChart, err := loader.Load(artifactPath)
 	if err != nil {
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, "failed to load chart"), err
+		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.ArtifactFailedReason, "failed to load chart"), err
 	}
 
 	// Initialize config
 	cfg, err := r.newActionCfg(log, hr)
 	if err != nil {
-		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to initialize Helm action configuration"), err
+		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.InitFailedReason, "failed to initialize Helm action configuration"), err
 	}
 
 	// Get the current release
 	rel, err := cfg.Releases.Deployed(hr.Name)
 	if err != nil && !errors.Is(err, driver.ErrNoDeployedReleases) {
-		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to determine if release exists"), err
+		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.InitFailedReason, "failed to determine if release exists"), err
 	}
 
 	// Install or upgrade the release
-	success := true
+	success := hr.Status.Failures == 0
 	if errors.Is(err, driver.ErrNoDeployedReleases) {
 		if rel, err = r.install(cfg, loadedChart, hr); err != nil {
-			success = false
 			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionFalse, v2.InstallFailedReason, err.Error())
 		} else {
 			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionTrue, v2.InstallSucceededReason, "Helm installation succeeded")
 		}
+		success = err == nil
 	} else if r.shouldUpgrade(&hr, source, rel) {
 		if rel, err = r.upgrade(cfg, loadedChart, hr); err != nil {
-			success = false
 			v2.SetHelmReleaseCondition(&hr, v2.UpgradeCondition, corev1.ConditionFalse, v2.UpgradeFailedReason, err.Error())
 		} else {
 			v2.SetHelmReleaseCondition(&hr, v2.UpgradeCondition, corev1.ConditionTrue, v2.UpgradeSucceededReason, "Helm upgrade succeeded")
 		}
+		success = err == nil
 	}
 
 	// Run tests
@@ -209,7 +209,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	}
 
 	// Run rollback
-	if r.shouldRollback(&hr) {
+	if rel != nil && rel.Version != hr.Status.LastReleaseRevision && r.shouldRollback(&hr) {
 		success = false
 		if err = r.rollback(cfg, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.RollbackCondition, corev1.ConditionFalse, v2.RollbackFailedReason, err.Error())
@@ -218,8 +218,14 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 		}
 	}
 
+	// Determine release number after action runs
+	var releaseRevision int
+	if curRel, err := cfg.Releases.Deployed(hr.Name); err == nil {
+		releaseRevision = curRel.Version
+	}
+
 	// Run uninstall
-	if r.shouldUninstall(&hr) {
+	if releaseRevision > 0 && r.shouldUninstall(&hr) {
 		if err = r.uninstall(cfg, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.UninstallCondition, corev1.ConditionFalse, v2.UninstallFailedReason, err.Error())
 		} else {
@@ -228,9 +234,9 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	}
 
 	if !success {
-		return v2.HelmReleaseNotReady(hr, v2.ReconciliationFailedReason, "release reconciliation failed"), err
+		return v2.HelmReleaseNotReady(hr, source.GetArtifact().Revision, releaseRevision, v2.ReconciliationFailedReason, "release reconciliation failed"), err
 	}
-	return v2.HelmReleaseReady(hr, source.GetArtifact().Revision, rel.Version, v2.ReconciliationSucceededReason, "release reconciliation succeeded"), nil
+	return v2.HelmReleaseReady(hr, source.GetArtifact().Revision, releaseRevision, v2.ReconciliationSucceededReason, "release reconciliation succeeded"), nil
 }
 
 func (r *HelmReleaseReconciler) install(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (*release.Release, error) {
@@ -273,11 +279,14 @@ func (r *HelmReleaseReconciler) uninstall(cfg *action.Configuration, hr v2.HelmR
 
 func (r *HelmReleaseReconciler) shouldUpgrade(hr *v2.HelmRelease, source sourcev1.Source, rel *release.Release) bool {
 	switch {
-	case hr.Status.LatestAppliedRevision != source.GetArtifact().Revision:
+	case hr.Status.LastAttemptedRevision != source.GetArtifact().Revision:
 		return true
-	case hr.Status.LatestReleaseRevision != rel.Version:
+	case hr.Status.LastReleaseRevision != rel.Version:
 		return true
 	case hr.Generation != hr.Status.ObservedGeneration:
+		return true
+	case hr.Status.Failures > 0 &&
+		(hr.Spec.Upgrade.MaxRetries < 0 || hr.Status.Failures < int64(hr.Spec.Upgrade.MaxRetries)):
 		return true
 	default:
 		return false
@@ -288,7 +297,7 @@ func (r *HelmReleaseReconciler) shouldTest(hr *v2.HelmRelease) bool {
 	if !hr.Spec.Test.Enable {
 		return false
 	}
-	for _, c := range hr.Spec.Test.GetOnConditions() {
+	for _, c := range hr.Spec.Test.On() {
 		for i := len(hr.Status.Conditions) - 1; i >= 0; i-- {
 			if hr.Status.Conditions[i].Type == c.Type && hr.Status.Conditions[i].Status == c.Status {
 				return true
@@ -302,7 +311,7 @@ func (r *HelmReleaseReconciler) shouldRollback(hr *v2.HelmRelease) bool {
 	if !hr.Spec.Rollback.Enable {
 		return false
 	}
-	for _, c := range hr.Spec.Rollback.GetOnConditions() {
+	for _, c := range hr.Spec.Rollback.On() {
 		for i := len(hr.Status.Conditions) - 1; i >= 0; i-- {
 			if hr.Status.Conditions[i].Type == c.Type && hr.Status.Conditions[i].Status == c.Status {
 				return true
@@ -313,7 +322,7 @@ func (r *HelmReleaseReconciler) shouldRollback(hr *v2.HelmRelease) bool {
 }
 
 func (r *HelmReleaseReconciler) shouldUninstall(hr *v2.HelmRelease) bool {
-	for _, c := range hr.Spec.Uninstall.GetOnConditions() {
+	for _, c := range hr.Spec.Uninstall.On() {
 		for i := len(hr.Status.Conditions) - 1; i >= 0; i-- {
 			if hr.Status.Conditions[i].Type == c.Type && hr.Status.Conditions[i].Status == c.Status {
 				return true

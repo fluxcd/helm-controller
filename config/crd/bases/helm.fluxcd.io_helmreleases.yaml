@@ -39,11 +39,6 @@ spec:
             interval:
               description: Interval at which to reconcile the Helm release.
               type: string
-            maxHistory:
-              description: MaxHistory is the number of revisions saved by Helm for
-                this release. Use '0' for an unlimited number of revisions; defaults
-                to '10'.
-              type: integer
             rollback:
               properties:
                 enable:
@@ -169,6 +164,13 @@ spec:
                     type: object
                   type: array
               type: object
+            upgrade:
+              properties:
+                maxRetries:
+                  type: integer
+                timeout:
+                  type: string
+              type: object
             values:
               description: Values holds the values for this Helm release.
               x-kubernetes-preserve-unknown-fields: true
@@ -213,12 +215,19 @@ spec:
                 - type
                 type: object
               type: array
+            failures:
+              format: int64
+              type: integer
             lastAppliedRevision:
-              description: LatestAppliedRevision is the revision of the last successfully
+              description: LastAppliedRevision is the revision of the last successfully
                 applied source.
               type: string
+            lastAttemptedRevision:
+              description: LastAttemptedRevision is the revision of the last reconciliation
+                attempt.
+              type: string
             lastReleaseRevision:
-              description: LatestReleaseRevision is the revision of the last successfully
+              description: LastReleaseRevision is the revision of the last successfully
                 Helm release.
               type: integer
             observedGeneration:
