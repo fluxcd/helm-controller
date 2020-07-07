@@ -36,12 +36,39 @@ spec:
         spec:
           description: HelmReleaseSpec defines the desired state of HelmRelease
           properties:
+            install:
+              properties:
+                disableHooks:
+                  type: boolean
+                disableOpenAPIValidation:
+                  type: boolean
+                disableWait:
+                  type: boolean
+                replace:
+                  type: boolean
+                skipCRDs:
+                  type: boolean
+                timeout:
+                  type: string
+              type: object
             interval:
               description: Interval at which to reconcile the Helm release.
               type: string
+            maxHistory:
+              type: integer
+            releaseName:
+              type: string
             rollback:
               properties:
+                cleanupOnFail:
+                  type: boolean
+                disableHooks:
+                  type: boolean
+                disableWait:
+                  type: boolean
                 enable:
+                  type: boolean
+                force:
                   type: boolean
                 onCondition:
                   items:
@@ -72,6 +99,8 @@ spec:
                     - type
                     type: object
                   type: array
+                recreate:
+                  type: boolean
                 timeout:
                   type: string
               type: object
@@ -93,6 +122,8 @@ spec:
               - kind
               - name
               type: object
+            targetNamespace:
+              type: string
             test:
               properties:
                 enable:
@@ -130,10 +161,11 @@ spec:
                   type: string
               type: object
             timeout:
-              description: Timeout
               type: string
             uninstall:
               properties:
+                disableHooks:
+                  type: boolean
                 onCondition:
                   items:
                     description: Condition contains condition information for a HelmRelease.
@@ -163,22 +195,31 @@ spec:
                     - type
                     type: object
                   type: array
+                timeout:
+                  type: string
               type: object
             upgrade:
               properties:
+                cleanupOnFail:
+                  type: boolean
+                disableHooks:
+                  type: boolean
+                disableOpenAPIValidation:
+                  type: boolean
+                disableWait:
+                  type: boolean
+                force:
+                  type: boolean
                 maxRetries:
                   type: integer
+                preserveValues:
+                  type: boolean
                 timeout:
                   type: string
               type: object
             values:
               description: Values holds the values for this Helm release.
               x-kubernetes-preserve-unknown-fields: true
-            wait:
-              description: Wait tells the reconciler to wait with marking a Helm action
-                as successful until all resources are in a ready state. When set,
-                it will wait for as long as 'Timeout'.
-              type: boolean
           required:
           - interval
           - sourceRef
@@ -227,7 +268,7 @@ spec:
                 attempt.
               type: string
             lastReleaseRevision:
-              description: LastReleaseRevision is the revision of the last successfully
+              description: LastReleaseRevision is the revision of the last successful
                 Helm release.
               type: integer
             observedGeneration:

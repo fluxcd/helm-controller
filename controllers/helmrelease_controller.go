@@ -241,39 +241,59 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 
 func (r *HelmReleaseReconciler) install(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (*release.Release, error) {
 	install := action.NewInstall(cfg)
-	install.ReleaseName = hr.Name
-	install.Namespace = hr.Namespace
+	install.ReleaseName = hr.GetReleaseName()
+	install.Namespace = hr.GetReleaseNamespace()
+	install.Timeout = hr.Spec.Install.GetTimeout(hr.GetTimeout()).Duration
+	install.Wait = !hr.Spec.Install.DisableWait
+	install.DisableHooks = hr.Spec.Install.DisableHooks
+	install.DisableOpenAPIValidation = hr.Spec.Install.DisableOpenAPIValidation
+	install.Replace = hr.Spec.Install.Replace
+	install.SkipCRDs = hr.Spec.Install.SkipCRDs
 
 	return install.Run(chart, hr.GetValues())
 }
 
 func (r *HelmReleaseReconciler) upgrade(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (*release.Release, error) {
 	upgrade := action.NewUpgrade(cfg)
-	upgrade.Namespace = hr.Namespace
-	// TODO(hidde): make this configurable
-	upgrade.ResetValues = true
+	upgrade.Namespace = hr.GetReleaseNamespace()
+	upgrade.ResetValues = !hr.Spec.Upgrade.PreserveValues
+	upgrade.ReuseValues = hr.Spec.Upgrade.PreserveValues
+	upgrade.MaxHistory = hr.GetMaxHistory()
+	upgrade.Timeout = hr.Spec.Upgrade.GetTimeout(hr.GetTimeout()).Duration
+	upgrade.Wait = !hr.Spec.Upgrade.DisableWait
+	upgrade.DisableHooks = hr.Spec.Upgrade.DisableHooks
+	upgrade.Force = hr.Spec.Upgrade.Force
+	upgrade.CleanupOnFail = hr.Spec.Upgrade.CleanupOnFail
 
 	return upgrade.Run(hr.Name, chart, hr.GetValues())
 }
 
 func (r *HelmReleaseReconciler) test(cfg *action.Configuration, hr v2.HelmRelease) (*release.Release, error) {
 	test := action.NewReleaseTesting(cfg)
-	test.Namespace = hr.Namespace
+	test.Namespace = hr.GetReleaseNamespace()
 	test.Timeout = hr.Spec.Test.GetTimeout(hr.GetTimeout()).Duration
 
-	return test.Run(hr.Name)
+	return test.Run(hr.GetReleaseName())
 }
 
 func (r *HelmReleaseReconciler) rollback(cfg *action.Configuration, hr v2.HelmRelease) error {
 	rollback := action.NewRollback(cfg)
 	rollback.Timeout = hr.Spec.Rollback.GetTimeout(hr.GetTimeout()).Duration
+	rollback.Wait = !hr.Spec.Rollback.DisableWait
+	rollback.DisableHooks = hr.Spec.Rollback.DisableHooks
+	rollback.Force = hr.Spec.Rollback.Force
+	rollback.Recreate = hr.Spec.Rollback.Recreate
+	rollback.CleanupOnFail = hr.Spec.Rollback.CleanupOnFail
 
-	return rollback.Run(hr.Name)
+	return rollback.Run(hr.GetReleaseName())
 }
 
 func (r *HelmReleaseReconciler) uninstall(cfg *action.Configuration, hr v2.HelmRelease) error {
 	uninstall := action.NewUninstall(cfg)
-	_, err := uninstall.Run(hr.Name)
+	uninstall.Timeout = hr.Spec.Uninstall.GetTimeout(hr.GetTimeout()).Duration
+	uninstall.DisableHooks = hr.Spec.Uninstall.DisableHooks
+
+	_, err := uninstall.Run(hr.GetReleaseName())
 	return err
 }
 
@@ -365,9 +385,9 @@ func (r *HelmReleaseReconciler) download(url, tmpDir string) (string, error) {
 
 func (r *HelmReleaseReconciler) newActionCfg(log logr.Logger, hr v2.HelmRelease) (*action.Configuration, error) {
 	cfg := new(action.Configuration)
-	// TODO(hidde): write our own init
+	ns := hr.GetReleaseNamespace()
 	err := cfg.Init(&genericclioptions.ConfigFlags{
-		Namespace:   &hr.Namespace,
+		Namespace:   &ns,
 		APIServer:   &r.Config.Host,
 		CAFile:      &r.Config.CAFile,
 		BearerToken: &r.Config.BearerToken,

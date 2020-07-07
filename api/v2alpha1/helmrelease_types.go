@@ -18,6 +18,8 @@ package v2alpha1
 
 import (
 	"encoding/json"
+	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -34,15 +36,20 @@ type HelmReleaseSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
-	// Timeout
+	// +optional
+	ReleaseName string `json:"releaseName,omitempty"`
+
+	// +optional
+	TargetNamespace string `json:"targetNamespace,omitempty"`
+
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
-	// Wait tells the reconciler to wait with marking a Helm action as
-	// successful until all resources are in a ready state. When set, it will
-	// wait for as long as 'Timeout'.
 	// +optional
-	Wait bool `json:"wait,omitempty"`
+	MaxHistory *int `json:"maxHistory,omitempty"`
+
+	// +optional
+	Install Install `json:"install,omitempty"`
 
 	// +optional
 	Upgrade Upgrade `json:"upgrade,omitempty"`
@@ -61,12 +68,68 @@ type HelmReleaseSpec struct {
 	Values apiextensionsv1.JSON `json:"values,omitempty"`
 }
 
+type Install struct {
+	// +optional
+	Timeout *metav1.Duration `json:"timeout,omitempty"`
+
+	// +optional
+	DisableWait bool `json:"disableWait,omitempty"`
+
+	// +optional
+	DisableHooks bool `json:"disableHooks,omitempty"`
+
+	// +optional
+	DisableOpenAPIValidation bool `json:"disableOpenAPIValidation,omitempty"`
+
+	// +optional
+	Replace bool `json:"replace,omitempty"`
+
+	// +optional
+	SkipCRDs bool `json:"skipCRDs,omitempty"`
+}
+
+func (in Install) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
+	switch in.Timeout {
+	case nil:
+		return defaultTimeout
+	default:
+		return *in.Timeout
+	}
+}
+
 type Upgrade struct {
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
 	// +optional
 	MaxRetries int `json:"maxRetries,omitempty"`
+
+	// +optional
+	DisableWait bool `json:"disableWait,omitempty"`
+
+	// +optional
+	DisableHooks bool `json:"disableHooks,omitempty"`
+
+	// +optional
+	DisableOpenAPIValidation bool `json:"disableOpenAPIValidation,omitempty"`
+
+	// +optional
+	Force bool `json:"force,omitempty"`
+
+	// +optional
+	PreserveValues bool `json:"preserveValues,omitempty"`
+
+	// +optional
+	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
+}
+
+func (in Upgrade) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
+	switch in.Timeout {
+	case nil:
+		return defaultTimeout
+	default:
+		return *in.Timeout
+	}
 }
 
 type Test struct {
@@ -116,6 +179,21 @@ type Rollback struct {
 
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
+
+	// +optional
+	DisableHooks bool `json:"disableHooks,omitempty"`
+
+	// +optional
+	DisableWait bool `json:"disableWait,omitempty"`
+
+	// +optional
+	Recreate bool `json:"recreate,omitempty"`
+
+	// +optional
+	Force bool `json:"force,omitempty"`
+
+	// +optional
+	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
 }
 
 func (in Rollback) On() []Condition {
@@ -143,7 +221,22 @@ func (in Rollback) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 
 type Uninstall struct {
 	// +optional
+	Timeout *metav1.Duration `json:"timeout,omitempty"`
+
+	// +optional
 	OnCondition *[]Condition `json:"onCondition,omitempty"`
+
+	// +optional
+	DisableHooks bool `json:"disableHooks,omitempty"`
+}
+
+func (in Uninstall) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
+	switch in.Timeout {
+	case nil:
+		return defaultTimeout
+	default:
+		return *in.Timeout
+	}
 }
 
 func (in Uninstall) On() []Condition {
@@ -176,7 +269,7 @@ type HelmReleaseStatus struct {
 	// +optional
 	LastAttemptedRevision string `json:"lastAttemptedRevision,omitempty"`
 
-	// LastReleaseRevision is the revision of the last successfully Helm release.
+	// LastReleaseRevision is the revision of the last successful Helm release.
 	// +optional
 	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`
 
@@ -274,18 +367,46 @@ type HelmRelease struct {
 
 // GetValues unmarshals the raw values to a map[string]interface{}
 // and returns the result.
-func (in *HelmRelease) GetValues() map[string]interface{} {
+func (in HelmRelease) GetValues() map[string]interface{} {
 	var values map[string]interface{}
 	_ = json.Unmarshal(in.Spec.Values.Raw, &values)
 	return values
 }
 
-func (in *HelmRelease) GetTimeout() metav1.Duration {
+func (in HelmRelease) GetReleaseName() string {
+	if in.Spec.ReleaseName != "" {
+		return in.Spec.ReleaseName
+	}
+	if in.Spec.TargetNamespace != "" {
+		return strings.Join([]string{in.Spec.TargetNamespace, in.Name}, "-")
+	}
+	return in.Name
+}
+
+func (in HelmRelease) GetReleaseNamespace() string {
+	switch {
+	case in.Spec.TargetNamespace != "":
+		return in.Spec.TargetNamespace
+	default:
+		return in.Namespace
+	}
+}
+
+func (in HelmRelease) GetTimeout() metav1.Duration {
 	switch in.Spec.Timeout {
 	case nil:
-		return in.Spec.Interval
+		return metav1.Duration{Duration: 300 * time.Second}
 	default:
 		return *in.Spec.Timeout
+	}
+}
+
+func (in HelmRelease) GetMaxHistory() int {
+	switch in.Spec.MaxHistory {
+	case nil:
+		return 10
+	default:
+		return *in.Spec.MaxHistory
 	}
 }
 
