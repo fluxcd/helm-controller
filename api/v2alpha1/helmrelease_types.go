@@ -140,28 +140,7 @@ type Test struct {
 	Enable bool `json:"enable,omitempty"`
 
 	// +optional
-	OnCondition *[]Condition `json:"onCondition,omitempty"`
-
-	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
-}
-
-func (in Test) On() []Condition {
-	switch in.OnCondition {
-	case nil:
-		return []Condition{
-			{
-				Type:   InstallCondition,
-				Status: corev1.ConditionTrue,
-			},
-			{
-				Type:   UpgradeCondition,
-				Status: corev1.ConditionTrue,
-			},
-		}
-	default:
-		return *in.OnCondition
-	}
 }
 
 func (in Test) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
@@ -176,9 +155,6 @@ func (in Test) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 type Rollback struct {
 	// +optional
 	Enable bool `json:"enable,omitempty"`
-
-	// +optional
-	OnCondition *[]Condition `json:"onCondition,omitempty"`
 
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
@@ -199,20 +175,6 @@ type Rollback struct {
 	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
 }
 
-func (in Rollback) On() []Condition {
-	switch in.OnCondition {
-	case nil:
-		return []Condition{
-			{
-				Type:   UpgradeCondition,
-				Status: corev1.ConditionFalse,
-			},
-		}
-	default:
-		return *in.OnCondition
-	}
-}
-
 func (in Rollback) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	switch in.Timeout {
 	case nil:
@@ -227,9 +189,6 @@ type Uninstall struct {
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
 	// +optional
-	OnCondition *[]Condition `json:"onCondition,omitempty"`
-
-	// +optional
 	DisableHooks bool `json:"disableHooks,omitempty"`
 }
 
@@ -239,20 +198,6 @@ func (in Uninstall) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 		return defaultTimeout
 	default:
 		return *in.Timeout
-	}
-}
-
-func (in Uninstall) On() []Condition {
-	switch in.OnCondition {
-	case nil:
-		return []Condition{
-			{
-				Type:   InstallCondition,
-				Status: corev1.ConditionFalse,
-			},
-		}
-	default:
-		return *in.OnCondition
 	}
 }
 
@@ -344,6 +289,59 @@ func HelmReleaseReady(hr HelmRelease, revision string, releaseRevision int, reas
 	hr.Status.LastReleaseRevision = releaseRevision
 	hr.Status.Failures = 0
 	return hr
+}
+
+func ShouldUpgrade(hr HelmRelease, revision string, releaseRevision int) bool {
+	switch {
+	case hr.Status.LastAttemptedRevision != revision:
+		return true
+	case hr.Status.LastReleaseRevision != releaseRevision:
+		return true
+	case hr.Generation != hr.Status.ObservedGeneration:
+		return true
+	case hr.Status.Failures > 0 &&
+		(hr.Spec.Upgrade.MaxRetries < 0 || hr.Status.Failures < int64(hr.Spec.Upgrade.MaxRetries)):
+		return true
+	default:
+		return false
+	}
+}
+
+func ShouldTest(hr HelmRelease) bool {
+	if hr.Spec.Test.Enable {
+		for _, c := range hr.Status.Conditions {
+			if c.Status == corev1.ConditionTrue && (c.Type == InstallCondition || c.Type == UpgradeCondition) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func ShouldRollback(hr HelmRelease, releaseRevision int) bool {
+	if hr.Spec.Rollback.Enable {
+		if hr.Status.LastReleaseRevision <= releaseRevision {
+			return false
+		}
+		for _, c := range hr.Status.Conditions {
+			if c.Type == UpgradeCondition && c.Status == corev1.ConditionFalse {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func ShouldUninstall(hr HelmRelease, releaseRevision int) bool {
+	if releaseRevision <= 0 {
+		return false
+	}
+	for _, c := range hr.Status.Conditions {
+		if c.Type == InstallCondition && c.Status == corev1.ConditionFalse {
+			return true
+		}
+	}
+	return false
 }
 
 const (

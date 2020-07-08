@@ -210,7 +210,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionTrue, v2.InstallSucceededReason, "Helm installation succeeded")
 		}
 		success = err == nil
-	} else if r.shouldUpgrade(&hr, source, rel) {
+	} else if v2.ShouldUpgrade(hr, source.GetArtifact().Revision, rel.Version) {
 		if rel, err = r.upgrade(cfg, loadedChart, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.UpgradeCondition, corev1.ConditionFalse, v2.UpgradeFailedReason, err.Error())
 		} else {
@@ -220,7 +220,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	}
 
 	// Run tests
-	if r.shouldTest(&hr) {
+	if v2.ShouldTest(hr) {
 		if rel, err = r.test(cfg, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.TestCondition, corev1.ConditionFalse, v2.TestFailedReason, err.Error())
 		} else {
@@ -229,7 +229,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	}
 
 	// Run rollback
-	if rel != nil && rel.Version != hr.Status.LastReleaseRevision && r.shouldRollback(&hr) {
+	if rel != nil && v2.ShouldRollback(hr, rel.Version) {
 		success = false
 		if err = r.rollback(cfg, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.RollbackCondition, corev1.ConditionFalse, v2.RollbackFailedReason, err.Error())
@@ -245,7 +245,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	}
 
 	// Run uninstall
-	if releaseRevision > 0 && r.shouldUninstall(&hr) {
+	if v2.ShouldUninstall(hr, releaseRevision) {
 		if err = r.uninstall(cfg, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.UninstallCondition, corev1.ConditionFalse, v2.UninstallFailedReason, err.Error())
 		} else {
@@ -315,61 +315,6 @@ func (r *HelmReleaseReconciler) uninstall(cfg *action.Configuration, hr v2.HelmR
 
 	_, err := uninstall.Run(hr.GetReleaseName())
 	return err
-}
-
-func (r *HelmReleaseReconciler) shouldUpgrade(hr *v2.HelmRelease, source sourcev1.Source, rel *release.Release) bool {
-	switch {
-	case hr.Status.LastAttemptedRevision != source.GetArtifact().Revision:
-		return true
-	case hr.Status.LastReleaseRevision != rel.Version:
-		return true
-	case hr.Generation != hr.Status.ObservedGeneration:
-		return true
-	case hr.Status.Failures > 0 &&
-		(hr.Spec.Upgrade.MaxRetries < 0 || hr.Status.Failures < int64(hr.Spec.Upgrade.MaxRetries)):
-		return true
-	default:
-		return false
-	}
-}
-
-func (r *HelmReleaseReconciler) shouldTest(hr *v2.HelmRelease) bool {
-	if !hr.Spec.Test.Enable {
-		return false
-	}
-	for _, c := range hr.Spec.Test.On() {
-		for i := len(hr.Status.Conditions) - 1; i >= 0; i-- {
-			if hr.Status.Conditions[i].Type == c.Type && hr.Status.Conditions[i].Status == c.Status {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (r *HelmReleaseReconciler) shouldRollback(hr *v2.HelmRelease) bool {
-	if !hr.Spec.Rollback.Enable {
-		return false
-	}
-	for _, c := range hr.Spec.Rollback.On() {
-		for i := len(hr.Status.Conditions) - 1; i >= 0; i-- {
-			if hr.Status.Conditions[i].Type == c.Type && hr.Status.Conditions[i].Status == c.Status {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (r *HelmReleaseReconciler) shouldUninstall(hr *v2.HelmRelease) bool {
-	for _, c := range hr.Spec.Uninstall.On() {
-		for i := len(hr.Status.Conditions) - 1; i >= 0; i-- {
-			if hr.Status.Conditions[i].Type == c.Type && hr.Status.Conditions[i].Status == c.Status {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func (r *HelmReleaseReconciler) lock(name string) (unlock func(), err error) {
