@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	sourcev1 "github.com/fluxcd/source-controller/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,6 +51,7 @@ func main() {
 		metricsAddr          string
 		enableLeaderElection bool
 		concurrent           int
+		requeueDependency    time.Duration
 		logJSON              bool
 	)
 
@@ -58,6 +60,7 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.IntVar(&concurrent, "concurrent", 4, "The number of concurrent HelmRelease reconciles.")
+	flag.DurationVar(&requeueDependency, "requeue-dependency", 30*time.Second, "The interval at which failing dependencies are reevaluated.")
 	flag.BoolVar(&logJSON, "log-json", false, "Set logging to JSON format.")
 	flag.Parse()
 
@@ -88,7 +91,10 @@ func main() {
 		Config: mgr.GetConfig(),
 		Log:    ctrl.Log.WithName("controllers").WithName("HelmRelease"),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr, controllers.HelmReleaseReconcilerOptions{MaxConcurrentReconciles: concurrent}); err != nil {
+	}).SetupWithManager(mgr, controllers.HelmReleaseReconcilerOptions{
+		MaxConcurrentReconciles:   concurrent,
+		DependencyRequeueInterval: requeueDependency,
+	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HelmRelease")
 		os.Exit(1)
 	}

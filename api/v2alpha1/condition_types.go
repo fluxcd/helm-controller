@@ -112,4 +112,7 @@ const (
 
 	// ProgressingReason represents the fact that the reconciliation for the resource is underway.
 	ProgressingReason string = "Progressing"
+
+	// DependencyNotReadyReason represents the fact that the one of the dependencies is not ready.
+	DependencyNotReadyReason string = "DependencyNotReady"
 )

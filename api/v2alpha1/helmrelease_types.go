@@ -43,6 +43,9 @@ type HelmReleaseSpec struct {
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 
 	// +optional
+	DependsOn []string `json:"dependsOn,omitempty"`
+
+	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
 	// +optional

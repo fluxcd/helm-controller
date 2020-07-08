@@ -53,9 +53,10 @@ import (
 // HelmReleaseReconciler reconciles a HelmRelease object
 type HelmReleaseReconciler struct {
 	client.Client
-	Config *rest.Config
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Config            *rest.Config
+	Log               logr.Logger
+	Scheme            *runtime.Scheme
+	requeueDependency time.Duration
 }
 
 // +kubebuilder:rbac:groups=helm.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete
@@ -110,6 +111,23 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{}, nil
 	}
 
+	// Check dependencies
+	if len(hr.Spec.DependsOn) > 0 {
+		if err := r.checkDependencies(hr); err != nil {
+			hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.DependencyNotReadyReason, err.Error())
+			if err := r.Status().Update(ctx, &hr); err != nil {
+				log.Error(err, "unable to update HelmRelease status")
+				return ctrl.Result{Requeue: true}, err
+			}
+			// Exponential backoff would cause execution to be prolonged too much,
+			// instead we requeue on a fixed interval.
+			msg := fmt.Sprintf("Dependencies do not meet ready condition (%s), retrying in %s", err.Error(), r.requeueDependency.String())
+			log.Info(msg)
+			return ctrl.Result{RequeueAfter: r.requeueDependency}, nil
+		}
+		log.Info("All dependencies area ready, proceeding with apply")
+	}
+
 	reconciledHr, err := r.release(log, hr, source)
 	if err != nil {
 		log.Error(err, "HelmRelease reconciliation failed", "revision", source.GetArtifact().Revision)
@@ -130,10 +148,12 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 }
 
 type HelmReleaseReconcilerOptions struct {
-	MaxConcurrentReconciles int
+	MaxConcurrentReconciles   int
+	DependencyRequeueInterval time.Duration
 }
 
 func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
+	r.requeueDependency = opts.DependencyRequeueInterval
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v2.HelmRelease{}).
 		WithEventFilter(HelmReleaseReconcileAtPredicate{}).
@@ -381,6 +401,31 @@ func (r *HelmReleaseReconciler) download(url, tmpDir string) (string, error) {
 	}
 
 	return fp, nil
+}
+
+func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
+	for _, dep := range hr.Spec.DependsOn {
+		depName := types.NamespacedName{
+			Namespace: hr.GetNamespace(),
+			Name:      dep,
+		}
+		var depHr v2.HelmRelease
+		err := r.Get(context.Background(), depName, &depHr)
+		if err != nil {
+			return fmt.Errorf("unable to get '%s' dependency: %w", depName, err)
+		}
+
+		if len(depHr.Status.Conditions) == 0 {
+			return fmt.Errorf("dependency '%s' is not ready", depName)
+		}
+
+		for _, condition := range depHr.Status.Conditions {
+			if condition.Type == v2.ReadyCondition && condition.Status != corev1.ConditionTrue {
+				return fmt.Errorf("dependency '%s' is not ready", depName)
+			}
+		}
+	}
+	return nil
 }
 
 func (r *HelmReleaseReconciler) newActionCfg(log logr.Logger, hr v2.HelmRelease) (*action.Configuration, error) {

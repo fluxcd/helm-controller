@@ -31,7 +31,7 @@ import (
 
 	sourcev1 "github.com/fluxcd/source-controller/api/v1alpha1"
 
-	helmreleasev2 "github.com/fluxcd/helm-controller/api/v2alpha1"
+	v2 "github.com/fluxcd/helm-controller/api/v2alpha1"
 )
 
 // HelmChartWatcher watches HelmChart objects for revision changes and
@@ -58,17 +58,21 @@ func (r *HelmChartWatcher) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	log.Info("new artifact detected", "revision", chart.GetArtifact().Revision)
 
 	// Get the list of HelmReleases that are using this HelmChart.
-	var list helmreleasev2.HelmReleaseList
+	var list v2.HelmReleaseList
 	if err := r.List(ctx, &list, client.InNamespace(req.Namespace),
-		client.MatchingFields{helmreleasev2.SourceIndexKey: req.Name}); err != nil {
+		client.MatchingFields{v2.SourceIndexKey: req.Name}); err != nil {
 		log.Error(err, "unable to list HelmReleases")
 		return ctrl.Result{}, err
 	}
 
-	// TODO(hidde): dependency sort
+	sorted, err := v2.DependencySort(list.Items)
+	if err != nil {
+		log.Error(err, "unable to dependency sort kustomizations")
+		return ctrl.Result{}, err
+	}
 
 	// Trigger reconciliation for each HelmRelease using this HelmChart.
-	for _, hr := range list.Items {
+	for _, hr := range sorted {
 		namespacedName := types.NamespacedName{Namespace: hr.Namespace, Name: hr.Name}
 		if err := r.requestReconciliation(ctx, hr); err != nil {
 			log.Error(err, "unable to annotate HelmRelease", strings.ToLower(hr.Kind), namespacedName)
@@ -82,9 +86,9 @@ func (r *HelmChartWatcher) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 func (r *HelmChartWatcher) SetupWithManager(mgr ctrl.Manager) error {
 	// Create a HelmRelease index based on the HelmChart name
-	err := mgr.GetFieldIndexer().IndexField(context.TODO(), &helmreleasev2.HelmRelease{}, helmreleasev2.SourceIndexKey,
+	err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v2.HelmRelease{}, v2.SourceIndexKey,
 		func(rawObj runtime.Object) []string {
-			hr := rawObj.(*helmreleasev2.HelmRelease)
+			hr := rawObj.(*v2.HelmRelease)
 			if hr.Spec.SourceRef.Kind == "HelmChart" {
 				return []string{hr.Spec.SourceRef.Name}
 			}
@@ -102,7 +106,7 @@ func (r *HelmChartWatcher) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // requestReconciliation annotates the given HelmRelease to be reconciled immediately.
-func (r *HelmChartWatcher) requestReconciliation(ctx context.Context, hr helmreleasev2.HelmRelease) error {
+func (r *HelmChartWatcher) requestReconciliation(ctx context.Context, hr v2.HelmRelease) error {
 	firstTry := true
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
 		if !firstTry {
@@ -118,7 +122,7 @@ func (r *HelmChartWatcher) requestReconciliation(ctx context.Context, hr helmrel
 		if hr.Annotations == nil {
 			hr.Annotations = make(map[string]string)
 		}
-		hr.Annotations[helmreleasev2.ReconcileAtAnnotation] = metav1.Now().String()
+		hr.Annotations[v2.ReconcileAtAnnotation] = metav1.Now().String()
 		// Prevent strings can't be nil err as API package does not mark APIGroup with omitempty.
 		if hr.Spec.SourceRef.APIGroup == nil {
 			emptyAPIGroup := ""
