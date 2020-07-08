@@ -56,6 +56,10 @@ jobs:
           kubectl -n helm-system rollout status deploy/helm-controller --timeout=1m
         env:
           KUBEBUILDER_ASSETS: ${{ github.workspace }}/kubebuilder/bin
+      - name: Run smoke test
+        run: |
+          kubectl -n helm-system apply -f config/testdata/podinfo/
+          kubectl -n helm-system wait helmreleases/podinfo --for=condition=ready --timeout=4m
       - name: Logs
         run: |
           kubectl -n helm-system logs deploy/source-controller
