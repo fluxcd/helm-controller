@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// HelmReleaseSpec defines the desired state of HelmRelease
+// HelmReleaseSpec defines the desired state of HelmRelease.
 type HelmReleaseSpec struct {
 	// SourceRef of the HelmChart source.
 	// +required
@@ -36,33 +36,48 @@ type HelmReleaseSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
+	// ReleaseName used for the Helm release. Defaults to a composition of
+	// '[TargetNamespace-]Name'.
 	// +optional
 	ReleaseName string `json:"releaseName,omitempty"`
 
+	// TargetNamespace to target when performing operations for the HelmRelease.
+	// Defaults to the namespace of the HelmRelease.
 	// +optional
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 
+	// DependsOn may contain a list of HelmReleases that must be ready before this
+	// HelmRelease can be reconciled.
 	// +optional
 	DependsOn []string `json:"dependsOn,omitempty"`
 
+	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
+	// for hooks) during the performance of a Helm action. Defaults to '300s'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
+	// MaxHistory is the number of revisions saved by Helm for this release.
+	// Use '0' for an unlimited number of revisions; defaults to '10'.
 	// +optional
 	MaxHistory *int `json:"maxHistory,omitempty"`
 
+	// Install holds the configuration for Helm install actions for this release.
 	// +optional
 	Install Install `json:"install,omitempty"`
 
+	// Upgrade holds the configuration for Helm upgrade actions for this release.
 	// +optional
 	Upgrade Upgrade `json:"upgrade,omitempty"`
 
+	// Test holds the configuration for Helm test actions for this release.
 	// +optional
 	Test Test `json:"test,omitempty"`
 
+	// Rollback holds the configuration for Helm rollback actions for this release.
 	// +optional
 	Rollback Rollback `json:"rollback,omitempty"`
 
+	// Uninstall holds the configuration for Helm uninstall actions for this release.
 	// +optional
 	Uninstall Uninstall `json:"uninstall,omitempty"`
 
@@ -71,26 +86,40 @@ type HelmReleaseSpec struct {
 	Values apiextensionsv1.JSON `json:"values,omitempty"`
 }
 
+// Install holds the configuration for Helm install actions.
 type Install struct {
+	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
+	// for hooks) during the performance of a Helm install action. Defaults to 'Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
+	// DisableWait disables the waiting for resources to be ready after a
+	// Helm install has been performed.
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
 
+	// DisableHooks prevents hooks from running during the Helm install action.
 	// +optional
 	DisableHooks bool `json:"disableHooks,omitempty"`
 
+	// DisableOpenAPIValidation prevents the Helm install action from
+	// validating rendered templates against the Kubernetes OpenAPI Schema.
 	// +optional
 	DisableOpenAPIValidation bool `json:"disableOpenAPIValidation,omitempty"`
 
+	// Replace tells the Helm install action to re-use the 'ReleaseName', but
+	// only if that name is a deleted release which remains in the history.
 	// +optional
 	Replace bool `json:"replace,omitempty"`
 
+	// SkipCRDs tells the Helm install action to not install any CRDs. By default,
+	// CRDs are installed if not already present.
 	// +optional
 	SkipCRDs bool `json:"skipCRDs,omitempty"`
 }
 
+// GetTimeout returns the configured timeout for the Helm install action,
+// or the given default.
 func (in Install) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	switch in.Timeout {
 	case nil:
@@ -100,32 +129,50 @@ func (in Install) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	}
 }
 
+// Upgrade holds the configuration for Helm upgrade actions.
 type Upgrade struct {
+	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
+	// for hooks) during the performance of a Helm upgrade action. Defaults to 'Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
+	// MaxRetries is the number of retries that should be attempted on failures before
+	// bailing. Defaults to '0', a negative integer equals to unlimited retries.
 	// +optional
 	MaxRetries int `json:"maxRetries,omitempty"`
 
+	// DisableWait disables the waiting for resources to be ready after a
+	// Helm upgrade has been performed.
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
 
+	// DisableHooks prevents hooks from running during the Helm upgrade action.
 	// +optional
 	DisableHooks bool `json:"disableHooks,omitempty"`
 
+	// DisableOpenAPIValidation prevents the Helm upgrade action from
+	// validating rendered templates against the Kubernetes OpenAPI Schema.
 	// +optional
 	DisableOpenAPIValidation bool `json:"disableOpenAPIValidation,omitempty"`
 
+	// Force forces resource updates through a replacement strategy.
 	// +optional
 	Force bool `json:"force,omitempty"`
 
+	// PreserveValues will make Helm reuse the last release's values and merge
+	// in overrides from 'Values'. Setting this flag makes the HelmRelease
+	// non-declarative.
 	// +optional
 	PreserveValues bool `json:"preserveValues,omitempty"`
 
+	// CleanupOnFail allows deletion of new resources created during the Helm
+	// upgrade action when it fails.
 	// +optional
 	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
 }
 
+// GetTimeout returns the configured timeout for the Helm upgrade action,
+// or the given default.
 func (in Upgrade) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	switch in.Timeout {
 	case nil:
@@ -135,14 +182,21 @@ func (in Upgrade) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	}
 }
 
+// Test holds the configuration for Helm test actions.
 type Test struct {
+	// Enable enables Helm test actions for this release after an
+	// Helm install or upgrade action has been performed.
 	// +optional
 	Enable bool `json:"enable,omitempty"`
 
+	// Timeout is the time to wait for any individual Kubernetes operation
+	// during the performance of a Helm test action. Defaults to 'Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 }
 
+// GetTimeout returns the configured timeout for the Helm test action,
+// or the given default.
 func (in Test) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	switch in.Timeout {
 	case nil:
@@ -152,29 +206,43 @@ func (in Test) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	}
 }
 
+// Rollback holds the configuration for Helm rollback actions.
 type Rollback struct {
+	// Enable enables Helm rollback actions for this release after an
+	// Helm install or upgrade action failure.
 	// +optional
 	Enable bool `json:"enable,omitempty"`
 
+	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
+	// for hooks) during the performance of a Helm rollback action. Defaults to 'Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
-	// +optional
-	DisableHooks bool `json:"disableHooks,omitempty"`
-
+	// DisableWait disables the waiting for resources to be ready after a
+	// Helm rollback has been performed.
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
 
+	// DisableHooks prevents hooks from running during the Helm rollback action.
+	// +optional
+	DisableHooks bool `json:"disableHooks,omitempty"`
+
+	// Recreate performs pod restarts for the resource if applicable.
 	// +optional
 	Recreate bool `json:"recreate,omitempty"`
 
+	// Force forces resource updates through a replacement strategy.
 	// +optional
 	Force bool `json:"force,omitempty"`
 
+	// CleanupOnFail allows deletion of new resources created during the Helm
+	// rollback action when it fails.
 	// +optional
 	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
 }
 
+// GetTimeout returns the configured timeout for the Helm rollback action,
+// or the given default.
 func (in Rollback) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	switch in.Timeout {
 	case nil:
@@ -184,14 +252,20 @@ func (in Rollback) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	}
 }
 
+// Uninstall holds the configuration for Helm uninstall actions.
 type Uninstall struct {
+	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
+	// for hooks) during the performance of a Helm uninstall action. Defaults to 'Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
+	// DisableHooks prevents hooks from running during the Helm rollback action.
 	// +optional
 	DisableHooks bool `json:"disableHooks,omitempty"`
 }
 
+// GetTimeout returns the configured timeout for the Helm uninstall action,
+// or the given default.
 func (in Uninstall) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	switch in.Timeout {
 	case nil:
@@ -203,9 +277,11 @@ func (in Uninstall) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 
 // HelmReleaseStatus defines the observed state of HelmRelease
 type HelmReleaseStatus struct {
+	// ObservedGeneration is the last reconciled generation.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// Conditions holds the conditions for the HelmRelease.
 	// +optional
 	Conditions []Condition `json:"conditions,omitempty"`
 
@@ -221,6 +297,8 @@ type HelmReleaseStatus struct {
 	// +optional
 	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`
 
+	// Failures is the reconciliation failure count. It is reset after a successful
+	// reconciliation.
 	// +optional
 	Failures int64 `json:"failures,omitempty"`
 }
@@ -291,6 +369,7 @@ func HelmReleaseReady(hr HelmRelease, revision string, releaseRevision int, reas
 	return hr
 }
 
+// ShouldUpgrade determines if an Helm upgrade action needs to be performed for the given HelmRelease.
 func ShouldUpgrade(hr HelmRelease, revision string, releaseRevision int) bool {
 	switch {
 	case hr.Status.LastAttemptedRevision != revision:
@@ -307,6 +386,7 @@ func ShouldUpgrade(hr HelmRelease, revision string, releaseRevision int) bool {
 	}
 }
 
+// ShouldTest determines if a Helm test actions needs to be performed for the given HelmRelease.
 func ShouldTest(hr HelmRelease) bool {
 	if hr.Spec.Test.Enable {
 		for _, c := range hr.Status.Conditions {
@@ -318,6 +398,7 @@ func ShouldTest(hr HelmRelease) bool {
 	return false
 }
 
+// ShouldRollback determines if a Helm rollback action needs to be performed for the given HelmRelease.
 func ShouldRollback(hr HelmRelease, releaseRevision int) bool {
 	if hr.Spec.Rollback.Enable {
 		if hr.Status.LastReleaseRevision <= releaseRevision {
@@ -332,6 +413,7 @@ func ShouldRollback(hr HelmRelease, releaseRevision int) bool {
 	return false
 }
 
+// ShouldUninstall determines if a Helm uninstall action needs to be performed for the given HelmRelease.
 func ShouldUninstall(hr HelmRelease, releaseRevision int) bool {
 	if releaseRevision <= 0 {
 		return false
@@ -374,6 +456,8 @@ func (in HelmRelease) GetValues() map[string]interface{} {
 	return values
 }
 
+// GetReleaseName returns the configured release name, or a composition of
+// '[TargetNamespace-]Name'.
 func (in HelmRelease) GetReleaseName() string {
 	if in.Spec.ReleaseName != "" {
 		return in.Spec.ReleaseName
@@ -384,6 +468,8 @@ func (in HelmRelease) GetReleaseName() string {
 	return in.Name
 }
 
+// GetReleaseNamespace returns the configured TargetNamespace, or the namespace
+// of the HelmRelease.
 func (in HelmRelease) GetReleaseNamespace() string {
 	switch {
 	case in.Spec.TargetNamespace != "":
@@ -393,6 +479,7 @@ func (in HelmRelease) GetReleaseNamespace() string {
 	}
 }
 
+// GetTimeout returns the configured Timeout, or the default of 300s.
 func (in HelmRelease) GetTimeout() metav1.Duration {
 	switch in.Spec.Timeout {
 	case nil:
@@ -402,6 +489,7 @@ func (in HelmRelease) GetTimeout() metav1.Duration {
 	}
 }
 
+// GetMaxHistory returns the configured MaxHistory, or the default of 10.
 func (in HelmRelease) GetMaxHistory() int {
 	switch in.Spec.MaxHistory {
 	case nil:

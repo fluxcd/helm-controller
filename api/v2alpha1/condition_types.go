@@ -23,7 +23,7 @@ import (
 
 // Condition contains condition information for a HelmRelease.
 type Condition struct {
-	// Type of the condition, currently ('Ready').
+	// Type of the condition, one of ('Ready', 'Install', 'Upgrade', 'Test', 'Rollback', 'Uninstall').
 	// +required
 	Type string `json:"type"`
 

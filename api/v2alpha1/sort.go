@@ -27,6 +27,8 @@ func (e Unsortable) Error() string {
 	return fmt.Sprintf("circular dependencies: %v", [][]string(e))
 }
 
+// DependencySort sorts the slice of HelmReleases based on their listed
+// dependencies using Tarjan's strongly connected components algorithm.
 func DependencySort(ks []HelmRelease) ([]HelmRelease, error) {
 	n := make(graph)
 	lookup := map[string]*HelmRelease{}
