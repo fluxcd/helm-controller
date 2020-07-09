@@ -428,6 +428,17 @@ func ShouldUninstall(hr HelmRelease, releaseRevision int) bool {
 	return false
 }
 
+// HelmReleaseReadyMessage returns the message of the HelmRelease
+// of type Ready with status true if present, or an empty string.
+func HelmReleaseReadyMessage(hr HelmRelease) string {
+	for _, condition := range hr.Status.Conditions {
+		if condition.Type == ReadyCondition && condition.Status == corev1.ConditionTrue {
+			return condition.Message
+		}
+	}
+	return ""
+}
+
 const (
 	// ReconcileAtAnnotation is the annotation used for triggering a
 	// reconciliation outside of the defined schedule.

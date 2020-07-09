@@ -40,11 +40,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
+	kuberecorder "k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/reference"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	"github.com/fluxcd/pkg/lockedfile"
+	"github.com/fluxcd/pkg/recorder"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1alpha1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2alpha1"
@@ -53,10 +56,12 @@ import (
 // HelmReleaseReconciler reconciles a HelmRelease object
 type HelmReleaseReconciler struct {
 	client.Client
-	Config            *rest.Config
-	Log               logr.Logger
-	Scheme            *runtime.Scheme
-	requeueDependency time.Duration
+	Config                *rest.Config
+	Log                   logr.Logger
+	Scheme                *runtime.Scheme
+	requeueDependency     time.Duration
+	EventRecorder         kuberecorder.EventRecorder
+	ExternalEventRecorder *recorder.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=helm.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete
@@ -123,6 +128,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 			// instead we requeue on a fixed interval.
 			msg := fmt.Sprintf("Dependencies do not meet ready condition (%s), retrying in %s", err.Error(), r.requeueDependency.String())
 			log.Info(msg)
+			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, msg)
 			return ctrl.Result{RequeueAfter: r.requeueDependency}, nil
 		}
 		log.Info("All dependencies area ready, proceeding with release")
@@ -131,6 +137,9 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	reconciledHr, err := r.release(log, hr, source)
 	if err != nil {
 		log.Error(err, "HelmRelease reconciliation failed", "revision", source.GetArtifact().Revision)
+		r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, err.Error())
+	} else {
+		r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, v2.HelmReleaseReadyMessage(reconciledHr))
 	}
 
 	if err := r.Status().Update(ctx, &reconciledHr); err != nil {
@@ -283,6 +292,32 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 		}
 	}
 	return nil
+}
+
+func (r *HelmReleaseReconciler) event(hr v2.HelmRelease, revision, severity, msg string) {
+	r.EventRecorder.Event(&hr, "Normal", severity, msg)
+	objRef, err := reference.GetReference(r.Scheme, &hr)
+	if err != nil {
+		r.Log.WithValues(
+			strings.ToLower(hr.Kind),
+			fmt.Sprintf("%s/%s", hr.GetNamespace(), hr.GetName()),
+		).Error(err, "unable to send event")
+		return
+	}
+
+	if r.ExternalEventRecorder != nil {
+		var meta map[string]string
+		if revision != "" {
+			meta = map[string]string{"revision": revision}
+		}
+		if err := r.ExternalEventRecorder.Eventf(*objRef, meta, severity, severity, msg); err != nil {
+			r.Log.WithValues(
+				strings.ToLower(hr.Kind),
+				fmt.Sprintf("%s/%s", hr.GetNamespace(), hr.GetName()),
+			).Error(err, "unable to send event")
+			return
+		}
+	}
 }
 
 func install(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (*release.Release, error) {
