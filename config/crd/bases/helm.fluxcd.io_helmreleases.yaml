@@ -15,6 +15,8 @@ spec:
     plural: helmreleases
     singular: helmrelease
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: HelmRelease is the Schema for the helmreleases API
@@ -32,15 +34,250 @@ spec:
         metadata:
           type: object
         spec:
-          description: HelmReleaseSpec defines the desired state of HelmRelease
+          description: HelmReleaseSpec defines the desired state of HelmRelease.
           properties:
-            foo:
-              description: Foo is an example field of HelmRelease. Edit HelmRelease_types.go
-                to remove/update
+            dependsOn:
+              description: DependsOn may contain a list of HelmReleases that must
+                be ready before this HelmRelease can be reconciled.
+              items:
+                type: string
+              type: array
+            install:
+              description: Install holds the configuration for Helm install actions
+                for this release.
+              properties:
+                disableHooks:
+                  description: DisableHooks prevents hooks from running during the
+                    Helm install action.
+                  type: boolean
+                disableOpenAPIValidation:
+                  description: DisableOpenAPIValidation prevents the Helm install
+                    action from validating rendered templates against the Kubernetes
+                    OpenAPI Schema.
+                  type: boolean
+                disableWait:
+                  description: DisableWait disables the waiting for resources to be
+                    ready after a Helm install has been performed.
+                  type: boolean
+                replace:
+                  description: Replace tells the Helm install action to re-use the
+                    'ReleaseName', but only if that name is a deleted release which
+                    remains in the history.
+                  type: boolean
+                skipCRDs:
+                  description: SkipCRDs tells the Helm install action to not install
+                    any CRDs. By default, CRDs are installed if not already present.
+                  type: boolean
+                timeout:
+                  description: Timeout is the time to wait for any individual Kubernetes
+                    operation (like Jobs for hooks) during the performance of a Helm
+                    install action. Defaults to 'Timeout'.
+                  type: string
+              type: object
+            interval:
+              description: Interval at which to reconcile the Helm release.
               type: string
+            maxHistory:
+              description: MaxHistory is the number of revisions saved by Helm for
+                this release. Use '0' for an unlimited number of revisions; defaults
+                to '10'.
+              type: integer
+            releaseName:
+              description: ReleaseName used for the Helm release. Defaults to a composition
+                of '[TargetNamespace-]Name'.
+              type: string
+            rollback:
+              description: Rollback holds the configuration for Helm rollback actions
+                for this release.
+              properties:
+                cleanupOnFail:
+                  description: CleanupOnFail allows deletion of new resources created
+                    during the Helm rollback action when it fails.
+                  type: boolean
+                disableHooks:
+                  description: DisableHooks prevents hooks from running during the
+                    Helm rollback action.
+                  type: boolean
+                disableWait:
+                  description: DisableWait disables the waiting for resources to be
+                    ready after a Helm rollback has been performed.
+                  type: boolean
+                enable:
+                  description: Enable enables Helm rollback actions for this release
+                    after an Helm install or upgrade action failure.
+                  type: boolean
+                force:
+                  description: Force forces resource updates through a replacement
+                    strategy.
+                  type: boolean
+                recreate:
+                  description: Recreate performs pod restarts for the resource if
+                    applicable.
+                  type: boolean
+                timeout:
+                  description: Timeout is the time to wait for any individual Kubernetes
+                    operation (like Jobs for hooks) during the performance of a Helm
+                    rollback action. Defaults to 'Timeout'.
+                  type: string
+              type: object
+            sourceRef:
+              description: SourceRef of the HelmChart source.
+              properties:
+                apiGroup:
+                  description: APIGroup is the group for the resource being referenced.
+                    If APIGroup is not specified, the specified Kind must be in the
+                    core API group. For any other third-party types, APIGroup is required.
+                  type: string
+                kind:
+                  description: Kind is the type of resource being referenced
+                  type: string
+                name:
+                  description: Name is the name of resource being referenced
+                  type: string
+              required:
+              - kind
+              - name
+              type: object
+            targetNamespace:
+              description: TargetNamespace to target when performing operations for
+                the HelmRelease. Defaults to the namespace of the HelmRelease.
+              type: string
+            test:
+              description: Test holds the configuration for Helm test actions for
+                this release.
+              properties:
+                enable:
+                  description: Enable enables Helm test actions for this release after
+                    an Helm install or upgrade action has been performed.
+                  type: boolean
+                timeout:
+                  description: Timeout is the time to wait for any individual Kubernetes
+                    operation during the performance of a Helm test action. Defaults
+                    to 'Timeout'.
+                  type: string
+              type: object
+            timeout:
+              description: Timeout is the time to wait for any individual Kubernetes
+                operation (like Jobs for hooks) during the performance of a Helm action.
+                Defaults to '300s'.
+              type: string
+            uninstall:
+              description: Uninstall holds the configuration for Helm uninstall actions
+                for this release.
+              properties:
+                disableHooks:
+                  description: DisableHooks prevents hooks from running during the
+                    Helm rollback action.
+                  type: boolean
+                timeout:
+                  description: Timeout is the time to wait for any individual Kubernetes
+                    operation (like Jobs for hooks) during the performance of a Helm
+                    uninstall action. Defaults to 'Timeout'.
+                  type: string
+              type: object
+            upgrade:
+              description: Upgrade holds the configuration for Helm upgrade actions
+                for this release.
+              properties:
+                cleanupOnFail:
+                  description: CleanupOnFail allows deletion of new resources created
+                    during the Helm upgrade action when it fails.
+                  type: boolean
+                disableHooks:
+                  description: DisableHooks prevents hooks from running during the
+                    Helm upgrade action.
+                  type: boolean
+                disableOpenAPIValidation:
+                  description: DisableOpenAPIValidation prevents the Helm upgrade
+                    action from validating rendered templates against the Kubernetes
+                    OpenAPI Schema.
+                  type: boolean
+                disableWait:
+                  description: DisableWait disables the waiting for resources to be
+                    ready after a Helm upgrade has been performed.
+                  type: boolean
+                force:
+                  description: Force forces resource updates through a replacement
+                    strategy.
+                  type: boolean
+                maxRetries:
+                  description: MaxRetries is the number of retries that should be
+                    attempted on failures before bailing. Defaults to '0', a negative
+                    integer equals to unlimited retries.
+                  type: integer
+                preserveValues:
+                  description: PreserveValues will make Helm reuse the last release's
+                    values and merge in overrides from 'Values'. Setting this flag
+                    makes the HelmRelease non-declarative.
+                  type: boolean
+                timeout:
+                  description: Timeout is the time to wait for any individual Kubernetes
+                    operation (like Jobs for hooks) during the performance of a Helm
+                    upgrade action. Defaults to 'Timeout'.
+                  type: string
+              type: object
+            values:
+              description: Values holds the values for this Helm release.
+              x-kubernetes-preserve-unknown-fields: true
+          required:
+          - interval
+          - sourceRef
           type: object
         status:
           description: HelmReleaseStatus defines the observed state of HelmRelease
+          properties:
+            conditions:
+              description: Conditions holds the conditions for the HelmRelease.
+              items:
+                description: Condition contains condition information for a HelmRelease.
+                properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the timestamp corresponding
+                      to the last status change of this condition.
+                    format: date-time
+                    type: string
+                  message:
+                    description: Message is a human readable description of the details
+                      of the last transition, complementing reason.
+                    type: string
+                  reason:
+                    description: Reason is a brief machine readable explanation for
+                      the condition's last transition.
+                    type: string
+                  status:
+                    description: Status of the condition, one of ('True', 'False',
+                      'Unknown').
+                    type: string
+                  type:
+                    description: Type of the condition, one of ('Ready', 'Install',
+                      'Upgrade', 'Test', 'Rollback', 'Uninstall').
+                    type: string
+                required:
+                - status
+                - type
+                type: object
+              type: array
+            failures:
+              description: Failures is the reconciliation failure count. It is reset
+                after a successful reconciliation.
+              format: int64
+              type: integer
+            lastAppliedRevision:
+              description: LastAppliedRevision is the revision of the last successfully
+                applied source.
+              type: string
+            lastAttemptedRevision:
+              description: LastAttemptedRevision is the revision of the last reconciliation
+                attempt.
+              type: string
+            lastReleaseRevision:
+              description: LastReleaseRevision is the revision of the last successful
+                Helm release.
+              type: integer
+            observedGeneration:
+              description: ObservedGeneration is the last reconciled generation.
+              format: int64
+              type: integer
           type: object
       type: object
   version: v2alpha1

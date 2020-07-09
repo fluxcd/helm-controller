@@ -1,0 +1,21 @@
+apiVersion: helm.fluxcd.io/v2alpha1
+kind: HelmRelease
+metadata:
+  name: frontend
+spec:
+  interval: 5m
+  sourceRef:
+    kind: HelmChart
+    name: podinfo
+  dependsOn:
+    - backend
+  test:
+    enable: true
+  rollback:
+    enable: true
+  values:
+    backend: http://backend-podinfo:9898/echo
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi

@@ -26,3 +26,17 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - source.fluxcd.io
+  resources:
+  - helmcharts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - source.fluxcd.io
+  resources:
+  - helmcharts/status
+  verbs:
+  - get

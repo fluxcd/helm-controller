@@ -6,8 +6,13 @@ spec:
   interval: 5m
   sourceRef:
     kind: HelmChart
-    name: podinfo-v2
+    name: podinfo
   test:
     enable: true
   rollback:
     enable: true
+  values:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi

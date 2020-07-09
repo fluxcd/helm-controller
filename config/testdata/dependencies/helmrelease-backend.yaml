@@ -1,13 +1,20 @@
 apiVersion: helm.fluxcd.io/v2alpha1
 kind: HelmRelease
 metadata:
-  name: podinfo
+  name: backend
 spec:
   interval: 5m
   sourceRef:
     kind: HelmChart
-    name: podinfo-v2
+    name: podinfo
   test:
     enable: true
   rollback:
     enable: true
+  values:
+    service:
+      grpcService: backend
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi

@@ -1,0 +1,83 @@
+name: e2e
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  kind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Restore Go cache
+        uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Setup Go
+        uses: actions/setup-go@v2-beta
+        with:
+          go-version: 1.14.x
+      - name: Setup Kubernetes
+        uses: engineerd/setup-kind@v0.3.0
+      - name: Setup Helm
+        uses: ./.github/actions/helm
+      - name: Setup Kustomize
+        uses: ./.github/actions/kustomize
+      - name: Setup Kubebuilder
+        uses: ./.github/actions/kubebuilder
+      - name: Setup Kubectl
+        uses: ./.github/actions/kubectl
+      - name: Run tests
+        run: make test
+        env:
+          KUBEBUILDER_ASSETS: ${{ github.workspace }}/kubebuilder/bin
+      - name: Check if working tree is dirty
+        run: |
+          if [[ $(git diff --stat) != '' ]]; then
+            echo 'run make test and commit changes'
+            exit 1
+          fi
+      - name: Build container image
+        run: make docker-build IMG=test/helm-controller:latest
+        env:
+          KUBEBUILDER_ASSETS: ${{ github.workspace }}/kubebuilder/bin
+      - name: Load test image
+        run: kind load docker-image test/helm-controller:latest
+      - name: Deploy controllers
+        run: |
+          make dev-deploy IMG=test/helm-controller:latest
+          kubectl -n helm-system rollout status deploy/source-controller --timeout=1m
+          kubectl -n helm-system rollout status deploy/helm-controller --timeout=1m
+        env:
+          KUBEBUILDER_ASSETS: ${{ github.workspace }}/kubebuilder/bin
+      - name: Run smoke test
+        run: |
+          kubectl -n helm-system apply -f config/testdata/podinfo/
+          kubectl -n helm-system wait helmreleases/podinfo --for=condition=ready --timeout=4m
+      - name: Run dependency tests
+        run: |
+          kubectl -n helm-system apply -f config/testdata/dependencies
+          kubectl -n helm-system wait helmreleases/backend --for=condition=ready --timeout=4m
+          kubectl -n helm-system wait helmreleases/frontend --for=condition=ready --timeout=4m
+      - name: Logs
+        run: |
+          kubectl -n helm-system logs deploy/source-controller
+          kubectl -n helm-system logs deploy/helm-controller
+      - name: Debug failure
+        if: failure()
+        run: |
+          which kubectl
+          kubectl version
+          helm version
+          kubectl -n helm-system get helmrepositories -oyaml
+          kubectl -n helm-system get helmcharts -oyaml
+          kubectl -n helm-system get helmreleases -oyaml
+          kubectl -n helm-system get all
+          kubectl -n helm-system logs deploy/source-controller
+          kubectl -n helm-system logs deploy/helm-controller

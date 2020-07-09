@@ -1,0 +1,9 @@
+name: 'helm'
+description: 'A GitHub Action to run Helm commands'
+author: 'Hidde Beydals'
+branding:
+  icon: 'command'
+  color: 'blue'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
