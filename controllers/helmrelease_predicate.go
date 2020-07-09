@@ -17,10 +17,16 @@ limitations under the License.
 package controllers
 
 import (
+	"errors"
+	"fmt"
+
+	"github.com/go-logr/logr"
+	"helm.sh/helm/v3/pkg/storage/driver"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/fluxcd/helm-controller/api/v2alpha1"
+	v2 "github.com/fluxcd/helm-controller/api/v2alpha1"
 )
 
 type HelmReleaseReconcileAtPredicate struct {
@@ -39,11 +45,35 @@ func (HelmReleaseReconcileAtPredicate) Update(e event.UpdateEvent) bool {
 	}
 
 	// Handle ReconcileAt annotation
-	if val, ok := e.MetaNew.GetAnnotations()[v2alpha1.ReconcileAtAnnotation]; ok {
-		if valOld, okOld := e.MetaOld.GetAnnotations()[v2alpha1.ReconcileAtAnnotation]; okOld {
+	if val, ok := e.MetaNew.GetAnnotations()[v2.ReconcileAtAnnotation]; ok {
+		if valOld, okOld := e.MetaOld.GetAnnotations()[v2.ReconcileAtAnnotation]; okOld {
 			return val != valOld
 		}
 		return true
 	}
 	return false
+}
+
+type HelmReleaseGarbageCollectPredicate struct {
+	predicate.Funcs
+	Config *rest.Config
+	Log    logr.Logger
+}
+
+func (gc HelmReleaseGarbageCollectPredicate) Delete(e event.DeleteEvent) bool {
+	if hr, ok := e.Object.(*v2.HelmRelease); ok {
+		cfg, err := newActionCfg(gc.Log, gc.Config, *hr)
+		if err != nil {
+			gc.Log.Error(err, "failed to initialize Helm action configuration for uninstall", "helmrelease", fmt.Sprintf("%s/%s", hr.Namespace, hr.Name))
+			return false
+		}
+		if _, err := cfg.Releases.Deployed(hr.Name); err != nil && errors.Is(err, driver.ErrNoDeployedReleases) {
+			return true
+		}
+		if err := uninstall(cfg, *hr); err != nil {
+			gc.Log.Error(err, "failed to uninstall Helm release", "helmrelease", fmt.Sprintf("%s/%s", hr.Namespace, hr.Name))
+			return false
+		}
+	}
+	return true
 }

@@ -125,7 +125,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 			log.Info(msg)
 			return ctrl.Result{RequeueAfter: r.requeueDependency}, nil
 		}
-		log.Info("All dependencies area ready, proceeding with apply")
+		log.Info("All dependencies area ready, proceeding with release")
 	}
 
 	reconciledHr, err := r.release(log, hr, source)
@@ -157,13 +157,14 @@ func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmRele
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v2.HelmRelease{}).
 		WithEventFilter(HelmReleaseReconcileAtPredicate{}).
+		WithEventFilter(HelmReleaseGarbageCollectPredicate{Config: r.Config, Log: r.Log}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: opts.MaxConcurrentReconciles}).
 		Complete(r)
 }
 
 func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, source sourcev1.Source) (v2.HelmRelease, error) {
 	// Acquire lock
-	unlock, err := r.lock(fmt.Sprintf("%s-%s", hr.GetName(), hr.GetNamespace()))
+	unlock, err := lock(fmt.Sprintf("%s-%s", hr.GetName(), hr.GetNamespace()))
 	if err != nil {
 		err = fmt.Errorf("tmp dir error: %w", err)
 		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, sourcev1.StorageOperationFailedReason, err.Error()), err
@@ -178,7 +179,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	defer os.RemoveAll(tmpDir)
 
 	// Download artifact
-	artifactPath, err := r.download(source.GetArtifact().URL, tmpDir)
+	artifactPath, err := download(source.GetArtifact().URL, tmpDir)
 	if err != nil {
 		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.ArtifactFailedReason, "artifact acquisition failed"), err
 	}
@@ -190,7 +191,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	}
 
 	// Initialize config
-	cfg, err := r.newActionCfg(log, hr)
+	cfg, err := newActionCfg(log, r.Config, hr)
 	if err != nil {
 		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.InitFailedReason, "failed to initialize Helm action configuration"), err
 	}
@@ -204,14 +205,14 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	// Install or upgrade the release
 	success := hr.Status.Failures == 0
 	if errors.Is(err, driver.ErrNoDeployedReleases) {
-		if rel, err = r.install(cfg, loadedChart, hr); err != nil {
+		if rel, err = install(cfg, loadedChart, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionFalse, v2.InstallFailedReason, err.Error())
 		} else {
 			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionTrue, v2.InstallSucceededReason, "Helm installation succeeded")
 		}
 		success = err == nil
 	} else if v2.ShouldUpgrade(hr, source.GetArtifact().Revision, rel.Version) {
-		if rel, err = r.upgrade(cfg, loadedChart, hr); err != nil {
+		if rel, err = upgrade(cfg, loadedChart, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.UpgradeCondition, corev1.ConditionFalse, v2.UpgradeFailedReason, err.Error())
 		} else {
 			v2.SetHelmReleaseCondition(&hr, v2.UpgradeCondition, corev1.ConditionTrue, v2.UpgradeSucceededReason, "Helm upgrade succeeded")
@@ -221,7 +222,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 
 	// Run tests
 	if v2.ShouldTest(hr) {
-		if rel, err = r.test(cfg, hr); err != nil {
+		if rel, err = test(cfg, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.TestCondition, corev1.ConditionFalse, v2.TestFailedReason, err.Error())
 		} else {
 			v2.SetHelmReleaseCondition(&hr, v2.TestCondition, corev1.ConditionTrue, v2.TestSucceededReason, "Helm test succeeded")
@@ -231,7 +232,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	// Run rollback
 	if rel != nil && v2.ShouldRollback(hr, rel.Version) {
 		success = false
-		if err = r.rollback(cfg, hr); err != nil {
+		if err = rollback(cfg, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.RollbackCondition, corev1.ConditionFalse, v2.RollbackFailedReason, err.Error())
 		} else {
 			v2.SetHelmReleaseCondition(&hr, v2.RollbackCondition, corev1.ConditionTrue, v2.RollbackSucceededReason, "Helm rollback succeeded")
@@ -246,7 +247,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 
 	// Run uninstall
 	if v2.ShouldUninstall(hr, releaseRevision) {
-		if err = r.uninstall(cfg, hr); err != nil {
+		if err = uninstall(cfg, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.UninstallCondition, corev1.ConditionFalse, v2.UninstallFailedReason, err.Error())
 		} else {
 			v2.SetHelmReleaseCondition(&hr, v2.UninstallCondition, corev1.ConditionTrue, v2.UninstallSucceededReason, "Helm uninstall succeeded")
@@ -257,95 +258,6 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 		return v2.HelmReleaseNotReady(hr, source.GetArtifact().Revision, releaseRevision, v2.ReconciliationFailedReason, "release reconciliation failed"), err
 	}
 	return v2.HelmReleaseReady(hr, source.GetArtifact().Revision, releaseRevision, v2.ReconciliationSucceededReason, "release reconciliation succeeded"), nil
-}
-
-func (r *HelmReleaseReconciler) install(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (*release.Release, error) {
-	install := action.NewInstall(cfg)
-	install.ReleaseName = hr.GetReleaseName()
-	install.Namespace = hr.GetReleaseNamespace()
-	install.Timeout = hr.Spec.Install.GetTimeout(hr.GetTimeout()).Duration
-	install.Wait = !hr.Spec.Install.DisableWait
-	install.DisableHooks = hr.Spec.Install.DisableHooks
-	install.DisableOpenAPIValidation = hr.Spec.Install.DisableOpenAPIValidation
-	install.Replace = hr.Spec.Install.Replace
-	install.SkipCRDs = hr.Spec.Install.SkipCRDs
-
-	return install.Run(chart, hr.GetValues())
-}
-
-func (r *HelmReleaseReconciler) upgrade(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (*release.Release, error) {
-	upgrade := action.NewUpgrade(cfg)
-	upgrade.Namespace = hr.GetReleaseNamespace()
-	upgrade.ResetValues = !hr.Spec.Upgrade.PreserveValues
-	upgrade.ReuseValues = hr.Spec.Upgrade.PreserveValues
-	upgrade.MaxHistory = hr.GetMaxHistory()
-	upgrade.Timeout = hr.Spec.Upgrade.GetTimeout(hr.GetTimeout()).Duration
-	upgrade.Wait = !hr.Spec.Upgrade.DisableWait
-	upgrade.DisableHooks = hr.Spec.Upgrade.DisableHooks
-	upgrade.Force = hr.Spec.Upgrade.Force
-	upgrade.CleanupOnFail = hr.Spec.Upgrade.CleanupOnFail
-
-	return upgrade.Run(hr.Name, chart, hr.GetValues())
-}
-
-func (r *HelmReleaseReconciler) test(cfg *action.Configuration, hr v2.HelmRelease) (*release.Release, error) {
-	test := action.NewReleaseTesting(cfg)
-	test.Namespace = hr.GetReleaseNamespace()
-	test.Timeout = hr.Spec.Test.GetTimeout(hr.GetTimeout()).Duration
-
-	return test.Run(hr.GetReleaseName())
-}
-
-func (r *HelmReleaseReconciler) rollback(cfg *action.Configuration, hr v2.HelmRelease) error {
-	rollback := action.NewRollback(cfg)
-	rollback.Timeout = hr.Spec.Rollback.GetTimeout(hr.GetTimeout()).Duration
-	rollback.Wait = !hr.Spec.Rollback.DisableWait
-	rollback.DisableHooks = hr.Spec.Rollback.DisableHooks
-	rollback.Force = hr.Spec.Rollback.Force
-	rollback.Recreate = hr.Spec.Rollback.Recreate
-	rollback.CleanupOnFail = hr.Spec.Rollback.CleanupOnFail
-
-	return rollback.Run(hr.GetReleaseName())
-}
-
-func (r *HelmReleaseReconciler) uninstall(cfg *action.Configuration, hr v2.HelmRelease) error {
-	uninstall := action.NewUninstall(cfg)
-	uninstall.Timeout = hr.Spec.Uninstall.GetTimeout(hr.GetTimeout()).Duration
-	uninstall.DisableHooks = hr.Spec.Uninstall.DisableHooks
-
-	_, err := uninstall.Run(hr.GetReleaseName())
-	return err
-}
-
-func (r *HelmReleaseReconciler) lock(name string) (unlock func(), err error) {
-	lockFile := path.Join(os.TempDir(), name+".lock")
-	mutex := lockedfile.MutexAt(lockFile)
-	return mutex.Lock()
-}
-
-func (r *HelmReleaseReconciler) download(url, tmpDir string) (string, error) {
-	fp := filepath.Join(tmpDir, "artifact.tar.gz")
-	out, err := os.Create(fp)
-	if err != nil {
-		return "", err
-	}
-	defer out.Close()
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fp, fmt.Errorf("artifact '%s' download failed (status code: %s)", url, resp.Status)
-	}
-
-	if _, err = io.Copy(out, resp.Body); err != nil {
-		return "", err
-	}
-
-	return fp, nil
 }
 
 func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
@@ -373,14 +285,103 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 	return nil
 }
 
-func (r *HelmReleaseReconciler) newActionCfg(log logr.Logger, hr v2.HelmRelease) (*action.Configuration, error) {
+func install(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (*release.Release, error) {
+	install := action.NewInstall(cfg)
+	install.ReleaseName = hr.GetReleaseName()
+	install.Namespace = hr.GetReleaseNamespace()
+	install.Timeout = hr.Spec.Install.GetTimeout(hr.GetTimeout()).Duration
+	install.Wait = !hr.Spec.Install.DisableWait
+	install.DisableHooks = hr.Spec.Install.DisableHooks
+	install.DisableOpenAPIValidation = hr.Spec.Install.DisableOpenAPIValidation
+	install.Replace = hr.Spec.Install.Replace
+	install.SkipCRDs = hr.Spec.Install.SkipCRDs
+
+	return install.Run(chart, hr.GetValues())
+}
+
+func upgrade(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (*release.Release, error) {
+	upgrade := action.NewUpgrade(cfg)
+	upgrade.Namespace = hr.GetReleaseNamespace()
+	upgrade.ResetValues = !hr.Spec.Upgrade.PreserveValues
+	upgrade.ReuseValues = hr.Spec.Upgrade.PreserveValues
+	upgrade.MaxHistory = hr.GetMaxHistory()
+	upgrade.Timeout = hr.Spec.Upgrade.GetTimeout(hr.GetTimeout()).Duration
+	upgrade.Wait = !hr.Spec.Upgrade.DisableWait
+	upgrade.DisableHooks = hr.Spec.Upgrade.DisableHooks
+	upgrade.Force = hr.Spec.Upgrade.Force
+	upgrade.CleanupOnFail = hr.Spec.Upgrade.CleanupOnFail
+
+	return upgrade.Run(hr.Name, chart, hr.GetValues())
+}
+
+func test(cfg *action.Configuration, hr v2.HelmRelease) (*release.Release, error) {
+	test := action.NewReleaseTesting(cfg)
+	test.Namespace = hr.GetReleaseNamespace()
+	test.Timeout = hr.Spec.Test.GetTimeout(hr.GetTimeout()).Duration
+
+	return test.Run(hr.GetReleaseName())
+}
+
+func rollback(cfg *action.Configuration, hr v2.HelmRelease) error {
+	rollback := action.NewRollback(cfg)
+	rollback.Timeout = hr.Spec.Rollback.GetTimeout(hr.GetTimeout()).Duration
+	rollback.Wait = !hr.Spec.Rollback.DisableWait
+	rollback.DisableHooks = hr.Spec.Rollback.DisableHooks
+	rollback.Force = hr.Spec.Rollback.Force
+	rollback.Recreate = hr.Spec.Rollback.Recreate
+	rollback.CleanupOnFail = hr.Spec.Rollback.CleanupOnFail
+
+	return rollback.Run(hr.GetReleaseName())
+}
+
+func uninstall(cfg *action.Configuration, hr v2.HelmRelease) error {
+	uninstall := action.NewUninstall(cfg)
+	uninstall.Timeout = hr.Spec.Uninstall.GetTimeout(hr.GetTimeout()).Duration
+	uninstall.DisableHooks = hr.Spec.Uninstall.DisableHooks
+
+	_, err := uninstall.Run(hr.GetReleaseName())
+	return err
+}
+
+func lock(name string) (unlock func(), err error) {
+	lockFile := path.Join(os.TempDir(), name+".lock")
+	mutex := lockedfile.MutexAt(lockFile)
+	return mutex.Lock()
+}
+
+func download(url, tmpDir string) (string, error) {
+	fp := filepath.Join(tmpDir, "artifact.tar.gz")
+	out, err := os.Create(fp)
+	if err != nil {
+		return "", err
+	}
+	defer out.Close()
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fp, fmt.Errorf("artifact '%s' download failed (status code: %s)", url, resp.Status)
+	}
+
+	if _, err = io.Copy(out, resp.Body); err != nil {
+		return "", err
+	}
+
+	return fp, nil
+}
+
+func newActionCfg(log logr.Logger, clusterCfg *rest.Config, hr v2.HelmRelease) (*action.Configuration, error) {
 	cfg := new(action.Configuration)
 	ns := hr.GetReleaseNamespace()
 	err := cfg.Init(&genericclioptions.ConfigFlags{
 		Namespace:   &ns,
-		APIServer:   &r.Config.Host,
-		CAFile:      &r.Config.CAFile,
-		BearerToken: &r.Config.BearerToken,
+		APIServer:   &clusterCfg.Host,
+		CAFile:      &clusterCfg.CAFile,
+		BearerToken: &clusterCfg.BearerToken,
 	}, hr.Namespace, "secret", actionLogger(log))
 	return cfg, err
 }
