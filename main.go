@@ -72,7 +72,7 @@ func main() {
 
 	var eventRecorder *recorder.EventRecorder
 	if eventsAddr != "" {
-		if er, err := recorder.NewEventRecorder(eventsAddr, "kustomize-controller"); err != nil {
+		if er, err := recorder.NewEventRecorder(eventsAddr, "helm-controller"); err != nil {
 			setupLog.Error(err, "unable to create event recorder")
 			os.Exit(1)
 		} else {
