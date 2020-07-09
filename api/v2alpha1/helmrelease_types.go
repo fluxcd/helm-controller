@@ -436,6 +436,8 @@ const (
 	SourceIndexKey string = ".metadata.source"
 )
 
+// +genclient
+// +genclient:Namespaced
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
