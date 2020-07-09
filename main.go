@@ -89,13 +89,13 @@ func main() {
 	if err = (&controllers.HelmReleaseReconciler{
 		Client: mgr.GetClient(),
 		Config: mgr.GetConfig(),
-		Log:    ctrl.Log.WithName("controllers").WithName("HelmRelease"),
+		Log:    ctrl.Log.WithName("controllers").WithName(helmv2alpha1.HelmReleaseKind),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr, controllers.HelmReleaseReconcilerOptions{
 		MaxConcurrentReconciles:   concurrent,
 		DependencyRequeueInterval: requeueDependency,
 	}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "HelmRelease")
+		setupLog.Error(err, "unable to create controller", "controller", helmv2alpha1.HelmReleaseKind)
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

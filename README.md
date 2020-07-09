@@ -23,5 +23,5 @@ Features:
 * fetches artifacts produced by [source-controller](https://github.com/fluxcd/source-controller)
   from `Source` objects 
 * watches `Source` objects for revision changes
-* performs Helm actions as configured in the object
+* performs Helm actions as configured in the `HelmRelease`
 * runs `HelmReleases` in a specific order, taking into account the depends-on relationship

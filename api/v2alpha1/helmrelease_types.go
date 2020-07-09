@@ -26,6 +26,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const HelmReleaseKind = "HelmRelease"
+
 // HelmReleaseSpec defines the desired state of HelmRelease.
 type HelmReleaseSpec struct {
 	// SourceRef of the HelmChart source.

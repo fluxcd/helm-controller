@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	sourcev1 "github.com/fluxcd/source-controller/api/v1alpha1"
 	"github.com/go-logr/logr"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
@@ -46,6 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	"github.com/fluxcd/pkg/lockedfile"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1alpha1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2alpha1"
 )
@@ -166,7 +166,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	// Acquire lock
 	unlock, err := lock(fmt.Sprintf("%s-%s", hr.GetName(), hr.GetNamespace()))
 	if err != nil {
-		err = fmt.Errorf("tmp dir error: %w", err)
+		err = fmt.Errorf("lockfile error: %w", err)
 		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, sourcev1.StorageOperationFailedReason, err.Error()), err
 	}
 	defer unlock()

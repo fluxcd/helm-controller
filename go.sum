@@ -164,10 +164,10 @@ github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d/go.mod h1:ZZM
 github.com/fatih/camelcase v1.0.0/go.mod h1:yN2Sb0lFhZJUdVvtELVWefmrXpuZESvPmqwoZc+/fpc=
 github.com/fatih/color v1.7.0 h1:DkWD4oS2D8LGGgTQ6IvwJJXSL5Vp2ffcQg58nFV38Ys=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
-github.com/fluxcd/pkg v0.0.2 h1:e2ekyxBNZg0phh3adSxCsaGcozGyy/FQwhD2LtA+Y0Q=
-github.com/fluxcd/pkg v0.0.2/go.mod h1:rtlppQU+9DNikyDZptLdOeTf+wBvQQiQQ/J113FPoeU=
-github.com/fluxcd/source-controller v0.0.2 h1:nLGQul2v7zktIV3R/f7GYSLrwYuokPf4ThzSgLfiVlE=
-github.com/fluxcd/source-controller v0.0.2/go.mod h1:imUfOckTJBn3L0Xcc5RsZeuM+OkQdSkVr6O1qF1BLzA=
+github.com/fluxcd/pkg v0.0.3 h1:yhjtpGtD9LxFo8JtwTuUxJyFcX2wSSb0TPptIEpGSmA=
+github.com/fluxcd/pkg v0.0.3/go.mod h1:rtlppQU+9DNikyDZptLdOeTf+wBvQQiQQ/J113FPoeU=
+github.com/fluxcd/source-controller v0.0.3 h1:CRk89b7+VPNcouqBdY6UHylMSn8dQEYSciqeci/T25A=
+github.com/fluxcd/source-controller v0.0.3/go.mod h1:JQYoE8RuiUaQotUo5N/6l6YOp16EuSzZ8fV0r0ulv2Q=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
