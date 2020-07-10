@@ -138,6 +138,11 @@ spec:
               - kind
               - name
               type: object
+            suspend:
+              description: Suspend tells the reconciler to suspend reconciliation
+                for this HelmRelease, it does not apply to already started reconciliations.
+                Defaults to false.
+              type: boolean
             targetNamespace:
               description: TargetNamespace to target when performing operations for
                 the HelmRelease. Defaults to the namespace of the HelmRelease.

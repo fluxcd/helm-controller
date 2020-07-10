@@ -61,7 +61,7 @@ type HelmReleaseGarbageCollectPredicate struct {
 }
 
 func (gc HelmReleaseGarbageCollectPredicate) Delete(e event.DeleteEvent) bool {
-	if hr, ok := e.Object.(*v2.HelmRelease); ok {
+	if hr, ok := e.Object.(*v2.HelmRelease); ok && !hr.Spec.Suspend {
 		cfg, err := newActionCfg(gc.Log, gc.Config, *hr)
 		if err != nil {
 			gc.Log.Error(err, "failed to initialize Helm action configuration for uninstall", "helmrelease", fmt.Sprintf("%s/%s", hr.Namespace, hr.Name))

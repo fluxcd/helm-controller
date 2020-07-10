@@ -78,6 +78,17 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 
 	log := r.Log.WithValues(strings.ToLower(hr.Kind), req.NamespacedName)
 
+	if hr.Spec.Suspend {
+		msg := "HelmRelease is suspended, skipping reconciliation"
+		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.SuspendedReason, msg)
+		if err := r.Status().Update(ctx, &hr); err != nil {
+			log.Error(err, "unable to update HelmRelease status")
+			return ctrl.Result{Requeue: true}, err
+		}
+		log.Info(msg)
+		return ctrl.Result{}, nil
+	}
+
 	hr = v2.HelmReleaseProgressing(hr)
 	if err := r.Status().Update(ctx, &hr); err != nil {
 		log.Error(err, "unable to update HelmRelease status")
