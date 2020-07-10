@@ -96,6 +96,19 @@ Kubernetes meta/v1.Duration
 </tr>
 <tr>
 <td>
+<code>suspend</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Suspend tells the reconciler to suspend reconciliation for this HelmRelease,
+it does not apply to already started reconciliations. Defaults to false.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>releaseName</code><br>
 <em>
 string
@@ -387,6 +400,19 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <p>Interval at which to reconcile the Helm release.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>suspend</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Suspend tells the reconciler to suspend reconciliation for this HelmRelease,
+it does not apply to already started reconciliations. Defaults to false.</p>
 </td>
 </tr>
 <tr>

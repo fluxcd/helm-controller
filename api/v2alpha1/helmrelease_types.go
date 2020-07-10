@@ -38,6 +38,11 @@ type HelmReleaseSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
+	// Suspend tells the reconciler to suspend reconciliation for this HelmRelease,
+	// it does not apply to already started reconciliations. Defaults to false.
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
+
 	// ReleaseName used for the Helm release. Defaults to a composition of
 	// '[TargetNamespace-]Name'.
 	// +optional

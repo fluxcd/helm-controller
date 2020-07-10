@@ -115,4 +115,7 @@ const (
 
 	// DependencyNotReadyReason represents the fact that the one of the dependencies is not ready.
 	DependencyNotReadyReason string = "DependencyNotReady"
+
+	// SuspendedReason represents the fact that the reconciliation of the HelmRelease is suspended.
+	SuspendedReason string = "Suspended"
 )
