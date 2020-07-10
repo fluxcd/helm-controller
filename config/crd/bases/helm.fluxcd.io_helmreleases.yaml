@@ -36,6 +36,46 @@ spec:
         spec:
           description: HelmReleaseSpec defines the desired state of HelmRelease.
           properties:
+            chart:
+              description: Chart defines the Helm chart name, version and repository.
+              properties:
+                interval:
+                  description: Interval at which to check the Helm repository for
+                    chart updates. Defaults to 'HelmReleaseSpec.Interval'.
+                  type: string
+                name:
+                  description: Name of the Helm chart, as made available by the referenced
+                    Helm repository.
+                  type: string
+                sourceRef:
+                  description: The name and namespace of the source HelmRepository
+                    the chart is available at.
+                  properties:
+                    apiVersion:
+                      description: APIVersion of the referent.
+                      type: string
+                    kind:
+                      description: Kind of the referent.
+                      enum:
+                      - HelmRepository
+                      type: string
+                    name:
+                      description: Name of the referent.
+                      type: string
+                    namespace:
+                      description: Namespace of the referent.
+                      type: string
+                  required:
+                  - name
+                  type: object
+                version:
+                  description: Version semver expression, defaults to latest when
+                    omitted.
+                  type: string
+              required:
+              - name
+              - sourceRef
+              type: object
             dependsOn:
               description: DependsOn may contain a list of HelmReleases that must
                 be ready before this HelmRelease can be reconciled.
@@ -71,7 +111,7 @@ spec:
                 timeout:
                   description: Timeout is the time to wait for any individual Kubernetes
                     operation (like Jobs for hooks) during the performance of a Helm
-                    install action. Defaults to 'Timeout'.
+                    install action. Defaults to 'HelmReleaseSpec.Timeout'.
                   type: string
               type: object
             interval:
@@ -117,26 +157,8 @@ spec:
                 timeout:
                   description: Timeout is the time to wait for any individual Kubernetes
                     operation (like Jobs for hooks) during the performance of a Helm
-                    rollback action. Defaults to 'Timeout'.
+                    rollback action. Defaults to 'HelmReleaseSpec.Timeout'.
                   type: string
-              type: object
-            sourceRef:
-              description: SourceRef of the HelmChart source.
-              properties:
-                apiGroup:
-                  description: APIGroup is the group for the resource being referenced.
-                    If APIGroup is not specified, the specified Kind must be in the
-                    core API group. For any other third-party types, APIGroup is required.
-                  type: string
-                kind:
-                  description: Kind is the type of resource being referenced
-                  type: string
-                name:
-                  description: Name is the name of resource being referenced
-                  type: string
-              required:
-              - kind
-              - name
               type: object
             suspend:
               description: Suspend tells the reconciler to suspend reconciliation
@@ -158,13 +180,13 @@ spec:
                 timeout:
                   description: Timeout is the time to wait for any individual Kubernetes
                     operation during the performance of a Helm test action. Defaults
-                    to 'Timeout'.
+                    to 'HelmReleaseSpec.Timeout'.
                   type: string
               type: object
             timeout:
               description: Timeout is the time to wait for any individual Kubernetes
                 operation (like Jobs for hooks) during the performance of a Helm action.
-                Defaults to '300s'.
+                Defaults to '5m0s'.
               type: string
             uninstall:
               description: Uninstall holds the configuration for Helm uninstall actions
@@ -177,7 +199,7 @@ spec:
                 timeout:
                   description: Timeout is the time to wait for any individual Kubernetes
                     operation (like Jobs for hooks) during the performance of a Helm
-                    uninstall action. Defaults to 'Timeout'.
+                    uninstall action. Defaults to 'HelmReleaseSpec.Timeout'.
                   type: string
               type: object
             upgrade:
@@ -218,15 +240,15 @@ spec:
                 timeout:
                   description: Timeout is the time to wait for any individual Kubernetes
                     operation (like Jobs for hooks) during the performance of a Helm
-                    upgrade action. Defaults to 'Timeout'.
+                    upgrade action. Defaults to 'HelmReleaseSpec.Timeout'.
                   type: string
               type: object
             values:
               description: Values holds the values for this Helm release.
               x-kubernetes-preserve-unknown-fields: true
           required:
+          - chart
           - interval
-          - sourceRef
           type: object
         status:
           description: HelmReleaseStatus defines the observed state of HelmRelease

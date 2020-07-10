@@ -4,9 +4,13 @@ metadata:
   name: podinfo
 spec:
   interval: 5m
-  sourceRef:
-    kind: HelmChart
+  chart:
     name: podinfo
+    version: '^4.0.0'
+    sourceRef:
+      kind: HelmRepository
+      name: podinfo
+    interval: 1m
   test:
     enable: true
   rollback:

@@ -36,6 +36,8 @@ import (
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -95,29 +97,24 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	// Get the artifact
-	var source sourcev1.Source
-	switch hr.Spec.SourceRef.Kind {
-	case "HelmChart":
-		var helmChart sourcev1.HelmChart
-		chartName := types.NamespacedName{
-			Namespace: hr.GetNamespace(),
-			Name:      hr.Spec.SourceRef.Name,
-		}
-		err := r.Client.Get(ctx, chartName, &helmChart)
+	// Reconcile chart based on the HelmChartTemplate
+	hc, ok, err := r.reconcileChart(ctx, hr)
+	if !ok {
+		msg := "HelmChart is not ready"
 		if err != nil {
-			log.Error(err, "HelmChart not found", "helmchart", chartName)
+			msg = fmt.Sprintf("HelmChart reconciliation failed: %s", err.Error())
+		}
+		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.ArtifactFailedReason, msg)
+		if err := r.Status().Update(ctx, &hr); err != nil {
+			log.Error(err, "unable to update HelmRelease status")
 			return ctrl.Result{Requeue: true}, err
 		}
-		source = &helmChart
-	default:
-		err := fmt.Errorf("source '%s' kind '%s' not supported", hr.Spec.SourceRef.Name, hr.Spec.SourceRef.Kind)
 		return ctrl.Result{}, err
 	}
 
-	// Check source readiness
-	if source.GetArtifact() == nil {
-		msg := "Source is not ready"
+	// Check hc readiness
+	if hc.GetArtifact() == nil {
+		msg := "HelmChart is not ready"
 		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.ArtifactFailedReason, msg)
 		if err := r.Status().Update(ctx, &hr); err != nil {
 			log.Error(err, "unable to update HelmRelease status")
@@ -139,18 +136,18 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 			// instead we requeue on a fixed interval.
 			msg := fmt.Sprintf("Dependencies do not meet ready condition (%s), retrying in %s", err.Error(), r.requeueDependency.String())
 			log.Info(msg)
-			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, msg)
+			r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityInfo, msg)
 			return ctrl.Result{RequeueAfter: r.requeueDependency}, nil
 		}
 		log.Info("All dependencies area ready, proceeding with release")
 	}
 
-	reconciledHr, err := r.release(log, hr, source)
+	reconciledHr, err := r.release(log, hr, hc)
 	if err != nil {
-		log.Error(err, "HelmRelease reconciliation failed", "revision", source.GetArtifact().Revision)
-		r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, err.Error())
+		log.Error(err, "HelmRelease reconciliation failed", "revision", hc.GetArtifact().Revision)
+		r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityError, err.Error())
 	} else {
-		r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, v2.HelmReleaseReadyMessage(reconciledHr))
+		r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityInfo, v2.HelmReleaseReadyMessage(reconciledHr))
 	}
 
 	if err := r.Status().Update(ctx, &reconciledHr); err != nil {
@@ -177,9 +174,36 @@ func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmRele
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v2.HelmRelease{}).
 		WithEventFilter(HelmReleaseReconcileAtPredicate{}).
-		WithEventFilter(HelmReleaseGarbageCollectPredicate{Config: r.Config, Log: r.Log}).
+		WithEventFilter(HelmReleaseGarbageCollectPredicate{Client: r.Client, Config: r.Config, Log: r.Log}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: opts.MaxConcurrentReconciles}).
 		Complete(r)
+}
+
+func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr v2.HelmRelease) (*sourcev1.HelmChart, bool, error) {
+	var helmChart sourcev1.HelmChart
+	chartName := types.NamespacedName{
+		Namespace: hr.Spec.Chart.GetNamespace(hr.Namespace),
+		Name:      hr.GetHelmChartName(),
+	}
+	err := r.Client.Get(ctx, chartName, &helmChart)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return nil, false, err
+	}
+	switch {
+	case apierrors.IsNotFound(err):
+		hc := helmChartFromTemplate(hr)
+		if err = r.Client.Create(ctx, hc); err != nil {
+			return nil, false, err
+		}
+		return nil, false, nil
+	case helmChartRequiresUpdate(hr, helmChart):
+		hc := helmChartFromTemplate(hr)
+		if err = r.Client.Update(ctx, hc); err != nil {
+			return nil, false, err
+		}
+		return nil, false, nil
+	}
+	return &helmChart, true, nil
 }
 
 func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, source sourcev1.Source) (v2.HelmRelease, error) {
@@ -328,6 +352,40 @@ func (r *HelmReleaseReconciler) event(hr v2.HelmRelease, revision, severity, msg
 			).Error(err, "unable to send event")
 			return
 		}
+	}
+}
+
+func helmChartFromTemplate(hr v2.HelmRelease) *sourcev1.HelmChart {
+	template := hr.Spec.Chart
+	return &sourcev1.HelmChart{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      hr.GetHelmChartName(),
+			Namespace: hr.Spec.Chart.GetNamespace(hr.Namespace),
+		},
+		Spec: sourcev1.HelmChartSpec{
+			Name:    template.Name,
+			Version: template.Version,
+			HelmRepositoryRef: corev1.LocalObjectReference{
+				Name: template.SourceRef.Name,
+			},
+			Interval: template.GetInterval(hr.Spec.Interval),
+		},
+	}
+}
+
+func helmChartRequiresUpdate(hr v2.HelmRelease, chart sourcev1.HelmChart) bool {
+	template := hr.Spec.Chart
+	switch {
+	case template.Name != chart.Spec.Name:
+		return true
+	case template.Version != chart.Spec.Version:
+		return true
+	case template.SourceRef.Name != chart.Spec.Name:
+		return true
+	case template.GetInterval(hr.Spec.Interval) != chart.Spec.Interval:
+		return true
+	default:
+		return false
 	}
 }
 
