@@ -67,7 +67,7 @@ func (r *HelmChartWatcher) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	sorted, err := v2.DependencySort(list.Items)
 	if err != nil {
-		log.Error(err, "unable to dependency sort kustomizations")
+		log.Error(err, "unable to dependency sort HelmReleases")
 		return ctrl.Result{}, err
 	}
 
@@ -89,10 +89,7 @@ func (r *HelmChartWatcher) SetupWithManager(mgr ctrl.Manager) error {
 	err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v2.HelmRelease{}, v2.SourceIndexKey,
 		func(rawObj runtime.Object) []string {
 			hr := rawObj.(*v2.HelmRelease)
-			if hr.Spec.SourceRef.Kind == "HelmChart" {
-				return []string{hr.Spec.SourceRef.Name}
-			}
-			return nil
+			return []string{hr.GetHelmChartName()}
 		},
 	)
 	if err != nil {
@@ -123,11 +120,6 @@ func (r *HelmChartWatcher) requestReconciliation(ctx context.Context, hr v2.Helm
 			hr.Annotations = make(map[string]string)
 		}
 		hr.Annotations[v2.ReconcileAtAnnotation] = metav1.Now().String()
-		// Prevent strings can't be nil err as API package does not mark APIGroup with omitempty.
-		if hr.Spec.SourceRef.APIGroup == nil {
-			emptyAPIGroup := ""
-			hr.Spec.SourceRef.APIGroup = &emptyAPIGroup
-		}
 		err = r.Update(ctx, &hr)
 		return
 	})

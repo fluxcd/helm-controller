@@ -70,15 +70,15 @@ HelmReleaseSpec
 <table>
 <tr>
 <td>
-<code>sourceRef</code><br>
+<code>chart</code><br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#typedlocalobjectreference-v1-core">
-Kubernetes core/v1.TypedLocalObjectReference
+<a href="#helm.fluxcd.io/v2alpha1.HelmChartTemplate">
+HelmChartTemplate
 </a>
 </em>
 </td>
 <td>
-<p>SourceRef of the HelmChart source.</p>
+<p>Chart defines the Helm chart name, version and repository.</p>
 </td>
 </tr>
 <tr>
@@ -158,7 +158,7 @@ Kubernetes meta/v1.Duration
 <td>
 <em>(Optional)</em>
 <p>Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-for hooks) during the performance of a Helm action. Defaults to &lsquo;300s&rsquo;.</p>
+for hooks) during the performance of a Helm action. Defaults to &lsquo;5m0s&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -359,6 +359,147 @@ transition, complementing reason.</p>
 </table>
 </div>
 </div>
+<h3 id="helm.fluxcd.io/v2alpha1.CrossNamespaceObjectReference">CrossNamespaceObjectReference
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.fluxcd.io/v2alpha1.HelmChartTemplate">HelmChartTemplate</a>)
+</p>
+<p>CrossNamespaceObjectReference contains enough information to let you locate the
+typed referenced object at cluster level.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>apiVersion</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>APIVersion of the referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Kind of the referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name of the referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>namespace</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Namespace of the referent.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.fluxcd.io/v2alpha1.HelmChartTemplate">HelmChartTemplate
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>HelmChartTemplate defines the template from which the controller
+will generate a HelmChart object in the same namespace as the HelmRepository.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name of the Helm chart, as made available by the referenced Helm repository.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>version</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Version semver expression, defaults to latest when omitted.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sourceRef</code><br>
+<em>
+<a href="#helm.fluxcd.io/v2alpha1.CrossNamespaceObjectReference">
+CrossNamespaceObjectReference
+</a>
+</em>
+</td>
+<td>
+<p>The name and namespace of the source HelmRepository the chart is available at.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>interval</code><br>
+<em>
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Interval at which to check the Helm repository for chart updates.
+Defaults to &lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="helm.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec
 </h3>
 <p>
@@ -378,15 +519,15 @@ transition, complementing reason.</p>
 <tbody>
 <tr>
 <td>
-<code>sourceRef</code><br>
+<code>chart</code><br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#typedlocalobjectreference-v1-core">
-Kubernetes core/v1.TypedLocalObjectReference
+<a href="#helm.fluxcd.io/v2alpha1.HelmChartTemplate">
+HelmChartTemplate
 </a>
 </em>
 </td>
 <td>
-<p>SourceRef of the HelmChart source.</p>
+<p>Chart defines the Helm chart name, version and repository.</p>
 </td>
 </tr>
 <tr>
@@ -466,7 +607,7 @@ Kubernetes meta/v1.Duration
 <td>
 <em>(Optional)</em>
 <p>Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-for hooks) during the performance of a Helm action. Defaults to &lsquo;300s&rsquo;.</p>
+for hooks) during the performance of a Helm action. Defaults to &lsquo;5m0s&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -693,7 +834,8 @@ Kubernetes meta/v1.Duration
 <td>
 <em>(Optional)</em>
 <p>Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-for hooks) during the performance of a Helm install action. Defaults to &lsquo;Timeout&rsquo;.</p>
+for hooks) during the performance of a Helm install action. Defaults to
+&lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -806,7 +948,8 @@ Kubernetes meta/v1.Duration
 <td>
 <em>(Optional)</em>
 <p>Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-for hooks) during the performance of a Helm rollback action. Defaults to &lsquo;Timeout&rsquo;.</p>
+for hooks) during the performance of a Helm rollback action. Defaults to
+&lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -917,7 +1060,8 @@ Kubernetes meta/v1.Duration
 <td>
 <em>(Optional)</em>
 <p>Timeout is the time to wait for any individual Kubernetes operation
-during the performance of a Helm test action. Defaults to &lsquo;Timeout&rsquo;.</p>
+during the performance of a Helm test action. Defaults to
+&lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
 </td>
 </tr>
 </tbody>
@@ -953,7 +1097,8 @@ Kubernetes meta/v1.Duration
 <td>
 <em>(Optional)</em>
 <p>Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-for hooks) during the performance of a Helm uninstall action. Defaults to &lsquo;Timeout&rsquo;.</p>
+for hooks) during the performance of a Helm uninstall action. Defaults to
+&lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -1003,7 +1148,8 @@ Kubernetes meta/v1.Duration
 <td>
 <em>(Optional)</em>
 <p>Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-for hooks) during the performance of a Helm upgrade action. Defaults to &lsquo;Timeout&rsquo;.</p>
+for hooks) during the performance of a Helm upgrade action. Defaults to
+&lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
 </td>
 </tr>
 <tr>

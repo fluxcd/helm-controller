@@ -30,9 +30,9 @@ const HelmReleaseKind = "HelmRelease"
 
 // HelmReleaseSpec defines the desired state of HelmRelease.
 type HelmReleaseSpec struct {
-	// SourceRef of the HelmChart source.
+	// Chart defines the Helm chart name, version and repository.
 	// +required
-	SourceRef corev1.TypedLocalObjectReference `json:"sourceRef"`
+	Chart HelmChartTemplate `json:"chart"`
 
 	// Interval at which to reconcile the Helm release.
 	// +required
@@ -59,7 +59,7 @@ type HelmReleaseSpec struct {
 	DependsOn []string `json:"dependsOn,omitempty"`
 
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-	// for hooks) during the performance of a Helm action. Defaults to '300s'.
+	// for hooks) during the performance of a Helm action. Defaults to '5m0s'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -93,10 +93,52 @@ type HelmReleaseSpec struct {
 	Values apiextensionsv1.JSON `json:"values,omitempty"`
 }
 
+// HelmChartTemplate defines the template from which the controller
+// will generate a HelmChart object in the same namespace as the HelmRepository.
+type HelmChartTemplate struct {
+	// Name of the Helm chart, as made available by the referenced Helm repository.
+	// +required
+	Name string `json:"name"`
+
+	// Version semver expression, defaults to latest when omitted.
+	// +optional
+	Version string `json:"version,omitempty"`
+
+	// The name and namespace of the source HelmRepository the chart is available at.
+	// +required
+	SourceRef CrossNamespaceObjectReference `json:"sourceRef"`
+
+	// Interval at which to check the Helm repository for chart updates.
+	// Defaults to 'HelmReleaseSpec.Interval'.
+	// +optional
+	Interval *metav1.Duration `json:"interval,omitempty"`
+}
+
+// GetInterval returns the configured interval for the HelmChart, or the given default.
+func (in HelmChartTemplate) GetInterval(defaultInterval metav1.Duration) metav1.Duration {
+	switch in.Interval {
+	case nil:
+		return defaultInterval
+	default:
+		return *in.Interval
+	}
+}
+
+// GetNamespace returns the namespace targeted namespace for the HelmChart, or the given default.
+func (in HelmChartTemplate) GetNamespace(defaultNamespace string) string {
+	switch in.SourceRef.Namespace {
+	case "":
+		return defaultNamespace
+	default:
+		return in.SourceRef.Namespace
+	}
+}
+
 // Install holds the configuration for Helm install actions.
 type Install struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-	// for hooks) during the performance of a Helm install action. Defaults to 'Timeout'.
+	// for hooks) during the performance of a Helm install action. Defaults to
+	// 'HelmReleaseSpec.Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -139,7 +181,8 @@ func (in Install) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 // Upgrade holds the configuration for Helm upgrade actions.
 type Upgrade struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-	// for hooks) during the performance of a Helm upgrade action. Defaults to 'Timeout'.
+	// for hooks) during the performance of a Helm upgrade action. Defaults to
+	// 'HelmReleaseSpec.Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -197,7 +240,8 @@ type Test struct {
 	Enable bool `json:"enable,omitempty"`
 
 	// Timeout is the time to wait for any individual Kubernetes operation
-	// during the performance of a Helm test action. Defaults to 'Timeout'.
+	// during the performance of a Helm test action. Defaults to
+	// 'HelmReleaseSpec.Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 }
@@ -221,7 +265,8 @@ type Rollback struct {
 	Enable bool `json:"enable,omitempty"`
 
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-	// for hooks) during the performance of a Helm rollback action. Defaults to 'Timeout'.
+	// for hooks) during the performance of a Helm rollback action. Defaults to
+	// 'HelmReleaseSpec.Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -262,7 +307,8 @@ func (in Rollback) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 // Uninstall holds the configuration for Helm uninstall actions.
 type Uninstall struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-	// for hooks) during the performance of a Helm uninstall action. Defaults to 'Timeout'.
+	// for hooks) during the performance of a Helm uninstall action. Defaults to
+	// 'HelmReleaseSpec.Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -497,6 +543,11 @@ func (in HelmRelease) GetReleaseNamespace() string {
 	default:
 		return in.Namespace
 	}
+}
+
+// GetHelmChartName returns the name used by the controller for the HelmChart creation.
+func (in HelmRelease) GetHelmChartName() string {
+	return strings.Join([]string{in.Namespace, in.Name}, "-")
 }
 
 // GetTimeout returns the configured Timeout, or the default of 300s.
