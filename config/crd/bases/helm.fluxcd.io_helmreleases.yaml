@@ -23,6 +23,8 @@ spec:
     kind: HelmRelease
     listKind: HelmReleaseList
     plural: helmreleases
+    shortNames:
+    - hr
     singular: helmrelease
   scope: Namespaced
   subresources:
