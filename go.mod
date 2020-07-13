@@ -8,6 +8,7 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.8.1
+	go.uber.org/zap v1.10.0
 	helm.sh/helm/v3 v3.2.4
 	k8s.io/api v0.18.4
 	k8s.io/apiextensions-apiserver v0.18.4
