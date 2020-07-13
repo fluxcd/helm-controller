@@ -25,3 +25,8 @@ Features:
 * watches `Source` objects for revision changes
 * performs Helm actions as configured in the `HelmRelease`
 * runs `HelmReleases` in a specific order, taking into account the depends-on relationship
+
+Specifications:
+
+* [API](docs/spec/v2alpha1/README.md)
+* [Controller](docs/spec/README.md)
