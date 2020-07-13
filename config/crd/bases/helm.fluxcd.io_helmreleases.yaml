@@ -8,6 +8,16 @@ metadata:
   creationTimestamp: null
   name: helmreleases.helm.fluxcd.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.conditions[?(@.type=="Ready")].status
+    name: Ready
+    type: string
+  - JSONPath: .status.conditions[?(@.type=="Ready")].message
+    name: Status
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: helm.fluxcd.io
   names:
     kind: HelmRelease
