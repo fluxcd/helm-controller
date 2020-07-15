@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -59,8 +60,8 @@ func (r *HelmChartWatcher) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Get the list of HelmReleases that are using this HelmChart.
 	var list v2.HelmReleaseList
-	if err := r.List(ctx, &list, client.InNamespace(req.Namespace),
-		client.MatchingFields{v2.SourceIndexKey: req.Name}); err != nil {
+	if err := r.List(ctx, &list,
+		client.MatchingFields{v2.SourceIndexKey: fmt.Sprintf("%s/%s", req.Namespace, req.Name)}); err != nil {
 		log.Error(err, "unable to list HelmReleases")
 		return ctrl.Result{}, err
 	}
@@ -89,7 +90,7 @@ func (r *HelmChartWatcher) SetupWithManager(mgr ctrl.Manager) error {
 	err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v2.HelmRelease{}, v2.SourceIndexKey,
 		func(rawObj runtime.Object) []string {
 			hr := rawObj.(*v2.HelmRelease)
-			return []string{hr.GetHelmChartName()}
+			return []string{fmt.Sprintf("%s/%s", hr.Spec.Chart.GetNamespace(hr.Namespace), hr.GetHelmChartName())}
 		},
 	)
 	if err != nil {
