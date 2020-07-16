@@ -790,6 +790,19 @@ int
 </tr>
 <tr>
 <td>
+<code>helmChart</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>HelmChart is the namespaced name of the HelmChart resource created by
+the controller for the HelmRelease.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>failures</code><br>
 <em>
 int64
