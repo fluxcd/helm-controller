@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.1-alpha.2 (2020-07-16)
+
+This alpha release comes with improvements to alerts delivering,
+logging, and fixes a bug in the lookup of HelmReleases when a
+HelmChart revision had changed.
+
 ## 0.0.1-alpha.1 (2020-07-13)
 
 This is the first alpha release of helm-controller.
