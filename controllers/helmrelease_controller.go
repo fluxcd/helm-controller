@@ -80,6 +80,38 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 
 	log := r.Log.WithValues("controller", strings.ToLower(v2.HelmReleaseKind), "request", req.NamespacedName)
 
+	// Examine if the object is under deletion
+	if hr.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !containsString(hr.ObjectMeta.Finalizers, v2.HelmReleaseFinalizer) {
+			hr.ObjectMeta.Finalizers = append(hr.ObjectMeta.Finalizers, v2.HelmReleaseFinalizer)
+			if err := r.Update(ctx, &hr); err != nil {
+				log.Error(err, "unable to register finalizer")
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if containsString(hr.ObjectMeta.Finalizers, v2.HelmReleaseFinalizer) {
+			// Our finalizer is still present, so lets handle garbage collection
+			if err := r.gc(ctx, log, hr); err != nil {
+				r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityError, fmt.Sprintf("garbage collection for deleted resource failed: %s", err.Error()))
+				// Return the error so we retry the failed garbage collection
+				return ctrl.Result{}, err
+			}
+
+			// Remove our finalizer from the list and update it
+			hr.ObjectMeta.Finalizers = removeString(hr.ObjectMeta.Finalizers, v2.HelmReleaseFinalizer)
+			if err := r.Update(ctx, &hr); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		// Stop reconciliation as the object is being deleted
+		return ctrl.Result{}, nil
+	}
+
 	if hr.Spec.Suspend {
 		msg := "HelmRelease is suspended, skipping reconciliation"
 		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.SuspendedReason, msg)
@@ -98,7 +130,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	}
 
 	// Reconcile chart based on the HelmChartTemplate
-	hc, ok, reconcileErr := r.reconcileChart(ctx, hr)
+	hc, ok, reconcileErr := r.reconcileChart(ctx, &hr)
 	if !ok {
 		var msg string
 		if reconcileErr != nil {
@@ -177,35 +209,57 @@ func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmRele
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v2.HelmRelease{}).
 		WithEventFilter(HelmReleaseReconcileAtPredicate{}).
-		WithEventFilter(HelmReleaseGarbageCollectPredicate{Client: r.Client, Config: r.Config, Log: r.Log}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: opts.MaxConcurrentReconciles}).
 		Complete(r)
 }
 
-func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr v2.HelmRelease) (*sourcev1.HelmChart, bool, error) {
-	var helmChart sourcev1.HelmChart
+func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, bool, error) {
 	chartName := types.NamespacedName{
 		Namespace: hr.Spec.Chart.GetNamespace(hr.Namespace),
 		Name:      hr.GetHelmChartName(),
 	}
+
+	// Garbage collect the previous HelmChart if the namespace named changed.
+	if hr.Status.HelmChart != "" && hr.Status.HelmChart != chartName.String() {
+		prevChartNS, prevChartName := hr.Status.GetHelmChart()
+		var prevHelmChart sourcev1.HelmChart
+		err := r.Client.Get(ctx, types.NamespacedName{Namespace: prevChartNS, Name: prevChartName}, &prevHelmChart)
+		switch {
+		case apierrors.IsNotFound(err):
+			// noop
+		case err != nil:
+			return nil, false, err
+		default:
+			if err := r.Client.Delete(ctx, &prevHelmChart); err != nil {
+				err = fmt.Errorf("failed to garbage collect HelmChart: %w", err)
+				return nil, false, err
+			}
+		}
+	}
+
+	// Continue with the reconciliation of the current template.
+	var helmChart sourcev1.HelmChart
 	err := r.Client.Get(ctx, chartName, &helmChart)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return nil, false, err
 	}
 	switch {
 	case apierrors.IsNotFound(err):
-		hc := helmChartFromTemplate(hr)
+		hc := helmChartFromTemplate(*hr)
 		if err = r.Client.Create(ctx, hc); err != nil {
 			return nil, false, err
 		}
+		hr.Status.HelmChart = chartName.String()
 		return nil, false, nil
-	case helmChartRequiresUpdate(hr, helmChart):
-		hc := helmChartFromTemplate(hr)
+	case helmChartRequiresUpdate(*hr, helmChart):
+		hc := helmChartFromTemplate(*hr)
 		if err = r.Client.Update(ctx, hc); err != nil {
 			return nil, false, err
 		}
+		hr.Status.HelmChart = chartName.String()
 		return nil, false, nil
 	}
+
 	return &helmChart, true, nil
 }
 
@@ -340,6 +394,51 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 		}
 	}
 	return nil
+}
+
+func (r *HelmReleaseReconciler) gc(ctx context.Context, log logr.Logger, hr v2.HelmRelease) error {
+	// Garbage collect the HelmChart
+	if hr.Status.HelmChart != "" {
+		var hc sourcev1.HelmChart
+		chartNS, chartName := hr.Status.GetHelmChart()
+		err := r.Client.Get(ctx, types.NamespacedName{Namespace: chartNS, Name: chartName}, &hc)
+		switch {
+		case apierrors.IsNotFound(err):
+			// noop
+		case err == nil:
+			if err = r.Client.Delete(ctx, &hc); err != nil {
+				return err
+			}
+		default:
+			return err
+		}
+	}
+
+	// Uninstall the Helm release
+	var uninstallErr error
+	if !hr.Spec.Suspend {
+		cfg, err := newActionCfg(log, r.Config, hr)
+		if err != nil {
+			return err
+		}
+		_, err = cfg.Releases.Deployed(hr.GetReleaseName())
+		switch {
+		case errors.Is(err, driver.ErrNoDeployedReleases):
+			// noop
+		case err == nil:
+			uninstallErr = uninstall(cfg, hr)
+		default:
+			return err
+		}
+	}
+
+	switch uninstallErr {
+	case nil:
+		r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityInfo, "Helm uninstall for deleted resource succeeded")
+		return nil
+	default:
+		return uninstallErr
+	}
 }
 
 // event emits a Kubernetes event and forwards the event to notification controller if configured.
@@ -508,4 +607,23 @@ func actionLogger(logger logr.Logger) func(format string, v ...interface{}) {
 	return func(format string, v ...interface{}) {
 		logger.Info(fmt.Sprintf(format, v...))
 	}
+}
+
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+func removeString(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item == s {
+			continue
+		}
+		result = append(result, item)
+	}
+	return
 }

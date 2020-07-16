@@ -301,6 +301,10 @@ spec:
                 after a successful reconciliation.
               format: int64
               type: integer
+            helmChart:
+              description: HelmChart is the namespaced name of the HelmChart resource
+                created by the controller for the HelmRelease.
+              type: string
             lastAppliedRevision:
               description: LastAppliedRevision is the revision of the last successfully
                 applied source.

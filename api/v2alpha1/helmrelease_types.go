@@ -24,9 +24,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const HelmReleaseKind = "HelmRelease"
+const HelmReleaseFinalizer = "finalizers.fluxcd.io"
 
 // HelmReleaseSpec defines the desired state of HelmRelease.
 type HelmReleaseSpec struct {
@@ -350,10 +352,23 @@ type HelmReleaseStatus struct {
 	// +optional
 	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`
 
+	// HelmChart is the namespaced name of the HelmChart resource created by
+	// the controller for the HelmRelease.
+	// +optional
+	HelmChart string `json:"helmChart,omitempty"`
+
 	// Failures is the reconciliation failure count. It is reset after a successful
 	// reconciliation.
 	// +optional
 	Failures int64 `json:"failures,omitempty"`
+}
+
+func (in HelmReleaseStatus) GetHelmChart() (string, string) {
+	if in.HelmChart == "" {
+		return "", ""
+	}
+	split := strings.Split(in.HelmChart, string(types.Separator))
+	return split[0], split[1]
 }
 
 // HelmReleaseProgressing resets the conditions of the given HelmRelease to a single
