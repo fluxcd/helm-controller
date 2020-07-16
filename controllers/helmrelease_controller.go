@@ -306,46 +306,26 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	// Install or upgrade the release
 	success := hr.Status.Failures == 0
 	if errors.Is(err, driver.ErrNoDeployedReleases) {
-		if rel, err = install(cfg, loadedChart, hr); err != nil {
-			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionFalse, v2.InstallFailedReason, err.Error())
-			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("Helm install failed: %s", err.Error()))
-		} else {
-			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionTrue, v2.InstallSucceededReason, "Helm install succeeded")
-			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, "Helm install succeeded")
-		}
+		rel, err = install(cfg, loadedChart, hr)
+		r.handleHelmActionResult(hr, source, err, "install", v2.InstallCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
 		success = err == nil
 	} else if v2.ShouldUpgrade(hr, source.GetArtifact().Revision, rel.Version) {
-		if rel, err = upgrade(cfg, loadedChart, hr); err != nil {
-			v2.SetHelmReleaseCondition(&hr, v2.UpgradeCondition, corev1.ConditionFalse, v2.UpgradeFailedReason, err.Error())
-			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("Helm upgrade failed: %s", err.Error()))
-		} else {
-			v2.SetHelmReleaseCondition(&hr, v2.UpgradeCondition, corev1.ConditionTrue, v2.UpgradeSucceededReason, "Helm upgrade succeeded")
-			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, "Helm upgrade succeeded")
-		}
+		rel, err = upgrade(cfg, loadedChart, hr)
+		r.handleHelmActionResult(hr, source, err, "upgrade", v2.UpgradeCondition, v2.UpgradeSucceededReason, v2.UpgradeFailedReason)
 		success = err == nil
 	}
 
 	// Run tests
 	if v2.ShouldTest(hr) {
-		if rel, err = test(cfg, hr); err != nil {
-			v2.SetHelmReleaseCondition(&hr, v2.TestCondition, corev1.ConditionFalse, v2.TestFailedReason, err.Error())
-			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("Helm test failed: %s", err.Error()))
-		} else {
-			v2.SetHelmReleaseCondition(&hr, v2.TestCondition, corev1.ConditionTrue, v2.TestSucceededReason, "Helm test succeeded")
-			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, "Helm test succeeded")
-		}
+		rel, err = test(cfg, hr)
+		r.handleHelmActionResult(hr, source, err, "test", v2.TestCondition, v2.TestSucceededReason, v2.TestFailedReason)
 	}
 
 	// Run rollback
 	if rel != nil && v2.ShouldRollback(hr, rel.Version) {
 		success = false
-		if err = rollback(cfg, hr); err != nil {
-			v2.SetHelmReleaseCondition(&hr, v2.RollbackCondition, corev1.ConditionFalse, v2.RollbackFailedReason, err.Error())
-			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("Helm rollback failed: %s", err.Error()))
-		} else {
-			v2.SetHelmReleaseCondition(&hr, v2.RollbackCondition, corev1.ConditionTrue, v2.RollbackSucceededReason, "Helm rollback succeeded")
-			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, "Helm rollback succeeded")
-		}
+		err = rollback(cfg, hr)
+		r.handleHelmActionResult(hr, source, err, "rollback", v2.RollbackCondition, v2.RollbackSucceededReason, v2.RollbackFailedReason)
 	}
 
 	// Determine release number after action runs
@@ -357,14 +337,11 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	// Run uninstall
 	if v2.ShouldUninstall(hr, releaseRevision) {
 		success = false
-		if err = uninstall(cfg, hr); err != nil {
-			v2.SetHelmReleaseCondition(&hr, v2.UninstallCondition, corev1.ConditionFalse, v2.UninstallFailedReason, err.Error())
-			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("Helm uninstall failed: %s", err.Error()))
-		} else {
+		err = uninstall(cfg, hr)
+		if err == nil {
 			releaseRevision = 0
-			v2.SetHelmReleaseCondition(&hr, v2.UninstallCondition, corev1.ConditionTrue, v2.UninstallSucceededReason, "Helm uninstall succeeded")
-			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, "Helm uninstall succeeded")
 		}
+		r.handleHelmActionResult(hr, source, err, "uninstall", v2.UninstallCondition, v2.UninstallSucceededReason, v2.UninstallFailedReason)
 	}
 
 	if !success {
@@ -440,6 +417,17 @@ func (r *HelmReleaseReconciler) gc(ctx context.Context, log logr.Logger, hr v2.H
 		return nil
 	default:
 		return uninstallErr
+	}
+}
+
+func (r *HelmReleaseReconciler) handleHelmActionResult(hr v2.HelmRelease, source sourcev1.Source, err error, action string, condition string, succeededReason string, failedReason string) {
+	if err != nil {
+		v2.SetHelmReleaseCondition(&hr, condition, corev1.ConditionFalse, failedReason, err.Error())
+		r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("Helm %s failed: %s", action, err.Error()))
+	} else {
+		msg := fmt.Sprintf("Helm %s succeeded", action)
+		v2.SetHelmReleaseCondition(&hr, condition, corev1.ConditionTrue, succeededReason, msg)
+		r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, msg)
 	}
 }
 

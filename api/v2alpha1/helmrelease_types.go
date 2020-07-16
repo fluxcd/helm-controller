@@ -404,40 +404,26 @@ func SetHelmReleaseCondition(hr *HelmRelease, condition string, status corev1.Co
 	})
 }
 
-// HelmReleaseNotReady sets the status of the ReadyCondition of the given HelmRelease to
-// ConditionFalse including the given reason and message.
-func HelmReleaseNotReady(hr HelmRelease, revision string, releaseRevision int, reason, message string) HelmRelease {
-	hr.Status.Conditions = filterOutCondition(hr.Status.Conditions, ReadyCondition)
-	hr.Status.Conditions = append(hr.Status.Conditions, Condition{
-		Type:               ReadyCondition,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             reason,
-		Message:            message,
-	})
+// SetHelmReleaseReadiness sets the ReadyCondition, ObservedGeneration, LastAttemptedRevision,
+// and LastReleaseRevision, on the HelmRelease.
+func SetHelmReleaseReadiness(hr *HelmRelease, status corev1.ConditionStatus, reason, message string, revision string, releaseRevision int) {
+	SetHelmReleaseCondition(hr, ReadyCondition, status, reason, message)
 	hr.Status.ObservedGeneration = hr.Generation
 	hr.Status.LastAttemptedRevision = revision
 	hr.Status.LastReleaseRevision = releaseRevision
+}
+
+// HelmReleaseNotReady registers a failed release attempt of the given HelmRelease.
+func HelmReleaseNotReady(hr HelmRelease, revision string, releaseRevision int, reason, message string) HelmRelease {
+	SetHelmReleaseReadiness(&hr, corev1.ConditionFalse, reason, message, revision, releaseRevision)
 	hr.Status.Failures = hr.Status.Failures + 1
 	return hr
 }
 
-// HelmReleaseReady sets the status of the ReadyCondition of the given HelmRelease to
-// ConditionTrue including the given reason and message, and sets the LastAppliedRevision
-// and LastReleaseRevision to the given values.
+// HelmReleaseReady registers a successful release attempt of the given HelmRelease.
 func HelmReleaseReady(hr HelmRelease, revision string, releaseRevision int, reason, message string) HelmRelease {
-	hr.Status.Conditions = filterOutCondition(hr.Status.Conditions, ReadyCondition)
-	hr.Status.Conditions = append(hr.Status.Conditions, Condition{
-		Type:               ReadyCondition,
-		Status:             corev1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             reason,
-		Message:            message,
-	})
-	hr.Status.ObservedGeneration = hr.Generation
+	SetHelmReleaseReadiness(&hr, corev1.ConditionTrue, reason, message, revision, releaseRevision)
 	hr.Status.LastAppliedRevision = revision
-	hr.Status.LastAttemptedRevision = hr.Status.LastAppliedRevision
-	hr.Status.LastReleaseRevision = releaseRevision
 	hr.Status.Failures = 0
 	return hr
 }
