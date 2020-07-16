@@ -78,13 +78,13 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	log := r.Log.WithValues(strings.ToLower(hr.Kind), req.NamespacedName)
+	log := r.Log.WithValues("controller", strings.ToLower(v2.HelmReleaseKind), "request", req.NamespacedName)
 
 	if hr.Spec.Suspend {
 		msg := "HelmRelease is suspended, skipping reconciliation"
 		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.SuspendedReason, msg)
 		if err := r.Status().Update(ctx, &hr); err != nil {
-			log.Error(err, "unable to update HelmRelease status")
+			log.Error(err, "unable to update status")
 			return ctrl.Result{Requeue: true}, err
 		}
 		log.Info(msg)
@@ -93,75 +93,78 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 
 	hr = v2.HelmReleaseProgressing(hr)
 	if err := r.Status().Update(ctx, &hr); err != nil {
-		log.Error(err, "unable to update HelmRelease status")
+		log.Error(err, "unable to update status")
 		return ctrl.Result{Requeue: true}, err
 	}
 
 	// Reconcile chart based on the HelmChartTemplate
-	hc, ok, err := r.reconcileChart(ctx, hr)
+	hc, ok, reconcileErr := r.reconcileChart(ctx, hr)
 	if !ok {
-		msg := "HelmChart is not ready"
-		if err != nil {
-			msg = fmt.Sprintf("HelmChart reconciliation failed: %s", err.Error())
+		var msg string
+		if reconcileErr != nil {
+			msg = fmt.Sprintf("chart reconciliation failed: %s", reconcileErr.Error())
+			r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityError, msg)
+		} else {
+			msg = "HelmChart is not ready"
+			r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityInfo, msg)
 		}
 		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.ArtifactFailedReason, msg)
 		if err := r.Status().Update(ctx, &hr); err != nil {
-			log.Error(err, "unable to update HelmRelease status")
+			log.Error(err, "unable to update status")
 			return ctrl.Result{Requeue: true}, err
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, reconcileErr
 	}
 
-	// Check hc readiness
+	// Check chart artifact readiness
 	if hc.GetArtifact() == nil {
 		msg := "HelmChart is not ready"
 		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.ArtifactFailedReason, msg)
+		r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityInfo, msg)
+		log.Info(msg)
 		if err := r.Status().Update(ctx, &hr); err != nil {
-			log.Error(err, "unable to update HelmRelease status")
+			log.Error(err, "unable to update status")
 			return ctrl.Result{Requeue: true}, err
 		}
-		log.Info(msg)
 		return ctrl.Result{}, nil
 	}
 
 	// Check dependencies
 	if len(hr.Spec.DependsOn) > 0 {
 		if err := r.checkDependencies(hr); err != nil {
+			msg := fmt.Sprintf("dependencies do not meet ready condition (%s), retrying in %s", err.Error(), r.requeueDependency.String())
+			r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityInfo, msg)
+			log.Info(msg)
+
 			hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.DependencyNotReadyReason, err.Error())
 			if err := r.Status().Update(ctx, &hr); err != nil {
-				log.Error(err, "unable to update HelmRelease status")
+				log.Error(err, "unable to update status")
 				return ctrl.Result{Requeue: true}, err
 			}
 			// Exponential backoff would cause execution to be prolonged too much,
 			// instead we requeue on a fixed interval.
-			msg := fmt.Sprintf("Dependencies do not meet ready condition (%s), retrying in %s", err.Error(), r.requeueDependency.String())
-			log.Info(msg)
-			r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityInfo, msg)
 			return ctrl.Result{RequeueAfter: r.requeueDependency}, nil
 		}
-		log.Info("All dependencies area ready, proceeding with release")
+		log.Info("all dependencies are ready, proceeding with release")
 	}
 
-	reconciledHr, err := r.release(log, hr, hc)
-	if err != nil {
-		log.Error(err, "HelmRelease reconciliation failed", "revision", hc.GetArtifact().Revision)
-		r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityError, err.Error())
-	} else {
-		r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityInfo, v2.HelmReleaseReadyMessage(reconciledHr))
+	reconciledHr, reconcileErr := r.release(log, *hr.DeepCopy(), hc)
+	if reconcileErr != nil {
+		r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("reconciliation failed: %s", reconcileErr.Error()))
 	}
 
 	if err := r.Status().Update(ctx, &reconciledHr); err != nil {
-		log.Error(err, "unable to update HelmRelease status after reconciliation")
+		log.Error(err, "unable to update status after reconciliation")
 		return ctrl.Result{Requeue: true}, err
 	}
 
 	// Log reconciliation duration
-	log.Info(fmt.Sprintf("HelmRelease reconcilation finished in %s, next run in %s",
+	log.Info(fmt.Sprintf("reconcilation finished in %s, next run in %s",
 		time.Now().Sub(start).String(),
 		hr.Spec.Interval.Duration.String(),
 	))
 
-	return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
+	return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, reconcileErr
 }
 
 type HelmReleaseReconcilerOptions struct {
@@ -251,15 +254,19 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	if errors.Is(err, driver.ErrNoDeployedReleases) {
 		if rel, err = install(cfg, loadedChart, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionFalse, v2.InstallFailedReason, err.Error())
+			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("Helm install failed: %s", err.Error()))
 		} else {
-			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionTrue, v2.InstallSucceededReason, "Helm installation succeeded")
+			v2.SetHelmReleaseCondition(&hr, v2.InstallCondition, corev1.ConditionTrue, v2.InstallSucceededReason, "Helm install succeeded")
+			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, "Helm install succeeded")
 		}
 		success = err == nil
 	} else if v2.ShouldUpgrade(hr, source.GetArtifact().Revision, rel.Version) {
 		if rel, err = upgrade(cfg, loadedChart, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.UpgradeCondition, corev1.ConditionFalse, v2.UpgradeFailedReason, err.Error())
+			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("Helm upgrade failed: %s", err.Error()))
 		} else {
 			v2.SetHelmReleaseCondition(&hr, v2.UpgradeCondition, corev1.ConditionTrue, v2.UpgradeSucceededReason, "Helm upgrade succeeded")
+			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, "Helm upgrade succeeded")
 		}
 		success = err == nil
 	}
@@ -268,8 +275,10 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	if v2.ShouldTest(hr) {
 		if rel, err = test(cfg, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.TestCondition, corev1.ConditionFalse, v2.TestFailedReason, err.Error())
+			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("Helm test failed: %s", err.Error()))
 		} else {
 			v2.SetHelmReleaseCondition(&hr, v2.TestCondition, corev1.ConditionTrue, v2.TestSucceededReason, "Helm test succeeded")
+			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, "Helm test succeeded")
 		}
 	}
 
@@ -278,8 +287,10 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 		success = false
 		if err = rollback(cfg, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.RollbackCondition, corev1.ConditionFalse, v2.RollbackFailedReason, err.Error())
+			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("Helm rollback failed: %s", err.Error()))
 		} else {
 			v2.SetHelmReleaseCondition(&hr, v2.RollbackCondition, corev1.ConditionTrue, v2.RollbackSucceededReason, "Helm rollback succeeded")
+			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, "Helm rollback succeeded")
 		}
 	}
 
@@ -293,8 +304,10 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	if v2.ShouldUninstall(hr, releaseRevision) {
 		if err = uninstall(cfg, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.UninstallCondition, corev1.ConditionFalse, v2.UninstallFailedReason, err.Error())
+			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("Helm uninstall failed: %s", err.Error()))
 		} else {
 			v2.SetHelmReleaseCondition(&hr, v2.UninstallCondition, corev1.ConditionTrue, v2.UninstallSucceededReason, "Helm uninstall succeeded")
+			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, "Helm uninstall succeeded")
 		}
 	}
 
@@ -329,12 +342,13 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 	return nil
 }
 
+// event emits a Kubernetes event and forwards the event to notification controller if configured.
 func (r *HelmReleaseReconciler) event(hr v2.HelmRelease, revision, severity, msg string) {
 	r.EventRecorder.Event(&hr, "Normal", severity, msg)
 	objRef, err := reference.GetReference(r.Scheme, &hr)
 	if err != nil {
 		r.Log.WithValues(
-			strings.ToLower(hr.Kind),
+			"request",
 			fmt.Sprintf("%s/%s", hr.GetNamespace(), hr.GetName()),
 		).Error(err, "unable to send event")
 		return
@@ -347,7 +361,7 @@ func (r *HelmReleaseReconciler) event(hr v2.HelmRelease, revision, severity, msg
 		}
 		if err := r.ExternalEventRecorder.Eventf(*objRef, meta, severity, severity, msg); err != nil {
 			r.Log.WithValues(
-				strings.ToLower(hr.Kind),
+				"request",
 				fmt.Sprintf("%s/%s", hr.GetNamespace(), hr.GetName()),
 			).Error(err, "unable to send event")
 			return
