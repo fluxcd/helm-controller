@@ -208,6 +208,10 @@ spec:
                   description: DisableHooks prevents hooks from running during the
                     Helm rollback action.
                   type: boolean
+                keepHistory:
+                  description: KeepHistory tells Helm to remove all associated resources
+                    and mark the release as deleted, but retain the release history.
+                  type: boolean
                 timeout:
                   description: Timeout is the time to wait for any individual Kubernetes
                     operation (like Jobs for hooks) during the performance of a Helm

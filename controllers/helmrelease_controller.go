@@ -555,6 +555,7 @@ func uninstall(cfg *action.Configuration, hr v2.HelmRelease) error {
 	uninstall := action.NewUninstall(cfg)
 	uninstall.Timeout = hr.Spec.Uninstall.GetTimeout(hr.GetTimeout()).Duration
 	uninstall.DisableHooks = hr.Spec.Uninstall.DisableHooks
+	uninstall.KeepHistory = hr.Spec.Uninstall.KeepHistory
 
 	_, err := uninstall.Run(hr.GetReleaseName())
 	return err
