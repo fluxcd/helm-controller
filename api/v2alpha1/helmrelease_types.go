@@ -317,6 +317,11 @@ type Uninstall struct {
 	// DisableHooks prevents hooks from running during the Helm rollback action.
 	// +optional
 	DisableHooks bool `json:"disableHooks,omitempty"`
+
+	// KeepHistory tells Helm to remove all associated resources and mark the release as
+	// deleted, but retain the release history.
+	// +optional
+	KeepHistory bool `json:"keepHistory,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm uninstall action,

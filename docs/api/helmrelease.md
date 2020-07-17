@@ -1126,6 +1126,19 @@ bool
 <p>DisableHooks prevents hooks from running during the Helm rollback action.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>keepHistory</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>KeepHistory tells Helm to remove all associated resources and mark the release as
+deleted, but retain the release history.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
