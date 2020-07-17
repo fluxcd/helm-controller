@@ -356,10 +356,12 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 
 	// Run uninstall
 	if v2.ShouldUninstall(hr, releaseRevision) {
+		success = false
 		if err = uninstall(cfg, hr); err != nil {
 			v2.SetHelmReleaseCondition(&hr, v2.UninstallCondition, corev1.ConditionFalse, v2.UninstallFailedReason, err.Error())
 			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("Helm uninstall failed: %s", err.Error()))
 		} else {
+			releaseRevision = 0
 			v2.SetHelmReleaseCondition(&hr, v2.UninstallCondition, corev1.ConditionTrue, v2.UninstallSucceededReason, "Helm uninstall succeeded")
 			r.event(hr, source.GetArtifact().Revision, recorder.EventSeverityInfo, "Helm uninstall succeeded")
 		}
