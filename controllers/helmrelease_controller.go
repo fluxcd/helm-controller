@@ -243,16 +243,16 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	if err != nil && !apierrors.IsNotFound(err) {
 		return nil, false, err
 	}
+	hc := helmChartFromTemplate(*hr)
 	switch {
 	case apierrors.IsNotFound(err):
-		hc := helmChartFromTemplate(*hr)
 		if err = r.Client.Create(ctx, hc); err != nil {
 			return nil, false, err
 		}
 		hr.Status.HelmChart = chartName.String()
 		return nil, false, nil
 	case helmChartRequiresUpdate(*hr, helmChart):
-		hc := helmChartFromTemplate(*hr)
+		helmChart.Spec = hc.Spec
 		if err = r.Client.Update(ctx, hc); err != nil {
 			return nil, false, err
 		}
