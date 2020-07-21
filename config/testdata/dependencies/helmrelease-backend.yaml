@@ -9,7 +9,7 @@ spec:
     version: '^4.0.0'
     sourceRef:
       kind: HelmRepository
-      name: podinfo
+      name: webapp
     interval: 1m
   test:
     enable: true

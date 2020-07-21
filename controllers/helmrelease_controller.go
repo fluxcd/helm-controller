@@ -252,8 +252,9 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 		hr.Status.HelmChart = chartName.String()
 		return nil, false, nil
 	case helmChartRequiresUpdate(*hr, helmChart):
+		r.Log.Info("chart diverged from template", strings.ToLower(sourcev1.HelmChartKind), chartName.String())
 		helmChart.Spec = hc.Spec
-		if err = r.Client.Update(ctx, hc); err != nil {
+		if err = r.Client.Update(ctx, &helmChart); err != nil {
 			return nil, false, err
 		}
 		hr.Status.HelmChart = chartName.String()
@@ -483,7 +484,7 @@ func helmChartRequiresUpdate(hr v2.HelmRelease, chart sourcev1.HelmChart) bool {
 		return true
 	case template.Version != chart.Spec.Version:
 		return true
-	case template.SourceRef.Name != chart.Spec.Name:
+	case template.SourceRef.Name != chart.Spec.HelmRepositoryRef.Name:
 		return true
 	case template.GetInterval(hr.Spec.Interval) != chart.Spec.Interval:
 		return true
