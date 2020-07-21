@@ -2,6 +2,10 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.1-beta.2 (2020-07-21)
+
+This beta release comes with various bug fixes and minor improvements.
+
 ## 0.0.1-beta.1 (2020-07-20)
 
 This beta release drops support for Kubernetes <1.16.
