@@ -2,6 +2,10 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.1-beta.3 (2020-07-21)
+
+This beta release fixes a bug affecting helm charts reconciliation.
+
 ## 0.0.1-beta.2 (2020-07-21)
 
 This beta release comes with various bug fixes and minor improvements.
