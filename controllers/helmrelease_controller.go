@@ -273,7 +273,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	defer unlock()
 
 	// Create temp working dir
-	tmpDir, err := ioutil.TempDir("", hr.Name)
+	tmpDir, err := ioutil.TempDir("", hr.GetReleaseName())
 	if err != nil {
 		err = fmt.Errorf("tmp dir error: %w", err)
 	}
@@ -298,7 +298,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	}
 
 	// Get the current release
-	rel, err := cfg.Releases.Deployed(hr.Name)
+	rel, err := cfg.Releases.Deployed(hr.GetReleaseName())
 	if err != nil && !errors.Is(err, driver.ErrNoDeployedReleases) {
 		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.InitFailedReason, "failed to determine if release exists"), err
 	}
@@ -330,7 +330,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 
 	// Determine release number after action runs
 	var releaseRevision int
-	if curRel, err := cfg.Releases.Deployed(hr.Name); err == nil {
+	if curRel, err := cfg.Releases.Deployed(hr.GetReleaseName()); err == nil {
 		releaseRevision = curRel.Version
 	}
 
@@ -518,7 +518,7 @@ func upgrade(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (
 	upgrade.Force = hr.Spec.Upgrade.Force
 	upgrade.CleanupOnFail = hr.Spec.Upgrade.CleanupOnFail
 
-	return upgrade.Run(hr.Name, chart, hr.GetValues())
+	return upgrade.Run(hr.GetReleaseName(), chart, hr.GetValues())
 }
 
 func test(cfg *action.Configuration, hr v2.HelmRelease) (*release.Release, error) {
