@@ -305,7 +305,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	}
 
 	// Install or upgrade the release
-	success := hr.Status.Failures == 0
+	success := true
 	if errors.Is(err, driver.ErrNoDeployedReleases) {
 		rel, err = install(cfg, loadedChart, hr)
 		r.handleHelmActionResult(hr, source, err, "install", v2.InstallCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
