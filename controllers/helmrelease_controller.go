@@ -33,6 +33,7 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
@@ -180,7 +181,19 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		log.Info("all dependencies are ready, proceeding with release")
 	}
 
-	reconciledHr, reconcileErr := r.release(log, *hr.DeepCopy(), hc)
+	// Compose values
+	values, err := r.composeValues(ctx, hr)
+	if err != nil {
+		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.InitFailedReason, err.Error())
+		r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityError, err.Error())
+		if err := r.Status().Update(ctx, &hr); err != nil {
+			log.Error(err, "unable to update status")
+			return ctrl.Result{Requeue: true}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	reconciledHr, reconcileErr := r.release(log, *hr.DeepCopy(), hc, values)
 	if reconcileErr != nil {
 		r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("reconciliation failed: %s", reconcileErr.Error()))
 	}
@@ -264,7 +277,7 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	return &helmChart, true, nil
 }
 
-func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, source sourcev1.Source) (v2.HelmRelease, error) {
+func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, source sourcev1.Source, values chartutil.Values) (v2.HelmRelease, error) {
 	// Acquire lock
 	unlock, err := lock(fmt.Sprintf("%s-%s", hr.GetName(), hr.GetNamespace()))
 	if err != nil {
@@ -307,11 +320,11 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	// Install or upgrade the release
 	success := true
 	if errors.Is(err, driver.ErrNoDeployedReleases) {
-		rel, err = install(cfg, loadedChart, hr)
+		rel, err = install(cfg, loadedChart, hr, values)
 		r.handleHelmActionResult(hr, source, err, "install", v2.InstalledCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
 		success = err == nil
 	} else if v2.ShouldUpgrade(hr, source.GetArtifact().Revision, rel.Version) {
-		rel, err = upgrade(cfg, loadedChart, hr)
+		rel, err = upgrade(cfg, loadedChart, hr, values)
 		r.handleHelmActionResult(hr, source, err, "upgrade", v2.UpgradedCondition, v2.UpgradeSucceededReason, v2.UpgradeFailedReason)
 		success = err == nil
 	}
@@ -421,6 +434,50 @@ func (r *HelmReleaseReconciler) gc(ctx context.Context, log logr.Logger, hr v2.H
 	}
 }
 
+func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRelease) (chartutil.Values, error) {
+	var result chartutil.Values
+	for _, v := range hr.Spec.ValuesFrom {
+		namespacedName := types.NamespacedName{Namespace: hr.Namespace, Name: v.Name}
+		var valsData []byte
+		switch v.Kind {
+		case "ConfigMap":
+			var resource corev1.ConfigMap
+			if err := r.Get(ctx, namespacedName, &resource); err != nil {
+				if apierrors.IsNotFound(err) {
+					return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
+				}
+				return nil, err
+			}
+			if data, ok := resource.Data[v.GetValuesKey()]; !ok {
+				return nil, fmt.Errorf("missing key '%s' in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName)
+			} else {
+				valsData = []byte(data)
+			}
+		case "Secret":
+			var resource corev1.Secret
+			if err := r.Get(ctx, namespacedName, &resource); err != nil {
+				if apierrors.IsNotFound(err) {
+					return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
+				}
+				return nil, err
+			}
+			if data, ok := resource.Data[v.GetValuesKey()]; !ok {
+				return nil, fmt.Errorf("missing key '%s' in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName)
+			} else {
+				valsData = data
+			}
+		default:
+			return nil, fmt.Errorf("unsupported ValuesReference kind '%s'", v.Kind)
+		}
+		values, err := chartutil.ReadValues(valsData)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read values from key '%s' in %s '%s': %w", v.GetValuesKey(), v.Kind, namespacedName, err)
+		}
+		result = chartutil.CoalesceTables(result, values)
+	}
+	return chartutil.CoalesceTables(result, hr.GetValues()), nil
+}
+
 func (r *HelmReleaseReconciler) handleHelmActionResult(hr v2.HelmRelease, source sourcev1.Source, err error, action string, condition string, succeededReason string, failedReason string) {
 	if err != nil {
 		v2.SetHelmReleaseCondition(&hr, condition, corev1.ConditionFalse, failedReason, err.Error())
@@ -493,7 +550,7 @@ func helmChartRequiresUpdate(hr v2.HelmRelease, chart sourcev1.HelmChart) bool {
 	}
 }
 
-func install(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (*release.Release, error) {
+func install(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease, values chartutil.Values) (*release.Release, error) {
 	install := action.NewInstall(cfg)
 	install.ReleaseName = hr.GetReleaseName()
 	install.Namespace = hr.GetReleaseNamespace()
@@ -504,10 +561,10 @@ func install(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (
 	install.Replace = hr.Spec.Install.Replace
 	install.SkipCRDs = hr.Spec.Install.SkipCRDs
 
-	return install.Run(chart, hr.GetValues())
+	return install.Run(chart, values.AsMap())
 }
 
-func upgrade(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (*release.Release, error) {
+func upgrade(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease, values chartutil.Values) (*release.Release, error) {
 	upgrade := action.NewUpgrade(cfg)
 	upgrade.Namespace = hr.GetReleaseNamespace()
 	upgrade.ResetValues = !hr.Spec.Upgrade.PreserveValues
@@ -519,7 +576,7 @@ func upgrade(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease) (
 	upgrade.Force = hr.Spec.Upgrade.Force
 	upgrade.CleanupOnFail = hr.Spec.Upgrade.CleanupOnFail
 
-	return upgrade.Run(hr.GetReleaseName(), chart, hr.GetValues())
+	return upgrade.Run(hr.GetReleaseName(), chart, values.AsMap())
 }
 
 func test(cfg *action.Configuration, hr v2.HelmRelease) (*release.Release, error) {

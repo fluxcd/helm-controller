@@ -55,3 +55,11 @@ type ValuesReference struct {
 	// +optional
 	ValuesKey string `json:"valuesKey,omitempty"`
 }
+
+// GetValuesKey returns the defined ValuesKey or the default ('values.yaml').
+func (in ValuesReference) GetValuesKey() string {
+	if in.ValuesKey == "" {
+		return "values.yaml"
+	}
+	return in.ValuesKey
+}

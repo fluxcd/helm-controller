@@ -66,6 +66,16 @@ jobs:
           kubectl -n helm-system apply -f config/testdata/dependencies
           kubectl -n helm-system wait helmreleases/backend --for=condition=ready --timeout=4m
           kubectl -n helm-system wait helmreleases/frontend --for=condition=ready --timeout=4m
+      - name: Run values test
+        run: |
+          kubectl -n helm-system apply -f config/testdata/valuesfrom
+          kubectl -n helm-system wait helmreleases/valuesfrom --for=condition=ready --timeout=4m
+
+          RESULT=$(helm -n helm-system get values valuesfrom)
+          EXPECTED=$(cat config/testdata/valuesfrom/result.txt)
+          if [ "$RESULT" != "$EXPECTED" ]; then
+            echo -e "$RESULT\n\ndoes not equal\n\n$EXPECTED"
+          fi
       - name: Logs
         run: |
           kubectl -n helm-system logs deploy/source-controller
