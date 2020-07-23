@@ -36,3 +36,22 @@ type CrossNamespaceObjectReference struct {
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
 }
+
+// ValuesReference contains a reference to a resource containing Helm values,
+// and optionally the key they can be found at.
+type ValuesReference struct {
+	// Kind of the values referent, valid values are ('Secret', 'ConfigMap').
+	// +kubebuilder:validation:Enum=Secret;ConfigMap
+	// +required
+	Kind string `json:"kind"`
+
+	// Name of the values referent. Should reside in the same namespace as the
+	// referring resource.
+	// +required
+	Name string `json:"name"`
+
+	// ValuesKey is the key in the referent the values can be found at.
+	// Defaults to 'values.yaml'.
+	// +optional
+	ValuesKey string `json:"valuesKey,omitempty"`
+}

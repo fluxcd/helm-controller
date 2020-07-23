@@ -90,6 +90,10 @@ type HelmReleaseSpec struct {
 	// +optional
 	Uninstall Uninstall `json:"uninstall,omitempty"`
 
+	// ValuesFrom holds references to resources containing Helm values, and information
+	// about how they should be merged.
+	ValuesFrom []ValuesReference `json:"valuesFrom,omitempty"`
+
 	// Values holds the values for this Helm release.
 	// +optional
 	Values apiextensionsv1.JSON `json:"values,omitempty"`

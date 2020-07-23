@@ -262,6 +262,34 @@ spec:
               values:
                 description: Values holds the values for this Helm release.
                 x-kubernetes-preserve-unknown-fields: true
+              valuesFrom:
+                description: ValuesFrom holds references to resources containing Helm
+                  values, and information about how they should be merged.
+                items:
+                  description: ValuesReference contains a reference to a resource
+                    containing Helm values, and optionally the key they can be found
+                    at.
+                  properties:
+                    kind:
+                      description: Kind of the values referent, valid values are ('Secret',
+                        'ConfigMap').
+                      enum:
+                      - Secret
+                      - ConfigMap
+                      type: string
+                    name:
+                      description: Name of the values referent. Should reside in the
+                        same namespace as the referring resource.
+                      type: string
+                    valuesKey:
+                      description: ValuesKey is the key in the referent the values
+                        can be found at. Defaults to 'values.yaml'.
+                      type: string
+                  required:
+                  - kind
+                  - name
+                  type: object
+                type: array
             required:
             - chart
             - interval
