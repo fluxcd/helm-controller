@@ -64,7 +64,7 @@ const (
 	RolledBackCondition string = "RolledBack"
 
 	// UninstalledCondition represents the fact that the HelmRelease has been successfully uninstalled.
-	UninstalledCondition string = "Uninstall"
+	UninstalledCondition string = "Uninstalled"
 )
 
 const (
