@@ -449,7 +449,7 @@ func ShouldUpgrade(hr HelmRelease, revision string, releaseRevision int) bool {
 func ShouldTest(hr HelmRelease) bool {
 	if hr.Spec.Test.Enable {
 		for _, c := range hr.Status.Conditions {
-			if c.Status == corev1.ConditionTrue && (c.Type == InstallCondition || c.Type == UpgradeCondition) {
+			if c.Status == corev1.ConditionTrue && (c.Type == InstalledCondition || c.Type == UpgradedCondition) {
 				return true
 			}
 		}
@@ -464,7 +464,7 @@ func ShouldRollback(hr HelmRelease, releaseRevision int) bool {
 			return false
 		}
 		for _, c := range hr.Status.Conditions {
-			if c.Type == UpgradeCondition && c.Status == corev1.ConditionFalse {
+			if c.Type == UpgradedCondition && c.Status == corev1.ConditionFalse {
 				return true
 			}
 		}
@@ -478,7 +478,7 @@ func ShouldUninstall(hr HelmRelease, releaseRevision int) bool {
 		return false
 	}
 	for _, c := range hr.Status.Conditions {
-		if c.Type == InstallCondition && c.Status == corev1.ConditionFalse {
+		if c.Type == InstalledCondition && c.Status == corev1.ConditionFalse {
 			return true
 		}
 	}

@@ -51,20 +51,20 @@ const (
 	// ReadyCondition represents the fact that the HelmRelease has been successfully reconciled.
 	ReadyCondition string = "Ready"
 
-	// InstallCondition represents the fact that the HelmRelease has been successfully installed.
-	InstallCondition string = "Install"
+	// InstalledCondition represents the fact that the HelmRelease has been successfully installed.
+	InstalledCondition string = "Installed"
 
-	// UpgradeCondition represents the fact that the HelmRelease has been successfully upgraded.
-	UpgradeCondition string = "Upgrade"
+	// UpgradedCondition represents the fact that the HelmRelease has been successfully upgraded.
+	UpgradedCondition string = "Upgraded"
 
-	// TestCondition represents the fact that the HelmRelease has been successfully tested.
-	TestCondition string = "Test"
+	// TestedCondition represents the fact that the HelmRelease has been successfully tested.
+	TestedCondition string = "Tested"
 
-	// RollbackCondition represents the fact that the HelmRelease has been successfully rolled back.
-	RollbackCondition string = "Rollback"
+	// RolledBackCondition represents the fact that the HelmRelease has been successfully rolled back.
+	RolledBackCondition string = "RolledBack"
 
-	// UninstallCondition represents the fact that the HelmRelease has been successfully uninstalled.
-	UninstallCondition string = "Uninstall"
+	// UninstalledCondition represents the fact that the HelmRelease has been successfully uninstalled.
+	UninstalledCondition string = "Uninstall"
 )
 
 const (

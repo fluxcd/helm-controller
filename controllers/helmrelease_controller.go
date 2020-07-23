@@ -308,25 +308,25 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	success := true
 	if errors.Is(err, driver.ErrNoDeployedReleases) {
 		rel, err = install(cfg, loadedChart, hr)
-		r.handleHelmActionResult(hr, source, err, "install", v2.InstallCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
+		r.handleHelmActionResult(hr, source, err, "install", v2.InstalledCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
 		success = err == nil
 	} else if v2.ShouldUpgrade(hr, source.GetArtifact().Revision, rel.Version) {
 		rel, err = upgrade(cfg, loadedChart, hr)
-		r.handleHelmActionResult(hr, source, err, "upgrade", v2.UpgradeCondition, v2.UpgradeSucceededReason, v2.UpgradeFailedReason)
+		r.handleHelmActionResult(hr, source, err, "upgrade", v2.UpgradedCondition, v2.UpgradeSucceededReason, v2.UpgradeFailedReason)
 		success = err == nil
 	}
 
 	// Run tests
 	if v2.ShouldTest(hr) {
 		rel, err = test(cfg, hr)
-		r.handleHelmActionResult(hr, source, err, "test", v2.TestCondition, v2.TestSucceededReason, v2.TestFailedReason)
+		r.handleHelmActionResult(hr, source, err, "test", v2.TestedCondition, v2.TestSucceededReason, v2.TestFailedReason)
 	}
 
 	// Run rollback
 	if rel != nil && v2.ShouldRollback(hr, rel.Version) {
 		success = false
 		err = rollback(cfg, hr)
-		r.handleHelmActionResult(hr, source, err, "rollback", v2.RollbackCondition, v2.RollbackSucceededReason, v2.RollbackFailedReason)
+		r.handleHelmActionResult(hr, source, err, "rollback", v2.RolledBackCondition, v2.RollbackSucceededReason, v2.RollbackFailedReason)
 	}
 
 	// Determine release number after action runs
@@ -342,7 +342,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 		if err == nil {
 			releaseRevision = 0
 		}
-		r.handleHelmActionResult(hr, source, err, "uninstall", v2.UninstallCondition, v2.UninstallSucceededReason, v2.UninstallFailedReason)
+		r.handleHelmActionResult(hr, source, err, "uninstall", v2.UninstalledCondition, v2.UninstallSucceededReason, v2.UninstallFailedReason)
 	}
 
 	if !success {
