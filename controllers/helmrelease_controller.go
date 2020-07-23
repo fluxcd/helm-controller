@@ -363,7 +363,7 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 			return fmt.Errorf("unable to get '%s' dependency: %w", depName, err)
 		}
 
-		if len(depHr.Status.Conditions) == 0 {
+		if len(depHr.Status.Conditions) == 0 || depHr.Generation != depHr.Status.ObservedGeneration {
 			return fmt.Errorf("dependency '%s' is not ready", depName)
 		}
 
