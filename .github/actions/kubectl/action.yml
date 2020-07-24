@@ -1,9 +1,0 @@
-name: 'kubectl'
-description: 'A GitHub Action to run kubectl commands'
-author: 'Stefan Prodan'
-branding:
-  icon: 'command'
-  color: 'blue'
-runs:
-  using: 'docker'
-  image: 'Dockerfile'
