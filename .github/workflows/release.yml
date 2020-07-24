@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Setup Kustomize
-        uses: ./.github/actions/kustomize
+        uses: fluxcd/pkg/actions/kustomize@master
       - name: Get version
         id: get_version
         run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}

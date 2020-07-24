@@ -1,9 +1,0 @@
-name: 'kubebuilder'
-description: 'A GitHub Action to run kubebuilder commands'
-author: 'Stefan Prodan'
-branding:
-  icon: 'command'
-  color: 'blue'
-runs:
-  using: 'docker'
-  image: 'Dockerfile'
