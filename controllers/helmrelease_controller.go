@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"crypto/sha1"
 	"errors"
 	"fmt"
 	"io"
@@ -115,7 +116,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 
 	if hr.Spec.Suspend {
 		msg := "HelmRelease is suspended, skipping reconciliation"
-		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.SuspendedReason, msg)
+		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, hr.Status.LastAttemptedValuesChecksum, v2.SuspendedReason, msg)
 		if err := r.Status().Update(ctx, &hr); err != nil {
 			log.Error(err, "unable to update status")
 			return ctrl.Result{Requeue: true}, err
@@ -141,7 +142,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 			msg = "HelmChart is not ready"
 			r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityInfo, msg)
 		}
-		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.ArtifactFailedReason, msg)
+		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, hr.Status.LastAttemptedValuesChecksum, v2.ArtifactFailedReason, msg)
 		if err := r.Status().Update(ctx, &hr); err != nil {
 			log.Error(err, "unable to update status")
 			return ctrl.Result{Requeue: true}, err
@@ -152,7 +153,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	// Check chart artifact readiness
 	if hc.GetArtifact() == nil {
 		msg := "HelmChart is not ready"
-		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.ArtifactFailedReason, msg)
+		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, hr.Status.LastAttemptedValuesChecksum, v2.ArtifactFailedReason, msg)
 		r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityInfo, msg)
 		log.Info(msg)
 		if err := r.Status().Update(ctx, &hr); err != nil {
@@ -169,7 +170,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 			r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityInfo, msg)
 			log.Info(msg)
 
-			hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.DependencyNotReadyReason, err.Error())
+			hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, hr.Status.LastAttemptedValuesChecksum, v2.DependencyNotReadyReason, err.Error())
 			if err := r.Status().Update(ctx, &hr); err != nil {
 				log.Error(err, "unable to update status")
 				return ctrl.Result{Requeue: true}, err
@@ -184,7 +185,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	// Compose values
 	values, err := r.composeValues(ctx, hr)
 	if err != nil {
-		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.InitFailedReason, err.Error())
+		hr = v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, hr.Status.LastAttemptedValuesChecksum, v2.InitFailedReason, err.Error())
 		r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityError, err.Error())
 		if err := r.Status().Update(ctx, &hr); err != nil {
 			log.Error(err, "unable to update status")
@@ -282,7 +283,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	unlock, err := lock(fmt.Sprintf("%s-%s", hr.GetName(), hr.GetNamespace()))
 	if err != nil {
 		err = fmt.Errorf("lockfile error: %w", err)
-		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, sourcev1.StorageOperationFailedReason, err.Error()), err
+		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, hr.Status.LastAttemptedValuesChecksum, sourcev1.StorageOperationFailedReason, err.Error()), err
 	}
 	defer unlock()
 
@@ -296,26 +297,28 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	// Download artifact
 	artifactPath, err := download(source.GetArtifact().URL, tmpDir)
 	if err != nil {
-		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.ArtifactFailedReason, "artifact acquisition failed"), err
+		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, hr.Status.LastAttemptedValuesChecksum, v2.ArtifactFailedReason, "artifact acquisition failed"), err
 	}
 
 	// Load chart
 	loadedChart, err := loader.Load(artifactPath)
 	if err != nil {
-		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.ArtifactFailedReason, "failed to load chart"), err
+		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, hr.Status.LastAttemptedValuesChecksum, v2.ArtifactFailedReason, "failed to load chart"), err
 	}
 
 	// Initialize config
 	cfg, err := newActionCfg(log, r.Config, hr)
 	if err != nil {
-		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.InitFailedReason, "failed to initialize Helm action configuration"), err
+		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, hr.Status.LastAttemptedValuesChecksum, v2.InitFailedReason, "failed to initialize Helm action configuration"), err
 	}
 
 	// Get the current release
 	rel, err := cfg.Releases.Deployed(hr.GetReleaseName())
 	if err != nil && !errors.Is(err, driver.ErrNoDeployedReleases) {
-		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, v2.InitFailedReason, "failed to determine if release exists"), err
+		return v2.HelmReleaseNotReady(hr, hr.Status.LastAttemptedRevision, hr.Status.LastReleaseRevision, hr.Status.LastAttemptedValuesChecksum, v2.InitFailedReason, "failed to determine if release exists"), err
 	}
+
+	valuesChecksum := calculateValuesChecksum(values)
 
 	// Install or upgrade the release
 	success := true
@@ -323,7 +326,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 		rel, err = install(cfg, loadedChart, hr, values)
 		r.handleHelmActionResult(hr, source, err, "install", v2.InstalledCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
 		success = err == nil
-	} else if v2.ShouldUpgrade(hr, source.GetArtifact().Revision, rel.Version) {
+	} else if v2.ShouldUpgrade(hr, source.GetArtifact().Revision, rel.Version, valuesChecksum) {
 		rel, err = upgrade(cfg, loadedChart, hr, values)
 		r.handleHelmActionResult(hr, source, err, "upgrade", v2.UpgradedCondition, v2.UpgradeSucceededReason, v2.UpgradeFailedReason)
 		success = err == nil
@@ -359,9 +362,9 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	}
 
 	if !success {
-		return v2.HelmReleaseNotReady(hr, source.GetArtifact().Revision, releaseRevision, v2.ReconciliationFailedReason, "release reconciliation failed"), err
+		return v2.HelmReleaseNotReady(hr, source.GetArtifact().Revision, releaseRevision, valuesChecksum, v2.ReconciliationFailedReason, "release reconciliation failed"), err
 	}
-	return v2.HelmReleaseReady(hr, source.GetArtifact().Revision, releaseRevision, v2.ReconciliationSucceededReason, "release reconciliation succeeded"), nil
+	return v2.HelmReleaseReady(hr, source.GetArtifact().Revision, releaseRevision, valuesChecksum, v2.ReconciliationSucceededReason, "release reconciliation succeeded"), nil
 }
 
 func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
@@ -656,6 +659,12 @@ func actionLogger(logger logr.Logger) func(format string, v ...interface{}) {
 	return func(format string, v ...interface{}) {
 		logger.Info(fmt.Sprintf(format, v...))
 	}
+}
+
+// calculateValuesChecksum calculates the SHA1 checksum for the given Values.
+func calculateValuesChecksum(values chartutil.Values) string {
+	s, _ := values.YAML()
+	return fmt.Sprintf("%x", sha1.Sum([]byte(s)))
 }
 
 func containsString(slice []string, s string) bool {

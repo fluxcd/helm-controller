@@ -345,6 +345,10 @@ spec:
                 description: LastAttemptedRevision is the revision of the last reconciliation
                   attempt.
                 type: string
+              lastAttemptedValuesChecksum:
+                description: LastAttemptedValuesChecksum is the SHA1 checksum of the
+                  values of the last reconciliation attempt.
+                type: string
               lastReleaseRevision:
                 description: LastReleaseRevision is the revision of the last successful
                   Helm release.

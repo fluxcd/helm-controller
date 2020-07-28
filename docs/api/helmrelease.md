@@ -806,6 +806,18 @@ string
 </tr>
 <tr>
 <td>
+<code>lastAttemptedValuesChecksum</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastAttemptedValuesChecksum is the SHA1 checksum of the values of the last reconciliation attempt.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>lastReleaseRevision</code><br>
 <em>
 int

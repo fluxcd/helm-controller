@@ -357,6 +357,10 @@ type HelmReleaseStatus struct {
 	// +optional
 	LastAttemptedRevision string `json:"lastAttemptedRevision,omitempty"`
 
+	// LastAttemptedValuesChecksum is the SHA1 checksum of the values of the last reconciliation attempt.
+	// +optional
+	LastAttemptedValuesChecksum string `json:"lastAttemptedValuesChecksum,omitempty"`
+
 	// LastReleaseRevision is the revision of the last successful Helm release.
 	// +optional
 	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`
@@ -410,36 +414,39 @@ func SetHelmReleaseCondition(hr *HelmRelease, condition string, status corev1.Co
 
 // SetHelmReleaseReadiness sets the ReadyCondition, ObservedGeneration, LastAttemptedRevision,
 // and LastReleaseRevision, on the HelmRelease.
-func SetHelmReleaseReadiness(hr *HelmRelease, status corev1.ConditionStatus, reason, message string, revision string, releaseRevision int) {
+func SetHelmReleaseReadiness(hr *HelmRelease, status corev1.ConditionStatus, reason, message string, revision string, releaseRevision int, valuesChecksum string) {
 	SetHelmReleaseCondition(hr, ReadyCondition, status, reason, message)
 	hr.Status.ObservedGeneration = hr.Generation
 	hr.Status.LastAttemptedRevision = revision
 	hr.Status.LastReleaseRevision = releaseRevision
+	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
 }
 
 // HelmReleaseNotReady registers a failed release attempt of the given HelmRelease.
-func HelmReleaseNotReady(hr HelmRelease, revision string, releaseRevision int, reason, message string) HelmRelease {
-	SetHelmReleaseReadiness(&hr, corev1.ConditionFalse, reason, message, revision, releaseRevision)
+func HelmReleaseNotReady(hr HelmRelease, revision string, releaseRevision int, valuesChecksum, reason, message string) HelmRelease {
+	SetHelmReleaseReadiness(&hr, corev1.ConditionFalse, reason, message, revision, releaseRevision, valuesChecksum)
 	hr.Status.Failures = hr.Status.Failures + 1
 	return hr
 }
 
 // HelmReleaseReady registers a successful release attempt of the given HelmRelease.
-func HelmReleaseReady(hr HelmRelease, revision string, releaseRevision int, reason, message string) HelmRelease {
-	SetHelmReleaseReadiness(&hr, corev1.ConditionTrue, reason, message, revision, releaseRevision)
+func HelmReleaseReady(hr HelmRelease, revision string, releaseRevision int, valuesChecksum, reason, message string) HelmRelease {
+	SetHelmReleaseReadiness(&hr, corev1.ConditionTrue, reason, message, revision, releaseRevision, valuesChecksum)
 	hr.Status.LastAppliedRevision = revision
 	hr.Status.Failures = 0
 	return hr
 }
 
 // ShouldUpgrade determines if an Helm upgrade action needs to be performed for the given HelmRelease.
-func ShouldUpgrade(hr HelmRelease, revision string, releaseRevision int) bool {
+func ShouldUpgrade(hr HelmRelease, revision string, releaseRevision int, valuesChecksum string) bool {
 	switch {
 	case hr.Status.LastAttemptedRevision != revision:
 		return true
 	case hr.Status.LastReleaseRevision != releaseRevision:
 		return true
 	case hr.Generation != hr.Status.ObservedGeneration:
+		return true
+	case hr.Status.LastAttemptedValuesChecksum != valuesChecksum:
 		return true
 	case hr.Status.Failures > 0 &&
 		(hr.Spec.Upgrade.MaxRetries < 0 || hr.Status.Failures < int64(hr.Spec.Upgrade.MaxRetries)):
@@ -487,17 +494,6 @@ func ShouldUninstall(hr HelmRelease, releaseRevision int) bool {
 		}
 	}
 	return false
-}
-
-// HelmReleaseReadyMessage returns the message of the HelmRelease
-// of type Ready with status true if present, or an empty string.
-func HelmReleaseReadyMessage(hr HelmRelease) string {
-	for _, condition := range hr.Status.Conditions {
-		if condition.Type == ReadyCondition && condition.Status == corev1.ConditionTrue {
-			return condition.Message
-		}
-	}
-	return ""
 }
 
 const (
