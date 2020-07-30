@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: valuesfrom-config
+data:
+  resources.limits: |
+    resources:
+      limits:
+        cpu: 200m
+        memory: 128Mi
+  resources.requests: |
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi

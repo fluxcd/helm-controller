@@ -246,6 +246,20 @@ Uninstall
 </tr>
 <tr>
 <td>
+<code>valuesFrom</code><br>
+<em>
+<a href="#helm.fluxcd.io/v2alpha1.ValuesReference">
+[]ValuesReference
+</a>
+</em>
+</td>
+<td>
+<p>ValuesFrom holds references to resources containing Helm values, and information
+about how they should be merged.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>values</code><br>
 <em>
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON
@@ -695,6 +709,20 @@ Uninstall
 </tr>
 <tr>
 <td>
+<code>valuesFrom</code><br>
+<em>
+<a href="#helm.fluxcd.io/v2alpha1.ValuesReference">
+[]ValuesReference
+</a>
+</em>
+</td>
+<td>
+<p>ValuesFrom holds references to resources containing Helm values, and information
+about how they should be merged.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>values</code><br>
 <em>
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON
@@ -774,6 +802,18 @@ string
 <td>
 <em>(Optional)</em>
 <p>LastAttemptedRevision is the revision of the last reconciliation attempt.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastAttemptedValuesChecksum</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastAttemptedValuesChecksum is the SHA1 checksum of the values of the last reconciliation attempt.</p>
 </td>
 </tr>
 <tr>
@@ -1266,6 +1306,64 @@ bool
 <em>(Optional)</em>
 <p>CleanupOnFail allows deletion of new resources created during the Helm
 upgrade action when it fails.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.fluxcd.io/v2alpha1.ValuesReference">ValuesReference
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>ValuesReference contains a reference to a resource containing Helm values,
+and optionally the key they can be found at.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>kind</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Kind of the values referent, valid values are (&lsquo;Secret&rsquo;, &lsquo;ConfigMap&rsquo;).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name of the values referent. Should reside in the same namespace as the
+referring resource.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>valuesKey</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ValuesKey is the key in the referent the values can be found at.
+Defaults to &lsquo;values.yaml&rsquo;.</p>
 </td>
 </tr>
 </tbody>

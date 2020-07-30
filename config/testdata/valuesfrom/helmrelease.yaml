@@ -1,0 +1,28 @@
+apiVersion: helm.fluxcd.io/v2alpha1
+kind: HelmRelease
+metadata:
+  name: valuesfrom
+spec:
+  interval: 5m
+  chart:
+    name: podinfo
+    version: '^4.0.0'
+    sourceRef:
+      kind: HelmRepository
+      name: valuesfrom
+    interval: 1m
+  test:
+    enable: true
+  rollback:
+    enable: true
+  valuesFrom:
+    - kind: ConfigMap
+      name: valuesfrom-config
+      valuesKey: resources.limits
+    - kind: ConfigMap
+      name: valuesfrom-config
+      valuesKey: resources.requests
+    - kind: Secret
+      name: valuesfrom-secret
+  values:
+    replicaCount: 2

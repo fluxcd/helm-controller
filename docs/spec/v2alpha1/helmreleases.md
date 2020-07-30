@@ -70,6 +70,10 @@ type HelmReleaseSpec struct {
 	// +optional
 	Uninstall Uninstall `json:"uninstall,omitempty"`
 
+	// ValuesFrom holds references to resources containing Helm values, and information
+	// about how they should be merged.
+	ValuesFrom []ValuesReference `json:"valuesFrom,omitempty"
+
 	// Values holds the values for this Helm release.
 	// +optional
 	Values apiextensionsv1.JSON `json:"values,omitempty"`
@@ -238,6 +242,50 @@ type Uninstall struct {
 	// as deleted, but retain the release history.
 	// +optional
 	KeepHistory bool `json:"keepHistory,omitempty"`
+}
+```
+
+Reference types:
+
+```go
+// CrossNamespaceObjectReference contains enough information to let you locate the
+// typed referenced object at cluster level.
+type CrossNamespaceObjectReference struct {
+	// APIVersion of the referent.
+	// +optional
+	APIVersion string `json:"apiVersion,omitempty"`
+
+	// Kind of the referent.
+	// +kubebuilder:validation:Enum=HelmRepository
+	// +required
+	Kind string `json:"kind,omitempty"`
+
+	// Name of the referent.
+	// +required
+	Name string `json:"name"`
+
+	// Namespace of the referent.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+}
+
+// ValuesReference contains a reference to a resource containing Helm values,
+// and optionally the key they can be found at.
+type ValuesReference struct {
+	// Kind of the values referent, valid values are ('Secret', 'ConfigMap').
+	// +kubebuilder:validation:Enum=Secret;ConfigMap
+	// +required
+	Kind string `json:"kind"`
+
+	// Name of the values referent. Should reside in the same namespace as the
+	// referring resource.
+	// +required
+	Name string `json:"name"`
+	
+	// ValuesKey is the key in the referent the values can be found at.
+	// Defaults to 'values.yaml'.
+	// +optional
+	ValuesKey string `json:"valuesKey,omitempty"`
 }
 ```
 
