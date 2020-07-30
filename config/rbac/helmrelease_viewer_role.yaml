@@ -5,7 +5,7 @@ metadata:
   name: helmrelease-viewer-role
 rules:
 - apiGroups:
-  - helm.fluxcd.io
+  - helm.toolkit.fluxcd.io
   resources:
   - helmreleases
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - helm.fluxcd.io
+  - helm.toolkit.fluxcd.io
   resources:
   - helmreleases/status
   verbs:

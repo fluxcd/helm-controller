@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.3.0
   creationTimestamp: null
-  name: helmreleases.helm.fluxcd.io
+  name: helmreleases.helm.toolkit.fluxcd.io
 spec:
-  group: helm.fluxcd.io
+  group: helm.toolkit.fluxcd.io
   names:
     kind: HelmRelease
     listKind: HelmReleaseList

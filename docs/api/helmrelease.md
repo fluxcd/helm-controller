@@ -2,16 +2,16 @@
 <p>Packages:</p>
 <ul class="simple">
 <li>
-<a href="#helm.fluxcd.io%2fv2alpha1">helm.fluxcd.io/v2alpha1</a>
+<a href="#helm.toolkit.fluxcd.io%2fv2alpha1">helm.toolkit.fluxcd.io/v2alpha1</a>
 </li>
 </ul>
-<h2 id="helm.fluxcd.io/v2alpha1">helm.fluxcd.io/v2alpha1</h2>
+<h2 id="helm.toolkit.fluxcd.io/v2alpha1">helm.toolkit.fluxcd.io/v2alpha1</h2>
 <p>Package v2alpha1 contains API Schema definitions for the helm v2alpha1 API group</p>
 Resource Types:
 <ul class="simple"><li>
-<a href="#helm.fluxcd.io/v2alpha1.HelmRelease">HelmRelease</a>
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmRelease">HelmRelease</a>
 </li></ul>
-<h3 id="helm.fluxcd.io/v2alpha1.HelmRelease">HelmRelease
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.HelmRelease">HelmRelease
 </h3>
 <p>HelmRelease is the Schema for the helmreleases API</p>
 <div class="md-typeset__scrollwrap">
@@ -29,7 +29,7 @@ Resource Types:
 <code>apiVersion</code><br>
 string</td>
 <td>
-<code>helm.fluxcd.io/v2alpha1</code>
+<code>helm.toolkit.fluxcd.io/v2alpha1</code>
 </td>
 </tr>
 <tr>
@@ -59,7 +59,7 @@ Refer to the Kubernetes API documentation for the fields of the
 <td>
 <code>spec</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmReleaseSpec">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">
 HelmReleaseSpec
 </a>
 </em>
@@ -72,7 +72,7 @@ HelmReleaseSpec
 <td>
 <code>chart</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmChartTemplate">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmChartTemplate">
 HelmChartTemplate
 </a>
 </em>
@@ -178,7 +178,7 @@ Use &lsquo;0&rsquo; for an unlimited number of revisions; defaults to &lsquo;10&
 <td>
 <code>install</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.Install">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.Install">
 Install
 </a>
 </em>
@@ -192,7 +192,7 @@ Install
 <td>
 <code>upgrade</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.Upgrade">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.Upgrade">
 Upgrade
 </a>
 </em>
@@ -206,7 +206,7 @@ Upgrade
 <td>
 <code>test</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.Test">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.Test">
 Test
 </a>
 </em>
@@ -220,7 +220,7 @@ Test
 <td>
 <code>rollback</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.Rollback">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.Rollback">
 Rollback
 </a>
 </em>
@@ -234,7 +234,7 @@ Rollback
 <td>
 <code>uninstall</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.Uninstall">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.Uninstall">
 Uninstall
 </a>
 </em>
@@ -248,7 +248,7 @@ Uninstall
 <td>
 <code>valuesFrom</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.ValuesReference">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.ValuesReference">
 []ValuesReference
 </a>
 </em>
@@ -277,7 +277,7 @@ k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON
 <td>
 <code>status</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmReleaseStatus">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseStatus">
 HelmReleaseStatus
 </a>
 </em>
@@ -289,11 +289,11 @@ HelmReleaseStatus
 </table>
 </div>
 </div>
-<h3 id="helm.fluxcd.io/v2alpha1.Condition">Condition
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.Condition">Condition
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmReleaseStatus">HelmReleaseStatus</a>)
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseStatus">HelmReleaseStatus</a>)
 </p>
 <p>Condition contains condition information for a HelmRelease.</p>
 <div class="md-typeset__scrollwrap">
@@ -373,11 +373,11 @@ transition, complementing reason.</p>
 </table>
 </div>
 </div>
-<h3 id="helm.fluxcd.io/v2alpha1.CrossNamespaceObjectReference">CrossNamespaceObjectReference
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.CrossNamespaceObjectReference">CrossNamespaceObjectReference
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmChartTemplate">HelmChartTemplate</a>)
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmChartTemplate">HelmChartTemplate</a>)
 </p>
 <p>CrossNamespaceObjectReference contains enough information to let you locate the
 typed referenced object at cluster level.</p>
@@ -441,11 +441,11 @@ string
 </table>
 </div>
 </div>
-<h3 id="helm.fluxcd.io/v2alpha1.HelmChartTemplate">HelmChartTemplate
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.HelmChartTemplate">HelmChartTemplate
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
 <p>HelmChartTemplate defines the template from which the controller
 will generate a HelmChart object in the same namespace as the HelmRepository.</p>
@@ -486,7 +486,7 @@ string
 <td>
 <code>sourceRef</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.CrossNamespaceObjectReference">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.CrossNamespaceObjectReference">
 CrossNamespaceObjectReference
 </a>
 </em>
@@ -514,11 +514,11 @@ Defaults to &lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
 </table>
 </div>
 </div>
-<h3 id="helm.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmRelease">HelmRelease</a>)
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmRelease">HelmRelease</a>)
 </p>
 <p>HelmReleaseSpec defines the desired state of HelmRelease.</p>
 <div class="md-typeset__scrollwrap">
@@ -535,7 +535,7 @@ Defaults to &lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
 <td>
 <code>chart</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmChartTemplate">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmChartTemplate">
 HelmChartTemplate
 </a>
 </em>
@@ -641,7 +641,7 @@ Use &lsquo;0&rsquo; for an unlimited number of revisions; defaults to &lsquo;10&
 <td>
 <code>install</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.Install">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.Install">
 Install
 </a>
 </em>
@@ -655,7 +655,7 @@ Install
 <td>
 <code>upgrade</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.Upgrade">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.Upgrade">
 Upgrade
 </a>
 </em>
@@ -669,7 +669,7 @@ Upgrade
 <td>
 <code>test</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.Test">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.Test">
 Test
 </a>
 </em>
@@ -683,7 +683,7 @@ Test
 <td>
 <code>rollback</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.Rollback">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.Rollback">
 Rollback
 </a>
 </em>
@@ -697,7 +697,7 @@ Rollback
 <td>
 <code>uninstall</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.Uninstall">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.Uninstall">
 Uninstall
 </a>
 </em>
@@ -711,7 +711,7 @@ Uninstall
 <td>
 <code>valuesFrom</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.ValuesReference">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.ValuesReference">
 []ValuesReference
 </a>
 </em>
@@ -737,11 +737,11 @@ k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON
 </table>
 </div>
 </div>
-<h3 id="helm.fluxcd.io/v2alpha1.HelmReleaseStatus">HelmReleaseStatus
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseStatus">HelmReleaseStatus
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmRelease">HelmRelease</a>)
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmRelease">HelmRelease</a>)
 </p>
 <p>HelmReleaseStatus defines the observed state of HelmRelease</p>
 <div class="md-typeset__scrollwrap">
@@ -770,7 +770,7 @@ int64
 <td>
 <code>conditions</code><br>
 <em>
-<a href="#helm.fluxcd.io/v2alpha1.Condition">
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.Condition">
 []Condition
 </a>
 </em>
@@ -858,11 +858,11 @@ reconciliation.</p>
 </table>
 </div>
 </div>
-<h3 id="helm.fluxcd.io/v2alpha1.Install">Install
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.Install">Install
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
 <p>Install holds the configuration for Helm install actions.</p>
 <div class="md-typeset__scrollwrap">
@@ -959,11 +959,11 @@ CRDs are installed if not already present.</p>
 </table>
 </div>
 </div>
-<h3 id="helm.fluxcd.io/v2alpha1.Rollback">Rollback
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.Rollback">Rollback
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
 <p>Rollback holds the configuration for Helm rollback actions.</p>
 <div class="md-typeset__scrollwrap">
@@ -1071,11 +1071,11 @@ rollback action when it fails.</p>
 </table>
 </div>
 </div>
-<h3 id="helm.fluxcd.io/v2alpha1.Test">Test
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.Test">Test
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
 <p>Test holds the configuration for Helm test actions.</p>
 <div class="md-typeset__scrollwrap">
@@ -1121,11 +1121,11 @@ during the performance of a Helm test action. Defaults to
 </table>
 </div>
 </div>
-<h3 id="helm.fluxcd.io/v2alpha1.Uninstall">Uninstall
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.Uninstall">Uninstall
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
 <p>Uninstall holds the configuration for Helm uninstall actions.</p>
 <div class="md-typeset__scrollwrap">
@@ -1183,13 +1183,13 @@ deleted, but retain the release history.</p>
 </table>
 </div>
 </div>
-<h3 id="helm.fluxcd.io/v2alpha1.Unsortable">Unsortable
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.Unsortable">Unsortable
 (<code>[][]string</code> alias)</h3>
-<h3 id="helm.fluxcd.io/v2alpha1.Upgrade">Upgrade
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.Upgrade">Upgrade
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
 <p>Upgrade holds the configuration for Helm upgrade actions.</p>
 <div class="md-typeset__scrollwrap">
@@ -1312,11 +1312,11 @@ upgrade action when it fails.</p>
 </table>
 </div>
 </div>
-<h3 id="helm.fluxcd.io/v2alpha1.ValuesReference">ValuesReference
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.ValuesReference">ValuesReference
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
 <p>ValuesReference contains a reference to a resource containing Helm values,
 and optionally the key they can be found at.</p>
