@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.1 (2020-07-31)
+
+This prerelease comes with a breaking change, the CRDs group has been
+renamed to `helm.toolkit.fluxcd.io`. The dependency on `source-controller`
+has been updated to `v0.0.7` to be able to work with `source.toolkit.fluxcd.io`
+resources.
+
 ## 0.0.1-beta.4 (2020-07-22)
 
 This beta release fixes a bug affecting helm release status reevaluation.
