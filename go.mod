@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/fluxcd/pkg v0.0.3
-	github.com/fluxcd/source-controller v0.0.6
+	github.com/fluxcd/source-controller v0.0.7
 	github.com/go-logr/logr v0.1.0
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.1
