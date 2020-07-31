@@ -1,4 +1,4 @@
-# helm.fluxcd.io/v2alpha1
+# helm.toolkit.fluxcd.io/v2alpha1
 
 This is the v2alpha1 API specification for declaratively managing Helm chart releases with
 Kubernetes manifests.

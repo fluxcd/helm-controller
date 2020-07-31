@@ -1,4 +1,4 @@
-apiVersion: source.fluxcd.io/v1alpha1
+apiVersion: source.toolkit.fluxcd.io/v1alpha1
 kind: HelmRepository
 metadata:
   name: webapp

@@ -422,7 +422,7 @@ Assuming two `HelmRelease` resources:
 - `frontend` - contains the frontend of the application and relies on the backend
 
 ```yaml
-apiVersion: helm.fluxcd.io/v2alpha1
+apiVersion: helm.toolkit.fluxcd.io/v2alpha1
 kind: HelmRelease
 metadata:
   name: backend
@@ -447,7 +447,7 @@ spec:
         cpu: 100m
         memory: 64Mi
 ---
-apiVersion: helm.fluxcd.io/v2alpha1
+apiVersion: helm.toolkit.fluxcd.io/v2alpha1
 kind: HelmRelease
 metadata:
   name: frontend
@@ -483,7 +483,7 @@ From time to time an Helm upgrade made by the helm-controller may fail, automati
 from this via a Helm rollback action is possible by enabling rollbacks for the `HelmRelease`.
 
 ```yaml
-apiVersion: helm.fluxcd.io/v2alpha1
+apiVersion: helm.toolkit.fluxcd.io/v2alpha1
 kind: HelmRelease
 metadata:
   name: podinfo
@@ -514,7 +514,7 @@ To make the controller run the Helm tests available for your chart after a succe
 or upgrade, `spec.test.enable` should be set to `true`.
 
 ```yaml
-apiVersion: helm.fluxcd.io/v2alpha1
+apiVersion: helm.toolkit.fluxcd.io/v2alpha1
 kind: HelmRelease
 metadata:
   name: podinfo

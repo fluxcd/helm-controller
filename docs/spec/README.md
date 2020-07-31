@@ -50,7 +50,7 @@ trigger a Helm uninstall.
 Alerting can be configured with a Kubernetes custom resource that specifies a webhook address, and a
 group of `HelmRelease` resources to be monitored using the [notification-controller](https://github.com/fluxcd/notification-controller).
 
-The API design of the controller can be found at [helm.fluxcd.io/v2alpha1](./v2alpha1/helmreleases.md).
+The API design of the controller can be found at [helm.toolkit.fluxcd.io/v2alpha1](./v2alpha1/helmreleases.md).
 
 ## Backward compatibility
 

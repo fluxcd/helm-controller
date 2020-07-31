@@ -7,7 +7,7 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - helm.fluxcd.io
+  - helm.toolkit.fluxcd.io
   resources:
   - helmreleases
   verbs:
@@ -19,7 +19,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - helm.fluxcd.io
+  - helm.toolkit.fluxcd.io
   resources:
   - helmreleases/status
   verbs:
@@ -27,7 +27,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - source.fluxcd.io
+  - source.toolkit.fluxcd.io
   resources:
   - helmcharts
   verbs:
@@ -35,7 +35,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - source.fluxcd.io
+  - source.toolkit.fluxcd.io
   resources:
   - helmcharts/status
   verbs:
