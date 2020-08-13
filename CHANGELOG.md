@@ -2,6 +2,10 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.2 (2020-08-12)
+
+In this prerelease the Helm package was upgraded to [v3.3.0](https://github.com/helm/helm/releases/tag/v3.3.0).
+
 ## 0.0.1 (2020-07-31)
 
 This prerelease comes with a breaking change, the CRDs group has been
