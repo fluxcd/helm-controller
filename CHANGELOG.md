@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.3 (2020-08-18)
+
+This prerelease upgrades the `github.com/fluxcd/pkg/*` dependencies to
+dedicated versioned modules, and makes the `api` package available as
+a dedicated versioned module.
+
 ## 0.0.2 (2020-08-12)
 
 In this prerelease the Helm package was upgraded to [v3.3.0](https://github.com/helm/helm/releases/tag/v3.3.0).
