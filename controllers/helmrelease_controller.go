@@ -476,9 +476,9 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 		if err != nil {
 			return nil, fmt.Errorf("unable to read values from key '%s' in %s '%s': %w", v.GetValuesKey(), v.Kind, namespacedName, err)
 		}
-		result = chartutil.CoalesceTables(result, values)
+		result = mergeMaps(result, values)
 	}
-	return chartutil.CoalesceTables(result, hr.GetValues()), nil
+	return mergeMaps(result, hr.GetValues()), nil
 }
 
 func (r *HelmReleaseReconciler) handleHelmActionResult(hr v2.HelmRelease, source sourcev1.Source, err error, action string, condition string, succeededReason string, failedReason string) {
@@ -659,6 +659,30 @@ func actionLogger(logger logr.Logger) func(format string, v ...interface{}) {
 	return func(format string, v ...interface{}) {
 		logger.Info(fmt.Sprintf(format, v...))
 	}
+}
+
+// mergeMaps merges map b into given map a and returns the result.
+// It allows overwrites of map values with flat values, and vice versa.
+// This is copied from https://github.com/helm/helm/blob/v3.3.0/pkg/cli/values/options.go#L88,
+// as the public chartutil.CoalesceTables function does not allow
+// overwriting maps with flat values.
+func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{}, len(a))
+	for k, v := range a {
+		out[k] = v
+	}
+	for k, v := range b {
+		if v, ok := v.(map[string]interface{}); ok {
+			if bv, ok := out[k]; ok {
+				if bv, ok := bv.(map[string]interface{}); ok {
+					out[k] = mergeMaps(bv, v)
+					continue
+				}
+			}
+		}
+		out[k] = v
+	}
+	return out
 }
 
 // calculateValuesChecksum calculates the SHA1 checksum for the given Values.
