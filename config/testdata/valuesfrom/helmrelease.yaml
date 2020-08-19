@@ -22,6 +22,22 @@ spec:
     - kind: ConfigMap
       name: valuesfrom-config
       valuesKey: resources.requests
+    - kind: ConfigMap
+      name: valuesfrom-config
+      valuesKey: resources.limits.cpu
+      targetPath: resources.limits.cpu
+    - kind: ConfigMap
+      name: valuesfrom-config
+      valuesKey: list.example
+      targetPath: list.example
+    - kind: ConfigMap
+      name: valuesfrom-config
+      valuesKey: list.example.overwrite
+      targetPath: list.example[2]
+    - kind: ConfigMap
+      name: valuesfrom-config
+      valuesKey: podAnnotation.example.value
+      targetPath: podAnnotations.some\.k8s\.annotation\/env
     - kind: Secret
       name: valuesfrom-secret
   values:

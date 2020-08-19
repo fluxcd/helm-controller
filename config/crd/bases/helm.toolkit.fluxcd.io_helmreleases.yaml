@@ -281,9 +281,15 @@ spec:
                       description: Name of the values referent. Should reside in the
                         same namespace as the referring resource.
                       type: string
+                    targetPath:
+                      description: TargetPath is the YAML dot notation path the value
+                        should be merged at. When set, the ValuesKey is expected to
+                        be a single flat value. Defaults to 'None', which results
+                        in the values getting merged at the root.
+                      type: string
                     valuesKey:
-                      description: ValuesKey is the key in the referent the values
-                        can be found at. Defaults to 'values.yaml'.
+                      description: ValuesKey is the data key where the values.yaml
+                        or a specific value can be found at. Defaults to 'values.yaml'.
                       type: string
                   required:
                   - kind

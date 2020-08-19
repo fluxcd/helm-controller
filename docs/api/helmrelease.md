@@ -1362,8 +1362,22 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>ValuesKey is the key in the referent the values can be found at.
-Defaults to &lsquo;values.yaml&rsquo;.</p>
+<p>ValuesKey is the data key where the values.yaml or a specific value can
+be found at. Defaults to &lsquo;values.yaml&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>targetPath</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TargetPath is the YAML dot notation path the value should be merged at.
+When set, the ValuesKey is expected to be a single flat value.
+Defaults to &lsquo;None&rsquo;, which results in the values getting merged at the root.</p>
 </td>
 </tr>
 </tbody>

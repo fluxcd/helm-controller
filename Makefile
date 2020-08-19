@@ -14,7 +14,7 @@ all: manager
 
 # Run tests
 test: generate fmt vet manifests api-docs
-	find . -maxdepth 2 -type f -name 'go.mod' -execdir go test ./... \;
+	find . -maxdepth 2 -type f -name 'go.mod' -execdir go test ./... -coverprofile cover.out \;
 
 # Build manager binary
 manager: generate fmt vet

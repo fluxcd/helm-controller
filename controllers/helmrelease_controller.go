@@ -37,6 +37,7 @@ import (
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
+	"helm.sh/helm/v3/pkg/strvals"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -472,11 +473,22 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 		default:
 			return nil, fmt.Errorf("unsupported ValuesReference kind '%s'", v.Kind)
 		}
-		values, err := chartutil.ReadValues(valsData)
-		if err != nil {
-			return nil, fmt.Errorf("unable to read values from key '%s' in %s '%s': %w", v.GetValuesKey(), v.Kind, namespacedName, err)
+		switch v.TargetPath {
+		case "":
+			values, err := chartutil.ReadValues(valsData)
+			if err != nil {
+				return nil, fmt.Errorf("unable to read values from key '%s' in %s '%s': %w", v.GetValuesKey(), v.Kind, namespacedName, err)
+			}
+			result = mergeMaps(result, values)
+		default:
+			// TODO(hidde): this is a bit of hack, as it mimics the way the option string is passed
+			// 	to Helm from a CLI perspective. Given the parser is however not publicly accessible
+			// 	while it contains all logic around parsing the target path, it is a fair trade-off.
+			singleVal := v.TargetPath + "=" + string(valsData)
+			if err := strvals.ParseInto(singleVal, result); err != nil {
+				return nil, fmt.Errorf("unable to merge value from key '%s' in %s '%s' into target path '%s': %w", v.GetValuesKey(), v.Kind, namespacedName, v.TargetPath, err)
+			}
 		}
-		result = mergeMaps(result, values)
 	}
 	return mergeMaps(result, hr.GetValues()), nil
 }
