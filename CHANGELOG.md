@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.4 (2020-08-20)
+
+This prerelease adds support for merging a flat single value from
+a `ValueReference` at the defined `TargetPath`, and fixes a bug in
+the merging of values where overwrites of a map with a flat single
+value was not allowed.
+
 ## 0.0.3 (2020-08-18)
 
 This prerelease upgrades the `github.com/fluxcd/pkg/*` dependencies to
