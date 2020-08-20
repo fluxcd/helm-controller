@@ -13,3 +13,7 @@ data:
       requests:
         cpu: 100m
         memory: 64Mi
+  resources.limits.cpu: 400m
+  list.example: "{a,b,c}"
+  list.example.overwrite: d
+  podAnnotation.example.value: demo

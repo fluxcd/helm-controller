@@ -1,8 +1,15 @@
 USER-SUPPLIED VALUES:
+list:
+  example:
+  - a
+  - b
+  - d
+podAnnotations:
+  some.k8s.annotation/env: demo
 replicaCount: 2
 resources:
   limits:
-    cpu: 200m
+    cpu: 400m
     memory: 128Mi
   requests:
     cpu: 100m

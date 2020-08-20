@@ -72,7 +72,7 @@ type HelmReleaseSpec struct {
 
 	// ValuesFrom holds references to resources containing Helm values, and information
 	// about how they should be merged.
-	ValuesFrom []ValuesReference `json:"valuesFrom,omitempty"
+	ValuesFrom []ValuesReference `json:"valuesFrom,omitempty"`
 
 	// Values holds the values for this Helm release.
 	// +optional
@@ -281,11 +281,17 @@ type ValuesReference struct {
 	// referring resource.
 	// +required
 	Name string `json:"name"`
-	
-	// ValuesKey is the key in the referent the values can be found at.
-	// Defaults to 'values.yaml'.
+
+	// ValuesKey is the data key where the values.yaml or a specific value can
+	// be found at. Defaults to 'values.yaml'.
 	// +optional
 	ValuesKey string `json:"valuesKey,omitempty"`
+
+	// TargetPath is the YAML dot notation path the value should be merged at.
+	// When set, the ValuesKey is expected to be a single flat value.
+	// Defaults to 'None', which results in the values getting merged at the root.
+	// +optional
+	TargetPath string `json:"targetPath,omitempty"`
 }
 ```
 
