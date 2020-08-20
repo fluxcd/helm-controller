@@ -1,4 +1,3 @@
-
 # Image URL to use all building/pushing image targets
 IMG ?= fluxcd/helm-controller:latest
 # Produce CRDs that work back to Kubernetes 1.16
@@ -15,7 +14,7 @@ all: manager
 
 # Run tests
 test: generate fmt vet manifests api-docs
-	go test ./... -coverprofile cover.out
+	find . -maxdepth 2 -type f -name 'go.mod' -execdir go test ./... \;
 
 # Build manager binary
 manager: generate fmt vet
@@ -54,7 +53,7 @@ dev-cleanup: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:crd:artifacts:config=config/crd/bases
+	cd api; $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:crd:artifacts:config="../config/crd/bases"
 
 # Generate API reference documentation
 api-docs: gen-crd-api-reference-docs
@@ -62,15 +61,15 @@ api-docs: gen-crd-api-reference-docs
 
 # Run go fmt against code
 fmt:
-	go fmt ./...
+	find . -maxdepth 2 -type f -name 'go.mod' -execdir go fmt ./... \;
 
 # Run go vet against code
 vet:
-	go vet ./...
+	find . -maxdepth 2 -type f -name 'go.mod' -execdir go vet ./... \;
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	cd api; $(CONTROLLER_GEN) object:headerFile="../hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
 docker-build: test
