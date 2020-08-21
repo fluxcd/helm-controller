@@ -20,10 +20,12 @@ import (
 	"fmt"
 )
 
+// CircularDependencyError contains the circular dependency chains
+// that were detected while sorting 'HelmReleaseSpec.DependsOn'.
 // +kubebuilder:object:generate=false
-type Unsortable [][]string
+type CircularDependencyError [][]string
 
-func (e Unsortable) Error() string {
+func (e CircularDependencyError) Error() string {
 	return fmt.Sprintf("circular dependencies: %v", [][]string(e))
 }
 
@@ -38,7 +40,7 @@ func DependencySort(ks []HelmRelease) ([]HelmRelease, error) {
 	}
 	sccs := tarjanSCC(n)
 	var sorted []HelmRelease
-	var unsortable Unsortable
+	var unsortable CircularDependencyError
 	for i := 0; i < len(sccs); i++ {
 		s := sccs[i]
 		if len(s) != 1 {

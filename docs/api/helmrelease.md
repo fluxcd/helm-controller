@@ -289,6 +289,10 @@ HelmReleaseStatus
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.CircularDependencyError">CircularDependencyError
+(<code>[][]string</code> alias)</h3>
+<p>CircularDependencyError contains the circular dependency chains
+that were detected while sorting &lsquo;HelmReleaseSpec.DependsOn&rsquo;.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2alpha1.Condition">Condition
 </h3>
 <p>
@@ -1183,8 +1187,6 @@ deleted, but retain the release history.</p>
 </table>
 </div>
 </div>
-<h3 id="helm.toolkit.fluxcd.io/v2alpha1.Unsortable">Unsortable
-(<code>[][]string</code> alias)</h3>
 <h3 id="helm.toolkit.fluxcd.io/v2alpha1.Upgrade">Upgrade
 </h3>
 <p>
