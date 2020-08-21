@@ -569,12 +569,12 @@ func install(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease, v
 	install := action.NewInstall(cfg)
 	install.ReleaseName = hr.GetReleaseName()
 	install.Namespace = hr.GetReleaseNamespace()
-	install.Timeout = hr.Spec.Install.GetTimeout(hr.GetTimeout()).Duration
-	install.Wait = !hr.Spec.Install.DisableWait
-	install.DisableHooks = hr.Spec.Install.DisableHooks
-	install.DisableOpenAPIValidation = hr.Spec.Install.DisableOpenAPIValidation
-	install.Replace = hr.Spec.Install.Replace
-	install.SkipCRDs = hr.Spec.Install.SkipCRDs
+	install.Timeout = hr.Spec.GetInstall().GetTimeout(hr.GetTimeout()).Duration
+	install.Wait = !hr.Spec.GetInstall().DisableWait
+	install.DisableHooks = hr.Spec.GetInstall().DisableHooks
+	install.DisableOpenAPIValidation = hr.Spec.GetInstall().DisableOpenAPIValidation
+	install.Replace = hr.Spec.GetInstall().Replace
+	install.SkipCRDs = hr.Spec.GetInstall().SkipCRDs
 
 	return install.Run(chart, values.AsMap())
 }
@@ -582,14 +582,14 @@ func install(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease, v
 func upgrade(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease, values chartutil.Values) (*release.Release, error) {
 	upgrade := action.NewUpgrade(cfg)
 	upgrade.Namespace = hr.GetReleaseNamespace()
-	upgrade.ResetValues = !hr.Spec.Upgrade.PreserveValues
-	upgrade.ReuseValues = hr.Spec.Upgrade.PreserveValues
+	upgrade.ResetValues = !hr.Spec.GetUpgrade().PreserveValues
+	upgrade.ReuseValues = hr.Spec.GetUpgrade().PreserveValues
 	upgrade.MaxHistory = hr.GetMaxHistory()
-	upgrade.Timeout = hr.Spec.Upgrade.GetTimeout(hr.GetTimeout()).Duration
-	upgrade.Wait = !hr.Spec.Upgrade.DisableWait
-	upgrade.DisableHooks = hr.Spec.Upgrade.DisableHooks
-	upgrade.Force = hr.Spec.Upgrade.Force
-	upgrade.CleanupOnFail = hr.Spec.Upgrade.CleanupOnFail
+	upgrade.Timeout = hr.Spec.GetUpgrade().GetTimeout(hr.GetTimeout()).Duration
+	upgrade.Wait = !hr.Spec.GetUpgrade().DisableWait
+	upgrade.DisableHooks = hr.Spec.GetUpgrade().DisableHooks
+	upgrade.Force = hr.Spec.GetUpgrade().Force
+	upgrade.CleanupOnFail = hr.Spec.GetUpgrade().CleanupOnFail
 
 	return upgrade.Run(hr.GetReleaseName(), chart, values.AsMap())
 }
@@ -604,21 +604,21 @@ func test(cfg *action.Configuration, hr v2.HelmRelease) (*release.Release, error
 
 func rollback(cfg *action.Configuration, hr v2.HelmRelease) error {
 	rollback := action.NewRollback(cfg)
-	rollback.Timeout = hr.Spec.Rollback.GetTimeout(hr.GetTimeout()).Duration
-	rollback.Wait = !hr.Spec.Rollback.DisableWait
-	rollback.DisableHooks = hr.Spec.Rollback.DisableHooks
-	rollback.Force = hr.Spec.Rollback.Force
-	rollback.Recreate = hr.Spec.Rollback.Recreate
-	rollback.CleanupOnFail = hr.Spec.Rollback.CleanupOnFail
+	rollback.Timeout = hr.Spec.GetRollback().GetTimeout(hr.GetTimeout()).Duration
+	rollback.Wait = !hr.Spec.GetRollback().DisableWait
+	rollback.DisableHooks = hr.Spec.GetRollback().DisableHooks
+	rollback.Force = hr.Spec.GetRollback().Force
+	rollback.Recreate = hr.Spec.GetRollback().Recreate
+	rollback.CleanupOnFail = hr.Spec.GetRollback().CleanupOnFail
 
 	return rollback.Run(hr.GetReleaseName())
 }
 
 func uninstall(cfg *action.Configuration, hr v2.HelmRelease) error {
 	uninstall := action.NewUninstall(cfg)
-	uninstall.Timeout = hr.Spec.Uninstall.GetTimeout(hr.GetTimeout()).Duration
-	uninstall.DisableHooks = hr.Spec.Uninstall.DisableHooks
-	uninstall.KeepHistory = hr.Spec.Uninstall.KeepHistory
+	uninstall.Timeout = hr.Spec.GetUninstall().GetTimeout(hr.GetTimeout()).Duration
+	uninstall.DisableHooks = hr.Spec.GetUninstall().DisableHooks
+	uninstall.KeepHistory = hr.Spec.GetUninstall().KeepHistory
 
 	_, err := uninstall.Run(hr.GetReleaseName())
 	return err

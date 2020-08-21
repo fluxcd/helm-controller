@@ -45,38 +45,38 @@ type HelmReleaseSpec struct {
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
-	// MaxHistory is the number of revisions saved by Helm for this release.
+	// MaxHistory is the number of revisions saved by Helm for this HelmRelease.
 	// Use '0' for an unlimited number of revisions; defaults to '10'.
 	// +optional
 	MaxHistory *int `json:"maxHistory,omitempty"`
 
-	// Install holds the configuration for Helm install actions for this release.
+	// Install holds the configuration for Helm install actions for this HelmRelease.
 	// +optional
-	Install Install `json:"install,omitempty"`
+	Install *Install `json:"install,omitempty"`
 
-	// Upgrade holds the configuration for Helm upgrade actions for this release.
+	// Upgrade holds the configuration for Helm upgrade actions for this HelmRelease.
 	// +optional
-	Upgrade Upgrade `json:"upgrade,omitempty"`
+	Upgrade *Upgrade `json:"upgrade,omitempty"`
 
-	// Test holds the configuration for Helm test actions for this release.
+	// Test holds the configuration for Helm test actions for this HelmRelease.
 	// +optional
-	Test Test `json:"test,omitempty"`
+	Test *Test `json:"test,omitempty"`
 
-	// Rollback holds the configuration for Helm rollback actions for this release.
+	// Rollback holds the configuration for Helm rollback actions for this HelmRelease.
 	// +optional
-	Rollback Rollback `json:"rollback,omitempty"`
+	Rollback *Rollback `json:"rollback,omitempty"`
 
-	// Uninstall holds the configuration for Helm uninstall actions for this release.
+	// Uninstall holds the configuration for Helm uninstall actions for this HelmRelease.
 	// +optional
-	Uninstall Uninstall `json:"uninstall,omitempty"`
+	Uninstall *Uninstall `json:"uninstall,omitempty"`
 
-	// ValuesFrom holds references to resources containing Helm values, and information
-	// about how they should be merged.
+	// ValuesFrom holds references to resources containing Helm values for this HelmRelease,
+	// and information about how they should be merged.
 	ValuesFrom []ValuesReference `json:"valuesFrom,omitempty"`
 
 	// Values holds the values for this Helm release.
 	// +optional
-	Values apiextensionsv1.JSON `json:"values,omitempty"`
+	Values *apiextensionsv1.JSON `json:"values,omitempty"`
 }
 
 // HelmChartTemplate defines the template from which the controller
@@ -100,7 +100,7 @@ type HelmChartTemplate struct {
 	Interval *metav1.Duration `json:"interval,omitempty"`
 }
 
-// Install holds the configuration for Helm install actions.
+// Install holds the configuration for Helm install actions performed for this HelmRelease.
 type Install struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm install action. Defaults to
@@ -133,7 +133,7 @@ type Install struct {
 	SkipCRDs bool `json:"skipCRDs,omitempty"`
 }
 
-// Upgrade holds the configuration for Helm upgrade actions.
+// Upgrade holds the configuration for Helm upgrade actions for this HelmRelease.
 type Upgrade struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm upgrade action. Defaults to
@@ -176,9 +176,9 @@ type Upgrade struct {
 	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
 }
 
-// Test holds the configuration for Helm test actions.
+// Test holds the configuration for Helm test actions for this HelmRelease.
 type Test struct {
-	// Enable enables Helm test actions for this release after an
+	// Enable enables Helm test actions for this HelmRelease after an
 	// Helm install or upgrade action has been performed.
 	// +optional
 	Enable bool `json:"enable,omitempty"`
@@ -190,9 +190,9 @@ type Test struct {
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 }
 
-// Rollback holds the configuration for Helm rollback actions.
+// Rollback holds the configuration for Helm rollback actions for this HelmRelease.
 type Rollback struct {
-	// Enable enables Helm rollback actions for this release after an
+	// Enable enables Helm rollback actions for this HelmRelease after an
 	// Helm install or upgrade action failure.
 	// +optional
 	Enable bool `json:"enable,omitempty"`
@@ -226,7 +226,7 @@ type Rollback struct {
 	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
 }
 
-// Uninstall holds the configuration for Helm uninstall actions.
+// Uninstall holds the configuration for Helm uninstall actions for this HelmRelease.
 type Uninstall struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm uninstall action. Defaults to
@@ -238,8 +238,8 @@ type Uninstall struct {
 	// +optional
 	DisableHooks bool `json:"disableHooks,omitempty"`
 
-	// KeepHistory tells Helm to remove all associated resources and mark the release
-	// as deleted, but retain the release history.
+	// KeepHistory tells Helm to remove all associated resources and mark the release as
+	// deleted, but retain the release history.
 	// +optional
 	KeepHistory bool `json:"keepHistory,omitempty"`
 }

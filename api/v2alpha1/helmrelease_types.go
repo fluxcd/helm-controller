@@ -65,38 +65,88 @@ type HelmReleaseSpec struct {
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
-	// MaxHistory is the number of revisions saved by Helm for this release.
+	// MaxHistory is the number of revisions saved by Helm for this HelmRelease.
 	// Use '0' for an unlimited number of revisions; defaults to '10'.
 	// +optional
 	MaxHistory *int `json:"maxHistory,omitempty"`
 
-	// Install holds the configuration for Helm install actions for this release.
+	// Install holds the configuration for Helm install actions for this HelmRelease.
 	// +optional
-	Install Install `json:"install,omitempty"`
+	Install *Install `json:"install,omitempty"`
 
-	// Upgrade holds the configuration for Helm upgrade actions for this release.
+	// Upgrade holds the configuration for Helm upgrade actions for this HelmRelease.
 	// +optional
-	Upgrade Upgrade `json:"upgrade,omitempty"`
+	Upgrade *Upgrade `json:"upgrade,omitempty"`
 
-	// Test holds the configuration for Helm test actions for this release.
+	// Test holds the configuration for Helm test actions for this HelmRelease.
 	// +optional
-	Test Test `json:"test,omitempty"`
+	Test *Test `json:"test,omitempty"`
 
-	// Rollback holds the configuration for Helm rollback actions for this release.
+	// Rollback holds the configuration for Helm rollback actions for this HelmRelease.
 	// +optional
-	Rollback Rollback `json:"rollback,omitempty"`
+	Rollback *Rollback `json:"rollback,omitempty"`
 
-	// Uninstall holds the configuration for Helm uninstall actions for this release.
+	// Uninstall holds the configuration for Helm uninstall actions for this HelmRelease.
 	// +optional
-	Uninstall Uninstall `json:"uninstall,omitempty"`
+	Uninstall *Uninstall `json:"uninstall,omitempty"`
 
-	// ValuesFrom holds references to resources containing Helm values, and information
-	// about how they should be merged.
+	// ValuesFrom holds references to resources containing Helm values for this HelmRelease,
+	// and information about how they should be merged.
 	ValuesFrom []ValuesReference `json:"valuesFrom,omitempty"`
 
 	// Values holds the values for this Helm release.
 	// +optional
-	Values apiextensionsv1.JSON `json:"values,omitempty"`
+	Values *apiextensionsv1.JSON `json:"values,omitempty"`
+}
+
+// GetInstall returns the configuration for Helm install actions for the HelmRelease.
+func (in HelmReleaseSpec) GetInstall() Install {
+	switch in.Install {
+	case nil:
+		return Install{}
+	default:
+		return *in.Install
+	}
+}
+
+// GetUpgrade returns the configuration for Helm upgrade actions for this HelmRelease.
+func (in HelmReleaseSpec) GetUpgrade() Upgrade {
+	switch in.Upgrade {
+	case nil:
+		return Upgrade{}
+	default:
+		return *in.Upgrade
+	}
+}
+
+// GetTest returns the configuration for Helm test actions for this HelmRelease.
+func (in HelmReleaseSpec) GetTest() Test {
+	switch in.Test {
+	case nil:
+		return Test{}
+	default:
+		return *in.Test
+	}
+}
+
+// GetRollback returns the configuration for Helm rollback actions for this HelmRelease.
+func (in HelmReleaseSpec) GetRollback() Rollback {
+	switch in.Rollback {
+	case nil:
+		return Rollback{}
+	default:
+		return *in.Rollback
+	}
+}
+
+// GetUninstall returns the configuration for Helm uninstall actions for this HelmRelease.
+func (in HelmReleaseSpec) GetUninstall() Uninstall {
+	switch in.Uninstall {
+	case nil:
+		return Uninstall{}
+	default:
+		return *in.Uninstall
+	}
 }
 
 // HelmChartTemplate defines the template from which the controller
@@ -140,7 +190,7 @@ func (in HelmChartTemplate) GetNamespace(defaultNamespace string) string {
 	}
 }
 
-// Install holds the configuration for Helm install actions.
+// Install holds the configuration for Helm install actions performed for this HelmRelease.
 type Install struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm install action. Defaults to
@@ -184,7 +234,7 @@ func (in Install) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	}
 }
 
-// Upgrade holds the configuration for Helm upgrade actions.
+// Upgrade holds the configuration for Helm upgrade actions for this HelmRelease.
 type Upgrade struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm upgrade action. Defaults to
@@ -238,9 +288,9 @@ func (in Upgrade) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	}
 }
 
-// Test holds the configuration for Helm test actions.
+// Test holds the configuration for Helm test actions for this HelmRelease.
 type Test struct {
-	// Enable enables Helm test actions for this release after an
+	// Enable enables Helm test actions for this HelmRelease after an
 	// Helm install or upgrade action has been performed.
 	// +optional
 	Enable bool `json:"enable,omitempty"`
@@ -263,9 +313,9 @@ func (in Test) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	}
 }
 
-// Rollback holds the configuration for Helm rollback actions.
+// Rollback holds the configuration for Helm rollback actions for this HelmRelease.
 type Rollback struct {
-	// Enable enables Helm rollback actions for this release after an
+	// Enable enables Helm rollback actions for this HelmRelease after an
 	// Helm install or upgrade action failure.
 	// +optional
 	Enable bool `json:"enable,omitempty"`
@@ -310,7 +360,7 @@ func (in Rollback) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	}
 }
 
-// Uninstall holds the configuration for Helm uninstall actions.
+// Uninstall holds the configuration for Helm uninstall actions for this HelmRelease.
 type Uninstall struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm uninstall action. Defaults to
@@ -376,6 +426,7 @@ type HelmReleaseStatus struct {
 	Failures int64 `json:"failures,omitempty"`
 }
 
+// GetHelmChart returns the namespace and name of the HelmChart.
 func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 	if in.HelmChart == "" {
 		return "", ""
@@ -449,7 +500,7 @@ func ShouldUpgrade(hr HelmRelease, revision string, releaseRevision int, valuesC
 	case hr.Status.LastAttemptedValuesChecksum != valuesChecksum:
 		return true
 	case hr.Status.Failures > 0 &&
-		(hr.Spec.Upgrade.MaxRetries < 0 || hr.Status.Failures < int64(hr.Spec.Upgrade.MaxRetries)):
+		(hr.Spec.GetUpgrade().MaxRetries < 0 || hr.Status.Failures < int64(hr.Spec.GetUpgrade().MaxRetries)):
 		return true
 	default:
 		return false
@@ -470,7 +521,7 @@ func ShouldTest(hr HelmRelease) bool {
 
 // ShouldRollback determines if a Helm rollback action needs to be performed for the given HelmRelease.
 func ShouldRollback(hr HelmRelease, releaseRevision int) bool {
-	if hr.Spec.Rollback.Enable {
+	if hr.Spec.GetRollback().Enable {
 		if hr.Status.LastReleaseRevision <= releaseRevision {
 			return false
 		}
@@ -528,7 +579,9 @@ type HelmRelease struct {
 // and returns the result.
 func (in HelmRelease) GetValues() map[string]interface{} {
 	var values map[string]interface{}
-	_ = json.Unmarshal(in.Spec.Values.Raw, &values)
+	if in.Spec.Values != nil {
+		_ = json.Unmarshal(in.Spec.Values.Raw, &values)
+	}
 	return values
 }
 
