@@ -101,52 +101,42 @@ type HelmReleaseSpec struct {
 
 // GetInstall returns the configuration for Helm install actions for the HelmRelease.
 func (in HelmReleaseSpec) GetInstall() Install {
-	switch in.Install {
-	case nil:
+	if in.Install == nil {
 		return Install{}
-	default:
-		return *in.Install
 	}
+	return *in.Install
 }
 
 // GetUpgrade returns the configuration for Helm upgrade actions for this HelmRelease.
 func (in HelmReleaseSpec) GetUpgrade() Upgrade {
-	switch in.Upgrade {
-	case nil:
+	if in.Upgrade == nil {
 		return Upgrade{}
-	default:
-		return *in.Upgrade
 	}
+	return *in.Upgrade
 }
 
 // GetTest returns the configuration for Helm test actions for this HelmRelease.
 func (in HelmReleaseSpec) GetTest() Test {
-	switch in.Test {
-	case nil:
+	if in.Test == nil {
 		return Test{}
-	default:
-		return *in.Test
 	}
+	return *in.Test
 }
 
 // GetRollback returns the configuration for Helm rollback actions for this HelmRelease.
 func (in HelmReleaseSpec) GetRollback() Rollback {
-	switch in.Rollback {
-	case nil:
+	if in.Rollback == nil {
 		return Rollback{}
-	default:
-		return *in.Rollback
 	}
+	return *in.Rollback
 }
 
 // GetUninstall returns the configuration for Helm uninstall actions for this HelmRelease.
 func (in HelmReleaseSpec) GetUninstall() Uninstall {
-	switch in.Uninstall {
-	case nil:
+	if in.Uninstall == nil {
 		return Uninstall{}
-	default:
-		return *in.Uninstall
 	}
+	return *in.Uninstall
 }
 
 // HelmChartTemplate defines the template from which the controller
@@ -172,22 +162,18 @@ type HelmChartTemplate struct {
 
 // GetInterval returns the configured interval for the HelmChart, or the given default.
 func (in HelmChartTemplate) GetInterval(defaultInterval metav1.Duration) metav1.Duration {
-	switch in.Interval {
-	case nil:
+	if in.Interval == nil {
 		return defaultInterval
-	default:
-		return *in.Interval
 	}
+	return *in.Interval
 }
 
 // GetNamespace returns the namespace targeted namespace for the HelmChart, or the given default.
 func (in HelmChartTemplate) GetNamespace(defaultNamespace string) string {
-	switch in.SourceRef.Namespace {
-	case "":
+	if in.SourceRef.Namespace == "" {
 		return defaultNamespace
-	default:
-		return in.SourceRef.Namespace
 	}
+	return in.SourceRef.Namespace
 }
 
 // Install holds the configuration for Helm install actions performed for this HelmRelease.
@@ -226,12 +212,10 @@ type Install struct {
 // GetTimeout returns the configured timeout for the Helm install action,
 // or the given default.
 func (in Install) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
-	switch in.Timeout {
-	case nil:
+	if in.Timeout == nil {
 		return defaultTimeout
-	default:
-		return *in.Timeout
 	}
+	return *in.Timeout
 }
 
 // Upgrade holds the configuration for Helm upgrade actions for this HelmRelease.
@@ -280,12 +264,10 @@ type Upgrade struct {
 // GetTimeout returns the configured timeout for the Helm upgrade action,
 // or the given default.
 func (in Upgrade) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
-	switch in.Timeout {
-	case nil:
+	if in.Timeout == nil {
 		return defaultTimeout
-	default:
-		return *in.Timeout
 	}
+	return *in.Timeout
 }
 
 // Test holds the configuration for Helm test actions for this HelmRelease.
@@ -305,12 +287,10 @@ type Test struct {
 // GetTimeout returns the configured timeout for the Helm test action,
 // or the given default.
 func (in Test) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
-	switch in.Timeout {
-	case nil:
+	if in.Timeout == nil {
 		return defaultTimeout
-	default:
-		return *in.Timeout
 	}
+	return *in.Timeout
 }
 
 // Rollback holds the configuration for Helm rollback actions for this HelmRelease.
@@ -352,12 +332,10 @@ type Rollback struct {
 // GetTimeout returns the configured timeout for the Helm rollback action,
 // or the given default.
 func (in Rollback) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
-	switch in.Timeout {
-	case nil:
+	if in.Timeout == nil {
 		return defaultTimeout
-	default:
-		return *in.Timeout
 	}
+	return *in.Timeout
 }
 
 // Uninstall holds the configuration for Helm uninstall actions for this HelmRelease.
@@ -381,12 +359,10 @@ type Uninstall struct {
 // GetTimeout returns the configured timeout for the Helm uninstall action,
 // or the given default.
 func (in Uninstall) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
-	switch in.Timeout {
-	case nil:
+	if in.Timeout == nil {
 		return defaultTimeout
-	default:
-		return *in.Timeout
 	}
+	return *in.Timeout
 }
 
 // HelmReleaseStatus defines the observed state of HelmRelease
@@ -600,12 +576,10 @@ func (in HelmRelease) GetReleaseName() string {
 // GetReleaseNamespace returns the configured TargetNamespace, or the namespace
 // of the HelmRelease.
 func (in HelmRelease) GetReleaseNamespace() string {
-	switch {
-	case in.Spec.TargetNamespace != "":
+	if in.Spec.TargetNamespace != "" {
 		return in.Spec.TargetNamespace
-	default:
-		return in.Namespace
 	}
+	return in.Namespace
 }
 
 // GetHelmChartName returns the name used by the controller for the HelmChart creation.
@@ -615,22 +589,18 @@ func (in HelmRelease) GetHelmChartName() string {
 
 // GetTimeout returns the configured Timeout, or the default of 300s.
 func (in HelmRelease) GetTimeout() metav1.Duration {
-	switch in.Spec.Timeout {
-	case nil:
+	if in.Spec.Timeout == nil {
 		return metav1.Duration{Duration: 300 * time.Second}
-	default:
-		return *in.Spec.Timeout
 	}
+	return *in.Spec.Timeout
 }
 
 // GetMaxHistory returns the configured MaxHistory, or the default of 10.
 func (in HelmRelease) GetMaxHistory() int {
-	switch in.Spec.MaxHistory {
-	case nil:
+	if in.Spec.MaxHistory == nil {
 		return 10
-	default:
-		return *in.Spec.MaxHistory
 	}
+	return *in.Spec.MaxHistory
 }
 
 // +kubebuilder:object:root=true
