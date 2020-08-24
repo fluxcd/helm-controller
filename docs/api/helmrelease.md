@@ -170,7 +170,7 @@ int
 </td>
 <td>
 <em>(Optional)</em>
-<p>MaxHistory is the number of revisions saved by Helm for this release.
+<p>MaxHistory is the number of revisions saved by Helm for this HelmRelease.
 Use &lsquo;0&rsquo; for an unlimited number of revisions; defaults to &lsquo;10&rsquo;.</p>
 </td>
 </tr>
@@ -185,7 +185,7 @@ Install
 </td>
 <td>
 <em>(Optional)</em>
-<p>Install holds the configuration for Helm install actions for this release.</p>
+<p>Install holds the configuration for Helm install actions for this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -199,7 +199,7 @@ Upgrade
 </td>
 <td>
 <em>(Optional)</em>
-<p>Upgrade holds the configuration for Helm upgrade actions for this release.</p>
+<p>Upgrade holds the configuration for Helm upgrade actions for this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -213,7 +213,7 @@ Test
 </td>
 <td>
 <em>(Optional)</em>
-<p>Test holds the configuration for Helm test actions for this release.</p>
+<p>Test holds the configuration for Helm test actions for this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -227,7 +227,7 @@ Rollback
 </td>
 <td>
 <em>(Optional)</em>
-<p>Rollback holds the configuration for Helm rollback actions for this release.</p>
+<p>Rollback holds the configuration for Helm rollback actions for this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -241,7 +241,7 @@ Uninstall
 </td>
 <td>
 <em>(Optional)</em>
-<p>Uninstall holds the configuration for Helm uninstall actions for this release.</p>
+<p>Uninstall holds the configuration for Helm uninstall actions for this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -254,8 +254,8 @@ Uninstall
 </em>
 </td>
 <td>
-<p>ValuesFrom holds references to resources containing Helm values, and information
-about how they should be merged.</p>
+<p>ValuesFrom holds references to resources containing Helm values for this HelmRelease,
+and information about how they should be merged.</p>
 </td>
 </tr>
 <tr>
@@ -289,6 +289,10 @@ HelmReleaseStatus
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.CircularDependencyError">CircularDependencyError
+(<code>[][]string</code> alias)</h3>
+<p>CircularDependencyError contains the circular dependency chains
+that were detected while sorting &lsquo;HelmReleaseSpec.DependsOn&rsquo;.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2alpha1.Condition">Condition
 </h3>
 <p>
@@ -633,7 +637,7 @@ int
 </td>
 <td>
 <em>(Optional)</em>
-<p>MaxHistory is the number of revisions saved by Helm for this release.
+<p>MaxHistory is the number of revisions saved by Helm for this HelmRelease.
 Use &lsquo;0&rsquo; for an unlimited number of revisions; defaults to &lsquo;10&rsquo;.</p>
 </td>
 </tr>
@@ -648,7 +652,7 @@ Install
 </td>
 <td>
 <em>(Optional)</em>
-<p>Install holds the configuration for Helm install actions for this release.</p>
+<p>Install holds the configuration for Helm install actions for this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -662,7 +666,7 @@ Upgrade
 </td>
 <td>
 <em>(Optional)</em>
-<p>Upgrade holds the configuration for Helm upgrade actions for this release.</p>
+<p>Upgrade holds the configuration for Helm upgrade actions for this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -676,7 +680,7 @@ Test
 </td>
 <td>
 <em>(Optional)</em>
-<p>Test holds the configuration for Helm test actions for this release.</p>
+<p>Test holds the configuration for Helm test actions for this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -690,7 +694,7 @@ Rollback
 </td>
 <td>
 <em>(Optional)</em>
-<p>Rollback holds the configuration for Helm rollback actions for this release.</p>
+<p>Rollback holds the configuration for Helm rollback actions for this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -704,7 +708,7 @@ Uninstall
 </td>
 <td>
 <em>(Optional)</em>
-<p>Uninstall holds the configuration for Helm uninstall actions for this release.</p>
+<p>Uninstall holds the configuration for Helm uninstall actions for this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -717,8 +721,8 @@ Uninstall
 </em>
 </td>
 <td>
-<p>ValuesFrom holds references to resources containing Helm values, and information
-about how they should be merged.</p>
+<p>ValuesFrom holds references to resources containing Helm values for this HelmRelease,
+and information about how they should be merged.</p>
 </td>
 </tr>
 <tr>
@@ -864,7 +868,7 @@ reconciliation.</p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
-<p>Install holds the configuration for Helm install actions.</p>
+<p>Install holds the configuration for Helm install actions performed for this HelmRelease.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -965,7 +969,7 @@ CRDs are installed if not already present.</p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
-<p>Rollback holds the configuration for Helm rollback actions.</p>
+<p>Rollback holds the configuration for Helm rollback actions for this HelmRelease.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -985,7 +989,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Enable enables Helm rollback actions for this release after an
+<p>Enable enables Helm rollback actions for this HelmRelease after an
 Helm install or upgrade action failure.</p>
 </td>
 </tr>
@@ -1077,7 +1081,7 @@ rollback action when it fails.</p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
-<p>Test holds the configuration for Helm test actions.</p>
+<p>Test holds the configuration for Helm test actions for this HelmRelease.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1097,7 +1101,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Enable enables Helm test actions for this release after an
+<p>Enable enables Helm test actions for this HelmRelease after an
 Helm install or upgrade action has been performed.</p>
 </td>
 </tr>
@@ -1127,7 +1131,7 @@ during the performance of a Helm test action. Defaults to
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
-<p>Uninstall holds the configuration for Helm uninstall actions.</p>
+<p>Uninstall holds the configuration for Helm uninstall actions for this HelmRelease.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1183,15 +1187,13 @@ deleted, but retain the release history.</p>
 </table>
 </div>
 </div>
-<h3 id="helm.toolkit.fluxcd.io/v2alpha1.Unsortable">Unsortable
-(<code>[][]string</code> alias)</h3>
 <h3 id="helm.toolkit.fluxcd.io/v2alpha1.Upgrade">Upgrade
 </h3>
 <p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
-<p>Upgrade holds the configuration for Helm upgrade actions.</p>
+<p>Upgrade holds the configuration for Helm upgrade actions for this HelmRelease.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>

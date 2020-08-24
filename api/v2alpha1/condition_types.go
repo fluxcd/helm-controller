@@ -68,43 +68,43 @@ const (
 )
 
 const (
-	// ReconciliationSucceededReason represents the fact that the reconciliation of the release has succeeded.
+	// ReconciliationSucceededReason represents the fact that the reconciliation of the HelmRelease has succeeded.
 	ReconciliationSucceededReason string = "ReconciliationSucceeded"
 
-	// ReconciliationFailedReason represents the fact that the reconciliation of the release has failed.
+	// ReconciliationFailedReason represents the fact that the reconciliation of the HelmRelease has failed.
 	ReconciliationFailedReason string = "ReconciliationFailed"
 
-	// InstallSucceededReason represents the fact that the Helm install for the release succeeded.
+	// InstallSucceededReason represents the fact that the Helm install for the HelmRelease succeeded.
 	InstallSucceededReason string = "InstallSucceeded"
 
-	// InstallFailedReason represents the fact that the Helm install for the release failed.
+	// InstallFailedReason represents the fact that the Helm install for the HelmRelease failed.
 	InstallFailedReason string = "InstallFailed"
 
-	// UpgradeSucceededReason represents the fact that the Helm upgrade for the release succeed.
+	// UpgradeSucceededReason represents the fact that the Helm upgrade for the HelmRelease succeeded.
 	UpgradeSucceededReason string = "UpgradeSucceeded"
 
-	// UpgradeFailedReason represents the fact that the Helm upgrade for the release failed.
+	// UpgradeFailedReason represents the fact that the Helm upgrade for the HelmRelease failed.
 	UpgradeFailedReason string = "UpgradeFailed"
 
-	// TestFailedReason represents the fact that the Helm test for the release failed.
+	// TestSucceededReason represents the fact that the Helm test for the HelmRelease succeeded.
 	TestSucceededReason string = "TestSucceeded"
 
-	// TestFailedReason represents the fact that the Helm test for the release failed.
+	// TestFailedReason represents the fact that the Helm test for the HelmRelease failed.
 	TestFailedReason string = "TestFailed"
 
-	// RollbackSucceededReason represents the fact that the Helm rollback for the release succeeded.
+	// RollbackSucceededReason represents the fact that the Helm rollback for the HelmRelease succeeded.
 	RollbackSucceededReason string = "RollbackSucceeded"
 
-	// RollbackFailedReason represents the fact that the Helm test for the release failed.
+	// RollbackFailedReason represents the fact that the Helm test for the HelmRelease failed.
 	RollbackFailedReason string = "RollbackFailed"
 
-	// UninstallSucceededReason represents the fact that the Helm uninstall for the release succeeded.
+	// UninstallSucceededReason represents the fact that the Helm uninstall for the HelmRelease succeeded.
 	UninstallSucceededReason string = "UninstallSucceeded"
 
-	// UninstallFailedReason represents the fact that the Helm uninstall for the release failed.
+	// UninstallFailedReason represents the fact that the Helm uninstall for the HelmRelease failed.
 	UninstallFailedReason string = "UninstallFailed"
 
-	// ArtifactFailedReason represents the fact that the artifact download for the release failed.
+	// ArtifactFailedReason represents the fact that the artifact download for the HelmRelease failed.
 	ArtifactFailedReason string = "ArtifactFailed"
 
 	// InitFailedReason represents the fact that the initialization of the Helm configuration failed.

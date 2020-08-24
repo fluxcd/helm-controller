@@ -62,7 +62,7 @@ type ValuesReference struct {
 	TargetPath string `json:"targetPath,omitempty"`
 }
 
-// GetValuesKey returns the defined ValuesKey or the default ('values.yaml').
+// GetValuesKey returns the defined ValuesKey, or the default ('values.yaml').
 func (in ValuesReference) GetValuesKey() string {
 	if in.ValuesKey == "" {
 		return "values.yaml"

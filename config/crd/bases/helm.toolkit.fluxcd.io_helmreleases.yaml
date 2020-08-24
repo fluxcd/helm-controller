@@ -96,7 +96,7 @@ spec:
                 type: array
               install:
                 description: Install holds the configuration for Helm install actions
-                  for this release.
+                  for this HelmRelease.
                 properties:
                   disableHooks:
                     description: DisableHooks prevents hooks from running during the
@@ -131,8 +131,8 @@ spec:
                 type: string
               maxHistory:
                 description: MaxHistory is the number of revisions saved by Helm for
-                  this release. Use '0' for an unlimited number of revisions; defaults
-                  to '10'.
+                  this HelmRelease. Use '0' for an unlimited number of revisions;
+                  defaults to '10'.
                 type: integer
               releaseName:
                 description: ReleaseName used for the Helm release. Defaults to a
@@ -140,7 +140,7 @@ spec:
                 type: string
               rollback:
                 description: Rollback holds the configuration for Helm rollback actions
-                  for this release.
+                  for this HelmRelease.
                 properties:
                   cleanupOnFail:
                     description: CleanupOnFail allows deletion of new resources created
@@ -155,7 +155,7 @@ spec:
                       be ready after a Helm rollback has been performed.
                     type: boolean
                   enable:
-                    description: Enable enables Helm rollback actions for this release
+                    description: Enable enables Helm rollback actions for this HelmRelease
                       after an Helm install or upgrade action failure.
                     type: boolean
                   force:
@@ -183,10 +183,10 @@ spec:
                 type: string
               test:
                 description: Test holds the configuration for Helm test actions for
-                  this release.
+                  this HelmRelease.
                 properties:
                   enable:
-                    description: Enable enables Helm test actions for this release
+                    description: Enable enables Helm test actions for this HelmRelease
                       after an Helm install or upgrade action has been performed.
                     type: boolean
                   timeout:
@@ -202,7 +202,7 @@ spec:
                 type: string
               uninstall:
                 description: Uninstall holds the configuration for Helm uninstall
-                  actions for this release.
+                  actions for this HelmRelease.
                 properties:
                   disableHooks:
                     description: DisableHooks prevents hooks from running during the
@@ -220,7 +220,7 @@ spec:
                 type: object
               upgrade:
                 description: Upgrade holds the configuration for Helm upgrade actions
-                  for this release.
+                  for this HelmRelease.
                 properties:
                   cleanupOnFail:
                     description: CleanupOnFail allows deletion of new resources created
@@ -264,7 +264,8 @@ spec:
                 x-kubernetes-preserve-unknown-fields: true
               valuesFrom:
                 description: ValuesFrom holds references to resources containing Helm
-                  values, and information about how they should be merged.
+                  values for this HelmRelease, and information about how they should
+                  be merged.
                 items:
                   description: ValuesReference contains a reference to a resource
                     containing Helm values, and optionally the key they can be found
