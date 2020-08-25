@@ -445,6 +445,9 @@ string
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.DeploymentAction">DeploymentAction
+</h3>
+<p>DeploymentAction defines a consistent interface for Install and Upgrade.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2alpha1.HelmChartTemplate">HelmChartTemplate
 </h3>
 <p>
@@ -854,8 +857,31 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>Failures is the reconciliation failure count. It is reset after a successful
-reconciliation.</p>
+<p>Failures is the reconciliation failure count.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>installFailures</code><br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>InstallFailures is the install failure count.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>upgradeFailures</code><br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>UpgradeFailures is the upgrade failure count.</p>
 </td>
 </tr>
 </tbody>
@@ -893,6 +919,22 @@ Kubernetes meta/v1.Duration
 <p>Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 for hooks) during the performance of a Helm install action. Defaults to
 &lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>remediation</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.InstallRemediation">
+InstallRemediation
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Remediation holds the remediation configuration for when the
+Helm install action for the HelmRelease fails. The default
+is to not perform any action.</p>
 </td>
 </tr>
 <tr>
@@ -963,6 +1005,78 @@ CRDs are installed if not already present.</p>
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.InstallRemediation">InstallRemediation
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.Install">Install</a>)
+</p>
+<p>InstallRemediation holds the configuration for Helm install remediation.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>retries</code><br>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Retries is the number of retries that should be attempted on failures before
+bailing. Remediation, using an uninstall, is performed between each attempt.
+Defaults to &lsquo;0&rsquo;, a negative integer equals to unlimited retries.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ignoreTestFailures</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>IgnoreTestFailures tells the controller to skip remediation when
+the Helm tests are run after an install action but fail.
+Defaults to &lsquo;Test.IgnoreFailures&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>remediateLastFailure</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RemediateLastFailure tells the controller to remediate the last
+failure, when no retries remain. Defaults to &lsquo;false&rsquo;.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.Remediation">Remediation
+</h3>
+<p>Remediation defines a consistent interface for InstallRemediation and UpgradeRemediation.</p>
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.RemediationStrategy">RemediationStrategy
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.UpgradeRemediation">UpgradeRemediation</a>)
+</p>
+<p>RemediationStrategy returns the strategy to use to remediate a failed install or upgrade.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2alpha1.Rollback">Rollback
 </h3>
 <p>
@@ -980,19 +1094,6 @@ CRDs are installed if not already present.</p>
 </tr>
 </thead>
 <tbody>
-<tr>
-<td>
-<code>enable</code><br>
-<em>
-bool
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Enable enables Helm rollback actions for this HelmRelease after an
-Helm install or upgrade action failure.</p>
-</td>
-</tr>
 <tr>
 <td>
 <code>timeout</code><br>
@@ -1121,6 +1222,21 @@ during the performance of a Helm test action. Defaults to
 &lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>ignoreFailures</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>IgnoreFailures tells the controller to skip remediation when
+the Helm tests are run but fail.
+Can be overwritten for tests run after install or upgrade actions
+in &lsquo;Install.IgnoreTestFailures&rsquo; and &lsquo;Upgrade.IgnoreTestFailures&rsquo;.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -1222,15 +1338,18 @@ for hooks) during the performance of a Helm upgrade action. Defaults to
 </tr>
 <tr>
 <td>
-<code>maxRetries</code><br>
+<code>remediation</code><br>
 <em>
-int
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.UpgradeRemediation">
+UpgradeRemediation
+</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>MaxRetries is the number of retries that should be attempted on failures before
-bailing. Defaults to &lsquo;0&rsquo;, a negative integer equals to unlimited retries.</p>
+<p>Remediation holds the remediation configuration for when the
+Helm upgrade action for the HelmRelease fails. The default
+is to not perform any action.</p>
 </td>
 </tr>
 <tr>
@@ -1308,6 +1427,84 @@ bool
 <em>(Optional)</em>
 <p>CleanupOnFail allows deletion of new resources created during the Helm
 upgrade action when it fails.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.UpgradeRemediation">UpgradeRemediation
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.Upgrade">Upgrade</a>)
+</p>
+<p>UpgradeRemediation holds the configuration for Helm upgrade remediation.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>retries</code><br>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Retries is the number of retries that should be attempted on failures before
+bailing. Remediation, using &lsquo;Strategy&rsquo;, is performed between each attempt.
+Defaults to &lsquo;0&rsquo;, a negative integer equals to unlimited retries.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ignoreTestFailures</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>IgnoreTestFailures tells the controller to skip remediation when
+the Helm tests are run after an upgrade action but fail.
+Defaults to &lsquo;Test.IgnoreFailures&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>remediateLastFailure</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RemediateLastFailure tells the controller to remediate the last
+failure, when no retries remain. Defaults to &lsquo;false&rsquo; unless &lsquo;Retries&rsquo;
+is greater than 0.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>strategy</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.RemediationStrategy">
+RemediationStrategy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Strategy to use for failure remediation.
+Defaults to &lsquo;rollback&rsquo;.</p>
 </td>
 </tr>
 </tbody>
