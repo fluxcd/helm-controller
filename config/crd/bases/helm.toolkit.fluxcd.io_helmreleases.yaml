@@ -111,6 +111,28 @@ spec:
                     description: DisableWait disables the waiting for resources to
                       be ready after a Helm install has been performed.
                     type: boolean
+                  remediation:
+                    description: Remediation holds the remediation configuration for
+                      when the Helm install action for the HelmRelease fails. The
+                      default is to not perform any action.
+                    properties:
+                      ignoreTestFailures:
+                        description: IgnoreTestFailures tells the controller to skip
+                          remediation when the Helm tests are run after an install
+                          action but fail. Defaults to 'Test.IgnoreFailures'.
+                        type: boolean
+                      remediateLastFailure:
+                        description: RemediateLastFailure tells the controller to
+                          remediate the last failure, when no retries remain. Defaults
+                          to 'false'.
+                        type: boolean
+                      retries:
+                        description: Retries is the number of retries that should
+                          be attempted on failures before bailing. Remediation, using
+                          an uninstall, is performed between each attempt. Defaults
+                          to '0', a negative integer equals to unlimited retries.
+                        type: integer
+                    type: object
                   replace:
                     description: Replace tells the Helm install action to re-use the
                       'ReleaseName', but only if that name is a deleted release which
@@ -154,10 +176,6 @@ spec:
                     description: DisableWait disables the waiting for resources to
                       be ready after a Helm rollback has been performed.
                     type: boolean
-                  enable:
-                    description: Enable enables Helm rollback actions for this HelmRelease
-                      after an Helm install or upgrade action failure.
-                    type: boolean
                   force:
                     description: Force forces resource updates through a replacement
                       strategy.
@@ -188,6 +206,12 @@ spec:
                   enable:
                     description: Enable enables Helm test actions for this HelmRelease
                       after an Helm install or upgrade action has been performed.
+                    type: boolean
+                  ignoreFailures:
+                    description: IgnoreFailures tells the controller to skip remediation
+                      when the Helm tests are run but fail. Can be overwritten for
+                      tests run after install or upgrade actions in 'Install.IgnoreTestFailures'
+                      and 'Upgrade.IgnoreTestFailures'.
                     type: boolean
                   timeout:
                     description: Timeout is the time to wait for any individual Kubernetes
@@ -243,16 +267,40 @@ spec:
                     description: Force forces resource updates through a replacement
                       strategy.
                     type: boolean
-                  maxRetries:
-                    description: MaxRetries is the number of retries that should be
-                      attempted on failures before bailing. Defaults to '0', a negative
-                      integer equals to unlimited retries.
-                    type: integer
                   preserveValues:
                     description: PreserveValues will make Helm reuse the last release's
                       values and merge in overrides from 'Values'. Setting this flag
                       makes the HelmRelease non-declarative.
                     type: boolean
+                  remediation:
+                    description: Remediation holds the remediation configuration for
+                      when the Helm upgrade action for the HelmRelease fails. The
+                      default is to not perform any action.
+                    properties:
+                      ignoreTestFailures:
+                        description: IgnoreTestFailures tells the controller to skip
+                          remediation when the Helm tests are run after an upgrade
+                          action but fail. Defaults to 'Test.IgnoreFailures'.
+                        type: boolean
+                      remediateLastFailure:
+                        description: RemediateLastFailure tells the controller to
+                          remediate the last failure, when no retries remain. Defaults
+                          to 'false' unless 'Retries' is greater than 0.
+                        type: boolean
+                      retries:
+                        description: Retries is the number of retries that should
+                          be attempted on failures before bailing. Remediation, using
+                          'Strategy', is performed between each attempt. Defaults
+                          to '0', a negative integer equals to unlimited retries.
+                        type: integer
+                      strategy:
+                        description: Strategy to use for failure remediation. Defaults
+                          to 'rollback'.
+                        enum:
+                        - rollback
+                        - uninstall
+                        type: string
+                    type: object
                   timeout:
                     description: Timeout is the time to wait for any individual Kubernetes
                       operation (like Jobs for hooks) during the performance of a
@@ -336,14 +384,17 @@ spec:
                   type: object
                 type: array
               failures:
-                description: Failures is the reconciliation failure count. It is reset
-                  after a successful reconciliation.
+                description: Failures is the reconciliation failure count.
                 format: int64
                 type: integer
               helmChart:
                 description: HelmChart is the namespaced name of the HelmChart resource
                   created by the controller for the HelmRelease.
                 type: string
+              installFailures:
+                description: InstallFailures is the install failure count.
+                format: int64
+                type: integer
               lastAppliedRevision:
                 description: LastAppliedRevision is the revision of the last successfully
                   applied source.
@@ -362,6 +413,10 @@ spec:
                 type: integer
               observedGeneration:
                 description: ObservedGeneration is the last reconciled generation.
+                format: int64
+                type: integer
+              upgradeFailures:
+                description: UpgradeFailures is the upgrade failure count.
                 format: int64
                 type: integer
             type: object

@@ -11,10 +11,6 @@ spec:
       kind: HelmRepository
       name: valuesfrom
     interval: 1m
-  test:
-    enable: true
-  rollback:
-    enable: true
   valuesFrom:
     - kind: ConfigMap
       name: valuesfrom-config

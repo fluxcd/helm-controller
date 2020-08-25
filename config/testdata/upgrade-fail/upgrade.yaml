@@ -1,7 +1,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2alpha1
 kind: HelmRelease
 metadata:
-  name: backend
+  name: upgrade-fail
 spec:
   interval: 5m
   chart:
@@ -9,12 +9,16 @@ spec:
     version: '^4.0.0'
     sourceRef:
       kind: HelmRepository
-      name: webapp
+      name: podinfo
     interval: 1m
   values:
-    service:
-      grpcService: backend
     resources:
       requests:
         cpu: 100m
         memory: 64Mi
+    # Make wait fail. With single replica helm doesn't actually wait, see:
+    # https://github.com/helm/helm/issues/5814#issuecomment-567130226
+    replicaCount: 2
+    faults:
+      unready: true
+  timeout: 3s
