@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.5 (2020-08-26)
+
+This prerelease adds support for conditional remediation on failed Helm
+actions, and includes several (breaking) changes to the API:
+
+* The `maxRetries` value should now be set on the respective
+  `install.remediation.retries` and `upgrade.remediation.retries` fields.
+* The `rollback.enable` field has been removed in favour of
+  `upgrade.remediateLastFailure`.
+* Failing Helm tests will now result in a `False` `Ready` condition by
+  default, ignoring test failures can be re-enabled by configuring
+  `test.ignoreFailures` to `true`.
+
 ## 0.0.4 (2020-08-20)
 
 This prerelease adds support for merging a flat single value from
