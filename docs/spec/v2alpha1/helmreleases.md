@@ -108,6 +108,12 @@ type Install struct {
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
+	// Remediation holds the remediation configuration for when the
+	// Helm install action for the HelmRelease fails. The default
+	// is to not perform any action.
+	// +optional
+	Remediation *InstallRemediation `json:"remediation,omitempty"`
+
 	// DisableWait disables the waiting for resources to be ready after a
 	// Helm install has been performed.
 	// +optional
@@ -133,6 +139,26 @@ type Install struct {
 	SkipCRDs bool `json:"skipCRDs,omitempty"`
 }
 
+// InstallRemediation holds the configuration for Helm install remediation.
+type InstallRemediation struct {
+	// Retries is the number of retries that should be attempted on failures before
+	// bailing. Remediation, using an uninstall, is performed between each attempt.
+	// Defaults to '0', a negative integer equals to unlimited retries.
+	// +optional
+	Retries int `json:"retries,omitempty"`
+
+	// IgnoreTestFailures tells the controller to skip remediation when
+	// the Helm tests are run after an install action but fail.
+	// Defaults to 'Test.IgnoreFailures'.
+	// +optional
+	IgnoreTestFailures *bool `json:"ignoreTestFailures,omitempty"`
+
+	// RemediateLastFailure tells the controller to remediate the last
+	// failure, when no retries remain. Defaults to 'false'.
+	// +optional
+	RemediateLastFailure *bool `json:"remediateLastFailure,omitempty"`
+}
+
 // Upgrade holds the configuration for Helm upgrade actions for this HelmRelease.
 type Upgrade struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
@@ -141,10 +167,11 @@ type Upgrade struct {
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
-	// MaxRetries is the number of retries that should be attempted on failures before
-	// bailing. Defaults to '0', a negative integer equals to unlimited retries.
+	// Remediation holds the remediation configuration for when the
+	// Helm upgrade action for the HelmRelease fails. The default
+	// is to not perform any action.
 	// +optional
-	MaxRetries int `json:"maxRetries,omitempty"`
+	Remediation *UpgradeRemediation `json:"remediation,omitempty"`
 
 	// DisableWait disables the waiting for resources to be ready after a
 	// Helm upgrade has been performed.
@@ -176,6 +203,33 @@ type Upgrade struct {
 	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
 }
 
+// UpgradeRemediation holds the configuration for Helm upgrade remediation.
+type UpgradeRemediation struct {
+	// Retries is the number of retries that should be attempted on failures before
+	// bailing. Remediation, using 'Strategy', is performed between each attempt.
+	// Defaults to '0', a negative integer equals to unlimited retries.
+	// +optional
+	Retries int `json:"retries,omitempty"`
+
+	// IgnoreTestFailures tells the controller to skip remediation when
+	// the Helm tests are run after an upgrade action but fail.
+	// Defaults to 'Test.IgnoreFailures'.
+	// +optional
+	IgnoreTestFailures *bool `json:"ignoreTestFailures,omitempty"`
+
+	// RemediateLastFailure tells the controller to remediate the last
+	// failure, when no retries remain. Defaults to 'false' unless 'Retries'
+	// is greater than 0.
+	// +optional
+	RemediateLastFailure *bool `json:"remediateLastFailure,omitempty"`
+
+	// Strategy to use for failure remediation.
+	// Defaults to 'rollback'.
+	// +kubebuilder:validation:Enum=rollback;uninstall
+	// +optional
+	Strategy *RemediationStrategy `json:"strategy,omitempty"`
+}
+
 // Test holds the configuration for Helm test actions for this HelmRelease.
 type Test struct {
 	// Enable enables Helm test actions for this HelmRelease after an
@@ -188,15 +242,17 @@ type Test struct {
 	// 'HelmReleaseSpec.Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
+
+	// IgnoreFailures tells the controller to skip remediation when
+	// the Helm tests are run but fail.
+	// Can be overwritten for tests run after install or upgrade actions
+	// in 'Install.IgnoreTestFailures' and 'Upgrade.IgnoreTestFailures'.
+	// +optional
+	IgnoreFailures bool `json:"ignoreFailures,omitempty"`
 }
 
 // Rollback holds the configuration for Helm rollback actions for this HelmRelease.
 type Rollback struct {
-	// Enable enables Helm rollback actions for this HelmRelease after an
-	// Helm install or upgrade action failure.
-	// +optional
-	Enable bool `json:"enable,omitempty"`
-
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm rollback action. Defaults to
 	// 'HelmReleaseSpec.Timeout'.
@@ -365,6 +421,9 @@ const (
 	// InitFailedReason represents the fact that the initialization of the Helm configuration failed.
 	InitFailedReason string = "InitFailed"
 
+	// GetLastReleaseFailedReason represents the fact that observing the last release failed.
+	GetLastReleaseFailedReason string = "GetLastReleaseFailed"
+
 	// ProgressingReason represents the fact that the reconciliation for the resource is underway.
 	ProgressingReason string = "Progressing"
 
@@ -511,13 +570,63 @@ spec:
         memory: 64Mi
 ```
 
-At present, rollbacks are only supported for failed upgrades. Rollback support for other failed
-actions (i.e. tests) is in the scope of the controller but awaits a proper design.
+## Configuring failure remediation
 
-## Enabling Helm test actions
+By default, when a Helm action (install/upgrade/test) fails, no remediation is taken
+(uninstall/rollback/retries). However, remediation can be opted in to in several ways
+using `spec.install.remediation` and `spec.upgrade.remediation`.
+
+Each of these support `retries`, to configure the number of additional attempts after an initial
+failure. A negative integer results in infinite retries. This implicitly opts-in to a remediation
+action between each attempt. The remediation action for install failures is an uninstall. The
+remediation action for upgrade failures is by default a rollback, however
+`spec.upgrade.remediation.strategy` can be set to `uninstall`, in which case after the uninstall,
+the `spec.install` configuration takes over.
+
+One can also opt-in to remediation of the last failure (when no retries remain) by:
+
+1. For installs, setting `spec.install.remediation.remediateLastFailure` to `true`.
+2. For upgrades, setting `spec.upgrade.remediation.remediateLastFailure` to `true`, or configuring
+   at least one retry.
+
+```yaml
+apiVersion: helm.fluxcd.io/v2alpha1
+kind: HelmRelease
+metadata:
+  name: podinfo
+spec:
+  interval: 5m
+  chart:
+    name: podinfo
+    version: '^4.0.0'
+    sourceRef:
+      kind: HelmRepository
+      name: podinfo
+    interval: 1m
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      remediateLastFailure: false
+  values:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+```
+
+## Configuring Helm test actions
 
 To make the controller run the Helm tests available for your chart after a successful Helm install
 or upgrade, `spec.test.enable` should be set to `true`.
+
+By default, when tests are enabled, failures in tests are considered release failures, and thus
+are subject to the triggering Helm action's `remediation` configuration. However, test failures
+can be ignored by setting `spec.test.ignoreFailures` to `true`. In this case, no remediation will
+be taken, and the test failure will not affect the `Ready` status condition. This can be further
+configured per Helm action by setting `spec.install.remediation.ignoreTestFailures` or
+`spec.upgrade.remediation.ignoreTestFailures`, which default to `spec.test.ignoreFailures`.
 
 ```yaml
 apiVersion: helm.toolkit.fluxcd.io/v2alpha1
@@ -535,16 +644,13 @@ spec:
     interval: 1m
   test:
     enable: true
+    ignoreFailures: true
   values:
     resources:
       requests:
         cpu: 100m
         memory: 64Mi
 ```
-
-At present, failed tests do not mark the `HelmRelease` as not `Ready`. Making this configurable is
-in the scope of the controller but awaits a proper design, as well as running them on a schedule or
-for other actions than a successful Helm install or upgrade.
 
 ## Status
 

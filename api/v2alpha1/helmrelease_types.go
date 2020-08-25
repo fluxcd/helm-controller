@@ -176,6 +176,25 @@ func (in HelmChartTemplate) GetNamespace(defaultNamespace string) string {
 	return in.SourceRef.Namespace
 }
 
+// DeploymentAction defines a consistent interface for Install and Upgrade.
+// +kubebuilder:object:generate=false
+type DeploymentAction interface {
+	GetDescription() string
+	GetRemediation() Remediation
+}
+
+// Remediation defines a consistent interface for InstallRemediation and UpgradeRemediation.
+// +kubebuilder:object:generate=false
+type Remediation interface {
+	GetRetries() int
+	MustIgnoreTestFailures(bool) bool
+	MustRemediateLastFailure() bool
+	GetStrategy() RemediationStrategy
+	GetFailureCount(hr HelmRelease) int64
+	IncrementFailureCount(hr *HelmRelease)
+	RetriesExhausted(hr HelmRelease) bool
+}
+
 // Install holds the configuration for Helm install actions performed for this HelmRelease.
 type Install struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
@@ -183,6 +202,12 @@ type Install struct {
 	// 'HelmReleaseSpec.Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
+
+	// Remediation holds the remediation configuration for when the
+	// Helm install action for the HelmRelease fails. The default
+	// is to not perform any action.
+	// +optional
+	Remediation *InstallRemediation `json:"remediation,omitempty"`
 
 	// DisableWait disables the waiting for resources to be ready after a
 	// Helm install has been performed.
@@ -218,6 +243,80 @@ func (in Install) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	return *in.Timeout
 }
 
+// GetDescription returns a description for the Helm install action.
+func (in Install) GetDescription() string {
+	return "install"
+}
+
+// GetRemediation returns the configured Remediation for the Helm install action.
+func (in Install) GetRemediation() Remediation {
+	if in.Remediation == nil {
+		return InstallRemediation{}
+	}
+	return *in.Remediation
+}
+
+// InstallRemediation holds the configuration for Helm install remediation.
+type InstallRemediation struct {
+	// Retries is the number of retries that should be attempted on failures before
+	// bailing. Remediation, using an uninstall, is performed between each attempt.
+	// Defaults to '0', a negative integer equals to unlimited retries.
+	// +optional
+	Retries int `json:"retries,omitempty"`
+
+	// IgnoreTestFailures tells the controller to skip remediation when
+	// the Helm tests are run after an install action but fail.
+	// Defaults to 'Test.IgnoreFailures'.
+	// +optional
+	IgnoreTestFailures *bool `json:"ignoreTestFailures,omitempty"`
+
+	// RemediateLastFailure tells the controller to remediate the last
+	// failure, when no retries remain. Defaults to 'false'.
+	// +optional
+	RemediateLastFailure *bool `json:"remediateLastFailure,omitempty"`
+}
+
+// GetRetries returns the number of retries that should be attempted on failures.
+func (in InstallRemediation) GetRetries() int {
+	return in.Retries
+}
+
+// MustIgnoreTestFailures returns the configured IgnoreTestFailures or the given default.
+func (in InstallRemediation) MustIgnoreTestFailures(def bool) bool {
+	if in.IgnoreTestFailures == nil {
+		return def
+	}
+	return *in.IgnoreTestFailures
+}
+
+// MustRemediateLastFailure returns whether to remediate the last failure when no retries remain.
+func (in InstallRemediation) MustRemediateLastFailure() bool {
+	if in.RemediateLastFailure == nil {
+		return false
+	}
+	return *in.RemediateLastFailure
+}
+
+// GetStrategy returns the strategy to use for failure remediation.
+func (in InstallRemediation) GetStrategy() RemediationStrategy {
+	return UninstallRemediationStrategy
+}
+
+// GetFailureCount gets the failure count.
+func (in InstallRemediation) GetFailureCount(hr HelmRelease) int64 {
+	return hr.Status.InstallFailures
+}
+
+// IncrementFailureCount increments the failure count.
+func (in InstallRemediation) IncrementFailureCount(hr *HelmRelease) {
+	hr.Status.InstallFailures++
+}
+
+// RetriesExhausted returns true if there are no remaining retries.
+func (in InstallRemediation) RetriesExhausted(hr HelmRelease) bool {
+	return in.Retries >= 0 && in.GetFailureCount(hr) > int64(in.Retries)
+}
+
 // Upgrade holds the configuration for Helm upgrade actions for this HelmRelease.
 type Upgrade struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
@@ -226,10 +325,11 @@ type Upgrade struct {
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
-	// MaxRetries is the number of retries that should be attempted on failures before
-	// bailing. Defaults to '0', a negative integer equals to unlimited retries.
+	// Remediation holds the remediation configuration for when the
+	// Helm upgrade action for the HelmRelease fails. The default
+	// is to not perform any action.
 	// +optional
-	MaxRetries int `json:"maxRetries,omitempty"`
+	Remediation *UpgradeRemediation `json:"remediation,omitempty"`
 
 	// DisableWait disables the waiting for resources to be ready after a
 	// Helm upgrade has been performed.
@@ -270,6 +370,100 @@ func (in Upgrade) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	return *in.Timeout
 }
 
+// GetDescription returns a description for the Helm upgrade action.
+func (in Upgrade) GetDescription() string {
+	return "upgrade"
+}
+
+// GetRemediation returns the configured Remediation for the Helm upgrade action.
+func (in Upgrade) GetRemediation() Remediation {
+	if in.Remediation == nil {
+		return UpgradeRemediation{}
+	}
+	return *in.Remediation
+}
+
+// UpgradeRemediation holds the configuration for Helm upgrade remediation.
+type UpgradeRemediation struct {
+	// Retries is the number of retries that should be attempted on failures before
+	// bailing. Remediation, using 'Strategy', is performed between each attempt.
+	// Defaults to '0', a negative integer equals to unlimited retries.
+	// +optional
+	Retries int `json:"retries,omitempty"`
+
+	// IgnoreTestFailures tells the controller to skip remediation when
+	// the Helm tests are run after an upgrade action but fail.
+	// Defaults to 'Test.IgnoreFailures'.
+	// +optional
+	IgnoreTestFailures *bool `json:"ignoreTestFailures,omitempty"`
+
+	// RemediateLastFailure tells the controller to remediate the last
+	// failure, when no retries remain. Defaults to 'false' unless 'Retries'
+	// is greater than 0.
+	// +optional
+	RemediateLastFailure *bool `json:"remediateLastFailure,omitempty"`
+
+	// Strategy to use for failure remediation.
+	// Defaults to 'rollback'.
+	// +kubebuilder:validation:Enum=rollback;uninstall
+	// +optional
+	Strategy *RemediationStrategy `json:"strategy,omitempty"`
+}
+
+// GetRetries returns the number of retries that should be attempted on failures.
+func (in UpgradeRemediation) GetRetries() int {
+	return in.Retries
+}
+
+// MustIgnoreTestFailures returns the configured IgnoreTestFailures or the given default.
+func (in UpgradeRemediation) MustIgnoreTestFailures(def bool) bool {
+	if in.IgnoreTestFailures == nil {
+		return def
+	}
+	return *in.IgnoreTestFailures
+}
+
+// MustRemediateLastFailure returns whether to remediate the last failure when no retries remain.
+func (in UpgradeRemediation) MustRemediateLastFailure() bool {
+	if in.RemediateLastFailure == nil {
+		return in.Retries > 0
+	}
+	return *in.RemediateLastFailure
+}
+
+// GetStrategy returns the strategy to use for failure remediation.
+func (in UpgradeRemediation) GetStrategy() RemediationStrategy {
+	if in.Strategy == nil {
+		return RollbackRemediationStrategy
+	}
+	return *in.Strategy
+}
+
+// GetFailureCount gets the failure count.
+func (in UpgradeRemediation) GetFailureCount(hr HelmRelease) int64 {
+	return hr.Status.UpgradeFailures
+}
+
+// IncrementFailureCount increments the failure count.
+func (in UpgradeRemediation) IncrementFailureCount(hr *HelmRelease) {
+	hr.Status.UpgradeFailures++
+}
+
+// RetriesExhausted returns true if there are no remaining retries.
+func (in UpgradeRemediation) RetriesExhausted(hr HelmRelease) bool {
+	return in.Retries >= 0 && in.GetFailureCount(hr) > int64(in.Retries)
+}
+
+// RemediationStrategy returns the strategy to use to remediate a failed install or upgrade.
+type RemediationStrategy string
+
+const (
+	// RollbackRemediationStrategy represents a Helm remediation strategy of Helm rollback.
+	RollbackRemediationStrategy RemediationStrategy = "rollback"
+	// UninstallRemediationStrategy represents a Helm remediation strategy of Helm uninstall.
+	UninstallRemediationStrategy RemediationStrategy = "uninstall"
+)
+
 // Test holds the configuration for Helm test actions for this HelmRelease.
 type Test struct {
 	// Enable enables Helm test actions for this HelmRelease after an
@@ -282,6 +476,13 @@ type Test struct {
 	// 'HelmReleaseSpec.Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
+
+	// IgnoreFailures tells the controller to skip remediation when
+	// the Helm tests are run but fail.
+	// Can be overwritten for tests run after install or upgrade actions
+	// in 'Install.IgnoreTestFailures' and 'Upgrade.IgnoreTestFailures'.
+	// +optional
+	IgnoreFailures bool `json:"ignoreFailures,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm test action,
@@ -295,11 +496,6 @@ func (in Test) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 
 // Rollback holds the configuration for Helm rollback actions for this HelmRelease.
 type Rollback struct {
-	// Enable enables Helm rollback actions for this HelmRelease after an
-	// Helm install or upgrade action failure.
-	// +optional
-	Enable bool `json:"enable,omitempty"`
-
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm rollback action. Defaults to
 	// 'HelmReleaseSpec.Timeout'.
@@ -396,10 +592,17 @@ type HelmReleaseStatus struct {
 	// +optional
 	HelmChart string `json:"helmChart,omitempty"`
 
-	// Failures is the reconciliation failure count. It is reset after a successful
-	// reconciliation.
+	// Failures is the reconciliation failure count.
 	// +optional
 	Failures int64 `json:"failures,omitempty"`
+
+	// InstallFailures is the install failure count.
+	// +optional
+	InstallFailures int64 `json:"installFailures,omitempty"`
+
+	// UpgradeFailures is the upgrade failure count.
+	// +optional
+	UpgradeFailures int64 `json:"upgradeFailures,omitempty"`
 }
 
 // GetHelmChart returns the namespace and name of the HelmChart.
@@ -411,18 +614,14 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 	return split[0], split[1]
 }
 
-// HelmReleaseProgressing resets the conditions of the given HelmRelease to a single
-// ReadyCondition with status ConditionUnknown.
+// HelmReleaseProgressing resets any failures and registers progress toward reconciling the given HelmRelease
+// by setting the ReadyCondition to ConditionUnknown for ProgressingReason.
 func HelmReleaseProgressing(hr HelmRelease) HelmRelease {
-	hr.Status.Conditions = []Condition{
-		{
-			Type:               ReadyCondition,
-			Status:             corev1.ConditionUnknown,
-			LastTransitionTime: metav1.Now(),
-			Reason:             ProgressingReason,
-			Message:            "reconciliation in progress",
-		},
-	}
+	hr.Status.Failures = 0
+	hr.Status.InstallFailures = 0
+	hr.Status.UpgradeFailures = 0
+	hr.Status.Conditions = []Condition{}
+	SetHelmReleaseCondition(&hr, ReadyCondition, corev1.ConditionUnknown, ProgressingReason, "reconciliation in progress")
 	return hr
 }
 
@@ -439,88 +638,31 @@ func SetHelmReleaseCondition(hr *HelmRelease, condition string, status corev1.Co
 	})
 }
 
-// SetHelmReleaseReadiness sets the ReadyCondition, ObservedGeneration, LastAttemptedRevision,
-// and LastReleaseRevision, on the HelmRelease.
-func SetHelmReleaseReadiness(hr *HelmRelease, status corev1.ConditionStatus, reason, message string, revision string, releaseRevision int, valuesChecksum string) {
-	SetHelmReleaseCondition(hr, ReadyCondition, status, reason, message)
-	hr.Status.ObservedGeneration = hr.Generation
-	hr.Status.LastAttemptedRevision = revision
-	hr.Status.LastReleaseRevision = releaseRevision
-	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
-}
-
 // HelmReleaseNotReady registers a failed release attempt of the given HelmRelease.
-func HelmReleaseNotReady(hr HelmRelease, revision string, releaseRevision int, valuesChecksum, reason, message string) HelmRelease {
-	SetHelmReleaseReadiness(&hr, corev1.ConditionFalse, reason, message, revision, releaseRevision, valuesChecksum)
-	hr.Status.Failures = hr.Status.Failures + 1
+func HelmReleaseNotReady(hr HelmRelease, reason, message string) HelmRelease {
+	SetHelmReleaseCondition(&hr, ReadyCondition, corev1.ConditionFalse, reason, message)
+	hr.Status.Failures++
 	return hr
 }
 
 // HelmReleaseReady registers a successful release attempt of the given HelmRelease.
-func HelmReleaseReady(hr HelmRelease, revision string, releaseRevision int, valuesChecksum, reason, message string) HelmRelease {
-	SetHelmReleaseReadiness(&hr, corev1.ConditionTrue, reason, message, revision, releaseRevision, valuesChecksum)
-	hr.Status.LastAppliedRevision = revision
-	hr.Status.Failures = 0
+func HelmReleaseReady(hr HelmRelease, reason, message string) HelmRelease {
+	SetHelmReleaseCondition(&hr, ReadyCondition, corev1.ConditionTrue, reason, message)
+	hr.Status.LastAppliedRevision = hr.Status.LastAttemptedRevision
 	return hr
 }
 
-// ShouldUpgrade determines if an Helm upgrade action needs to be performed for the given HelmRelease.
-func ShouldUpgrade(hr HelmRelease, revision string, releaseRevision int, valuesChecksum string) bool {
-	switch {
-	case hr.Status.LastAttemptedRevision != revision:
-		return true
-	case hr.Status.LastReleaseRevision != releaseRevision:
-		return true
-	case hr.Generation != hr.Status.ObservedGeneration:
-		return true
-	case hr.Status.LastAttemptedValuesChecksum != valuesChecksum:
-		return true
-	case hr.Status.Failures > 0 &&
-		(hr.Spec.GetUpgrade().MaxRetries < 0 || hr.Status.Failures < int64(hr.Spec.GetUpgrade().MaxRetries)):
-		return true
-	default:
-		return false
-	}
-}
+// HelmReleaseAttempted registers an attempt of the given HelmRelease with the given state.
+// and returns the modified HelmRelease and a boolean indicating a state change.
+func HelmReleaseAttempted(hr HelmRelease, revision string, releaseRevision int, valuesChecksum string) (HelmRelease, bool) {
+	changed := hr.Status.LastAttemptedRevision != revision ||
+		hr.Status.LastReleaseRevision != releaseRevision ||
+		hr.Status.LastAttemptedValuesChecksum != valuesChecksum
+	hr.Status.LastAttemptedRevision = revision
+	hr.Status.LastReleaseRevision = releaseRevision
+	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
 
-// ShouldTest determines if a Helm test actions needs to be performed for the given HelmRelease.
-func ShouldTest(hr HelmRelease) bool {
-	if hr.Spec.Test.Enable {
-		for _, c := range hr.Status.Conditions {
-			if c.Status == corev1.ConditionTrue && (c.Type == InstalledCondition || c.Type == UpgradedCondition) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// ShouldRollback determines if a Helm rollback action needs to be performed for the given HelmRelease.
-func ShouldRollback(hr HelmRelease, releaseRevision int) bool {
-	if hr.Spec.GetRollback().Enable {
-		if hr.Status.LastReleaseRevision <= releaseRevision {
-			return false
-		}
-		for _, c := range hr.Status.Conditions {
-			if c.Type == UpgradedCondition && c.Status == corev1.ConditionFalse {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// ShouldUninstall determines if a Helm uninstall action needs to be performed for the given HelmRelease.
-func ShouldUninstall(hr HelmRelease, releaseRevision int) bool {
-	if releaseRevision <= 0 {
-		return false
-	}
-	for _, c := range hr.Status.Conditions {
-		if c.Type == InstalledCondition && c.Status == corev1.ConditionFalse {
-			return true
-		}
-	}
-	return false
+	return hr, changed
 }
 
 const (

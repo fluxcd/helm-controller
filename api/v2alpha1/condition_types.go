@@ -110,6 +110,9 @@ const (
 	// InitFailedReason represents the fact that the initialization of the Helm configuration failed.
 	InitFailedReason string = "InitFailed"
 
+	// GetLastReleaseFailedReason represents the fact that observing the last release failed.
+	GetLastReleaseFailedReason string = "GetLastReleaseFailed"
+
 	// ProgressingReason represents the fact that the reconciliation for the resource is underway.
 	ProgressingReason string = "Progressing"
 

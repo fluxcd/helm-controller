@@ -13,10 +13,6 @@ spec:
     interval: 1m
   dependsOn:
     - backend
-  test:
-    enable: true
-  rollback:
-    enable: true
   values:
     backend: http://backend-podinfo:9898/echo
     resources:
