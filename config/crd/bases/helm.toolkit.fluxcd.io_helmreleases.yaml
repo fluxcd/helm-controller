@@ -384,7 +384,8 @@ spec:
                   type: object
                 type: array
               failures:
-                description: Failures is the reconciliation failure count.
+                description: Failures is the reconciliation failure count against
+                  the known state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
               helmChart:
@@ -392,9 +393,14 @@ spec:
                   created by the controller for the HelmRelease.
                 type: string
               installFailures:
-                description: InstallFailures is the install failure count.
+                description: InstallFailures is the install failure count against
+                  the known state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
+              knownStateApplied:
+                description: KnownStateApplied represents whether the known state
+                  has been successfully applied.
+                type: boolean
               lastAppliedRevision:
                 description: LastAppliedRevision is the revision of the last successfully
                   applied source.
@@ -416,7 +422,8 @@ spec:
                 format: int64
                 type: integer
               upgradeFailures:
-                description: UpgradeFailures is the upgrade failure count.
+                description: UpgradeFailures is the upgrade failure count against
+                  the known state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
             type: object

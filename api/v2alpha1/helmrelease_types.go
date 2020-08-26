@@ -571,6 +571,10 @@ type HelmReleaseStatus struct {
 	// +optional
 	Conditions []Condition `json:"conditions,omitempty"`
 
+	// KnownStateApplied represents whether the known state has been successfully applied.
+	// +optional
+	KnownStateApplied bool `json:"knownStateApplied,omitempty"`
+
 	// LastAppliedRevision is the revision of the last successfully applied source.
 	// +optional
 	LastAppliedRevision string `json:"lastAppliedRevision,omitempty"`
@@ -592,15 +596,18 @@ type HelmReleaseStatus struct {
 	// +optional
 	HelmChart string `json:"helmChart,omitempty"`
 
-	// Failures is the reconciliation failure count.
+	// Failures is the reconciliation failure count against the known state.
+	// It is reset after a successful reconciliation.
 	// +optional
 	Failures int64 `json:"failures,omitempty"`
 
-	// InstallFailures is the install failure count.
+	// InstallFailures is the install failure count against the known state.
+	// It is reset after a successful reconciliation.
 	// +optional
 	InstallFailures int64 `json:"installFailures,omitempty"`
 
-	// UpgradeFailures is the upgrade failure count.
+	// UpgradeFailures is the upgrade failure count against the known state.
+	// It is reset after a successful reconciliation.
 	// +optional
 	UpgradeFailures int64 `json:"upgradeFailures,omitempty"`
 }
@@ -617,25 +624,11 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 // HelmReleaseProgressing resets any failures and registers progress toward reconciling the given HelmRelease
 // by setting the ReadyCondition to ConditionUnknown for ProgressingReason.
 func HelmReleaseProgressing(hr HelmRelease) HelmRelease {
-	hr.Status.Failures = 0
-	hr.Status.InstallFailures = 0
-	hr.Status.UpgradeFailures = 0
+	resetFailureCounts(&hr)
+	hr.Status.KnownStateApplied = false
 	hr.Status.Conditions = []Condition{}
 	SetHelmReleaseCondition(&hr, ReadyCondition, corev1.ConditionUnknown, ProgressingReason, "reconciliation in progress")
 	return hr
-}
-
-// SetHelmReleaseCondition sets the given condition with the given status, reason and message
-// on the HelmRelease.
-func SetHelmReleaseCondition(hr *HelmRelease, condition string, status corev1.ConditionStatus, reason, message string) {
-	hr.Status.Conditions = filterOutCondition(hr.Status.Conditions, condition)
-	hr.Status.Conditions = append(hr.Status.Conditions, Condition{
-		Type:               condition,
-		Status:             status,
-		LastTransitionTime: metav1.Now(),
-		Reason:             reason,
-		Message:            message,
-	})
 }
 
 // HelmReleaseNotReady registers a failed release attempt of the given HelmRelease.
@@ -646,9 +639,11 @@ func HelmReleaseNotReady(hr HelmRelease, reason, message string) HelmRelease {
 }
 
 // HelmReleaseReady registers a successful release attempt of the given HelmRelease.
-func HelmReleaseReady(hr HelmRelease, reason, message string) HelmRelease {
-	SetHelmReleaseCondition(&hr, ReadyCondition, corev1.ConditionTrue, reason, message)
+func HelmReleaseReady(hr HelmRelease) HelmRelease {
+	resetFailureCounts(&hr)
+	hr.Status.KnownStateApplied = true
 	hr.Status.LastAppliedRevision = hr.Status.LastAttemptedRevision
+	SetHelmReleaseCondition(&hr, ReadyCondition, corev1.ConditionTrue, ReconciliationSucceededReason, "release reconciliation succeeded")
 	return hr
 }
 
@@ -663,6 +658,25 @@ func HelmReleaseAttempted(hr HelmRelease, revision string, releaseRevision int, 
 	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
 
 	return hr, changed
+}
+
+func resetFailureCounts(hr *HelmRelease) {
+	hr.Status.Failures = 0
+	hr.Status.InstallFailures = 0
+	hr.Status.UpgradeFailures = 0
+}
+
+// SetHelmReleaseCondition sets the given condition with the given status, reason and message
+// on the HelmRelease.
+func SetHelmReleaseCondition(hr *HelmRelease, condition string, status corev1.ConditionStatus, reason, message string) {
+	hr.Status.Conditions = filterOutCondition(hr.Status.Conditions, condition)
+	hr.Status.Conditions = append(hr.Status.Conditions, Condition{
+		Type:               condition,
+		Status:             status,
+		LastTransitionTime: metav1.Now(),
+		Reason:             reason,
+		Message:            message,
+	})
 }
 
 const (

@@ -137,8 +137,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	}
 
 	// Observe the HelmRelease generation.
-	hasNewGeneration := hr.Status.ObservedGeneration != hr.Generation
-	if hasNewGeneration {
+	if hr.Status.ObservedGeneration != hr.Generation {
 		hr.Status.ObservedGeneration = hr.Generation
 		hr = v2.HelmReleaseProgressing(hr)
 	}
@@ -211,7 +210,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{}, nil
 	}
 
-	reconciledHr, reconcileErr := r.release(log, *hr.DeepCopy(), hc, values, hasNewGeneration)
+	reconciledHr, reconcileErr := r.release(ctx, log, *hr.DeepCopy(), hc, values)
 	if reconcileErr != nil {
 		r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("reconciliation failed: %s", reconcileErr.Error()))
 	}
@@ -295,7 +294,7 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	return &helmChart, true, nil
 }
 
-func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, source sourcev1.Source, values chartutil.Values, hasNewGeneration bool) (v2.HelmRelease, error) {
+func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr v2.HelmRelease, source sourcev1.Source, values chartutil.Values) (v2.HelmRelease, error) {
 	// Acquire lock
 	unlock, err := lock(fmt.Sprintf("%s-%s", hr.GetName(), hr.GetNamespace()))
 	if err != nil {
@@ -342,20 +341,29 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	hr, hasNewState := v2.HelmReleaseAttempted(hr, revision, releaseRevision, valuesChecksum)
 	if hasNewState {
 		hr = v2.HelmReleaseProgressing(hr)
+		if err := r.Status().Update(ctx, &hr); err != nil {
+			log.Error(err, "unable to update status")
+			return hr, err
+		}
 	}
 
 	// Determine release deployment action.
 	var deployAction v2.DeploymentAction
 	switch {
-	// Install if there is none.
+	// Install if there is no release.
 	case rel == nil:
 		deployAction = hr.Spec.GetInstall()
-	// Upgrade if there is a new generation, new state, or this is an upgrade retry.
-	case hasNewGeneration || hasNewState || hr.Spec.GetUpgrade().GetRemediation().GetFailureCount(hr) > 0:
-		deployAction = hr.Spec.GetUpgrade()
-	// Otherwise no action needed.
+	// Fail if the release was due to a failed install (which was not uninstalled).
+	// The uninstall may have failed, or was not needed due to retries being exhausted
+	// and remediateLastFailure being false.
+	case hr.Spec.GetInstall().GetRemediation().GetFailureCount(hr) > 0:
+		return hr, fmt.Errorf("last install failed but was not uninstalled")
+	// Skip and mark ready if the known state was already applied.
+	case hr.Status.KnownStateApplied:
+		return v2.HelmReleaseReady(hr), nil
+	// Otherwise upgrade.
 	default:
-		return hr, nil
+		deployAction = hr.Spec.GetUpgrade()
 	}
 
 	// Check if retries exhausted.
@@ -405,17 +413,18 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 					err = uninstallConditionErr
 				}
 			}
+
+			// Determine release after remediation.
+			rel, observeLastReleaseErr = observeLastRelease(cfg, hr)
+			if observeLastReleaseErr != nil {
+				err = &ConditionError{
+					Reason: v2.GetLastReleaseFailedReason,
+					Err:    errors.New("failed to get last release revision after remediation"),
+				}
+			}
 		}
 	}
 
-	// Determine release revision after deployment/remediation.
-	rel, observeLastReleaseErr = observeLastRelease(cfg, hr)
-	if observeLastReleaseErr != nil {
-		err = &ConditionError{
-			Reason: v2.GetLastReleaseFailedReason,
-			Err:    errors.New("failed to get last release revision after deployment/remediation"),
-		}
-	}
 	hr.Status.LastReleaseRevision = getReleaseRevision(rel)
 
 	if err != nil {
@@ -426,7 +435,7 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 		}
 		return v2.HelmReleaseNotReady(hr, reason, err.Error()), err
 	}
-	return v2.HelmReleaseReady(hr, v2.ReconciliationSucceededReason, "release reconciliation succeeded"), nil
+	return v2.HelmReleaseReady(hr), nil
 }
 
 func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {

@@ -671,6 +671,7 @@ status:
     reason: ReconciliationSucceeded
     status: "True"
     type: Ready
+  knownStateApplied: true
   lastAppliedRevision: 4.0.6
   lastAttemptedRevision: 4.0.6
   lastReleaseRevision: 1
