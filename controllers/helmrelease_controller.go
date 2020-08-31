@@ -598,10 +598,11 @@ func helmChartFromTemplate(hr v2.HelmRelease) *sourcev1.HelmChart {
 			Namespace: hr.Spec.Chart.GetNamespace(hr.Namespace),
 		},
 		Spec: sourcev1.HelmChartSpec{
-			Name:    template.Name,
-			Version: template.Version,
-			HelmRepositoryRef: corev1.LocalObjectReference{
-				Name: template.SourceRef.Name,
+			Chart:   template.Spec.Chart,
+			Version: template.Spec.Version,
+			SourceRef: sourcev1.LocalHelmChartSourceReference{
+				Name: template.Spec.SourceRef.Name,
+				Kind: template.Spec.SourceRef.Kind,
 			},
 			Interval: template.GetInterval(hr.Spec.Interval),
 		},
@@ -611,11 +612,13 @@ func helmChartFromTemplate(hr v2.HelmRelease) *sourcev1.HelmChart {
 func helmChartRequiresUpdate(hr v2.HelmRelease, chart sourcev1.HelmChart) bool {
 	template := hr.Spec.Chart
 	switch {
-	case template.Name != chart.Spec.Name:
+	case template.Spec.Chart != chart.Spec.Chart:
 		return true
-	case template.Version != chart.Spec.Version:
+	case template.Spec.Version != chart.Spec.Version:
 		return true
-	case template.SourceRef.Name != chart.Spec.HelmRepositoryRef.Name:
+	case template.Spec.SourceRef.Name != chart.Spec.SourceRef.Name:
+		return true
+	case template.Spec.SourceRef.Kind != chart.Spec.SourceRef.Kind:
 		return true
 	case template.GetInterval(hr.Spec.Interval) != chart.Spec.Interval:
 		return true

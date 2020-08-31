@@ -12,7 +12,8 @@ automated Helm actions that are being performed.
 ```go
 // HelmReleaseSpec defines the desired state of HelmRelease.
 type HelmReleaseSpec struct {
-	// Chart defines the Helm chart name, version and repository.
+	// Chart defines the template of the v1alpha1.HelmChart that should be created
+	// for this HelmRelease.
 	// +required
 	Chart HelmChartTemplate `json:"chart"`
 
@@ -20,7 +21,7 @@ type HelmReleaseSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
-	// Suspend tells the reconciler to suspend reconciliation for this HelmRelease,
+	// Suspend tells the controller to suspend reconciliation for this HelmRelease,
 	// it does not apply to already started reconciliations. Defaults to false.
 	// +optional
 	Suspend bool `json:"suspend,omitempty"`
@@ -79,22 +80,31 @@ type HelmReleaseSpec struct {
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
 }
 
-// HelmChartTemplate defines the template from which the controller
-// will generate a HelmChart object in the same namespace as the HelmRepository.
+// HelmChartTemplate defines the template from which the controller will generate a
+// v1alpha1.HelmChart object in the same namespace as the referenced v1alpha1.Source.
 type HelmChartTemplate struct {
-	// Name of the Helm chart, as made available by the referenced Helm repository.
+	// Spec holds the template for the v1alpha1.HelmChartSpec for this HelmRelease.
 	// +required
-	Name string `json:"name"`
+	Spec HelmChartTemplateSpec `json:"spec"`
+}
 
-	// Version semver expression, defaults to latest when omitted.
+// HelmChartTemplateSpec defines the template from which the controller will generate
+// a v1alpha1.HelmChartSpec object.
+type HelmChartTemplateSpec struct {
+	// The name or path the Helm chart is available at in the SourceRef.
+	// +required
+	Chart string `json:"chart"`
+
+	// Version semver expression, ignored for charts from GitRepository sources.
+	// Defaults to latest when omitted.
 	// +optional
 	Version string `json:"version,omitempty"`
 
-	// The name and namespace of the source HelmRepository the chart is available at.
+	// The name and namespace of the v1alpha1.Source the chart is available at.
 	// +required
 	SourceRef CrossNamespaceObjectReference `json:"sourceRef"`
 
-	// Interval at which to check the Helm repository for chart updates.
+	// Interval at which to check the v1alpha1.Source for updates.
 	// Defaults to 'HelmReleaseSpec.Interval'.
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
@@ -494,15 +504,17 @@ metadata:
 spec:
   interval: 5m
   chart:
-    name: podinfo
-    version: '^4.0.0'
-    sourceRef:
-      kind: HelmRepository
-      name: podinfo
-    interval: 1m
+    spec:
+      chart: podinfo
+      version: '>=4.0.0 <5.0.0'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+      interval: 1m
+  upgrade:
+    remediation:
+      remediateLastFailure: true
   test:
-    enable: true
-  rollback:
     enable: true
   values:
     service:
@@ -519,17 +531,19 @@ metadata:
 spec:
   interval: 5m
   chart:
-    name: podinfo
-    version: '^4.0.0'
-    sourceRef:
-      kind: HelmRepository
-      name: podinfo
-    interval: 1m
+    spec:
+      chart: podinfo
+      version: '>=4.0.0 <5.0.0'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+      interval: 1m
   dependsOn:
     - backend
+  upgrade:
+    remediation:
+      remediateLastFailure: true
   test:
-    enable: true
-  rollback:
     enable: true
   values:
     backend: http://backend-podinfo:9898/echo
@@ -544,7 +558,7 @@ spec:
 
 ## Enabling Helm rollback actions
 
-From time to time an Helm upgrade made by the helm-controller may fail, automatically recovering
+From time to time a Helm upgrade made by the helm-controller may fail, automatically recovering
 from this via a Helm rollback action is possible by enabling rollbacks for the `HelmRelease`.
 
 ```yaml
@@ -555,14 +569,16 @@ metadata:
 spec:
   interval: 5m
   chart:
-    name: podinfo
-    version: '^4.0.0'
-    sourceRef:
-      kind: HelmRepository
-      name: podinfo
-    interval: 1m
-  rollback:
-    enable: true
+    spec:
+      chart: podinfo
+      version: '>=4.0.0 <5.0.0'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+      interval: 1m
+  upgrade:
+    remediation:
+      remediateLastFailure: true
   values:
     resources:
       requests:
@@ -589,32 +605,33 @@ One can also opt-in to remediation of the last failure (when no retries remain) 
 2. For upgrades, setting `spec.upgrade.remediation.remediateLastFailure` to `true`, or configuring
    at least one retry.
 
-```yaml
-apiVersion: helm.fluxcd.io/v2alpha1
-kind: HelmRelease
-metadata:
-  name: podinfo
-spec:
-  interval: 5m
-  chart:
-    name: podinfo
-    version: '^4.0.0'
-    sourceRef:
-      kind: HelmRepository
-      name: podinfo
-    interval: 1m
-  install:
-    remediation:
-      retries: 3
-  upgrade:
-    remediation:
-      remediateLastFailure: false
-  values:
-    resources:
-      requests:
-        cpu: 100m
-        memory: 64Mi
-```
+   ```yaml
+   apiVersion: helm.fluxcd.io/v2alpha1
+   kind: HelmRelease
+   metadata:
+     name: podinfo
+   spec:
+     interval: 5m
+     chart:
+       spec:
+         chart: podinfo
+         version: '>=4.0.0 <5.0.0'
+         sourceRef:
+           kind: HelmRepository
+           name: podinfo
+         interval: 1m
+     install:
+       remediation:
+         retries: 3
+     upgrade:
+       remediation:
+         remediateLastFailure: false
+     values:
+       resources:
+         requests:
+           cpu: 100m
+           memory: 64Mi
+   ```
 
 ## Configuring Helm test actions
 
@@ -636,8 +653,9 @@ metadata:
 spec:
   interval: 5m
   chart:
-    name: podinfo
-    version: '^4.0.0'
+    spec:
+      chart: podinfo
+    version: '>=4.0.0 <5.0.0'
     sourceRef:
       kind: HelmRepository
       name: podinfo

@@ -32,7 +32,8 @@ const HelmReleaseFinalizer = "finalizers.fluxcd.io"
 
 // HelmReleaseSpec defines the desired state of HelmRelease.
 type HelmReleaseSpec struct {
-	// Chart defines the Helm chart name, version and repository.
+	// Chart defines the template of the v1alpha1.HelmChart that should be created
+	// for this HelmRelease.
 	// +required
 	Chart HelmChartTemplate `json:"chart"`
 
@@ -40,7 +41,7 @@ type HelmReleaseSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
-	// Suspend tells the reconciler to suspend reconciliation for this HelmRelease,
+	// Suspend tells the controller to suspend reconciliation for this HelmRelease,
 	// it does not apply to already started reconciliations. Defaults to false.
 	// +optional
 	Suspend bool `json:"suspend,omitempty"`
@@ -139,41 +140,52 @@ func (in HelmReleaseSpec) GetUninstall() Uninstall {
 	return *in.Uninstall
 }
 
-// HelmChartTemplate defines the template from which the controller
-// will generate a HelmChart object in the same namespace as the HelmRepository.
+// HelmChartTemplate defines the template from which the controller will generate a
+// v1alpha1.HelmChart object in the same namespace as the referenced v1alpha1.Source.
 type HelmChartTemplate struct {
-	// Name of the Helm chart, as made available by the referenced Helm repository.
+	// Spec holds the template for the v1alpha1.HelmChartSpec for this HelmRelease.
 	// +required
-	Name string `json:"name"`
+	Spec HelmChartTemplateSpec `json:"spec"`
+}
 
-	// Version semver expression, defaults to latest when omitted.
+// HelmChartTemplateSpec defines the template from which the controller will generate
+// a v1alpha1.HelmChartSpec object.
+type HelmChartTemplateSpec struct {
+	// The name or path the Helm chart is available at in the SourceRef.
+	// +required
+	Chart string `json:"chart"`
+
+	// Version semver expression, ignored for charts from GitRepository sources.
+	// Defaults to latest when omitted.
 	// +optional
 	Version string `json:"version,omitempty"`
 
-	// The name and namespace of the source HelmRepository the chart is available at.
+	// The name and namespace of the v1alpha1.Source the chart is available at.
 	// +required
 	SourceRef CrossNamespaceObjectReference `json:"sourceRef"`
 
-	// Interval at which to check the Helm repository for chart updates.
+	// Interval at which to check the v1alpha1.Source for updates.
 	// Defaults to 'HelmReleaseSpec.Interval'.
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
 }
 
-// GetInterval returns the configured interval for the HelmChart, or the given default.
+// GetInterval returns the configured interval for the v1alpha1.HelmChart,
+// or the given default.
 func (in HelmChartTemplate) GetInterval(defaultInterval metav1.Duration) metav1.Duration {
-	if in.Interval == nil {
+	if in.Spec.Interval == nil {
 		return defaultInterval
 	}
-	return *in.Interval
+	return *in.Spec.Interval
 }
 
-// GetNamespace returns the namespace targeted namespace for the HelmChart, or the given default.
+// GetNamespace returns the namespace targeted namespace for the v1alpha1.HelmChart,
+// or the given default.
 func (in HelmChartTemplate) GetNamespace(defaultNamespace string) string {
-	if in.SourceRef.Namespace == "" {
+	if in.Spec.SourceRef.Namespace == "" {
 		return defaultNamespace
 	}
-	return in.SourceRef.Namespace
+	return in.Spec.SourceRef.Namespace
 }
 
 // DeploymentAction defines a consistent interface for Install and Upgrade.
@@ -765,7 +777,7 @@ func (in HelmRelease) GetMaxHistory() int {
 
 // +kubebuilder:object:root=true
 
-// HelmReleaseList contains a list of HelmRelease
+// HelmReleaseList contains a list of HelmRelease objects.
 type HelmReleaseList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

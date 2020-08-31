@@ -5,12 +5,13 @@ metadata:
 spec:
   interval: 5m
   chart:
-    name: podinfo
-    version: '^4.0.0'
-    sourceRef:
-      kind: HelmRepository
-      name: valuesfrom
-    interval: 1m
+    spec:
+      chart: podinfo
+      version: '>=4.0.0 <5.0.0'
+      sourceRef:
+        kind: HelmRepository
+        name: valuesfrom
+      interval: 1m
   valuesFrom:
     - kind: ConfigMap
       name: valuesfrom-config

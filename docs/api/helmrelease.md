@@ -78,7 +78,8 @@ HelmChartTemplate
 </em>
 </td>
 <td>
-<p>Chart defines the Helm chart name, version and repository.</p>
+<p>Chart defines the template of the v1alpha1.HelmChart that should be created
+for this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -103,7 +104,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Suspend tells the reconciler to suspend reconciliation for this HelmRelease,
+<p>Suspend tells the controller to suspend reconciliation for this HelmRelease,
 it does not apply to already started reconciliations. Defaults to false.</p>
 </td>
 </tr>
@@ -381,7 +382,7 @@ transition, complementing reason.</p>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmChartTemplate">HelmChartTemplate</a>)
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmChartTemplateSpec">HelmChartTemplateSpec</a>)
 </p>
 <p>CrossNamespaceObjectReference contains enough information to let you locate the
 typed referenced object at cluster level.</p>
@@ -454,8 +455,8 @@ string
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
-<p>HelmChartTemplate defines the template from which the controller
-will generate a HelmChart object in the same namespace as the HelmRepository.</p>
+<p>HelmChartTemplate defines the template from which the controller will generate a
+v1alpha1.HelmChart object in the same namespace as the referenced v1alpha1.Source.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -468,13 +469,27 @@ will generate a HelmChart object in the same namespace as the HelmRepository.</p
 <tbody>
 <tr>
 <td>
-<code>name</code><br>
+<code>spec</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmChartTemplateSpec">
+HelmChartTemplateSpec
+</a>
+</em>
+</td>
+<td>
+<p>Spec holds the template for the v1alpha1.HelmChartSpec for this HelmRelease.</p>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>chart</code><br>
 <em>
 string
 </em>
 </td>
 <td>
-<p>Name of the Helm chart, as made available by the referenced Helm repository.</p>
+<p>The name or path the Helm chart is available at in the SourceRef.</p>
 </td>
 </tr>
 <tr>
@@ -486,7 +501,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Version semver expression, defaults to latest when omitted.</p>
+<p>Version semver expression, ignored for charts from GitRepository sources.
+Defaults to latest when omitted.</p>
 </td>
 </tr>
 <tr>
@@ -499,7 +515,7 @@ CrossNamespaceObjectReference
 </em>
 </td>
 <td>
-<p>The name and namespace of the source HelmRepository the chart is available at.</p>
+<p>The name and namespace of the v1alpha1.Source the chart is available at.</p>
 </td>
 </tr>
 <tr>
@@ -513,7 +529,84 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>Interval at which to check the Helm repository for chart updates.
+<p>Interval at which to check the v1alpha1.Source for updates.
+Defaults to &lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2alpha1.HelmChartTemplateSpec">HelmChartTemplateSpec
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmChartTemplate">HelmChartTemplate</a>)
+</p>
+<p>HelmChartTemplateSpec defines the template from which the controller will generate
+a v1alpha1.HelmChartSpec object.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>chart</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The name or path the Helm chart is available at in the SourceRef.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>version</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Version semver expression, ignored for charts from GitRepository sources.
+Defaults to latest when omitted.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sourceRef</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2alpha1.CrossNamespaceObjectReference">
+CrossNamespaceObjectReference
+</a>
+</em>
+</td>
+<td>
+<p>The name and namespace of the v1alpha1.Source the chart is available at.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>interval</code><br>
+<em>
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Interval at which to check the v1alpha1.Source for updates.
 Defaults to &lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
 </td>
 </tr>
@@ -548,7 +641,8 @@ HelmChartTemplate
 </em>
 </td>
 <td>
-<p>Chart defines the Helm chart name, version and repository.</p>
+<p>Chart defines the template of the v1alpha1.HelmChart that should be created
+for this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -573,7 +667,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Suspend tells the reconciler to suspend reconciliation for this HelmRelease,
+<p>Suspend tells the controller to suspend reconciliation for this HelmRelease,
 it does not apply to already started reconciliations. Defaults to false.</p>
 </td>
 </tr>
