@@ -789,14 +789,14 @@ int64
 </tr>
 <tr>
 <td>
-<code>knownStateApplied</code><br>
+<code>observedStateReconciled</code><br>
 <em>
 bool
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>KnownStateApplied represents whether the known state has been successfully applied.</p>
+<p>ObservedStateReconciled represents whether the observed state has been successfully reconciled.</p>
 </td>
 </tr>
 <tr>
@@ -869,7 +869,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>Failures is the reconciliation failure count against the known state.
+<p>Failures is the reconciliation failure count against the latest observed state.
 It is reset after a successful reconciliation.</p>
 </td>
 </tr>
@@ -882,7 +882,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>InstallFailures is the install failure count against the known state.
+<p>InstallFailures is the install failure count against the latest observed state.
 It is reset after a successful reconciliation.</p>
 </td>
 </tr>
@@ -895,7 +895,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>UpgradeFailures is the upgrade failure count against the known state.
+<p>UpgradeFailures is the upgrade failure count against the latest observed state.
 It is reset after a successful reconciliation.</p>
 </td>
 </tr>

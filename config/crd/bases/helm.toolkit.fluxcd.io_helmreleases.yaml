@@ -385,7 +385,7 @@ spec:
                 type: array
               failures:
                 description: Failures is the reconciliation failure count against
-                  the known state. It is reset after a successful reconciliation.
+                  the latest observed state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
               helmChart:
@@ -394,13 +394,9 @@ spec:
                 type: string
               installFailures:
                 description: InstallFailures is the install failure count against
-                  the known state. It is reset after a successful reconciliation.
+                  the latest observed state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
-              knownStateApplied:
-                description: KnownStateApplied represents whether the known state
-                  has been successfully applied.
-                type: boolean
               lastAppliedRevision:
                 description: LastAppliedRevision is the revision of the last successfully
                   applied source.
@@ -421,9 +417,13 @@ spec:
                 description: ObservedGeneration is the last reconciled generation.
                 format: int64
                 type: integer
+              observedStateReconciled:
+                description: ObservedStateReconciled represents whether the observed
+                  state has been successfully reconciled.
+                type: boolean
               upgradeFailures:
                 description: UpgradeFailures is the upgrade failure count against
-                  the known state. It is reset after a successful reconciliation.
+                  the latest observed state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
             type: object

@@ -358,8 +358,8 @@ func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr
 	// and remediateLastFailure being false.
 	case hr.Spec.GetInstall().GetRemediation().GetFailureCount(hr) > 0:
 		return hr, fmt.Errorf("last install failed but was not uninstalled")
-	// Skip and mark ready if the known state was already applied.
-	case hr.Status.KnownStateApplied:
+	// Skip and mark ready if the observed state was already reconciled.
+	case hr.Status.ObservedStateReconciled:
 		return v2.HelmReleaseReady(hr), nil
 	// Otherwise upgrade.
 	default:

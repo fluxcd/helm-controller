@@ -571,9 +571,9 @@ type HelmReleaseStatus struct {
 	// +optional
 	Conditions []Condition `json:"conditions,omitempty"`
 
-	// KnownStateApplied represents whether the known state has been successfully applied.
+	// ObservedStateReconciled represents whether the observed state has been successfully reconciled.
 	// +optional
-	KnownStateApplied bool `json:"knownStateApplied,omitempty"`
+	ObservedStateReconciled bool `json:"observedStateReconciled,omitempty"`
 
 	// LastAppliedRevision is the revision of the last successfully applied source.
 	// +optional
@@ -596,17 +596,17 @@ type HelmReleaseStatus struct {
 	// +optional
 	HelmChart string `json:"helmChart,omitempty"`
 
-	// Failures is the reconciliation failure count against the known state.
+	// Failures is the reconciliation failure count against the latest observed state.
 	// It is reset after a successful reconciliation.
 	// +optional
 	Failures int64 `json:"failures,omitempty"`
 
-	// InstallFailures is the install failure count against the known state.
+	// InstallFailures is the install failure count against the latest observed state.
 	// It is reset after a successful reconciliation.
 	// +optional
 	InstallFailures int64 `json:"installFailures,omitempty"`
 
-	// UpgradeFailures is the upgrade failure count against the known state.
+	// UpgradeFailures is the upgrade failure count against the latest observed state.
 	// It is reset after a successful reconciliation.
 	// +optional
 	UpgradeFailures int64 `json:"upgradeFailures,omitempty"`
@@ -625,7 +625,7 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 // by setting the ReadyCondition to ConditionUnknown for ProgressingReason.
 func HelmReleaseProgressing(hr HelmRelease) HelmRelease {
 	resetFailureCounts(&hr)
-	hr.Status.KnownStateApplied = false
+	hr.Status.ObservedStateReconciled = false
 	hr.Status.Conditions = []Condition{}
 	SetHelmReleaseCondition(&hr, ReadyCondition, corev1.ConditionUnknown, ProgressingReason, "reconciliation in progress")
 	return hr
@@ -641,7 +641,7 @@ func HelmReleaseNotReady(hr HelmRelease, reason, message string) HelmRelease {
 // HelmReleaseReady registers a successful release attempt of the given HelmRelease.
 func HelmReleaseReady(hr HelmRelease) HelmRelease {
 	resetFailureCounts(&hr)
-	hr.Status.KnownStateApplied = true
+	hr.Status.ObservedStateReconciled = true
 	hr.Status.LastAppliedRevision = hr.Status.LastAttemptedRevision
 	SetHelmReleaseCondition(&hr, ReadyCondition, corev1.ConditionTrue, ReconciliationSucceededReason, "release reconciliation succeeded")
 	return hr
