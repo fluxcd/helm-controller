@@ -770,7 +770,33 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>ObservedGeneration is the last reconciled generation.</p>
+<p>ObservedGeneration is the last observed generation.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>observedStateReconciled</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ObservedStateReconciled represents whether the observed state has been successfully reconciled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastObservedTime</code><br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastObservedTime is the last time at which the HelmRelease was observed.</p>
 </td>
 </tr>
 <tr>
@@ -785,18 +811,6 @@ int64
 <td>
 <em>(Optional)</em>
 <p>Conditions holds the conditions for the HelmRelease.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>observedStateReconciled</code><br>
-<em>
-bool
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ObservedStateReconciled represents whether the observed state has been successfully reconciled.</p>
 </td>
 </tr>
 <tr>

@@ -563,17 +563,21 @@ func (in Uninstall) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 
 // HelmReleaseStatus defines the observed state of HelmRelease
 type HelmReleaseStatus struct {
-	// ObservedGeneration is the last reconciled generation.
+	// ObservedGeneration is the last observed generation.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
-
-	// Conditions holds the conditions for the HelmRelease.
-	// +optional
-	Conditions []Condition `json:"conditions,omitempty"`
 
 	// ObservedStateReconciled represents whether the observed state has been successfully reconciled.
 	// +optional
 	ObservedStateReconciled bool `json:"observedStateReconciled,omitempty"`
+
+	// LastObservedTime is the last time at which the HelmRelease was observed.
+	// +optional
+	LastObservedTime metav1.Time `json:"lastObservedTime,omitempty"`
+
+	// Conditions holds the conditions for the HelmRelease.
+	// +optional
+	Conditions []Condition `json:"conditions,omitempty"`
 
 	// LastAppliedRevision is the revision of the last successfully applied source.
 	// +optional

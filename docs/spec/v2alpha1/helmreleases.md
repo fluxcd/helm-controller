@@ -674,6 +674,7 @@ status:
   observedStateReconciled: true
   lastAppliedRevision: 4.0.6
   lastAttemptedRevision: 4.0.6
+  lastObservedTime: "2020-07-13T13:18:42Z"
   lastReleaseRevision: 1
   observedGeneration: 2
 ```
@@ -704,6 +705,7 @@ status:
   failures: 1
   lastAppliedRevision: 4.0.6
   lastAttemptedRevision: 4.0.6
+  lastObservedTime: "2020-07-13T18:17:28Z"
   lastReleaseRevision: 1
   observedGeneration: 3
 ```

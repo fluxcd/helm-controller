@@ -125,6 +125,15 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{}, nil
 	}
 
+	// Record time of reconciliation attempt.
+	hr.Status.LastObservedTime = v1.Now()
+
+	// Observe HelmRelease generation.
+	if hr.Status.ObservedGeneration != hr.Generation {
+		hr.Status.ObservedGeneration = hr.Generation
+		hr = v2.HelmReleaseProgressing(hr)
+	}
+
 	if hr.Spec.Suspend {
 		msg := "HelmRelease is suspended, skipping reconciliation"
 		hr = v2.HelmReleaseNotReady(hr, v2.SuspendedReason, msg)
@@ -134,12 +143,6 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		}
 		log.Info(msg)
 		return ctrl.Result{}, nil
-	}
-
-	// Observe the HelmRelease generation.
-	if hr.Status.ObservedGeneration != hr.Generation {
-		hr.Status.ObservedGeneration = hr.Generation
-		hr = v2.HelmReleaseProgressing(hr)
 	}
 
 	if err := r.Status().Update(ctx, &hr); err != nil {
