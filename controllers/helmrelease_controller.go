@@ -125,27 +125,38 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{}, nil
 	}
 
-	if hr.Spec.Suspend {
-		msg := "HelmRelease is suspended, skipping reconciliation"
-		hr = v2.HelmReleaseNotReady(hr, v2.SuspendedReason, msg)
-		if err := r.Status().Update(ctx, &hr); err != nil {
-			log.Error(err, "unable to update status")
-			return ctrl.Result{Requeue: true}, err
-		}
-		log.Info(msg)
-		return ctrl.Result{}, nil
+	hr, result, err := r.reconcile(ctx, log, hr)
+
+	// Update status after reconciliation.
+	if updateStatusErr := r.updateStatus(ctx, &hr); updateStatusErr != nil {
+		log.Error(updateStatusErr, "unable to update status after reconciliation")
+		return ctrl.Result{Requeue: true}, updateStatusErr
 	}
 
-	// Observe the HelmRelease generation.
-	hasNewGeneration := hr.Status.ObservedGeneration != hr.Generation
-	if hasNewGeneration {
+	// Log reconciliation duration
+	log.Info(fmt.Sprintf("reconcilation finished in %s, next run in %s",
+		time.Now().Sub(start).String(),
+		hr.Spec.Interval.Duration.String(),
+	))
+
+	return result, err
+}
+
+func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, hr v2.HelmRelease) (v2.HelmRelease, ctrl.Result, error) {
+	// Observe HelmRelease generation.
+	if hr.Status.ObservedGeneration != hr.Generation {
 		hr.Status.ObservedGeneration = hr.Generation
 		hr = v2.HelmReleaseProgressing(hr)
+		if updateStatusErr := r.updateStatus(ctx, &hr); updateStatusErr != nil {
+			log.Error(updateStatusErr, "unable to update status after generation update")
+			return hr, ctrl.Result{Requeue: true}, updateStatusErr
+		}
 	}
 
-	if err := r.Status().Update(ctx, &hr); err != nil {
-		log.Error(err, "unable to update status")
-		return ctrl.Result{Requeue: true}, err
+	if hr.Spec.Suspend {
+		msg := "HelmRelease is suspended, skipping reconciliation"
+		log.Info(msg)
+		return v2.HelmReleaseNotReady(hr, v2.SuspendedReason, msg), ctrl.Result{}, nil
 	}
 
 	// Reconcile chart based on the HelmChartTemplate
@@ -159,25 +170,15 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 			msg = "HelmChart is not ready"
 			r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityInfo, msg)
 		}
-		hr = v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg)
-		if err := r.Status().Update(ctx, &hr); err != nil {
-			log.Error(err, "unable to update status")
-			return ctrl.Result{Requeue: true}, err
-		}
-		return ctrl.Result{}, reconcileErr
+		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{}, reconcileErr
 	}
 
 	// Check chart artifact readiness
 	if hc.GetArtifact() == nil {
 		msg := "HelmChart is not ready"
-		hr = v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg)
 		r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityInfo, msg)
 		log.Info(msg)
-		if err := r.Status().Update(ctx, &hr); err != nil {
-			log.Error(err, "unable to update status")
-			return ctrl.Result{Requeue: true}, err
-		}
-		return ctrl.Result{}, nil
+		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{}, nil
 	}
 
 	// Check dependencies
@@ -187,14 +188,9 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 			r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityInfo, msg)
 			log.Info(msg)
 
-			hr = v2.HelmReleaseNotReady(hr, v2.DependencyNotReadyReason, err.Error())
-			if err := r.Status().Update(ctx, &hr); err != nil {
-				log.Error(err, "unable to update status")
-				return ctrl.Result{Requeue: true}, err
-			}
 			// Exponential backoff would cause execution to be prolonged too much,
 			// instead we requeue on a fixed interval.
-			return ctrl.Result{RequeueAfter: r.requeueDependency}, nil
+			return v2.HelmReleaseNotReady(hr, v2.DependencyNotReadyReason, err.Error()), ctrl.Result{RequeueAfter: r.requeueDependency}, nil
 		}
 		log.Info("all dependencies are ready, proceeding with release")
 	}
@@ -202,32 +198,16 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	// Compose values
 	values, err := r.composeValues(ctx, hr)
 	if err != nil {
-		hr = v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error())
 		r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityError, err.Error())
-		if err := r.Status().Update(ctx, &hr); err != nil {
-			log.Error(err, "unable to update status")
-			return ctrl.Result{Requeue: true}, err
-		}
-		return ctrl.Result{}, nil
+		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error()), ctrl.Result{}, nil
 	}
 
-	reconciledHr, reconcileErr := r.release(log, *hr.DeepCopy(), hc, values, hasNewGeneration)
+	reconciledHr, reconcileErr := r.release(ctx, log, *hr.DeepCopy(), hc, values)
 	if reconcileErr != nil {
 		r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("reconciliation failed: %s", reconcileErr.Error()))
 	}
 
-	if err := r.Status().Update(ctx, &reconciledHr); err != nil {
-		log.Error(err, "unable to update status after reconciliation")
-		return ctrl.Result{Requeue: true}, err
-	}
-
-	// Log reconciliation duration
-	log.Info(fmt.Sprintf("reconcilation finished in %s, next run in %s",
-		time.Now().Sub(start).String(),
-		hr.Spec.Interval.Duration.String(),
-	))
-
-	return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, reconcileErr
+	return reconciledHr, ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, reconcileErr
 }
 
 type HelmReleaseReconcilerOptions struct {
@@ -295,7 +275,7 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	return &helmChart, true, nil
 }
 
-func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, source sourcev1.Source, values chartutil.Values, hasNewGeneration bool) (v2.HelmRelease, error) {
+func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr v2.HelmRelease, source sourcev1.Source, values chartutil.Values) (v2.HelmRelease, error) {
 	// Acquire lock
 	unlock, err := lock(fmt.Sprintf("%s-%s", hr.GetName(), hr.GetNamespace()))
 	if err != nil {
@@ -342,20 +322,29 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 	hr, hasNewState := v2.HelmReleaseAttempted(hr, revision, releaseRevision, valuesChecksum)
 	if hasNewState {
 		hr = v2.HelmReleaseProgressing(hr)
+		if updateStatusErr := r.updateStatus(ctx, &hr); updateStatusErr != nil {
+			log.Error(updateStatusErr, "unable to update status after state update")
+			return hr, updateStatusErr
+		}
 	}
 
 	// Determine release deployment action.
 	var deployAction v2.DeploymentAction
 	switch {
-	// Install if there is none.
+	// Install if there is no release.
 	case rel == nil:
 		deployAction = hr.Spec.GetInstall()
-	// Upgrade if there is a new generation, new state, or this is an upgrade retry.
-	case hasNewGeneration || hasNewState || hr.Spec.GetUpgrade().GetRemediation().GetFailureCount(hr) > 0:
-		deployAction = hr.Spec.GetUpgrade()
-	// Otherwise no action needed.
+	// Fail if the release was due to a failed install (which was not uninstalled).
+	// The uninstall may have failed, or was not needed due to retries being exhausted
+	// and remediateLastFailure being false.
+	case hr.Spec.GetInstall().GetRemediation().GetFailureCount(hr) > 0:
+		return hr, fmt.Errorf("last install failed but was not uninstalled")
+	// Skip and mark ready if the observed state was already reconciled.
+	case hr.Status.ObservedStateReconciled:
+		return v2.HelmReleaseReady(hr), nil
+	// Otherwise upgrade.
 	default:
-		return hr, nil
+		deployAction = hr.Spec.GetUpgrade()
 	}
 
 	// Check if retries exhausted.
@@ -405,17 +394,18 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 					err = uninstallConditionErr
 				}
 			}
+
+			// Determine release after remediation.
+			rel, observeLastReleaseErr = observeLastRelease(cfg, hr)
+			if observeLastReleaseErr != nil {
+				err = &ConditionError{
+					Reason: v2.GetLastReleaseFailedReason,
+					Err:    errors.New("failed to get last release revision after remediation"),
+				}
+			}
 		}
 	}
 
-	// Determine release revision after deployment/remediation.
-	rel, observeLastReleaseErr = observeLastRelease(cfg, hr)
-	if observeLastReleaseErr != nil {
-		err = &ConditionError{
-			Reason: v2.GetLastReleaseFailedReason,
-			Err:    errors.New("failed to get last release revision after deployment/remediation"),
-		}
-	}
 	hr.Status.LastReleaseRevision = getReleaseRevision(rel)
 
 	if err != nil {
@@ -426,7 +416,12 @@ func (r *HelmReleaseReconciler) release(log logr.Logger, hr v2.HelmRelease, sour
 		}
 		return v2.HelmReleaseNotReady(hr, reason, err.Error()), err
 	}
-	return v2.HelmReleaseReady(hr, v2.ReconciliationSucceededReason, "release reconciliation succeeded"), nil
+	return v2.HelmReleaseReady(hr), nil
+}
+
+func (r *HelmReleaseReconciler) updateStatus(ctx context.Context, hr *v2.HelmRelease) error {
+	hr.Status.LastObservedTime = v1.Now()
+	return r.Status().Update(ctx, hr)
 }
 
 func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {

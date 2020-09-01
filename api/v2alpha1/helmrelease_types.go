@@ -563,9 +563,17 @@ func (in Uninstall) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 
 // HelmReleaseStatus defines the observed state of HelmRelease
 type HelmReleaseStatus struct {
-	// ObservedGeneration is the last reconciled generation.
+	// ObservedGeneration is the last observed generation.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ObservedStateReconciled represents whether the observed state has been successfully reconciled.
+	// +optional
+	ObservedStateReconciled bool `json:"observedStateReconciled,omitempty"`
+
+	// LastObservedTime is the last time at which the HelmRelease was observed.
+	// +optional
+	LastObservedTime metav1.Time `json:"lastObservedTime,omitempty"`
 
 	// Conditions holds the conditions for the HelmRelease.
 	// +optional
@@ -592,15 +600,18 @@ type HelmReleaseStatus struct {
 	// +optional
 	HelmChart string `json:"helmChart,omitempty"`
 
-	// Failures is the reconciliation failure count.
+	// Failures is the reconciliation failure count against the latest observed state.
+	// It is reset after a successful reconciliation.
 	// +optional
 	Failures int64 `json:"failures,omitempty"`
 
-	// InstallFailures is the install failure count.
+	// InstallFailures is the install failure count against the latest observed state.
+	// It is reset after a successful reconciliation.
 	// +optional
 	InstallFailures int64 `json:"installFailures,omitempty"`
 
-	// UpgradeFailures is the upgrade failure count.
+	// UpgradeFailures is the upgrade failure count against the latest observed state.
+	// It is reset after a successful reconciliation.
 	// +optional
 	UpgradeFailures int64 `json:"upgradeFailures,omitempty"`
 }
@@ -617,25 +628,11 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 // HelmReleaseProgressing resets any failures and registers progress toward reconciling the given HelmRelease
 // by setting the ReadyCondition to ConditionUnknown for ProgressingReason.
 func HelmReleaseProgressing(hr HelmRelease) HelmRelease {
-	hr.Status.Failures = 0
-	hr.Status.InstallFailures = 0
-	hr.Status.UpgradeFailures = 0
+	resetFailureCounts(&hr)
+	hr.Status.ObservedStateReconciled = false
 	hr.Status.Conditions = []Condition{}
 	SetHelmReleaseCondition(&hr, ReadyCondition, corev1.ConditionUnknown, ProgressingReason, "reconciliation in progress")
 	return hr
-}
-
-// SetHelmReleaseCondition sets the given condition with the given status, reason and message
-// on the HelmRelease.
-func SetHelmReleaseCondition(hr *HelmRelease, condition string, status corev1.ConditionStatus, reason, message string) {
-	hr.Status.Conditions = filterOutCondition(hr.Status.Conditions, condition)
-	hr.Status.Conditions = append(hr.Status.Conditions, Condition{
-		Type:               condition,
-		Status:             status,
-		LastTransitionTime: metav1.Now(),
-		Reason:             reason,
-		Message:            message,
-	})
 }
 
 // HelmReleaseNotReady registers a failed release attempt of the given HelmRelease.
@@ -646,9 +643,11 @@ func HelmReleaseNotReady(hr HelmRelease, reason, message string) HelmRelease {
 }
 
 // HelmReleaseReady registers a successful release attempt of the given HelmRelease.
-func HelmReleaseReady(hr HelmRelease, reason, message string) HelmRelease {
-	SetHelmReleaseCondition(&hr, ReadyCondition, corev1.ConditionTrue, reason, message)
+func HelmReleaseReady(hr HelmRelease) HelmRelease {
+	resetFailureCounts(&hr)
+	hr.Status.ObservedStateReconciled = true
 	hr.Status.LastAppliedRevision = hr.Status.LastAttemptedRevision
+	SetHelmReleaseCondition(&hr, ReadyCondition, corev1.ConditionTrue, ReconciliationSucceededReason, "release reconciliation succeeded")
 	return hr
 }
 
@@ -663,6 +662,25 @@ func HelmReleaseAttempted(hr HelmRelease, revision string, releaseRevision int, 
 	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
 
 	return hr, changed
+}
+
+func resetFailureCounts(hr *HelmRelease) {
+	hr.Status.Failures = 0
+	hr.Status.InstallFailures = 0
+	hr.Status.UpgradeFailures = 0
+}
+
+// SetHelmReleaseCondition sets the given condition with the given status, reason and message
+// on the HelmRelease.
+func SetHelmReleaseCondition(hr *HelmRelease, condition string, status corev1.ConditionStatus, reason, message string) {
+	hr.Status.Conditions = filterOutCondition(hr.Status.Conditions, condition)
+	hr.Status.Conditions = append(hr.Status.Conditions, Condition{
+		Type:               condition,
+		Status:             status,
+		LastTransitionTime: metav1.Now(),
+		Reason:             reason,
+		Message:            message,
+	})
 }
 
 const (

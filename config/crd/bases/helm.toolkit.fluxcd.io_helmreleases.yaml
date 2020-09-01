@@ -384,7 +384,8 @@ spec:
                   type: object
                 type: array
               failures:
-                description: Failures is the reconciliation failure count.
+                description: Failures is the reconciliation failure count against
+                  the latest observed state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
               helmChart:
@@ -392,7 +393,8 @@ spec:
                   created by the controller for the HelmRelease.
                 type: string
               installFailures:
-                description: InstallFailures is the install failure count.
+                description: InstallFailures is the install failure count against
+                  the latest observed state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
               lastAppliedRevision:
@@ -407,16 +409,26 @@ spec:
                 description: LastAttemptedValuesChecksum is the SHA1 checksum of the
                   values of the last reconciliation attempt.
                 type: string
+              lastObservedTime:
+                description: LastObservedTime is the last time at which the HelmRelease
+                  was observed.
+                format: date-time
+                type: string
               lastReleaseRevision:
                 description: LastReleaseRevision is the revision of the last successful
                   Helm release.
                 type: integer
               observedGeneration:
-                description: ObservedGeneration is the last reconciled generation.
+                description: ObservedGeneration is the last observed generation.
                 format: int64
                 type: integer
+              observedStateReconciled:
+                description: ObservedStateReconciled represents whether the observed
+                  state has been successfully reconciled.
+                type: boolean
               upgradeFailures:
-                description: UpgradeFailures is the upgrade failure count.
+                description: UpgradeFailures is the upgrade failure count against
+                  the latest observed state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
             type: object
