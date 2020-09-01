@@ -49,44 +49,53 @@ spec:
             description: HelmReleaseSpec defines the desired state of HelmRelease.
             properties:
               chart:
-                description: Chart defines the Helm chart name, version and repository.
+                description: Chart defines the template of the v1alpha1.HelmChart
+                  that should be created for this HelmRelease.
                 properties:
-                  interval:
-                    description: Interval at which to check the Helm repository for
-                      chart updates. Defaults to 'HelmReleaseSpec.Interval'.
-                    type: string
-                  name:
-                    description: Name of the Helm chart, as made available by the
-                      referenced Helm repository.
-                    type: string
-                  sourceRef:
-                    description: The name and namespace of the source HelmRepository
-                      the chart is available at.
+                  spec:
+                    description: Spec holds the template for the v1alpha1.HelmChartSpec
+                      for this HelmRelease.
                     properties:
-                      apiVersion:
-                        description: APIVersion of the referent.
+                      chart:
+                        description: The name or path the Helm chart is available
+                          at in the SourceRef.
                         type: string
-                      kind:
-                        description: Kind of the referent.
-                        enum:
-                        - HelmRepository
+                      interval:
+                        description: Interval at which to check the v1alpha1.Source
+                          for updates. Defaults to 'HelmReleaseSpec.Interval'.
                         type: string
-                      name:
-                        description: Name of the referent.
-                        type: string
-                      namespace:
-                        description: Namespace of the referent.
+                      sourceRef:
+                        description: The name and namespace of the v1alpha1.Source
+                          the chart is available at.
+                        properties:
+                          apiVersion:
+                            description: APIVersion of the referent.
+                            type: string
+                          kind:
+                            description: Kind of the referent.
+                            enum:
+                            - HelmRepository
+                            - GitRepository
+                            type: string
+                          name:
+                            description: Name of the referent.
+                            type: string
+                          namespace:
+                            description: Namespace of the referent.
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      version:
+                        description: Version semver expression, ignored for charts
+                          from GitRepository sources. Defaults to latest when omitted.
                         type: string
                     required:
-                    - name
+                    - chart
+                    - sourceRef
                     type: object
-                  version:
-                    description: Version semver expression, defaults to latest when
-                      omitted.
-                    type: string
                 required:
-                - name
-                - sourceRef
+                - spec
                 type: object
               dependsOn:
                 description: DependsOn may contain a list of HelmReleases that must
@@ -191,7 +200,7 @@ spec:
                     type: string
                 type: object
               suspend:
-                description: Suspend tells the reconciler to suspend reconciliation
+                description: Suspend tells the controller to suspend reconciliation
                   for this HelmRelease, it does not apply to already started reconciliations.
                   Defaults to false.
                 type: boolean
