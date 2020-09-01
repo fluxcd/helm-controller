@@ -2,6 +2,39 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.6 (2020-09-02)
+
+This prerelease adds support for Helm charts from `GitRepository` sources,
+improvements for a more graceful failure recovery, and an upgrade of Helm
+from `v3.0.0` to `v3.0.1`. It includes several (breaking) changes to the
+API.
+
+The `spec` of the `HelmRelease` has a multitude of breaking changes:
+
+* `spec.chart` (which contained the template for the `HelmChart` template)
+  has moved one level down to `spec.chart.spec`. This matches the pod
+  template defined in the Kubernetes `Deployment` kind, and allows for
+  adding e.g. a `spec.chart.metadata` field in a future iteration to be
+  able to define annotations and/or labels.
+* The `spec.chart.name` field has been renamed to `spec.chart.spec.chart`,
+  and now accepts a chart name (for charts from `HelmRepository` 
+  sources) or a path (for charts from `GitRepository` sources), to follow
+  changes made to the `HelmChart` API.
+* The `spec.chart.spec.sourceRef.kind` is now mandatory, and accepts both
+  `HelmRepository` and `GitRepository` values.
+
+The `status` object has two new fields to help end-users and automation
+(tools) with observing state:
+
+* `observedStateReconciled` represents whether the observed state of the
+  has been successfully reconciled. This field is marked as `true` on a
+  `Ready==True` condition, and only reset on `generation`, values, and/or
+  chart changes.
+* `lastObservedTime` reflects the last time at which the `HelmRelease` was
+  observed. This can for example be used to observe if the `HelmRelease` is
+  running on the configured `spec.interval` and/or reacting to `ReconcileAt`
+  annotations.
+
 ## 0.0.5 (2020-08-26)
 
 This prerelease adds support for conditional remediation on failed Helm
