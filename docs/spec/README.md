@@ -33,8 +33,8 @@ actions that should be (conditionally) executed. Based on this the reconciler:
 - checks if all depends-on conditions are meet
 - fetches the available chart artifact
 - performs a Helm install or upgrade action if needed
-- performs a Helm rollback action if enabled and needed
 - performs a Helm test action if enabled
+- performs a reconciliation strategy as configured (rollback, uninstall) if any Helm action failed
 
 The controller that runs these Helm actions relies on [source-controller](https://github.com/fluxcd/source-controller)
 for providing the Helm charts from Helm repositories or any other source that source-controller
@@ -59,9 +59,9 @@ The API design of the controller can be found at [helm.toolkit.fluxcd.io/v2alpha
 | Helm install, upgrade, test, rollback, uninstall                    | :heavy_check_mark:       | :heavy_check_mark: |
 | Extensive control over configuration of individual actions          | :heavy_check_mark:       | :x:                |
 | Helm charts from Helm repositories                                  | :heavy_check_mark:       | :heavy_check_mark: |
-| Helm charts from Git repositories                                   | :hourglass_flowing_sand: | :heavy_check_mark: |
+| Helm charts from Git repositories                                   | :heavy_check_mark:       | :heavy_check_mark: |
 | Helm uninstall on resource removal                                  | :heavy_check_mark:       | :heavy_check_mark: |
-| Conditional run of actions (i.e. rolling back after test failure)   | :hourglass_flowing_sand: | :x:                |
+| Conditional run of actions (i.e. rolling back after test failure)   | :heavy_check_mark:       | :x:                |
 | Helm plugins                                                        | :x:                      | :heavy_check_mark: |
 | Container image updates                                             | :x:                      | :heavy_check_mark: |
 | Automated chart updates based on semver ranges                      | :heavy_check_mark:       | :x:                |
