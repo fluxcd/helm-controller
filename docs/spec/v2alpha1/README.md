@@ -9,8 +9,9 @@ Kubernetes manifests.
     + [Source reference](helmreleases.md#source-reference)
     + [Reconciliation](helmreleases.md#reconciliation)
     + [`HelmRelease` dependencies](helmreleases.md#helmrelease-dependencies)
+    + [Configuring failure remediation](helmreleases.md#configuring-failure-remediation)
     + [Enabling Helm rollback actions](helmreleases.md#enabling-helm-rollback-actions)
-    + [Enabling Helm test actions](helmreleases.md#enabling-helm-test-actions)
+    + [Enabling Helm test actions](helmreleases.md#configuring-helm-test-actions)
     + [Status](helmreleases.md#status)
 
 ## Implementation

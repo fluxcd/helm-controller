@@ -447,7 +447,7 @@ const (
 
 ## Source reference
 
-The `HelmRelease` `spec.chart.sourceRef` is a reference to an object managed by
+The `HelmRelease` `spec.chart.spec.sourceRef` is a reference to an object managed by
 [source-controller](https://github.com/fluxcd/source-controller). When the source
 [revision](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/common.md#source-status) 
 changes, it generates a Kubernetes event that triggers a new release.
@@ -455,6 +455,7 @@ changes, it generates a Kubernetes event that triggers a new release.
 Supported source types:
 
 * [HelmRepository](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/helmrepositories.md)
+* [GitRepository](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/gitrepositories.md)
 
 ## Reconciliation
 
