@@ -1,0 +1,38 @@
+name: release
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Get version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: crazy-max/ghaction-docker-buildx@v1
+        with:
+          buildx-version: latest
+
+      - name: Login to GitHub Docker Registry
+        run: echo "${DOCKERHUB_PASSWORD}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKER_FLUXCD_USER }}
+          DOCKERHUB_PASSWORD: ${{ secrets.DOCKER_FLUXCD_PASSWORD }}
+
+      - name: Build Container Image
+        run: |
+          docker buildx build \
+            --platform linux/amd64,linux/arm64,linux/arm/v7 \
+            --tag fluxcd/helm-controller-multi-arch:latest \
+            --tag fluxcd/helm-controller-multi-arch:${{ steps.get_version.outputs.VERSION }} \
+            -f Dockerfile \
+            . --push
+

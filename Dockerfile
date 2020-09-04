@@ -1,23 +1,26 @@
 FROM golang:1.14 as builder
 
+ARG TARGETPLATFORM
+
+ENV CGO_ENABLED=0 \
+  GO111MODULE=on
+
 WORKDIR /workspace
 
-# copy api submodule
-COPY api/ api/
-
 # copy modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
+COPY go.mod go.sum ./
 
 # cache modules
 RUN go mod download
 
-# copy source code
-COPY main.go main.go
-COPY controllers/ controllers/
+# copy all content
+COPY . .
 
 # build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o helm-controller main.go
+RUN export GOOS=$(echo ${TARGETPLATFORM} | cut -d / -f1) && \
+  export GOARCH=$(echo ${TARGETPLATFORM} | cut -d / -f2) && \
+  export GOARM=$(echo ${TARGETPLATFORM} | cut -d / -f3 | cut -c2-) && \
+  go build -a -o helm-controller main.go
 
 FROM alpine:3.12
 
