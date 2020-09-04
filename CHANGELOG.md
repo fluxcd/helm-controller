@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.7 (2020-09-04)
+
+This prerelease comes with documentation fixes.
+Container images for linux/amd64 and linux/arm64 are published to GHCR.
+
 ## 0.0.6 (2020-09-02)
 
 This prerelease adds support for Helm charts from `GitRepository` sources,
