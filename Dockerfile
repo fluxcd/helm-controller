@@ -1,4 +1,5 @@
-FROM golang:1.14 as builder
+# Docker buildkit multi-arch build requires golang alpine
+FROM golang:1.14-alpine as builder
 
 WORKDIR /workspace
 
@@ -16,10 +17,13 @@ RUN go mod download
 COPY main.go main.go
 COPY controllers/ controllers/
 
-# build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o helm-controller main.go
+# build without specifing the arch
+RUN CGO_ENABLED=0 go build -a -o helm-controller main.go
 
 FROM alpine:3.12
+
+# link repo to the GitHub Container Registry image
+LABEL org.opencontainers.image.source="https://github.com/fluxcd/helm-controller"
 
 RUN apk add --no-cache ca-certificates tini
 
