@@ -91,6 +91,7 @@ func main() {
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
 		LeaderElectionID:   "5b6ca942.fluxcd.io",
+		Logger:             ctrl.Log,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
