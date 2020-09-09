@@ -53,6 +53,7 @@ import (
 
 	"github.com/fluxcd/pkg/lockedfile"
 	"github.com/fluxcd/pkg/recorder"
+	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1alpha1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2alpha1"
@@ -219,7 +220,7 @@ func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmRele
 	r.requeueDependency = opts.DependencyRequeueInterval
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v2.HelmRelease{}).
-		WithEventFilter(HelmReleaseReconcileAtPredicate{}).
+		WithEventFilter(predicates.ChangePredicate{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: opts.MaxConcurrentReconciles}).
 		Complete(r)
 }

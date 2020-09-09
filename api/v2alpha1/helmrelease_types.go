@@ -696,10 +696,6 @@ func SetHelmReleaseCondition(hr *HelmRelease, condition string, status corev1.Co
 }
 
 const (
-	// ReconcileAtAnnotation is the annotation used for triggering a
-	// reconciliation outside of the defined schedule.
-	ReconcileAtAnnotation string = "fluxcd.io/reconcileAt"
-
 	// SourceIndexKey is the key used for indexing HelmReleases based on
 	// their sources.
 	SourceIndexKey string = ".metadata.source"
