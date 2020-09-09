@@ -51,20 +51,14 @@ const (
 	// ReadyCondition represents the fact that the HelmRelease has been successfully reconciled.
 	ReadyCondition string = "Ready"
 
-	// InstalledCondition represents the fact that the HelmRelease has been successfully installed.
-	InstalledCondition string = "Installed"
+	// ReleasedCondition represents the fact that the HelmRelease has been successfully released.
+	ReleasedCondition string = "Released"
 
-	// UpgradedCondition represents the fact that the HelmRelease has been successfully upgraded.
-	UpgradedCondition string = "Upgraded"
+	// TestSuccessCondition represents the fact that the tests for the HelmRelease are succeeding.
+	TestSuccessCondition string = "TestSuccess"
 
-	// TestedCondition represents the fact that the HelmRelease has been successfully tested.
-	TestedCondition string = "Tested"
-
-	// RolledBackCondition represents the fact that the HelmRelease has been successfully rolled back.
-	RolledBackCondition string = "RolledBack"
-
-	// UninstalledCondition represents the fact that the HelmRelease has been successfully uninstalled.
-	UninstalledCondition string = "Uninstalled"
+	// RemediatedCondition represents the fact that the HelmRelease has been successfully remediated.
+	RemediatedCondition string = "Remediated"
 )
 
 const (
@@ -86,11 +80,11 @@ const (
 	// UpgradeFailedReason represents the fact that the Helm upgrade for the HelmRelease failed.
 	UpgradeFailedReason string = "UpgradeFailed"
 
-	// TestSucceededReason represents the fact that the Helm test for the HelmRelease succeeded.
+	// TestSucceededReason represents the fact that the Helm tests for the HelmRelease succeeded.
 	TestSucceededReason string = "TestSucceeded"
 
-	// TestFailedReason represents the fact that the Helm test for the HelmRelease failed.
-	TestFailedReason string = "TestFailed"
+	// TestFailedReason represents the fact that the Helm tests for the HelmRelease failed.
+	TestFailedReason string = "TestsFailed"
 
 	// RollbackSucceededReason represents the fact that the Helm rollback for the HelmRelease succeeded.
 	RollbackSucceededReason string = "RollbackSucceeded"
