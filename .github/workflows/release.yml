@@ -40,7 +40,7 @@ jobs:
           username: fluxcdbot
           password: ${{ secrets.DOCKER_FLUXCD_PASSWORD }}
       - name: Publish amd64 image
-        uses: docker/build-push-action@v2-build-push
+        uses: docker/build-push-action@v2
         with:
           push: ${{ github.event_name != 'pull_request' }}
           builder: ${{ steps.buildx.outputs.name }}
@@ -51,7 +51,7 @@ jobs:
             ghcr.io/fluxcd/helm-controller:${{ steps.get_version.outputs.VERSION }}
             docker.io/fluxcd/helm-controller:${{ steps.get_version.outputs.VERSION }}
       - name: Publish arm64 image
-        uses: docker/build-push-action@v2-build-push
+        uses: docker/build-push-action@v2
         with:
           push: ${{ github.event_name != 'pull_request' }}
           builder: ${{ steps.buildx.outputs.name }}
