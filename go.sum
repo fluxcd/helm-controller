@@ -195,8 +195,8 @@ github.com/fluxcd/pkg/lockedfile v0.0.5 h1:C3T8wfdff1UY1bvplmCkGOLrdMWJHO8Q8+tdl
 github.com/fluxcd/pkg/lockedfile v0.0.5/go.mod h1:uAtPUBId6a2RqO84MTH5HKGX0SbM1kNW3Wr/FhYyDVA=
 github.com/fluxcd/pkg/recorder v0.0.5 h1:D8qfupahIvh6ncCMn2yTHsrzG91S05sp4zdpsbKWeaU=
 github.com/fluxcd/pkg/recorder v0.0.5/go.mod h1:2UG6EroZ6ZbqmqoL8k/cQMe09e6A36WyH4t4UDUGyuU=
-github.com/fluxcd/pkg/runtime v0.0.0-20200909163337-e7e634246495 h1:zhtLz8iRtJWK+jKq9vi9Si4QbcAC2KvQZpQ55DRzLsU=
-github.com/fluxcd/pkg/runtime v0.0.0-20200909163337-e7e634246495/go.mod h1:cU1t0+Ld39pZjMyrrHukw1E++OZFNHxG2qAExfDWQ34=
+github.com/fluxcd/pkg/runtime v0.0.1 h1:h8jztHVF9UMGD7XBQSfXDdw80bpT6BOkd0xe4kknPL0=
+github.com/fluxcd/pkg/runtime v0.0.1/go.mod h1:cU1t0+Ld39pZjMyrrHukw1E++OZFNHxG2qAExfDWQ34=
 github.com/fluxcd/source-controller/api v0.0.13 h1:rf0uZ20OAN+yJVs0uHJUhw3n3ci9ZyjaLqt5Jt/5K9A=
 github.com/fluxcd/source-controller/api v0.0.13/go.mod h1:PUe+EYQ/s+KPnz2iOCgdf+L6clM0SWkyvdXIpbfpkQE=
 github.com/franela/goblin v0.0.0-20200105215937-c9ffbefa60db/go.mod h1:7dvUGVsVBjqR7JHJk0brhHOZYGmfBYOrK0ZhYMEtBr4=
