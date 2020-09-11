@@ -60,6 +60,7 @@ func main() {
 		requeueDependency    time.Duration
 		logLevel             string
 		logJSON              bool
+		watchAllNamespaces   bool
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -71,6 +72,8 @@ func main() {
 	flag.DurationVar(&requeueDependency, "requeue-dependency", 30*time.Second, "The interval at which failing dependencies are reevaluated.")
 	flag.StringVar(&logLevel, "log-level", "info", "Set logging level. Can be debug, info or error.")
 	flag.BoolVar(&logJSON, "log-json", false, "Set logging to JSON format.")
+	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
+		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
 	flag.Parse()
 
 	ctrl.SetLogger(newLogger(logLevel, logJSON))
@@ -85,12 +88,18 @@ func main() {
 		}
 	}
 
+	watchNamespace := ""
+	if !watchAllNamespaces {
+		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
 		LeaderElectionID:   "5b6ca942.fluxcd.io",
+		Namespace:          watchNamespace,
 		Logger:             ctrl.Log,
 	})
 	if err != nil {
