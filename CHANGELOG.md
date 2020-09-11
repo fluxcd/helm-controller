@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.8 (2020-09-11)
+
+This prerelease adds support for defining a `ValuesFile` in the
+`HelmChartTemplateSpec` to overwrite the default chart values with another
+values file, as supported by `>=0.0.15` of the source-controller, and a
+`--watch-all-namespaces` flag (defaults to `true`) to provide the option
+to only watch the runtime namespace of the controller for resources.
+
 ## 0.0.7 (2020-09-04)
 
 This prerelease comes with documentation fixes.
