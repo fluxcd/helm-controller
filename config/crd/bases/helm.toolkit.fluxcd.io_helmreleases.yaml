@@ -86,6 +86,11 @@ spec:
                         required:
                         - name
                         type: object
+                      valuesFile:
+                        description: Alternative values file to use as the default
+                          chart values, expected to be a relative path in the SourceRef.
+                          Ignored when omitted.
+                        type: string
                       version:
                         description: Version semver expression, ignored for charts
                           from GitRepository sources. Defaults to latest when omitted.

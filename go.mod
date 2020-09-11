@@ -9,7 +9,7 @@ require (
 	github.com/fluxcd/pkg/lockedfile v0.0.5
 	github.com/fluxcd/pkg/recorder v0.0.5
 	github.com/fluxcd/pkg/runtime v0.0.1
-	github.com/fluxcd/source-controller/api v0.0.13
+	github.com/fluxcd/source-controller/api v0.0.15
 	github.com/go-logr/logr v0.1.0
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.1

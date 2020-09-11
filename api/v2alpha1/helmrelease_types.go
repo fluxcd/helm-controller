@@ -168,6 +168,11 @@ type HelmChartTemplateSpec struct {
 	// Defaults to 'HelmReleaseSpec.Interval'.
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
+
+	// Alternative values file to use as the default chart values, expected to be
+	// a relative path in the SourceRef. Ignored when omitted.
+	// +optional
+	ValuesFile string `json:"valuesFile,omitempty"`
 }
 
 // GetInterval returns the configured interval for the v1alpha1.HelmChart,
