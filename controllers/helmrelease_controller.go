@@ -606,7 +606,8 @@ func helmChartFromTemplate(hr v2.HelmRelease) *sourcev1.HelmChart {
 				Name: template.Spec.SourceRef.Name,
 				Kind: template.Spec.SourceRef.Kind,
 			},
-			Interval: template.GetInterval(hr.Spec.Interval),
+			Interval:   template.GetInterval(hr.Spec.Interval),
+			ValuesFile: template.Spec.ValuesFile,
 		},
 	}
 }

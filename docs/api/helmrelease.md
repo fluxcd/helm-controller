@@ -533,6 +533,19 @@ Kubernetes meta/v1.Duration
 Defaults to &lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>valuesFile</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Alternative values file to use as the default chart values, expected to be
+a relative path in the SourceRef. Ignored when omitted.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -608,6 +621,19 @@ Kubernetes meta/v1.Duration
 <em>(Optional)</em>
 <p>Interval at which to check the v1alpha1.Source for updates.
 Defaults to &lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>valuesFile</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Alternative values file to use as the default chart values, expected to be
+a relative path in the SourceRef. Ignored when omitted.</p>
 </td>
 </tr>
 </tbody>
