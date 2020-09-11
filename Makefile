@@ -14,7 +14,8 @@ all: manager
 
 # Run tests
 test: generate fmt vet manifests api-docs
-	find . -maxdepth 2 -type f -name 'go.mod' -execdir go test ./... -coverprofile cover.out \;
+	go test ./... -coverprofile cover.out
+	cd api; go test ./... -coverprofile cover.out
 
 # Build manager binary
 manager: generate fmt vet
@@ -62,11 +63,13 @@ api-docs: gen-crd-api-reference-docs
 
 # Run go fmt against code
 fmt:
-	find . -maxdepth 2 -type f -name 'go.mod' -execdir go fmt ./... \;
+	go fmt ./...
+	cd api; go fmt ./...
 
 # Run go vet against code
 vet:
-	find . -maxdepth 2 -type f -name 'go.mod' -execdir go vet ./... \;
+	go vet ./...
+	cd api; go vet ./...
 
 # Generate code
 generate: controller-gen
