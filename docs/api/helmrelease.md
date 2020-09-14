@@ -895,18 +895,6 @@ int64
 </tr>
 <tr>
 <td>
-<code>observedStateReconciled</code><br>
-<em>
-bool
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ObservedStateReconciled represents whether the observed state has been successfully reconciled.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>lastObservedTime</code><br>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">

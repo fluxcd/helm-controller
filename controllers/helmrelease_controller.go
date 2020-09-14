@@ -330,48 +330,65 @@ func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr
 		}
 	}
 
-	// Determine release deployment action.
-	var deployAction v2.DeploymentAction
-	switch {
-	// Install if there is no release.
-	case rel == nil:
-		deployAction = hr.Spec.GetInstall()
-	// Fail if the release was due to a failed install (which was not uninstalled).
-	// The uninstall may have failed, or was not needed due to retries being exhausted
-	// and remediateLastFailure being false.
-	case hr.Spec.GetInstall().GetRemediation().GetFailureCount(hr) > 0:
-		return hr, fmt.Errorf("last install failed but was not uninstalled")
-	// Skip and mark ready if the observed state was already reconciled.
-	case hr.Status.ObservedStateReconciled:
-		return v2.HelmReleaseReady(hr), nil
-	// Otherwise upgrade.
-	default:
-		deployAction = hr.Spec.GetUpgrade()
+	// Check status of any previous release attempt.
+	released := v2.GetHelmReleaseCondition(hr, v2.ReleasedCondition)
+	if released != nil {
+		switch released.Status {
+		// Succeed if the previous release attempt succeeded.
+		case corev1.ConditionTrue:
+			return v2.HelmReleaseReady(hr), nil
+		case corev1.ConditionFalse:
+			// Fail if the previous release attempt remediation failed.
+			remediated := v2.GetHelmReleaseCondition(hr, v2.RemediatedCondition)
+			if remediated != nil && remediated.Status == corev1.ConditionFalse {
+				err = fmt.Errorf("previous release attempt remediation failed")
+				return v2.HelmReleaseNotReady(hr, remediated.Reason, remediated.Message), err
+			}
+		}
 	}
 
-	// Check if retries exhausted.
-	remediation := deployAction.GetRemediation()
-	if remediation.RetriesExhausted(hr) {
-		return hr, fmt.Errorf("%s retries exhausted", deployAction.GetDescription())
+	// Fail if install retries are exhausted.
+	if hr.Spec.GetInstall().GetRemediation().RetriesExhausted(hr) {
+		err = fmt.Errorf("install retries exhausted")
+		return v2.HelmReleaseNotReady(hr, released.Reason, released.Message), err
+	}
+
+	// Fail if there is a release and upgrade retries are exhausted.
+	// This avoids failing after an upgrade uninstall remediation strategy.
+	if rel != nil && hr.Spec.GetUpgrade().GetRemediation().RetriesExhausted(hr) {
+		err = fmt.Errorf("upgrade retries exhausted")
+		return v2.HelmReleaseNotReady(hr, released.Reason, released.Message), err
 	}
 
 	// Deploy the release.
-	switch a := deployAction.(type) {
-	case v2.Install:
+	var deployAction v2.DeploymentAction
+	if rel == nil {
+		deployAction = hr.Spec.GetInstall()
 		rel, err = install(cfg, loadedChart, hr, values)
-		err = r.handleHelmActionResult(&hr, revision, err, a.GetDescription(), v2.InstalledCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
-	case v2.Upgrade:
+		err = r.handleHelmActionResult(&hr, revision, err, deployAction.GetDescription(), v2.ReleasedCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
+	} else {
+		deployAction = hr.Spec.GetUpgrade()
 		rel, err = upgrade(cfg, loadedChart, hr, values)
-		err = r.handleHelmActionResult(&hr, revision, err, a.GetDescription(), v2.UpgradedCondition, v2.UpgradeSucceededReason, v2.UpgradeFailedReason)
+		err = r.handleHelmActionResult(&hr, revision, err, deployAction.GetDescription(), v2.ReleasedCondition, v2.UpgradeSucceededReason, v2.UpgradeFailedReason)
 	}
+	remediation := deployAction.GetRemediation()
 
-	// Run tests if enabled and there is a successful new release revision.
-	if getReleaseRevision(rel) > releaseRevision && err == nil && hr.Spec.GetTest().Enable {
-		_, testErr := test(cfg, hr)
-		testErr = r.handleHelmActionResult(&hr, revision, testErr, "test", v2.TestedCondition, v2.TestSucceededReason, v2.TestFailedReason)
-		// Propagate any test error if not marked ignored.
-		if testErr != nil && !remediation.MustIgnoreTestFailures(hr.Spec.GetTest().IgnoreFailures) {
-			err = testErr
+	// If there is a new release revision...
+	if getReleaseRevision(rel) > releaseRevision {
+		// Ensure release is not marked remediated.
+		v2.DeleteHelmReleaseCondition(&hr, v2.RemediatedCondition)
+
+		// If new release revision is successful and tests are enabled, run them.
+		if err == nil && hr.Spec.GetTest().Enable {
+			_, testErr := test(cfg, hr)
+			testErr = r.handleHelmActionResult(&hr, revision, testErr, "test", v2.TestSuccessCondition, v2.TestSucceededReason, v2.TestFailedReason)
+
+			// Propagate any test error if not marked ignored.
+			if testErr != nil && !remediation.MustIgnoreTestFailures(hr.Spec.GetTest().IgnoreFailures) {
+				testsPassing := v2.GetHelmReleaseCondition(hr, v2.TestSuccessCondition)
+				v2.SetHelmReleaseCondition(&hr, v2.ReleasedCondition, corev1.ConditionFalse, testsPassing.Reason, testsPassing.Message)
+				err = testErr
+			}
 		}
 	}
 
@@ -380,20 +397,21 @@ func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr
 		remediation.IncrementFailureCount(&hr)
 		// Remediate deployment failure if necessary.
 		if !remediation.RetriesExhausted(hr) || remediation.MustRemediateLastFailure() {
-			switch {
-			case getReleaseRevision(rel) <= releaseRevision:
+			if getReleaseRevision(rel) <= releaseRevision {
 				log.Info(fmt.Sprintf("skipping remediation, no new release revision created"))
-			case remediation.GetStrategy() == v2.RollbackRemediationStrategy:
-				rollbackErr := rollback(cfg, hr)
-				rollbackConditionErr := r.handleHelmActionResult(&hr, revision, rollbackErr, "rollback", v2.RolledBackCondition, v2.RollbackSucceededReason, v2.RollbackFailedReason)
-				if rollbackConditionErr != nil {
-					err = rollbackConditionErr
+			} else {
+				var remediationErr error
+				switch remediation.GetStrategy() {
+				case v2.RollbackRemediationStrategy:
+					rollbackErr := rollback(cfg, hr)
+					remediationErr = r.handleHelmActionResult(&hr, revision, rollbackErr, "rollback", v2.RemediatedCondition, v2.RollbackSucceededReason, v2.RollbackFailedReason)
+				case v2.UninstallRemediationStrategy:
+					uninstallErr := uninstall(cfg, hr)
+					remediationErr = r.handleHelmActionResult(&hr, revision, uninstallErr, "uninstall", v2.RemediatedCondition, v2.UninstallSucceededReason, v2.UninstallFailedReason)
 				}
-			case remediation.GetStrategy() == v2.UninstallRemediationStrategy:
-				uninstallErr := uninstall(cfg, hr)
-				uninstallConditionErr := r.handleHelmActionResult(&hr, revision, uninstallErr, "uninstall", v2.UninstalledCondition, v2.UninstallSucceededReason, v2.UninstallFailedReason)
-				if uninstallConditionErr != nil {
-					err = uninstallConditionErr
+
+				if remediationErr != nil {
+					err = remediationErr
 				}
 			}
 

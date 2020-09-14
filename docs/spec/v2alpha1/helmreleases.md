@@ -368,20 +368,14 @@ const (
 	// ReadyCondition represents the fact that the HelmRelease has been successfully reconciled.
 	ReadyCondition string = "Ready"
 
-	// InstalledCondition represents the fact that the HelmRelease has been successfully installed.
-	InstalledCondition string = "Installed"
+	// ReleasedCondition represents the fact that the HelmRelease has been successfully released.
+	ReleasedCondition string = "Released"
 
-	// UpgradedCondition represents the fact that the HelmRelease has been successfully upgraded.
-	UpgradedCondition string = "Upgraded"
+	// TestSuccessCondition represents the fact that the tests for the HelmRelease are succeeding.
+	TestSuccessCondition string = "TestSuccess"
 
-	// TestedCondition represents the fact that the HelmRelease has been successfully tested.
-	TestedCondition string = "Tested"
-
-	// RolledBackCondition represents the fact that the HelmRelease has been successfully rolled back.
-	RolledBackCondition string = "RolledBack"
-
-	// UninstalledCondition represents the fact that the HelmRelease has been successfully uninstalled.
-	UninstalledCondition string = "Uninstalled"
+	// RemediatedCondition represents the fact that the HelmRelease has been successfully remediated.
+	RemediatedCondition string = "Remediated"
 )
 ```
 
@@ -407,11 +401,11 @@ const (
 	// UpgradeFailedReason represents the fact that the Helm upgrade for the HelmRelease failed.
 	UpgradeFailedReason string = "UpgradeFailed"
 
-	// TestSucceededReason represents the fact that the Helm test for the HelmRelease succeeded.
+	// TestSucceededReason represents the fact that the Helm tests for the HelmRelease succeeded.
 	TestSucceededReason string = "TestSucceeded"
 
-	// TestFailedReason represents the fact that the Helm test for the HelmRelease failed.
-	TestFailedReason string = "TestFailed"
+	// TestFailedReason represents the fact that the Helm tests for the HelmRelease failed.
+	TestFailedReason string = "TestsFailed"
 
 	// RollbackSucceededReason represents the fact that the Helm rollback for the HelmRelease succeeded.
 	RollbackSucceededReason string = "RollbackSucceeded"
@@ -675,28 +669,13 @@ spec:
 
 When the controller completes a reconciliation, it reports the result in the status sub-resource.
 
-A successful reconciliation sets the `Ready` condition to `true`:
+The following `status.conditions` are supported:
 
-```yaml
-status:
-  conditions:
-  - lastTransitionTime: "2020-07-13T13:13:40Z"
-    message: Helm installation succeeded
-    reason: InstallSucceeded
-    status: "True"
-    type: Install
-  - lastTransitionTime: "2020-07-13T13:13:42Z"
-    message: release reconciliation succeeded
-    reason: ReconciliationSucceeded
-    status: "True"
-    type: Ready
-  observedStateReconciled: true
-  lastAppliedRevision: 4.0.6
-  lastAttemptedRevision: 4.0.6
-  lastObservedTime: "2020-07-13T13:18:42Z"
-  lastReleaseRevision: 1
-  observedGeneration: 2
-```
+* `Ready` - status of the last reconciliation attempt
+* `Released` - status of the last release attempt (install/upgrade/test) against the current state
+* `TestSuccess` - status of the last test attempt against the current state
+* `Remediated` - status of the last remediation attempt (uninstall/rollback) due to a failure of the
+  last release attempt against the current state
 
 You can wait for the helm-controller to complete a reconciliation with:
 
@@ -704,7 +683,36 @@ You can wait for the helm-controller to complete a reconciliation with:
 kubectl wait helmrelease/podinfo --for=condition=ready
 ```
 
-A failed reconciliation sets the `Ready` condition to `false`:
+### Examples
+
+Install Success:
+
+```yaml
+status:
+  conditions:
+  - lastTransitionTime: "2020-07-13T13:13:40Z"
+    message: Helm install succeeded
+    reason: InstallSucceeded
+    status: "True"
+    type: Released
+  - lastTransitionTime: "2020-07-13T13:13:40Z"
+    message: Helm test succeeded
+    reason: TestSucceeded
+    status: "True"
+    type: TestSuccess
+  - lastTransitionTime: "2020-07-13T13:13:42Z"
+    message: release reconciliation succeeded
+    reason: ReconciliationSucceeded
+    status: "True"
+    type: Ready
+  lastAppliedRevision: 4.0.6
+  lastAttemptedRevision: 4.0.6
+  lastObservedTime: "2020-07-13T13:18:42Z"
+  lastReleaseRevision: 1
+  observedGeneration: 2
+```
+
+Upgrade Failure:
 
 ```yaml
 status:
@@ -715,10 +723,12 @@ status:
       expected "integer"'
     reason: UpgradeFailed
     status: "False"
-    type: Upgrade
+    type: Released
   - lastTransitionTime: "2020-07-13T13:17:28Z"
-    message: release reconciliation failed
-    reason: ReconciliationFailed
+    message: 'error validating "": error validating data: ValidationError(Deployment.spec.replicas):
+      invalid type for io.k8s.api.apps.v1.DeploymentSpec.replicas: got "string",
+      expected "integer"'
+    reason: UpgradeFailed
     status: "False"
     type: Ready
   failures: 1
@@ -727,4 +737,31 @@ status:
   lastObservedTime: "2020-07-13T18:17:28Z"
   lastReleaseRevision: 1
   observedGeneration: 3
+```
+
+Ignored Test Failure:
+
+```yaml
+status:
+  conditions:
+  - lastTransitionTime: "2020-07-13T13:13:40Z"
+    message: Helm install succeeded
+    reason: InstallSucceeded
+    status: "True"
+    type: Released
+  - lastTransitionTime: "2020-07-13T13:13:40Z"
+    message: Helm test failed
+    reason: TestsFailed
+    status: "False"
+    type: TestSuccess
+  - lastTransitionTime: "2020-07-13T13:13:42Z"
+    message: release reconciliation succeeded
+    reason: ReconciliationSucceeded
+    status: "True"
+    type: Ready
+  lastAppliedRevision: 4.0.6
+  lastAttemptedRevision: 4.0.6
+  lastObservedTime: "2020-07-13T13:18:42Z"
+  lastReleaseRevision: 1
+  observedGeneration: 2
 ```
