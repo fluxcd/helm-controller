@@ -21,6 +21,7 @@ limitations under the License.
 package v2alpha1
 
 import (
+	"github.com/fluxcd/pkg/runtime/dependency"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -160,7 +161,7 @@ func (in *HelmReleaseSpec) DeepCopyInto(out *HelmReleaseSpec) {
 	out.Interval = in.Interval
 	if in.DependsOn != nil {
 		in, out := &in.DependsOn, &out.DependsOn
-		*out = make([]string, len(*in))
+		*out = make([]dependency.CrossNamespaceDependencyReference, len(*in))
 		copy(*out, *in)
 	}
 	if in.Timeout != nil {

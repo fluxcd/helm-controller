@@ -53,6 +53,7 @@ import (
 
 	"github.com/fluxcd/pkg/lockedfile"
 	"github.com/fluxcd/pkg/recorder"
+	consts "github.com/fluxcd/pkg/runtime"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1alpha1"
 
@@ -445,24 +446,24 @@ func (r *HelmReleaseReconciler) updateStatus(ctx context.Context, hr *v2.HelmRel
 }
 
 func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
-	for _, dep := range hr.Spec.DependsOn {
-		depName := types.NamespacedName{
-			Namespace: hr.GetNamespace(),
-			Name:      dep,
+	for _, d := range hr.Spec.DependsOn {
+		if d.Namespace == "" {
+			d.Namespace = hr.GetNamespace()
 		}
-		var depHr v2.HelmRelease
-		err := r.Get(context.Background(), depName, &depHr)
+		dName := types.NamespacedName(d)
+		var dHr v2.HelmRelease
+		err := r.Get(context.Background(), dName, &dHr)
 		if err != nil {
-			return fmt.Errorf("unable to get '%s' dependency: %w", depName, err)
+			return fmt.Errorf("unable to get '%s' dependency: %w", dName, err)
 		}
 
-		if len(depHr.Status.Conditions) == 0 || depHr.Generation != depHr.Status.ObservedGeneration {
-			return fmt.Errorf("dependency '%s' is not ready", depName)
+		if len(dHr.Status.Conditions) == 0 || dHr.Generation != dHr.Status.ObservedGeneration {
+			return fmt.Errorf("dependency '%s' is not ready", dName)
 		}
 
-		for _, condition := range depHr.Status.Conditions {
-			if condition.Type == v2.ReadyCondition && condition.Status != corev1.ConditionTrue {
-				return fmt.Errorf("dependency '%s' is not ready", depName)
+		for _, condition := range dHr.Status.Conditions {
+			if condition.Type == consts.ReadyCondition && condition.Status != corev1.ConditionTrue {
+				return fmt.Errorf("dependency '%s' is not ready", dName)
 			}
 		}
 	}

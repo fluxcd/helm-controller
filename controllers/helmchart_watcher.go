@@ -67,14 +67,8 @@ func (r *HelmChartWatcher) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	sorted, err := v2.DependencySort(list.Items)
-	if err != nil {
-		log.Error(err, "unable to dependency sort HelmReleases")
-		return ctrl.Result{}, err
-	}
-
 	// Trigger reconciliation for each HelmRelease using this HelmChart.
-	for _, hr := range sorted {
+	for _, hr := range list.Items {
 		namespacedName := types.NamespacedName{Namespace: hr.Namespace, Name: hr.Name}
 		if err := r.requestReconciliation(ctx, hr); err != nil {
 			log.Error(err, "unable to annotate HelmRelease", strings.ToLower(hr.Kind), namespacedName)

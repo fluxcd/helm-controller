@@ -103,10 +103,22 @@ spec:
                 - spec
                 type: object
               dependsOn:
-                description: DependsOn may contain a list of HelmReleases that must
-                  be ready before this HelmRelease can be reconciled.
+                description: DependsOn may contain a dependency.CrossNamespaceDependencyReference
+                  slice with references to HelmRelease resources that must be ready
+                  before this HelmRelease can be reconciled.
                 items:
-                  type: string
+                  description: CrossNamespaceDependencyReference holds the reference
+                    to a dependency.
+                  properties:
+                    name:
+                      description: Name holds the name reference of a dependency.
+                      type: string
+                    namespace:
+                      description: Namespace holds the namespace reference of a dependency.
+                      type: string
+                  required:
+                  - name
+                  type: object
                 type: array
               install:
                 description: Install holds the configuration for Helm install actions
