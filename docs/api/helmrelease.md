@@ -138,13 +138,14 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-[]string
+[]github.com/fluxcd/pkg/runtime/dependency.CrossNamespaceDependencyReference
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>DependsOn may contain a list of HelmReleases that must be ready before this
-HelmRelease can be reconciled.</p>
+<p>DependsOn may contain a dependency.CrossNamespaceDependencyReference slice with
+references to HelmRelease resources that must be ready before this HelmRelease
+can be reconciled.</p>
 </td>
 </tr>
 <tr>
@@ -290,10 +291,6 @@ HelmReleaseStatus
 </table>
 </div>
 </div>
-<h3 id="helm.toolkit.fluxcd.io/v2alpha1.CircularDependencyError">CircularDependencyError
-(<code>[][]string</code> alias)</h3>
-<p>CircularDependencyError contains the circular dependency chains
-that were detected while sorting &lsquo;HelmReleaseSpec.DependsOn&rsquo;.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2alpha1.Condition">Condition
 </h3>
 <p>
@@ -727,13 +724,14 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-[]string
+[]github.com/fluxcd/pkg/runtime/dependency.CrossNamespaceDependencyReference
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>DependsOn may contain a list of HelmReleases that must be ready before this
-HelmRelease can be reconciled.</p>
+<p>DependsOn may contain a dependency.CrossNamespaceDependencyReference slice with
+references to HelmRelease resources that must be ready before this HelmRelease
+can be reconciled.</p>
 </td>
 </tr>
 <tr>

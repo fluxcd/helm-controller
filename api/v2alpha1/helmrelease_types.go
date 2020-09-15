@@ -25,6 +25,8 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/fluxcd/pkg/runtime/dependency"
 )
 
 const HelmReleaseKind = "HelmRelease"
@@ -56,10 +58,11 @@ type HelmReleaseSpec struct {
 	// +optional
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 
-	// DependsOn may contain a list of HelmReleases that must be ready before this
-	// HelmRelease can be reconciled.
+	// DependsOn may contain a dependency.CrossNamespaceDependencyReference slice with
+	// references to HelmRelease resources that must be ready before this HelmRelease
+	// can be reconciled.
 	// +optional
-	DependsOn []string `json:"dependsOn,omitempty"`
+	DependsOn []dependency.CrossNamespaceDependencyReference `json:"dependsOn,omitempty"`
 
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm action. Defaults to '5m0s'.
@@ -786,6 +789,15 @@ func (in HelmRelease) GetMaxHistory() int {
 		return 10
 	}
 	return *in.Spec.MaxHistory
+}
+
+// GetDependsOn returns the types.NamespacedName of the HelmRelease, and
+// a dependency.CrossNamespaceDependencyReference slice it depends on.
+func (in HelmRelease) GetDependsOn() (types.NamespacedName, []dependency.CrossNamespaceDependencyReference) {
+	return types.NamespacedName{
+		Namespace: in.Namespace,
+		Name:      in.Namespace,
+	}, in.Spec.DependsOn
 }
 
 // +kubebuilder:object:root=true
