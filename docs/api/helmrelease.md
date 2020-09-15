@@ -138,7 +138,9 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-[]github.com/fluxcd/pkg/runtime/dependency.CrossNamespaceDependencyReference
+<a href="https://godoc.org/github.com/fluxcd/pkg/runtime/dependency#CrossNamespaceDependencyReference">
+[]Runtime dependency.CrossNamespaceDependencyReference
+</a>
 </em>
 </td>
 <td>
@@ -264,7 +266,9 @@ and information about how they should be merged.</p>
 <td>
 <code>values</code><br>
 <em>
-k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON
+<a href="https://pkg.go.dev/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1?tab=doc#JSON">
+Kubernetes pkg/apis/apiextensions/v1.JSON
+</a>
 </em>
 </td>
 <td>
@@ -724,7 +728,9 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-[]github.com/fluxcd/pkg/runtime/dependency.CrossNamespaceDependencyReference
+<a href="https://godoc.org/github.com/fluxcd/pkg/runtime/dependency#CrossNamespaceDependencyReference">
+[]Runtime dependency.CrossNamespaceDependencyReference
+</a>
 </em>
 </td>
 <td>
@@ -850,7 +856,9 @@ and information about how they should be merged.</p>
 <td>
 <code>values</code><br>
 <em>
-k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON
+<a href="https://pkg.go.dev/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1?tab=doc#JSON">
+Kubernetes pkg/apis/apiextensions/v1.JSON
+</a>
 </em>
 </td>
 <td>
