@@ -79,9 +79,13 @@ spec:
                             type: string
                           name:
                             description: Name of the referent.
+                            maxLength: 253
+                            minLength: 1
                             type: string
                           namespace:
                             description: Namespace of the referent.
+                            maxLength: 63
+                            minLength: 1
                             type: string
                         required:
                         - name
@@ -185,6 +189,8 @@ spec:
               releaseName:
                 description: ReleaseName used for the Helm release. Defaults to a
                   composition of '[TargetNamespace-]Name'.
+                maxLength: 53
+                minLength: 1
                 type: string
               rollback:
                 description: Rollback holds the configuration for Helm rollback actions
@@ -224,6 +230,8 @@ spec:
               targetNamespace:
                 description: TargetNamespace to target when performing operations
                   for the HelmRelease. Defaults to the namespace of the HelmRelease.
+                maxLength: 63
+                minLength: 1
                 type: string
               test:
                 description: Test holds the configuration for Helm test actions for
@@ -355,6 +363,8 @@ spec:
                     name:
                       description: Name of the values referent. Should reside in the
                         same namespace as the referring resource.
+                      maxLength: 253
+                      minLength: 1
                       type: string
                     targetPath:
                       description: TargetPath is the YAML dot notation path the value
