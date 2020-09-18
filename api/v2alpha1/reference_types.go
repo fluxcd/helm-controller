@@ -29,10 +29,15 @@ type CrossNamespaceObjectReference struct {
 	Kind string `json:"kind,omitempty"`
 
 	// Name of the referent.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
 	// +required
 	Name string `json:"name"`
 
 	// Namespace of the referent.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Optional
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
 }
@@ -47,6 +52,8 @@ type ValuesReference struct {
 
 	// Name of the values referent. Should reside in the same namespace as the
 	// referring resource.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
 	// +required
 	Name string `json:"name"`
 
