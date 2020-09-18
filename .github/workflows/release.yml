@@ -62,13 +62,13 @@ jobs:
           platforms: linux/arm64
           tags: ghcr.io/fluxcd/helm-controller-arm64:${{ steps.get_version.outputs.VERSION }}
       - name: Check images
-          run: |
-            docker buildx imagetools inspect docker.io/fluxcd/helm-controller:${{ steps.get_version.outputs.VERSION }}
-            docker buildx imagetools inspect ghcr.io/fluxcd/helm-controller:${{ steps.get_version.outputs.VERSION }}
-            docker buildx imagetools inspect ghcr.io/fluxcd/helm-controller-arm64:${{ steps.get_version.outputs.VERSION }}
-            docker pull docker.io/fluxcd/helm-controller:${{ steps.get_version.outputs.VERSION }}
-            docker pull ghcr.io/fluxcd/helm-controller:${{ steps.get_version.outputs.VERSION }}
-            docker pull ghcr.io/fluxcd/helm-controller-arm64:${{ steps.get_version.outputs.VERSION }}
+        run: |
+          docker buildx imagetools inspect docker.io/fluxcd/helm-controller:${{ steps.get_version.outputs.VERSION }}
+          docker buildx imagetools inspect ghcr.io/fluxcd/helm-controller:${{ steps.get_version.outputs.VERSION }}
+          docker buildx imagetools inspect ghcr.io/fluxcd/helm-controller-arm64:${{ steps.get_version.outputs.VERSION }}
+          docker pull docker.io/fluxcd/helm-controller:${{ steps.get_version.outputs.VERSION }}
+          docker pull ghcr.io/fluxcd/helm-controller:${{ steps.get_version.outputs.VERSION }}
+          docker pull ghcr.io/fluxcd/helm-controller-arm64:${{ steps.get_version.outputs.VERSION }}
       - name: Create release
         id: create_release
         uses: actions/create-release@latest
