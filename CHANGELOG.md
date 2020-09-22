@@ -2,6 +2,35 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.9 (2020-09-22)
+
+This prerelease adds support for `DependsOn` references to other namespaces
+than the `HelmRelease` resource resides in, container images for ARMv7 and
+ARMv8 published to `ghcr.io/fluxcd/helm-controller-arm64`, a Helm upgrade
+from `3.3.1` to `3.3.3`, and a refactor of the `Status` object.
+
+The latter introduces the following breaking changes to the `Status` object:
+
+* The `Installed`, `Upgraded`, `RolledBack`, and `Uninstalled` conditions
+  have been removed, since they did not represent current state, but rather
+  actions taken, which are already recorded by events.
+* The `ObservedStateReconciled` field has been removed, since it solved the
+  problem of remembering past release successes, but not past release
+  failures, after other subsequent failures such as dependency failures,
+  Kubernetes API failures, etc.
+* The `Tested` condition has been renamed to `TestSuccess`, for forward
+  compatibility with interval based Helm tests.
+
+While introducing the following new `Status` conditions:
+
+* `Remediated` which records whether the release is currently in a
+   remediated state. It is used to prevent release retries after remediation
+   failures. We were previously not doing this for rollback failures.
+* `Released` which records whether the current state has been successfully
+   released. This is used to remember the last release attempt status,
+   regardless of any subsequent other failures such as dependency failures,
+   Kubernetes API failures, etc.
+
 ## 0.0.8 (2020-09-11)
 
 This prerelease adds support for defining a `ValuesFile` in the
