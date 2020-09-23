@@ -525,6 +525,10 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 			var resource corev1.ConfigMap
 			if err := r.Get(ctx, namespacedName, &resource); err != nil {
 				if apierrors.IsNotFound(err) {
+					if v.Optional {
+						r.Log.Info("could not find optional %s '%s'", v.Kind, namespacedName)
+						continue
+					}
 					return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
 				}
 				return nil, err
@@ -538,6 +542,10 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 			var resource corev1.Secret
 			if err := r.Get(ctx, namespacedName, &resource); err != nil {
 				if apierrors.IsNotFound(err) {
+					if v.Optional {
+						r.Log.Info("could not find optional %s '%s'", v.Kind, namespacedName)
+						continue
+					}
 					return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
 				}
 				return nil, err

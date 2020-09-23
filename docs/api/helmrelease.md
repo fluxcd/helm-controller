@@ -1722,6 +1722,20 @@ When set, the ValuesKey is expected to be a single flat value.
 Defaults to &lsquo;None&rsquo;, which results in the values getting merged at the root.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>optional</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional marks this ValuesReference as optional. When set, a not found
+error for the values reference is ignored, but any ValuesKey, TargetPath or
+transient error will still result in a reconciliation failure.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>

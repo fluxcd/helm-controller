@@ -67,6 +67,12 @@ type ValuesReference struct {
 	// Defaults to 'None', which results in the values getting merged at the root.
 	// +optional
 	TargetPath string `json:"targetPath,omitempty"`
+
+	// Optional marks this ValuesReference as optional. When set, a not found
+	// error for the values reference is ignored, but any ValuesKey, TargetPath or
+	// transient error will still result in a reconciliation failure.
+	// +optional
+	Optional bool `json:"optional,omitempty"`
 }
 
 // GetValuesKey returns the defined ValuesKey, or the default ('values.yaml').
