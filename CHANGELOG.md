@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.10 (2020-09-23)
+
+This prerelease adds support for Helm charts from `Bucket` sources,
+support for optional `ValuesFrom` references, and a Helm upgrade from
+`3.3.3` to `3.3.4`.
+
 ## 0.0.9 (2020-09-22)
 
 This prerelease adds support for `DependsOn` references to other namespaces
