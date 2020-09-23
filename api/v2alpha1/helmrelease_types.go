@@ -164,8 +164,8 @@ type HelmChartTemplateSpec struct {
 	// +required
 	Chart string `json:"chart"`
 
-	// Version semver expression, ignored for charts from GitRepository sources.
-	// Defaults to latest when omitted.
+	// Version semver expression, ignored for charts from GitRepository and
+	// Bucket sources. Defaults to latest when omitted.
 	// +optional
 	Version string `json:"version,omitempty"`
 

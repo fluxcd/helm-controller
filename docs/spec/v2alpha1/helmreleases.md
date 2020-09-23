@@ -101,8 +101,8 @@ type HelmChartTemplateSpec struct {
 	// +required
 	Chart string `json:"chart"`
 
-	// Version semver expression, ignored for charts from GitRepository sources.
-	// Defaults to latest when omitted.
+	// Version semver expression, ignored for charts from GitRepository and
+	// Bucket sources. Defaults to latest when omitted.
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -463,6 +463,7 @@ Supported source types:
 
 * [HelmRepository](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/helmrepositories.md)
 * [GitRepository](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/gitrepositories.md)
+* [Bucket](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/buckets.md)
 
 ## Reconciliation
 

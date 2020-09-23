@@ -76,6 +76,7 @@ spec:
                             enum:
                             - HelmRepository
                             - GitRepository
+                            - Bucket
                             type: string
                           name:
                             description: Name of the referent.
@@ -97,7 +98,8 @@ spec:
                         type: string
                       version:
                         description: Version semver expression, ignored for charts
-                          from GitRepository sources. Defaults to latest when omitted.
+                          from GitRepository and Bucket sources. Defaults to latest
+                          when omitted.
                         type: string
                     required:
                     - chart
