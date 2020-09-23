@@ -20,8 +20,8 @@ operator.
 ## Features
 
 * Watches for `HelmRelease` objects and generates `HelmChart` objects
-* Supports `HelmChart` artifacts produced from `HelmRepository` and
-  `GitRepository` sources
+* Supports `HelmChart` artifacts produced from `HelmRepository`,
+  `GitRepository` and `Bucket` sources
 * Fetches artifacts produced by [source-controller][] from `HelmChart`
   objects
 * Watches `HelmChart` objects for revision changes (including semver
@@ -30,7 +30,7 @@ operator.
   uninstalls
 * Offers extensive configuration options for automated remediation
   (rollback, uninstall, retry) on failed Helm install, upgrade or test
-  actions.
+  actions
 * Runs Helm install/upgrade in a specific order, taking into account the
   depends-on relationship defined in a set of `HelmRelease` objects
 * Reports Helm release statuses (alerting provided by

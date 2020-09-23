@@ -502,8 +502,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Version semver expression, ignored for charts from GitRepository sources.
-Defaults to latest when omitted.</p>
+<p>Version semver expression, ignored for charts from GitRepository and
+Bucket sources. Defaults to latest when omitted.</p>
 </td>
 </tr>
 <tr>
@@ -592,8 +592,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Version semver expression, ignored for charts from GitRepository sources.
-Defaults to latest when omitted.</p>
+<p>Version semver expression, ignored for charts from GitRepository and
+Bucket sources. Defaults to latest when omitted.</p>
 </td>
 </tr>
 <tr>
