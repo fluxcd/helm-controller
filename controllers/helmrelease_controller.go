@@ -31,8 +31,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/release"
@@ -43,7 +41,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	kuberecorder "k8s.io/client-go/tools/record"
 	"k8s.io/client-go/tools/reference"
@@ -58,6 +55,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1alpha1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2alpha1"
+	"github.com/fluxcd/helm-controller/internal/runner"
 )
 
 // HelmReleaseReconciler reconciles a HelmRelease object
@@ -307,13 +305,13 @@ func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr
 	}
 
 	// Initialize config
-	cfg, err := newActionCfg(log, r.Config, hr)
+	run, err := runner.NewRunner(r.Config, hr.Namespace, r.Log)
 	if err != nil {
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to initialize Helm action configuration"), err
 	}
 
 	// Determine last release revision.
-	rel, observeLastReleaseErr := observeLastRelease(cfg, hr)
+	rel, observeLastReleaseErr := run.ObserveLastRelease(hr)
 	if observeLastReleaseErr != nil {
 		return v2.HelmReleaseNotReady(hr, v2.GetLastReleaseFailedReason, "failed to get last release revision"), err
 	}
@@ -365,11 +363,11 @@ func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr
 	var deployAction v2.DeploymentAction
 	if rel == nil {
 		deployAction = hr.Spec.GetInstall()
-		rel, err = install(cfg, loadedChart, hr, values)
+		rel, err = run.Install(hr, loadedChart, values)
 		err = r.handleHelmActionResult(&hr, revision, err, deployAction.GetDescription(), v2.ReleasedCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
 	} else {
 		deployAction = hr.Spec.GetUpgrade()
-		rel, err = upgrade(cfg, loadedChart, hr, values)
+		rel, err = run.Upgrade(hr, loadedChart, values)
 		err = r.handleHelmActionResult(&hr, revision, err, deployAction.GetDescription(), v2.ReleasedCondition, v2.UpgradeSucceededReason, v2.UpgradeFailedReason)
 	}
 	remediation := deployAction.GetRemediation()
@@ -381,7 +379,7 @@ func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr
 
 		// If new release revision is successful and tests are enabled, run them.
 		if err == nil && hr.Spec.GetTest().Enable {
-			_, testErr := test(cfg, hr)
+			_, testErr := run.Test(hr)
 			testErr = r.handleHelmActionResult(&hr, revision, testErr, "test", v2.TestSuccessCondition, v2.TestSucceededReason, v2.TestFailedReason)
 
 			// Propagate any test error if not marked ignored.
@@ -404,10 +402,10 @@ func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr
 				var remediationErr error
 				switch remediation.GetStrategy() {
 				case v2.RollbackRemediationStrategy:
-					rollbackErr := rollback(cfg, hr)
+					rollbackErr := run.Rollback(hr)
 					remediationErr = r.handleHelmActionResult(&hr, revision, rollbackErr, "rollback", v2.RemediatedCondition, v2.RollbackSucceededReason, v2.RollbackFailedReason)
 				case v2.UninstallRemediationStrategy:
-					uninstallErr := uninstall(cfg, hr)
+					uninstallErr := run.Uninstall(hr)
 					remediationErr = r.handleHelmActionResult(&hr, revision, uninstallErr, "uninstall", v2.RemediatedCondition, v2.UninstallSucceededReason, v2.UninstallFailedReason)
 				}
 
@@ -417,7 +415,7 @@ func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr
 			}
 
 			// Determine release after remediation.
-			rel, observeLastReleaseErr = observeLastRelease(cfg, hr)
+			rel, observeLastReleaseErr = run.ObserveLastRelease(hr)
 			if observeLastReleaseErr != nil {
 				err = &ConditionError{
 					Reason: v2.GetLastReleaseFailedReason,
@@ -491,16 +489,16 @@ func (r *HelmReleaseReconciler) gc(ctx context.Context, log logr.Logger, hr v2.H
 	// Uninstall the Helm release
 	var uninstallErr error
 	if !hr.Spec.Suspend {
-		cfg, err := newActionCfg(log, r.Config, hr)
+		run, err := runner.NewRunner(r.Config, hr.Namespace, log)
 		if err != nil {
 			return err
 		}
-		_, err = cfg.Releases.Deployed(hr.GetReleaseName())
+		_, err = run.Config.Releases.Deployed(hr.GetReleaseName())
 		switch {
 		case errors.Is(err, driver.ErrNoDeployedReleases):
 			// noop
 		case err == nil:
-			uninstallErr = uninstall(cfg, hr)
+			uninstallErr = run.Uninstall(hr)
 		default:
 			return err
 		}
@@ -657,80 +655,12 @@ func helmChartRequiresUpdate(hr v2.HelmRelease, chart sourcev1.HelmChart) bool {
 	}
 }
 
-// observeLastRelease observes the last revision, if there is one, for for actual helm release associated with the given HelmRelease.
-func observeLastRelease(cfg *action.Configuration, hr v2.HelmRelease) (*release.Release, error) {
-	rel, err := cfg.Releases.Last(hr.GetReleaseName())
-	if err != nil && errors.Is(err, driver.ErrReleaseNotFound) {
-		err = nil
-	}
-	return rel, err
-}
-
 // getReleaseRevision returns the revision of the given release.Release.
 func getReleaseRevision(rel *release.Release) int {
 	if rel == nil {
 		return 0
 	}
 	return rel.Version
-}
-
-func install(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease, values chartutil.Values) (*release.Release, error) {
-	install := action.NewInstall(cfg)
-	install.ReleaseName = hr.GetReleaseName()
-	install.Namespace = hr.GetReleaseNamespace()
-	install.Timeout = hr.Spec.GetInstall().GetTimeout(hr.GetTimeout()).Duration
-	install.Wait = !hr.Spec.GetInstall().DisableWait
-	install.DisableHooks = hr.Spec.GetInstall().DisableHooks
-	install.DisableOpenAPIValidation = hr.Spec.GetInstall().DisableOpenAPIValidation
-	install.Replace = hr.Spec.GetInstall().Replace
-	install.SkipCRDs = hr.Spec.GetInstall().SkipCRDs
-
-	return install.Run(chart, values.AsMap())
-}
-
-func upgrade(cfg *action.Configuration, chart *chart.Chart, hr v2.HelmRelease, values chartutil.Values) (*release.Release, error) {
-	upgrade := action.NewUpgrade(cfg)
-	upgrade.Namespace = hr.GetReleaseNamespace()
-	upgrade.ResetValues = !hr.Spec.GetUpgrade().PreserveValues
-	upgrade.ReuseValues = hr.Spec.GetUpgrade().PreserveValues
-	upgrade.MaxHistory = hr.GetMaxHistory()
-	upgrade.Timeout = hr.Spec.GetUpgrade().GetTimeout(hr.GetTimeout()).Duration
-	upgrade.Wait = !hr.Spec.GetUpgrade().DisableWait
-	upgrade.DisableHooks = hr.Spec.GetUpgrade().DisableHooks
-	upgrade.Force = hr.Spec.GetUpgrade().Force
-	upgrade.CleanupOnFail = hr.Spec.GetUpgrade().CleanupOnFail
-
-	return upgrade.Run(hr.GetReleaseName(), chart, values.AsMap())
-}
-
-func test(cfg *action.Configuration, hr v2.HelmRelease) (*release.Release, error) {
-	test := action.NewReleaseTesting(cfg)
-	test.Namespace = hr.GetReleaseNamespace()
-	test.Timeout = hr.Spec.GetTest().GetTimeout(hr.GetTimeout()).Duration
-
-	return test.Run(hr.GetReleaseName())
-}
-
-func rollback(cfg *action.Configuration, hr v2.HelmRelease) error {
-	rollback := action.NewRollback(cfg)
-	rollback.Timeout = hr.Spec.GetRollback().GetTimeout(hr.GetTimeout()).Duration
-	rollback.Wait = !hr.Spec.GetRollback().DisableWait
-	rollback.DisableHooks = hr.Spec.GetRollback().DisableHooks
-	rollback.Force = hr.Spec.GetRollback().Force
-	rollback.Recreate = hr.Spec.GetRollback().Recreate
-	rollback.CleanupOnFail = hr.Spec.GetRollback().CleanupOnFail
-
-	return rollback.Run(hr.GetReleaseName())
-}
-
-func uninstall(cfg *action.Configuration, hr v2.HelmRelease) error {
-	uninstall := action.NewUninstall(cfg)
-	uninstall.Timeout = hr.Spec.GetUninstall().GetTimeout(hr.GetTimeout()).Duration
-	uninstall.DisableHooks = hr.Spec.GetUninstall().DisableHooks
-	uninstall.KeepHistory = hr.Spec.GetUninstall().KeepHistory
-
-	_, err := uninstall.Run(hr.GetReleaseName())
-	return err
 }
 
 func lock(name string) (unlock func(), err error) {
@@ -762,24 +692,6 @@ func download(url, tmpDir string) (string, error) {
 	}
 
 	return fp, nil
-}
-
-func newActionCfg(log logr.Logger, clusterCfg *rest.Config, hr v2.HelmRelease) (*action.Configuration, error) {
-	cfg := new(action.Configuration)
-	ns := hr.GetReleaseNamespace()
-	err := cfg.Init(&genericclioptions.ConfigFlags{
-		Namespace:   &ns,
-		APIServer:   &clusterCfg.Host,
-		CAFile:      &clusterCfg.CAFile,
-		BearerToken: &clusterCfg.BearerToken,
-	}, hr.Namespace, "secret", actionLogger(log))
-	return cfg, err
-}
-
-func actionLogger(logger logr.Logger) func(format string, v ...interface{}) {
-	return func(format string, v ...interface{}) {
-		logger.Info(fmt.Sprintf(format, v...))
-	}
 }
 
 // mergeMaps merges map b into given map a and returns the result.
