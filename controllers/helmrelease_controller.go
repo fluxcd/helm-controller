@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"crypto/sha1"
 	"errors"
 	"fmt"
 	"io"
@@ -56,6 +55,7 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2alpha1"
 	"github.com/fluxcd/helm-controller/internal/runner"
+	"github.com/fluxcd/helm-controller/internal/util"
 )
 
 // HelmReleaseReconciler reconciles a HelmRelease object
@@ -319,7 +319,7 @@ func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr
 	// Register the current release attempt.
 	revision := source.GetArtifact().Revision
 	releaseRevision := getReleaseRevision(rel)
-	valuesChecksum := calculateValuesChecksum(values)
+	valuesChecksum := util.ValuesChecksum(values)
 	hr, hasNewState := v2.HelmReleaseAttempted(hr, revision, releaseRevision, valuesChecksum)
 	if hasNewState {
 		hr = v2.HelmReleaseProgressing(hr)
@@ -562,7 +562,7 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 			if err != nil {
 				return nil, fmt.Errorf("unable to read values from key '%s' in %s '%s': %w", v.GetValuesKey(), v.Kind, namespacedName, err)
 			}
-			result = mergeMaps(result, values)
+			result = util.MergeMaps(result, values)
 		default:
 			// TODO(hidde): this is a bit of hack, as it mimics the way the option string is passed
 			// 	to Helm from a CLI perspective. Given the parser is however not publicly accessible
@@ -573,7 +573,7 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 			}
 		}
 	}
-	return mergeMaps(result, hr.GetValues()), nil
+	return util.MergeMaps(result, hr.GetValues()), nil
 }
 
 func (r *HelmReleaseReconciler) handleHelmActionResult(hr *v2.HelmRelease, revision string, err error, action string, condition string, succeededReason string, failedReason string) error {
@@ -692,36 +692,6 @@ func download(url, tmpDir string) (string, error) {
 	}
 
 	return fp, nil
-}
-
-// mergeMaps merges map b into given map a and returns the result.
-// It allows overwrites of map values with flat values, and vice versa.
-// This is copied from https://github.com/helm/helm/blob/v3.3.0/pkg/cli/values/options.go#L88,
-// as the public chartutil.CoalesceTables function does not allow
-// overwriting maps with flat values.
-func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
-	out := make(map[string]interface{}, len(a))
-	for k, v := range a {
-		out[k] = v
-	}
-	for k, v := range b {
-		if v, ok := v.(map[string]interface{}); ok {
-			if bv, ok := out[k]; ok {
-				if bv, ok := bv.(map[string]interface{}); ok {
-					out[k] = mergeMaps(bv, v)
-					continue
-				}
-			}
-		}
-		out[k] = v
-	}
-	return out
-}
-
-// calculateValuesChecksum calculates the SHA1 checksum for the given Values.
-func calculateValuesChecksum(values chartutil.Values) string {
-	s, _ := values.YAML()
-	return fmt.Sprintf("%x", sha1.Sum([]byte(s)))
 }
 
 func containsString(slice []string, s string) bool {
