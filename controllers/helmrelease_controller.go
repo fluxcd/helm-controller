@@ -110,8 +110,8 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		// The object is being deleted
 		if containsString(hr.ObjectMeta.Finalizers, v2.HelmReleaseFinalizer) {
 			// Our finalizer is still present, so lets handle garbage collection
-			if err := r.gc(ctx, log, hr); err != nil {
-				r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityError, fmt.Sprintf("garbage collection for deleted resource failed: %s", err.Error()))
+			if err := r.garbageCollect(ctx, log, hr); err != nil {
+				r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityError, err.Error())
 				// Return the error so we retry the failed garbage collection
 				return ctrl.Result{}, err
 			}
@@ -121,6 +121,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 			if err := r.Update(ctx, &hr); err != nil {
 				return ctrl.Result{}, err
 			}
+			r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityInfo, "Helm uninstall for deleted resource succeeded")
 		}
 		// Stop reconciliation as the object is being deleted
 		return ctrl.Result{}, nil
@@ -233,19 +234,8 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 
 	// Garbage collect the previous HelmChart if the namespace named changed.
 	if hr.Status.HelmChart != "" && hr.Status.HelmChart != chartName.String() {
-		prevChartNS, prevChartName := hr.Status.GetHelmChart()
-		var prevHelmChart sourcev1.HelmChart
-		err := r.Client.Get(ctx, types.NamespacedName{Namespace: prevChartNS, Name: prevChartName}, &prevHelmChart)
-		switch {
-		case apierrors.IsNotFound(err):
-			// noop
-		case err != nil:
+		if err := r.garbageCollectHelmChart(ctx, *hr); err != nil {
 			return nil, false, err
-		default:
-			if err := r.Client.Delete(ctx, &prevHelmChart); err != nil {
-				err = fmt.Errorf("failed to garbage collect HelmChart: %w", err)
-				return nil, false, err
-			}
 		}
 	}
 
@@ -468,49 +458,56 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 	return nil
 }
 
-func (r *HelmReleaseReconciler) gc(ctx context.Context, log logr.Logger, hr v2.HelmRelease) error {
-	// Garbage collect the HelmChart
-	if hr.Status.HelmChart != "" {
-		var hc sourcev1.HelmChart
-		chartNS, chartName := hr.Status.GetHelmChart()
-		err := r.Client.Get(ctx, types.NamespacedName{Namespace: chartNS, Name: chartName}, &hc)
-		switch {
-		case apierrors.IsNotFound(err):
-			// noop
-		case err == nil:
-			if err = r.Client.Delete(ctx, &hc); err != nil {
-				return err
-			}
-		default:
-			return err
-		}
+func (r *HelmReleaseReconciler) garbageCollect(ctx context.Context, logger logr.Logger, hr v2.HelmRelease) error {
+	if err := r.garbageCollectHelmChart(ctx, hr); err != nil {
+		return err
 	}
-
-	// Uninstall the Helm release
-	var uninstallErr error
-	if !hr.Spec.Suspend {
-		run, err := runner.NewRunner(r.Config, hr.Namespace, log)
-		if err != nil {
-			return err
-		}
-		_, err = run.Config.Releases.Deployed(hr.GetReleaseName())
-		switch {
-		case errors.Is(err, driver.ErrNoDeployedReleases):
-			// noop
-		case err == nil:
-			uninstallErr = run.Uninstall(hr)
-		default:
-			return err
-		}
-	}
-
-	switch uninstallErr {
-	case nil:
-		r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityInfo, "Helm uninstall for deleted resource succeeded")
+	if hr.Spec.Suspend {
+		logger.Info("skipping garbage collection for suspended resource")
 		return nil
-	default:
-		return uninstallErr
 	}
+	return r.garbageCollectHelmRelease(logger, hr)
+}
+
+func (r *HelmReleaseReconciler) garbageCollectHelmChart(ctx context.Context, hr v2.HelmRelease) error {
+	if hr.Status.HelmChart == "" {
+		return nil
+	}
+	var hc sourcev1.HelmChart
+	chartNS, chartName := hr.Status.GetHelmChart()
+	err := r.Client.Get(ctx, types.NamespacedName{Namespace: chartNS, Name: chartName}, &hc)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		err = fmt.Errorf("failed to garbage collect HelmChart '%s': %w", hr.Status.HelmChart, err)
+		return err
+	}
+	err = r.Client.Delete(ctx, &hc)
+	if err != nil {
+		err = fmt.Errorf("failed to garbage collect HelmChart '%s': %w", hr.Status.HelmChart, err)
+	}
+	return err
+}
+
+func (r *HelmReleaseReconciler) garbageCollectHelmRelease(logger logr.Logger, hr v2.HelmRelease) error {
+	run, err := runner.NewRunner(r.Config, hr.Namespace, logger)
+	if err != nil {
+		return err
+	}
+	_, err = run.Config.Releases.Deployed(hr.GetReleaseName())
+	if err != nil {
+		if errors.Is(err, driver.ErrNoDeployedReleases) {
+			return nil
+		}
+		err = fmt.Errorf("failed to garbage collect resource: %w", err)
+		return err
+	}
+	err = run.Uninstall(hr)
+	if err != nil {
+		err = fmt.Errorf("failed to garbage collect resource: %w", err)
+	}
+	return err
 }
 
 func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRelease) (chartutil.Values, error) {
