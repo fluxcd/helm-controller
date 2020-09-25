@@ -31,7 +31,6 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
-	"helm.sh/helm/v3/pkg/storage/driver"
 	"helm.sh/helm/v3/pkg/strvals"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -574,13 +573,13 @@ func (r *HelmReleaseReconciler) garbageCollectHelmRelease(logger logr.Logger, hr
 	if err != nil {
 		return err
 	}
-	_, err = run.Config.Releases.Deployed(hr.GetReleaseName())
+	rel, err := run.ObserveLastRelease(hr)
 	if err != nil {
-		if errors.Is(err, driver.ErrNoDeployedReleases) {
-			return nil
-		}
 		err = fmt.Errorf("failed to garbage collect resource: %w", err)
 		return err
+	}
+	if rel == nil {
+		return nil
 	}
 	err = run.Uninstall(hr)
 	if err != nil {
