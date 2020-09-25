@@ -53,7 +53,7 @@ const (
 
 	// TestFailedReason represents the fact that the Helm tests for the HelmRelease
 	// failed.
-	TestFailedReason string = "TestsFailed"
+	TestFailedReason string = "TestFailed"
 
 	// RollbackSucceededReason represents the fact that the Helm rollback for the
 	// HelmRelease succeeded.

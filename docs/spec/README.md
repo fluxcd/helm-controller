@@ -1,12 +1,12 @@
 # Helm Controller
 
-The Helm Controller is a Kubernetes operator, allowing one to declaratively manage Helm chart
+The Helm Controller is a Kubernetes controller, allowing one to declaratively manage Helm chart
 releases with Kubernetes manifests.
 
 ## Motivation
 
-The main goal is to provide an automated operator that can perform Helm actions (e.g.
-install, upgrade, rollback, test) and continuously reconcile the state of Helm releases.
+The main goal is to provide an automated controller that can perform Helm actions (e.g.
+install, upgrade, uninstall, rollback, test) and continuously reconcile the state of Helm releases.
 
 When provisioning a new cluster, one may wish to install Helm releases in a specific order, for
 example because one relies on a service mesh admission controller managed by a `HelmRelease` and
@@ -34,7 +34,7 @@ actions that should be (conditionally) executed. Based on this the reconciler:
 - fetches the available chart artifact
 - performs a Helm install or upgrade action if needed
 - performs a Helm test action if enabled
-- performs a reconciliation strategy as configured (rollback, uninstall) if any Helm action failed
+- performs a reconciliation strategy (rollback, uninstall) and retries as configured if any Helm action failed
 
 The controller that runs these Helm actions relies on [source-controller](https://github.com/fluxcd/source-controller)
 for providing the Helm charts from Helm repositories or any other source that source-controller
