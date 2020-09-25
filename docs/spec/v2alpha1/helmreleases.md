@@ -446,16 +446,17 @@ type HelmReleaseStatus struct {
 
 ```go
 const (
-	// ReleasedCondition represents the fact that the HelmRelease has been
-	// successfully released.
+	// ReleasedCondition represents the status of the last release attempt
+	// (install/upgrade/test) against the current state.
 	ReleasedCondition string = "Released"
 
-	// TestSuccessCondition represents the fact that the tests for the HelmRelease
-	// are succeeding.
+	// TestSuccessCondition represents the status of the last test attempt against
+	// the current state.
 	TestSuccessCondition string = "TestSuccess"
 
-	// RemediatedCondition represents the fact that the HelmRelease has been
-	// successfully remediated.
+	// RemediatedCondition represents the status of the last remediation attempt
+	// (uninstall/rollback) due to a failure of the last release attempt against the
+	// current state.
 	RemediatedCondition string = "Remediated"
 )
 ```
@@ -530,7 +531,7 @@ The namespace/name in which to deploy the Helm release defaults to the namespace
 The `spec.chart.spec` values are used by the helm-controller as a template
 to create a new `HelmChart` resource with the given spec.
 
-The `HelmRelease` `spec.chart.spec.sourceRef` is a reference to an object managed by
+The `spec.chart.spec.sourceRef` is a reference to an object managed by
 [source-controller](https://github.com/fluxcd/source-controller). When the source
 [revision](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/common.md#source-status) 
 changes, it generates a Kubernetes event that triggers a new release.
@@ -724,11 +725,11 @@ spec:
   chart:
     spec:
       chart: podinfo
-        version: '>=4.0.0 <5.0.0'
-        sourceRef:
-          kind: HelmRepository
-          name: podinfo
-        interval: 1m
+      version: '>=4.0.0 <5.0.0'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+      interval: 1m
   test:
     enable: true
     ignoreFailures: true
@@ -789,21 +790,21 @@ spec:
 
 When the controller completes a reconciliation, it reports the result in the status sub-resource.
 
-The following `status.conditions` types are advertised:
+The following `status.condtions` types are advertised:
 
 * `Ready` - status of the last reconciliation attempt
 * `Released` - status of the last release attempt (install/upgrade/test) against the current state
 * `TestSuccess` - status of the last test attempt against the current state
 * `Remediated` - status of the last remediation attempt (uninstall/rollback) due to a failure of the
-  last release attempt against the current state
+   last release attempt against the current state
 
-You can wait for the helm-controller to complete a reconciliation with:
+For example, you can wait for a successful helm-controller reconciliation with:
 
 ```sh
 kubectl wait helmrelease/podinfo --for=condition=ready
 ```
 
-Each condition also includes descriptive `reason` / `message` fields
+Each of these conditions also include descriptive `reason` / `message` fields
 as to why the status is as such.
 
 ### Examples
