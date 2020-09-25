@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"helm.sh/helm/v3/pkg/chartutil"
+	"helm.sh/helm/v3/pkg/release"
 )
 
 func TestMergeMaps(t *testing.T) {
@@ -106,5 +107,16 @@ func TestValuesChecksum(t *testing.T) {
 				t.Errorf("ValuesChecksum() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestReleaseRevision(t *testing.T) {
+	var rel *release.Release
+	if rev := ReleaseRevision(rel); rev != 0 {
+		t.Fatalf("ReleaseRevision() = %v, want %v", rev, 0)
+	}
+	rel = &release.Release{Version: 1}
+	if rev := ReleaseRevision(rel); rev != 1 {
+		t.Fatalf("ReleaseRevision() = %v, want %v", rev, 1)
 	}
 }

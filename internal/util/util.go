@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"helm.sh/helm/v3/pkg/chartutil"
+	"helm.sh/helm/v3/pkg/release"
 )
 
 // MergeMaps merges map b into given map a and returns the result.
@@ -55,4 +56,12 @@ func ValuesChecksum(values chartutil.Values) string {
 		s, _ = values.YAML()
 	}
 	return fmt.Sprintf("%x", sha1.Sum([]byte(s)))
+}
+
+// ReleaseRevision returns the revision of the given release.Release.
+func ReleaseRevision(rel *release.Release) int {
+	if rel == nil {
+		return 0
+	}
+	return rel.Version
 }

@@ -24,14 +24,13 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
+	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
-	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"helm.sh/helm/v3/pkg/strvals"
 	corev1 "k8s.io/api/core/v1"
@@ -184,13 +183,15 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 	// Check dependencies
 	if len(hr.Spec.DependsOn) > 0 {
 		if err := r.checkDependencies(hr); err != nil {
-			msg := fmt.Sprintf("dependencies do not meet ready condition (%s), retrying in %s", err.Error(), r.requeueDependency.String())
+			msg := fmt.Sprintf("dependencies do not meet ready condition (%s), retrying in %s",
+				err.Error(), r.requeueDependency.String())
 			r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityInfo, msg)
 			log.Info(msg)
 
 			// Exponential backoff would cause execution to be prolonged too much,
 			// instead we requeue on a fixed interval.
-			return v2.HelmReleaseNotReady(hr, v2.DependencyNotReadyReason, err.Error()), ctrl.Result{RequeueAfter: r.requeueDependency}, nil
+			return v2.HelmReleaseNotReady(hr,
+				v2.DependencyNotReadyReason, err.Error()), ctrl.Result{RequeueAfter: r.requeueDependency}, nil
 		}
 		log.Info("all dependencies are ready, proceeding with release")
 	}
@@ -202,11 +203,19 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error()), ctrl.Result{}, nil
 	}
 
-	reconciledHr, reconcileErr := r.release(ctx, log, *hr.DeepCopy(), hc, values)
-	if reconcileErr != nil {
-		r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityError, fmt.Sprintf("reconciliation failed: %s", reconcileErr.Error()))
+	// Load chart from artifact
+	chart, err := r.loadHelmChart(hc)
+	if err != nil {
+		r.event(hr, hr.Status.LastAttemptedRevision, recorder.EventSeverityError, err.Error())
+		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, err.Error()), ctrl.Result{}, nil
 	}
 
+	// Reconcile Helm release
+	reconciledHr, reconcileErr := r.reconcileRelease(ctx, log, *hr.DeepCopy(), chart, values)
+	if reconcileErr != nil {
+		r.event(hr, hc.GetArtifact().Revision, recorder.EventSeverityError,
+			fmt.Sprintf("reconciliation failed: %s", reconcileErr.Error()))
+	}
 	return reconciledHr, ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, reconcileErr
 }
 
@@ -264,30 +273,12 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	return &helmChart, true, nil
 }
 
-func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr v2.HelmRelease, source sourcev1.Source, values chartutil.Values) (v2.HelmRelease, error) {
-	// Create temp working dir
-	tmpDir, err := ioutil.TempDir("", hr.GetReleaseName())
-	if err != nil {
-		err = fmt.Errorf("tmp dir error: %w", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Download artifact
-	artifactPath, err := download(source.GetArtifact().URL, tmpDir)
-	if err != nil {
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, "artifact acquisition failed"), err
-	}
-
-	// Load chart
-	loadedChart, err := loader.Load(artifactPath)
-	if err != nil {
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, "failed to load chart"), err
-	}
-
-	// Initialize config
+func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.Logger,
+	hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (v2.HelmRelease, error) {
+	// Initialize Helm action runner
 	run, err := runner.NewRunner(r.Config, hr.Namespace, r.Log)
 	if err != nil {
-		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to initialize Helm action configuration"), err
+		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to initialize Helm action runner"), err
 	}
 
 	// Determine last release revision.
@@ -297,8 +288,8 @@ func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr
 	}
 
 	// Register the current release attempt.
-	revision := source.GetArtifact().Revision
-	releaseRevision := getReleaseRevision(rel)
+	revision := chart.Metadata.Version
+	releaseRevision := util.ReleaseRevision(rel)
 	valuesChecksum := util.ValuesChecksum(values)
 	hr, hasNewState := v2.HelmReleaseAttempted(hr, revision, releaseRevision, valuesChecksum)
 	if hasNewState {
@@ -343,17 +334,17 @@ func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr
 	var deployAction v2.DeploymentAction
 	if rel == nil {
 		deployAction = hr.Spec.GetInstall()
-		rel, err = run.Install(hr, loadedChart, values)
+		rel, err = run.Install(hr, chart, values)
 		err = r.handleHelmActionResult(&hr, revision, err, deployAction.GetDescription(), v2.ReleasedCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
 	} else {
 		deployAction = hr.Spec.GetUpgrade()
-		rel, err = run.Upgrade(hr, loadedChart, values)
+		rel, err = run.Upgrade(hr, chart, values)
 		err = r.handleHelmActionResult(&hr, revision, err, deployAction.GetDescription(), v2.ReleasedCondition, v2.UpgradeSucceededReason, v2.UpgradeFailedReason)
 	}
 	remediation := deployAction.GetRemediation()
 
 	// If there is a new release revision...
-	if getReleaseRevision(rel) > releaseRevision {
+	if util.ReleaseRevision(rel) > releaseRevision {
 		// Ensure release is not marked remediated.
 		v2.DeleteHelmReleaseCondition(&hr, v2.RemediatedCondition)
 
@@ -376,19 +367,20 @@ func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr
 		remediation.IncrementFailureCount(&hr)
 		// Remediate deployment failure if necessary.
 		if !remediation.RetriesExhausted(hr) || remediation.MustRemediateLastFailure() {
-			if getReleaseRevision(rel) <= releaseRevision {
+			if util.ReleaseRevision(rel) <= releaseRevision {
 				log.Info(fmt.Sprintf("skipping remediation, no new release revision created"))
 			} else {
 				var remediationErr error
 				switch remediation.GetStrategy() {
 				case v2.RollbackRemediationStrategy:
 					rollbackErr := run.Rollback(hr)
-					remediationErr = r.handleHelmActionResult(&hr, revision, rollbackErr, "rollback", v2.RemediatedCondition, v2.RollbackSucceededReason, v2.RollbackFailedReason)
+					remediationErr = r.handleHelmActionResult(&hr, revision, rollbackErr, "rollback",
+						v2.RemediatedCondition, v2.RollbackSucceededReason, v2.RollbackFailedReason)
 				case v2.UninstallRemediationStrategy:
 					uninstallErr := run.Uninstall(hr)
-					remediationErr = r.handleHelmActionResult(&hr, revision, uninstallErr, "uninstall", v2.RemediatedCondition, v2.UninstallSucceededReason, v2.UninstallFailedReason)
+					remediationErr = r.handleHelmActionResult(&hr, revision, uninstallErr, "uninstall",
+						v2.RemediatedCondition, v2.UninstallSucceededReason, v2.UninstallFailedReason)
 				}
-
 				if remediationErr != nil {
 					err = remediationErr
 				}
@@ -405,7 +397,7 @@ func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr
 		}
 	}
 
-	hr.Status.LastReleaseRevision = getReleaseRevision(rel)
+	hr.Status.LastReleaseRevision = util.ReleaseRevision(rel)
 
 	if err != nil {
 		reason := v2.ReconciliationFailedReason
@@ -446,58 +438,6 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 		}
 	}
 	return nil
-}
-
-func (r *HelmReleaseReconciler) garbageCollect(ctx context.Context, logger logr.Logger, hr v2.HelmRelease) error {
-	if err := r.garbageCollectHelmChart(ctx, hr); err != nil {
-		return err
-	}
-	if hr.Spec.Suspend {
-		logger.Info("skipping garbage collection for suspended resource")
-		return nil
-	}
-	return r.garbageCollectHelmRelease(logger, hr)
-}
-
-func (r *HelmReleaseReconciler) garbageCollectHelmChart(ctx context.Context, hr v2.HelmRelease) error {
-	if hr.Status.HelmChart == "" {
-		return nil
-	}
-	var hc sourcev1.HelmChart
-	chartNS, chartName := hr.Status.GetHelmChart()
-	err := r.Client.Get(ctx, types.NamespacedName{Namespace: chartNS, Name: chartName}, &hc)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		err = fmt.Errorf("failed to garbage collect HelmChart '%s': %w", hr.Status.HelmChart, err)
-		return err
-	}
-	err = r.Client.Delete(ctx, &hc)
-	if err != nil {
-		err = fmt.Errorf("failed to garbage collect HelmChart '%s': %w", hr.Status.HelmChart, err)
-	}
-	return err
-}
-
-func (r *HelmReleaseReconciler) garbageCollectHelmRelease(logger logr.Logger, hr v2.HelmRelease) error {
-	run, err := runner.NewRunner(r.Config, hr.Namespace, logger)
-	if err != nil {
-		return err
-	}
-	_, err = run.Config.Releases.Deployed(hr.GetReleaseName())
-	if err != nil {
-		if errors.Is(err, driver.ErrNoDeployedReleases) {
-			return nil
-		}
-		err = fmt.Errorf("failed to garbage collect resource: %w", err)
-		return err
-	}
-	err = run.Uninstall(hr)
-	if err != nil {
-		err = fmt.Errorf("failed to garbage collect resource: %w", err)
-	}
-	return err
 }
 
 func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRelease) (chartutil.Values, error) {
@@ -561,6 +501,92 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 		}
 	}
 	return util.MergeMaps(result, hr.GetValues()), nil
+}
+
+// loadHelmChart attempts to download the artifact from the provided source,
+// loads it into a chart.Chart, and removes the downloaded artifact.
+// It returns the loaded chart.Chart on success, or an error.
+func (r *HelmReleaseReconciler) loadHelmChart(source *sourcev1.HelmChart) (*chart.Chart, error) {
+	f, err := ioutil.TempFile("", fmt.Sprintf("%s-%s-*.tgz", source.GetNamespace(), source.GetName()))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	defer os.Remove(f.Name())
+
+	res, err := http.Get(source.GetArtifact().URL)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("artifact '%s' download failed (status code: %s)", source.GetArtifact().URL, res.Status)
+	}
+
+	if _, err = io.Copy(f, res.Body); err != nil {
+		return nil, err
+	}
+
+	return loader.Load(f.Name())
+}
+
+// garbageCollect deletes the v1alpha1.HelmChart of the v2alpha1.HelmRelease,
+// and uninstalls the Helm release if the resource has not been suspended.
+func (r *HelmReleaseReconciler) garbageCollect(ctx context.Context, logger logr.Logger, hr v2.HelmRelease) error {
+	if err := r.garbageCollectHelmChart(ctx, hr); err != nil {
+		return err
+	}
+	if hr.Spec.Suspend {
+		logger.Info("skipping garbage collection for suspended resource")
+		return nil
+	}
+	return r.garbageCollectHelmRelease(logger, hr)
+}
+
+// garbageCollectHelmChart deletes the v1alpha1.HelmChart of the
+// v2alpha1.HelmRelease.
+func (r *HelmReleaseReconciler) garbageCollectHelmChart(ctx context.Context, hr v2.HelmRelease) error {
+	if hr.Status.HelmChart == "" {
+		return nil
+	}
+	var hc sourcev1.HelmChart
+	chartNS, chartName := hr.Status.GetHelmChart()
+	err := r.Client.Get(ctx, types.NamespacedName{Namespace: chartNS, Name: chartName}, &hc)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		err = fmt.Errorf("failed to garbage collect HelmChart '%s': %w", hr.Status.HelmChart, err)
+		return err
+	}
+	err = r.Client.Delete(ctx, &hc)
+	if err != nil {
+		err = fmt.Errorf("failed to garbage collect HelmChart '%s': %w", hr.Status.HelmChart, err)
+	}
+	return err
+}
+
+// garbageCollectHelmRelease uninstalls the deployed Helm release of
+// the given v2alpha1.HelmRelease.
+func (r *HelmReleaseReconciler) garbageCollectHelmRelease(logger logr.Logger, hr v2.HelmRelease) error {
+	run, err := runner.NewRunner(r.Config, hr.Namespace, logger)
+	if err != nil {
+		return err
+	}
+	_, err = run.Config.Releases.Deployed(hr.GetReleaseName())
+	if err != nil {
+		if errors.Is(err, driver.ErrNoDeployedReleases) {
+			return nil
+		}
+		err = fmt.Errorf("failed to garbage collect resource: %w", err)
+		return err
+	}
+	err = run.Uninstall(hr)
+	if err != nil {
+		err = fmt.Errorf("failed to garbage collect resource: %w", err)
+	}
+	return err
 }
 
 func (r *HelmReleaseReconciler) handleHelmActionResult(hr *v2.HelmRelease, revision string, err error, action string, condition string, succeededReason string, failedReason string) error {
@@ -640,39 +666,6 @@ func helmChartRequiresUpdate(hr v2.HelmRelease, chart sourcev1.HelmChart) bool {
 	default:
 		return false
 	}
-}
-
-// getReleaseRevision returns the revision of the given release.Release.
-func getReleaseRevision(rel *release.Release) int {
-	if rel == nil {
-		return 0
-	}
-	return rel.Version
-}
-
-func download(url, tmpDir string) (string, error) {
-	fp := filepath.Join(tmpDir, "artifact.tar.gz")
-	out, err := os.Create(fp)
-	if err != nil {
-		return "", err
-	}
-	defer out.Close()
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fp, fmt.Errorf("artifact '%s' download failed (status code: %s)", url, resp.Status)
-	}
-
-	if _, err = io.Copy(out, resp.Body); err != nil {
-		return "", err
-	}
-
-	return fp, nil
 }
 
 func containsString(slice []string, s string) bool {
