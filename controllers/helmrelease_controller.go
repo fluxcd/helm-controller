@@ -24,7 +24,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -47,7 +46,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 
-	"github.com/fluxcd/pkg/lockedfile"
 	"github.com/fluxcd/pkg/recorder"
 	consts "github.com/fluxcd/pkg/runtime"
 	"github.com/fluxcd/pkg/runtime/predicates"
@@ -267,14 +265,6 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 }
 
 func (r *HelmReleaseReconciler) release(ctx context.Context, log logr.Logger, hr v2.HelmRelease, source sourcev1.Source, values chartutil.Values) (v2.HelmRelease, error) {
-	// Acquire lock
-	unlock, err := lock(fmt.Sprintf("%s-%s", hr.GetName(), hr.GetNamespace()))
-	if err != nil {
-		err = fmt.Errorf("lockfile error: %w", err)
-		return v2.HelmReleaseNotReady(hr, sourcev1.StorageOperationFailedReason, err.Error()), err
-	}
-	defer unlock()
-
 	// Create temp working dir
 	tmpDir, err := ioutil.TempDir("", hr.GetReleaseName())
 	if err != nil {
@@ -658,12 +648,6 @@ func getReleaseRevision(rel *release.Release) int {
 		return 0
 	}
 	return rel.Version
-}
-
-func lock(name string) (unlock func(), err error) {
-	lockFile := path.Join(os.TempDir(), name+".lock")
-	mutex := lockedfile.MutexAt(lockFile)
-	return mutex.Lock()
 }
 
 func download(url, tmpDir string) (string, error) {

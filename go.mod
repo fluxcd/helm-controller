@@ -6,7 +6,6 @@ replace github.com/fluxcd/helm-controller/api => ./api
 
 require (
 	github.com/fluxcd/helm-controller/api v0.0.10
-	github.com/fluxcd/pkg/lockedfile v0.0.5
 	github.com/fluxcd/pkg/recorder v0.0.5
 	github.com/fluxcd/pkg/runtime v0.0.3
 	github.com/fluxcd/source-controller/api v0.0.18
