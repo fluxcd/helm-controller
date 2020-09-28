@@ -439,52 +439,90 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 	return nil
 }
 
+// composeValues attempts to resolve all v2alpha1.ValuesReference resources
+// and merges them as defined. Referenced resources are only retrieved once
+// to ensure a single version is taken into account during the merge.
 func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRelease) (chartutil.Values, error) {
 	var result chartutil.Values
+
+	configMaps := make(map[string]*corev1.ConfigMap)
+	secrets := make(map[string]*corev1.Secret)
+
 	for _, v := range hr.Spec.ValuesFrom {
 		namespacedName := types.NamespacedName{Namespace: hr.Namespace, Name: v.Name}
-		var valsData []byte
+		var valuesData []byte
+
 		switch v.Kind {
 		case "ConfigMap":
-			var resource corev1.ConfigMap
-			if err := r.Get(ctx, namespacedName, &resource); err != nil {
-				if apierrors.IsNotFound(err) {
-					if v.Optional {
-						r.Log.Info("could not find optional %s '%s'", v.Kind, namespacedName)
-						continue
+			resource, ok := configMaps[namespacedName.String()]
+			if !ok {
+				// The resource may not exist, but we want to act on a single version
+				// of the resource in case the values reference is marked as optional.
+				configMaps[namespacedName.String()] = nil
+
+				resource = &corev1.ConfigMap{}
+				if err := r.Get(ctx, namespacedName, resource); err != nil {
+					if apierrors.IsNotFound(err) {
+						if v.Optional {
+							r.Log.Info("could not find optional %s '%s'", v.Kind, namespacedName)
+							continue
+						}
+						return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
 					}
-					return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
+					return nil, err
 				}
-				return nil, err
+				configMaps[namespacedName.String()] = resource
+			}
+			if resource == nil {
+				if v.Optional {
+					r.Log.Info("could not find optional %s '%s'", v.Kind, namespacedName)
+					continue
+				}
+				return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
 			}
 			if data, ok := resource.Data[v.GetValuesKey()]; !ok {
 				return nil, fmt.Errorf("missing key '%s' in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName)
 			} else {
-				valsData = []byte(data)
+				valuesData = []byte(data)
 			}
 		case "Secret":
-			var resource corev1.Secret
-			if err := r.Get(ctx, namespacedName, &resource); err != nil {
-				if apierrors.IsNotFound(err) {
-					if v.Optional {
-						r.Log.Info("could not find optional %s '%s'", v.Kind, namespacedName)
-						continue
+			resource, ok := secrets[namespacedName.String()]
+			if !ok {
+				// The resource may not exist, but we want to act on a single version
+				// of the resource in case the values reference is marked as optional.
+				secrets[namespacedName.String()] = nil
+
+				resource = &corev1.Secret{}
+				if err := r.Get(ctx, namespacedName, resource); err != nil {
+					if apierrors.IsNotFound(err) {
+						if v.Optional {
+							r.Log.Info("could not find optional %s '%s'", v.Kind, namespacedName)
+							continue
+						}
+						return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
 					}
-					return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
+					return nil, err
 				}
-				return nil, err
+				secrets[namespacedName.String()] = resource
+			}
+			if resource == nil {
+				if v.Optional {
+					r.Log.Info("could not find optional %s '%s'", v.Kind, namespacedName)
+					continue
+				}
+				return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
 			}
 			if data, ok := resource.Data[v.GetValuesKey()]; !ok {
 				return nil, fmt.Errorf("missing key '%s' in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName)
 			} else {
-				valsData = data
+				valuesData = data
 			}
 		default:
 			return nil, fmt.Errorf("unsupported ValuesReference kind '%s'", v.Kind)
 		}
 		switch v.TargetPath {
 		case "":
-			values, err := chartutil.ReadValues(valsData)
+			values, err := chartutil.ReadValues(valuesData)
 			if err != nil {
 				return nil, fmt.Errorf("unable to read values from key '%s' in %s '%s': %w", v.GetValuesKey(), v.Kind, namespacedName, err)
 			}
@@ -493,8 +531,8 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 			// TODO(hidde): this is a bit of hack, as it mimics the way the option string is passed
 			// 	to Helm from a CLI perspective. Given the parser is however not publicly accessible
 			// 	while it contains all logic around parsing the target path, it is a fair trade-off.
-			singleVal := v.TargetPath + "=" + string(valsData)
-			if err := strvals.ParseInto(singleVal, result); err != nil {
+			singleValue := v.TargetPath + "=" + string(valuesData)
+			if err := strvals.ParseInto(singleValue, result); err != nil {
 				return nil, fmt.Errorf("unable to merge value from key '%s' in %s '%s' into target path '%s': %w", v.GetValuesKey(), v.Kind, namespacedName, v.TargetPath, err)
 			}
 		}
