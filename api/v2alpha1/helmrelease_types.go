@@ -593,9 +593,10 @@ type HelmReleaseStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
-	// LastObservedTime is the last time at which the HelmRelease was observed.
+	// LastHandledReconcileAt is the last manual reconciliation request (by
+	// annotating the HelmRelease) handled by the reconciler.
 	// +optional
-	LastObservedTime metav1.Time `json:"lastObservedTime,omitempty"`
+	LastHandledReconcileAt string `json:"lastHandledReconcileAt,omitempty"`
 
 	// Conditions holds the conditions for the HelmRelease.
 	// +optional

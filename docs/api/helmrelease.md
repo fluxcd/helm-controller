@@ -901,16 +901,15 @@ int64
 </tr>
 <tr>
 <td>
-<code>lastObservedTime</code><br>
+<code>lastHandledReconcileAt</code><br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
+string
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastObservedTime is the last time at which the HelmRelease was observed.</p>
+<p>LastHandledReconcileAt is the last manual reconciliation request (by
+annotating the HelmRelease) handled by the reconciler.</p>
 </td>
 </tr>
 <tr>

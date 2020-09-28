@@ -126,7 +126,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	hr, result, err := r.reconcile(ctx, log, hr)
 
 	// Update status after reconciliation.
-	if updateStatusErr := r.updateStatus(ctx, &hr); updateStatusErr != nil {
+	if updateStatusErr := r.Status().Update(ctx, &hr); updateStatusErr != nil {
 		log.Error(updateStatusErr, "unable to update status after reconciliation")
 		return ctrl.Result{Requeue: true}, updateStatusErr
 	}
@@ -142,11 +142,16 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 }
 
 func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, hr v2.HelmRelease) (v2.HelmRelease, ctrl.Result, error) {
+	// Record the value of the reconciliation request, if any
+	if v, ok := hr.GetAnnotations()[consts.ReconcileAtAnnotation]; ok {
+		hr.Status.LastHandledReconcileAt = v
+	}
+
 	// Observe HelmRelease generation.
 	if hr.Status.ObservedGeneration != hr.Generation {
 		hr.Status.ObservedGeneration = hr.Generation
 		hr = v2.HelmReleaseProgressing(hr)
-		if updateStatusErr := r.updateStatus(ctx, &hr); updateStatusErr != nil {
+		if updateStatusErr := r.Status().Update(ctx, &hr); updateStatusErr != nil {
 			log.Error(updateStatusErr, "unable to update status after generation update")
 			return hr, ctrl.Result{Requeue: true}, updateStatusErr
 		}
@@ -294,7 +299,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 	hr, hasNewState := v2.HelmReleaseAttempted(hr, revision, releaseRevision, valuesChecksum)
 	if hasNewState {
 		hr = v2.HelmReleaseProgressing(hr)
-		if updateStatusErr := r.updateStatus(ctx, &hr); updateStatusErr != nil {
+		if updateStatusErr := r.Status().Update(ctx, &hr); updateStatusErr != nil {
 			log.Error(updateStatusErr, "unable to update status after state update")
 			return hr, updateStatusErr
 		}
@@ -408,11 +413,6 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 		return v2.HelmReleaseNotReady(hr, reason, err.Error()), err
 	}
 	return v2.HelmReleaseReady(hr), nil
-}
-
-func (r *HelmReleaseReconciler) updateStatus(ctx context.Context, hr *v2.HelmRelease) error {
-	hr.Status.LastObservedTime = v1.Now()
-	return r.Status().Update(ctx, hr)
 }
 
 func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {

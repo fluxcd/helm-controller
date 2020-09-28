@@ -453,10 +453,9 @@ spec:
                 description: LastAttemptedValuesChecksum is the SHA1 checksum of the
                   values of the last reconciliation attempt.
                 type: string
-              lastObservedTime:
-                description: LastObservedTime is the last time at which the HelmRelease
-                  was observed.
-                format: date-time
+              lastHandledReconcileAt:
+                description: LastHandledReconcileAt is the last manual reconciliation
+                  request (by annotating the HelmRelease) handled by the reconciler.
                 type: string
               lastReleaseRevision:
                 description: LastReleaseRevision is the revision of the last successful
