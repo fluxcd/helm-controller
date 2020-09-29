@@ -429,7 +429,7 @@ spec:
                 type: array
               failures:
                 description: Failures is the reconciliation failure count against
-                  the latest observed state. It is reset after a successful reconciliation.
+                  the latest desired state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
               helmChart:
@@ -438,7 +438,7 @@ spec:
                 type: string
               installFailures:
                 description: InstallFailures is the install failure count against
-                  the latest observed state. It is reset after a successful reconciliation.
+                  the latest desired state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
               lastAppliedRevision:
@@ -467,7 +467,7 @@ spec:
                 type: integer
               upgradeFailures:
                 description: UpgradeFailures is the upgrade failure count against
-                  the latest observed state. It is reset after a successful reconciliation.
+                  the latest desired state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
             type: object

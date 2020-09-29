@@ -564,7 +564,7 @@ relative path in the SourceRef. Ignored when omitted.</p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmRelease">HelmRelease</a>)
 </p>
-<p>HelmReleaseSpec defines the desired state of a Helm Release.</p>
+<p>HelmReleaseSpec defines the desired state of a Helm release.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -914,7 +914,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>Failures is the reconciliation failure count against the latest observed
+<p>Failures is the reconciliation failure count against the latest desired
 state. It is reset after a successful reconciliation.</p>
 </td>
 </tr>
@@ -927,7 +927,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>InstallFailures is the install failure count against the latest observed
+<p>InstallFailures is the install failure count against the latest desired
 state. It is reset after a successful reconciliation.</p>
 </td>
 </tr>
@@ -940,7 +940,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>UpgradeFailures is the upgrade failure count against the latest observed
+<p>UpgradeFailures is the upgrade failure count against the latest desired
 state. It is reset after a successful reconciliation.</p>
 </td>
 </tr>

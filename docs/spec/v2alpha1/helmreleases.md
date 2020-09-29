@@ -447,16 +447,16 @@ type HelmReleaseStatus struct {
 ```go
 const (
 	// ReleasedCondition represents the status of the last release attempt
-	// (install/upgrade/test) against the current state.
+	// (install/upgrade/test) against the latest desired state.
 	ReleasedCondition string = "Released"
 
 	// TestSuccessCondition represents the status of the last test attempt against
-	// the current state.
+	// the latest desired state.
 	TestSuccessCondition string = "TestSuccess"
 
 	// RemediatedCondition represents the status of the last remediation attempt
 	// (uninstall/rollback) due to a failure of the last release attempt against the
-	// current state.
+	// latest desired state.
 	RemediatedCondition string = "Remediated"
 )
 ```
@@ -524,7 +524,7 @@ const (
 The namespace/name in which to deploy the Helm release defaults to the namespace/name of the
 `HelmRelease`. These can be overridden respectively via `spec.targetNamespace` and
 `spec.releaseName`. If `spec.targetNamespace` is set, `spec.releaseName` defaults to
-`<spec.targetNamespace>-<HelmRelease name>`.
+`<spec.targetNamespace>-<metadata.name>`.
 
 ## Helm chart template
 
@@ -543,7 +543,7 @@ Supported source types:
 * [Bucket](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/buckets.md)
 
 The `HelmChart` is created in the same namespace as the `sourceRef`,
-with a name of `<HelmRelease namespace>-<HelmRelease name>`.
+with a name matching the `HelmRelease` `<metadata.namespace>-<metadata.name>`.
 
 The `chart.spec.chart` can either contain:
 
@@ -574,8 +574,8 @@ spec:
   - kind: Secret
     name: prod-tls-values
     valuesKey: crt
-	targetPath: tls.crt
-	optional: true
+    targetPath: tls.crt
+    optional: true
 ```
 
 The definition of the listed keys for items in `spec.valuesFrom` is as follows:
@@ -604,17 +604,20 @@ The definition of the listed keys for items in `spec.valuesFrom` is as follows:
 
 ## Reconciliation
 
-If a Helm release with the matching namespace/name is not found it will be installed, otherwise
-it will be upgraded.
+If no Helm release with the matching namespace/name is found it will be installed. It will
+be upgraded any time the desired state is updated, which consists of:
 
-The timeout for any individual Kubernetes operation (like Jobs for hooks) during the performance
-of Helm actions can be configured via `spec.timeout` and can be overridden per action
-via `spec.<action>.timeout`.
+* `spec` (and thus `metadata.generation`)
+* Latest `HelmChart` revision available
+* [`ConfigMap` and `Secret` values overrides](#values-overrides). Changes to these do not trigger an
+  immediate reconciliation, but will be handled upon the next reconciliation. This is to avoid
+  a large number of upgrades occurring when multiple resources are updated.
+
+If the latest Helm release revision was not made by the helm-controller, it may not match the
+desired state, so an upgrade is made in this case as well.
 
 The `spec.interval` tells the reconciler at which interval to reconcile the release. The
 interval time units are `s`, `m` and `h` e.g. `interval: 5m`, the minimum value should be 60 seconds.
-
-The reconcilation can be suspended by setting `spec.susped` to `true`.
 
 The reconciler can be told to reconcile the `HelmRelease` outside of the specified interval
 by annotating the object with a `fluxcd.io/reconcileAt` annotation. For example:
@@ -622,6 +625,12 @@ by annotating the object with a `fluxcd.io/reconcileAt` annotation. For example:
 ```bash
 kubectl annotate --overwrite helmrelease/podinfo fluxcd.io/reconcileAt="$(date +%s)"
 ```
+
+Reconciliation can be suspended by setting `spec.susped` to `true`.
+
+The timeout for any individual Kubernetes operation (like Jobs for hooks) during the performance
+of Helm actions can be configured via `spec.timeout` and can be overridden per action
+via `spec.<action>.timeout`.
 
 ### Disabling resource waiting
 
@@ -790,13 +799,14 @@ spec:
 
 When the controller completes a reconciliation, it reports the result in the status sub-resource.
 
-The following `status.condtions` types are advertised:
+The following `status.condtions` types are advertised. Here, "desired state" is as detailed in
+[reconciliation](#reconciliation):
 
 * `Ready` - status of the last reconciliation attempt
-* `Released` - status of the last release attempt (install/upgrade/test) against the current state
-* `TestSuccess` - status of the last test attempt against the current state
+* `Released` - status of the last release attempt (install/upgrade/test) against the latest desired state
+* `TestSuccess` - status of the last test attempt against the latest desired state
 * `Remediated` - status of the last remediation attempt (uninstall/rollback) due to a failure of the
-   last release attempt against the current state
+   last release attempt against the latest desired state
 
 For example, you can wait for a successful helm-controller reconciliation with:
 

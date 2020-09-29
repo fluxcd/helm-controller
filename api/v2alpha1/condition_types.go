@@ -18,16 +18,16 @@ package v2alpha1
 
 const (
 	// ReleasedCondition represents the status of the last release attempt
-	// (install/upgrade/test) against the current state.
+	// (install/upgrade/test) against the latest desired state.
 	ReleasedCondition string = "Released"
 
 	// TestSuccessCondition represents the status of the last test attempt against
-	// the current state.
+	// the latest desired state.
 	TestSuccessCondition string = "TestSuccess"
 
 	// RemediatedCondition represents the status of the last remediation attempt
 	// (uninstall/rollback) due to a failure of the last release attempt against the
-	// current state.
+	// latest desired state.
 	RemediatedCondition string = "Remediated"
 )
 
