@@ -48,8 +48,7 @@ type HelmReleaseSpec struct {
 	// +optional
 	Suspend bool `json:"suspend,omitempty"`
 
-	// ReleaseName used for the Helm release. Defaults to a composition of
-	// '[ReleaseNamespace-]Name'.
+	// ReleaseName used for the Helm release. Defaults to the name of the HelmRelease.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=53
 	// +kubebuilder:validation:Optional
@@ -756,14 +755,11 @@ func (in HelmRelease) GetValues() map[string]interface{} {
 	return values
 }
 
-// GetReleaseName returns the configured release name, or a composition of
-// '[ReleaseNamespace-]Name'.
+// GetReleaseName returns the configured release name, or the name of the
+// HelmRelease.
 func (in HelmRelease) GetReleaseName() string {
 	if in.Spec.ReleaseName != "" {
 		return in.Spec.ReleaseName
-	}
-	if in.Spec.ReleaseNamespace != "" {
-		return strings.Join([]string{in.Spec.ReleaseNamespace, in.Name}, "-")
 	}
 	return in.Name
 }

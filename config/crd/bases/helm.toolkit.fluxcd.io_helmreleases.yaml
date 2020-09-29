@@ -49,8 +49,8 @@ spec:
             description: HelmReleaseSpec defines the desired state of HelmRelease.
             properties:
               ReleaseNamespace:
-                description: ReleaseNamespace to target when performing operations
-                  for the HelmRelease. Defaults to the namespace of the HelmRelease.
+                description: ReleaseNamespace used for the Helm release. Defaults
+                  to the namespace of the HelmRelease.
                 maxLength: 63
                 minLength: 1
                 type: string
@@ -195,8 +195,8 @@ spec:
                   defaults to '10'.
                 type: integer
               releaseName:
-                description: ReleaseName used for the Helm release. Defaults to a
-                  composition of '[ReleaseNamespace-]Name'.
+                description: ReleaseName used for the Helm release. Defaults to the
+                  name of the HelmRelease.
                 maxLength: 53
                 minLength: 1
                 type: string

@@ -117,8 +117,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>ReleaseName used for the Helm release. Defaults to a composition of
-&lsquo;[ReleaseNamespace-]Name&rsquo;.</p>
+<p>ReleaseName used for the Helm release. Defaults to the name of the HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -130,8 +129,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>ReleaseNamespace to target when performing operations for the HelmRelease.
-Defaults to the namespace of the HelmRelease.</p>
+<p>ReleaseNamespace used for the Helm release. Defaults to the namespace
+of the HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -707,8 +706,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>ReleaseName used for the Helm release. Defaults to a composition of
-&lsquo;[ReleaseNamespace-]Name&rsquo;.</p>
+<p>ReleaseName used for the Helm release. Defaults to the name of the HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -720,8 +718,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>ReleaseNamespace to target when performing operations for the HelmRelease.
-Defaults to the namespace of the HelmRelease.</p>
+<p>ReleaseNamespace used for the Helm release. Defaults to the namespace
+of the HelmRelease.</p>
 </td>
 </tr>
 <tr>
