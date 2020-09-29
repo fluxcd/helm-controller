@@ -118,19 +118,19 @@ string
 <td>
 <em>(Optional)</em>
 <p>ReleaseName used for the Helm release. Defaults to a composition of
-&lsquo;[TargetNamespace-]Name&rsquo;.</p>
+&lsquo;[ReleaseNamespace-]Name&rsquo;.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>targetNamespace</code><br>
+<code>ReleaseNamespace</code><br>
 <em>
 string
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>TargetNamespace to target when performing operations for the HelmRelease.
+<p>ReleaseNamespace to target when performing operations for the HelmRelease.
 Defaults to the namespace of the HelmRelease.</p>
 </td>
 </tr>
@@ -708,19 +708,19 @@ string
 <td>
 <em>(Optional)</em>
 <p>ReleaseName used for the Helm release. Defaults to a composition of
-&lsquo;[TargetNamespace-]Name&rsquo;.</p>
+&lsquo;[ReleaseNamespace-]Name&rsquo;.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>targetNamespace</code><br>
+<code>ReleaseNamespace</code><br>
 <em>
 string
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>TargetNamespace to target when performing operations for the HelmRelease.
+<p>ReleaseNamespace to target when performing operations for the HelmRelease.
 Defaults to the namespace of the HelmRelease.</p>
 </td>
 </tr>

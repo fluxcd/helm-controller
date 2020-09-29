@@ -48,6 +48,12 @@ spec:
           spec:
             description: HelmReleaseSpec defines the desired state of HelmRelease.
             properties:
+              ReleaseNamespace:
+                description: ReleaseNamespace to target when performing operations
+                  for the HelmRelease. Defaults to the namespace of the HelmRelease.
+                maxLength: 63
+                minLength: 1
+                type: string
               chart:
                 description: Chart defines the template of the v1alpha1.HelmChart
                   that should be created for this HelmRelease.
@@ -190,7 +196,7 @@ spec:
                 type: integer
               releaseName:
                 description: ReleaseName used for the Helm release. Defaults to a
-                  composition of '[TargetNamespace-]Name'.
+                  composition of '[ReleaseNamespace-]Name'.
                 maxLength: 53
                 minLength: 1
                 type: string
@@ -229,12 +235,6 @@ spec:
                   for this HelmRelease, it does not apply to already started reconciliations.
                   Defaults to false.
                 type: boolean
-              targetNamespace:
-                description: TargetNamespace to target when performing operations
-                  for the HelmRelease. Defaults to the namespace of the HelmRelease.
-                maxLength: 63
-                minLength: 1
-                type: string
               test:
                 description: Test holds the configuration for Helm test actions for
                   this HelmRelease.

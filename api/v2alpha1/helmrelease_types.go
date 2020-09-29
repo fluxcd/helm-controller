@@ -49,20 +49,20 @@ type HelmReleaseSpec struct {
 	Suspend bool `json:"suspend,omitempty"`
 
 	// ReleaseName used for the Helm release. Defaults to a composition of
-	// '[TargetNamespace-]Name'.
+	// '[ReleaseNamespace-]Name'.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=53
 	// +kubebuilder:validation:Optional
 	// +optional
 	ReleaseName string `json:"releaseName,omitempty"`
 
-	// TargetNamespace to target when performing operations for the HelmRelease.
-	// Defaults to the namespace of the HelmRelease.
+	// ReleaseNamespace used for the Helm release. Defaults to the namespace
+	// of the HelmRelease.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Optional
 	// +optional
-	TargetNamespace string `json:"targetNamespace,omitempty"`
+	ReleaseNamespace string `json:"ReleaseNamespace,omitempty"`
 
 	// DependsOn may contain a dependency.CrossNamespaceDependencyReference slice with
 	// references to HelmRelease resources that must be ready before this HelmRelease
@@ -757,22 +757,22 @@ func (in HelmRelease) GetValues() map[string]interface{} {
 }
 
 // GetReleaseName returns the configured release name, or a composition of
-// '[TargetNamespace-]Name'.
+// '[ReleaseNamespace-]Name'.
 func (in HelmRelease) GetReleaseName() string {
 	if in.Spec.ReleaseName != "" {
 		return in.Spec.ReleaseName
 	}
-	if in.Spec.TargetNamespace != "" {
-		return strings.Join([]string{in.Spec.TargetNamespace, in.Name}, "-")
+	if in.Spec.ReleaseNamespace != "" {
+		return strings.Join([]string{in.Spec.ReleaseNamespace, in.Name}, "-")
 	}
 	return in.Name
 }
 
-// GetReleaseNamespace returns the configured TargetNamespace, or the namespace
+// GetReleaseNamespace returns the configured ReleaseNamespace, or the namespace
 // of the HelmRelease.
 func (in HelmRelease) GetReleaseNamespace() string {
-	if in.Spec.TargetNamespace != "" {
-		return in.Spec.TargetNamespace
+	if in.Spec.ReleaseNamespace != "" {
+		return in.Spec.ReleaseNamespace
 	}
 	return in.Namespace
 }

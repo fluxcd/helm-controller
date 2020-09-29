@@ -27,20 +27,20 @@ type HelmReleaseSpec struct {
 	Suspend bool `json:"suspend,omitempty"`
 
 	// ReleaseName used for the Helm release. Defaults to a composition of
-	// '[TargetNamespace-]Name'.
+	// '[ReleaseNamespace-]Name'.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=53
 	// +kubebuilder:validation:Optional
 	// +optional
 	ReleaseName string `json:"releaseName,omitempty"`
 
-	// TargetNamespace to target when performing operations for the HelmRelease.
-	// Defaults to the namespace of the HelmRelease.
+	// ReleaseNamespace used for the Helm release. Defaults to the namespace
+	// of the HelmRelease.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Optional
 	// +optional
-	TargetNamespace string `json:"targetNamespace,omitempty"`
+	ReleaseNamespace string `json:"ReleaseNamespace,omitempty"`
 
 	// DependsOn may contain a list of HelmReleases that must be ready before this
 	// HelmRelease can be reconciled.
