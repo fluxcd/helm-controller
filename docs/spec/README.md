@@ -1,11 +1,11 @@
 # Helm Controller
 
-The Helm Controller is a Kubernetes controller, allowing one to declaratively manage Helm chart
-releases with Kubernetes manifests.
+The Helm Controller is a [Kubernetes operator](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/),
+allowing one to declaratively manage Helm chart releases with Kubernetes manifests.
 
 ## Motivation
 
-The main goal is to provide an automated controller that can perform Helm actions (e.g.
+The main goal is to provide an automated operator that can perform Helm actions (e.g.
 install, upgrade, uninstall, rollback, test) and continuously reconcile the state of Helm releases.
 
 When provisioning a new cluster, one may wish to install Helm releases in a specific order, for
@@ -17,7 +17,7 @@ and this chart needs to be installed first.
 When dealing with an incident, one may wish to suspend the reconciliation of some Helm releases,
 without having to stop the reconciler and affect the whole cluster.
 
-When operating a cluster, different teams may wish to receive notification about the status of
+When operating a cluster, different teams may wish to receive notifications about the status of
 their Helm releases. For example, the on-call team would receive alerts about all failures in
 the prod namespace, while the frontend team may wish to be alerted when a new version of the
 frontend chart was released, no matter the namespace.
