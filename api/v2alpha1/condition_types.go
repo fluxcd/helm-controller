@@ -17,16 +17,17 @@ limitations under the License.
 package v2alpha1
 
 const (
-	// ReleasedCondition represents the fact that the HelmRelease has been
-	// successfully released.
+	// ReleasedCondition represents the status of the last release attempt
+	// (install/upgrade/test) against the latest desired state.
 	ReleasedCondition string = "Released"
 
-	// TestSuccessCondition represents the fact that the tests for the HelmRelease
-	// are succeeding.
+	// TestSuccessCondition represents the status of the last test attempt against
+	// the latest desired state.
 	TestSuccessCondition string = "TestSuccess"
 
-	// RemediatedCondition represents the fact that the HelmRelease has been
-	// successfully remediated.
+	// RemediatedCondition represents the status of the last remediation attempt
+	// (uninstall/rollback) due to a failure of the last release attempt against the
+	// latest desired state.
 	RemediatedCondition string = "Remediated"
 )
 
@@ -53,7 +54,7 @@ const (
 
 	// TestFailedReason represents the fact that the Helm tests for the HelmRelease
 	// failed.
-	TestFailedReason string = "TestsFailed"
+	TestFailedReason string = "TestFailed"
 
 	// RollbackSucceededReason represents the fact that the Helm rollback for the
 	// HelmRelease succeeded.

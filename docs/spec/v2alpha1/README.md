@@ -6,12 +6,17 @@ Kubernetes manifests.
 ## Specification
 
 - [`HelmRelease` CRD](helmreleases.md)
-    + [Source reference](helmreleases.md#source-reference)
+    + [Specification](helmreleases.md#specification)
+        * [Reference types](helmreleases.md#reference-types)
+        * [Status specification](helmreleases.md#status-specification)
+    + [Helm release placement](helmreleases.md#helm-release-placement)
+    + [Helm chart template](helmreleases.md#helm-chart-template)
+    + [Values overrides](helmreleases.md#values-overrides)
     + [Reconciliation](helmreleases.md#reconciliation)
-    + [`HelmRelease` dependencies](helmreleases.md#helmrelease-dependencies)
-    + [Configuring failure remediation](helmreleases.md#configuring-failure-remediation)
-    + [Enabling Helm rollback actions](helmreleases.md#enabling-helm-rollback-actions)
-    + [Enabling Helm test actions](helmreleases.md#configuring-helm-test-actions)
+        * [Disabling resource waiting](helmreleases.md#disabling-resource-waiting)
+        * [`HelmRelease` dependencies](helmreleases.md#helmrelease-dependencies)
+        * [Configuring Helm test actions](helmreleases.md#configuring-helm-test-actions)
+        * [Configuring failure remediation](helmreleases.md#configuring-failure-remediation)
     + [Status](helmreleases.md#status)
 
 ## Implementation

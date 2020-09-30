@@ -33,7 +33,7 @@ import (
 const HelmReleaseKind = "HelmRelease"
 const HelmReleaseFinalizer = "finalizers.fluxcd.io"
 
-// HelmReleaseSpec defines the desired state of a Helm Release.
+// HelmReleaseSpec defines the desired state of a Helm release.
 type HelmReleaseSpec struct {
 	// Chart defines the template of the v1alpha1.HelmChart that should be created
 	// for this HelmRelease.
@@ -500,6 +500,7 @@ const (
 	// RollbackRemediationStrategy represents a Helm remediation strategy of Helm
 	// rollback.
 	RollbackRemediationStrategy RemediationStrategy = "rollback"
+
 	// UninstallRemediationStrategy represents a Helm remediation strategy of Helm
 	// uninstall.
 	UninstallRemediationStrategy RemediationStrategy = "uninstall"
@@ -639,17 +640,17 @@ type HelmReleaseStatus struct {
 	// +optional
 	HelmChart string `json:"helmChart,omitempty"`
 
-	// Failures is the reconciliation failure count against the latest observed
+	// Failures is the reconciliation failure count against the latest desired
 	// state. It is reset after a successful reconciliation.
 	// +optional
 	Failures int64 `json:"failures,omitempty"`
 
-	// InstallFailures is the install failure count against the latest observed
+	// InstallFailures is the install failure count against the latest desired
 	// state. It is reset after a successful reconciliation.
 	// +optional
 	InstallFailures int64 `json:"installFailures,omitempty"`
 
-	// UpgradeFailures is the upgrade failure count against the latest observed
+	// UpgradeFailures is the upgrade failure count against the latest desired
 	// state. It is reset after a successful reconciliation.
 	// +optional
 	UpgradeFailures int64 `json:"upgradeFailures,omitempty"`

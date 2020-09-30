@@ -1,13 +1,13 @@
 # Helm Releases
 
-The `HelmRelease` API defines a resource for automated controller driven Helm actions.
+The `HelmRelease` API defines a resource for automated controller driven Helm releases.
 
 ## Specification
 
-A **helmrelease** object defines the source of a Helm chart by referencing an object
-managed by [source-controller](https://github.com/fluxcd/source-controller), the interval
-reconciliation should happen at, and a set of options to control the settings of the
-automated Helm actions that are being performed.
+A **helmrelease** object defines a resource for controller driven reconciliation
+of Helm releases via Helm actions such as install, upgrade, test, uninstall, and rollback.
+This includes release placement (namespace/name), release content (chart/values overrides),
+action trigger configuration, individual action configuration, and statusing.
 
 ```go
 // HelmReleaseSpec defines the desired state of a Helm Release.
@@ -385,7 +385,7 @@ type ValuesReference struct {
 }
 ```
 
-### Status
+### Status specification
 
 ```go
 // HelmReleaseStatus defines the observed state of a HelmRelease.
@@ -446,16 +446,17 @@ type HelmReleaseStatus struct {
 
 ```go
 const (
-	// ReleasedCondition represents the fact that the HelmRelease has been
-	// successfully released.
+	// ReleasedCondition represents the status of the last release attempt
+	// (install/upgrade/test) against the latest desired state.
 	ReleasedCondition string = "Released"
 
-	// TestSuccessCondition represents the fact that the tests for the HelmRelease
-	// are succeeding.
+	// TestSuccessCondition represents the status of the last test attempt against
+	// the latest desired state.
 	TestSuccessCondition string = "TestSuccess"
 
-	// RemediatedCondition represents the fact that the HelmRelease has been
-	// successfully remediated.
+	// RemediatedCondition represents the status of the last remediation attempt
+	// (uninstall/rollback) due to a failure of the last release attempt against the
+	// latest desired state.
 	RemediatedCondition string = "Remediated"
 )
 ```
@@ -486,7 +487,7 @@ const (
 
 	// TestFailedReason represents the fact that the Helm tests for the HelmRelease
 	// failed.
-	TestFailedReason string = "TestsFailed"
+	TestFailedReason string = "TestFailed"
 
 	// RollbackSucceededReason represents the fact that the Helm rollback for the
 	// HelmRelease succeeded.
@@ -518,9 +519,23 @@ const (
 )
 ```
 
-## Source reference
+## Helm release placement
 
-The `HelmRelease` `spec.chart.spec.sourceRef` is a reference to an object managed by
+The namespace/name in which to deploy the Helm release defaults to the namespace/name of the
+`HelmRelease`. These can be overridden respectively via `spec.targetNamespace` and
+`spec.releaseName`. If `spec.targetNamespace` is set, `spec.releaseName` defaults to
+`<spec.targetNamespace>-<metadata.name>`.
+
+> **Note:** that configuring the `spec.targetNamespace` only defines the namespace the release
+> is made in, the metadata for the release (also known as the "Helm storage") will always be
+> stored in the `metadata.namespace` of the `HelmRelease`.
+
+## Helm chart template
+
+The `spec.chart.spec` values are used by the helm-controller as a template
+to create a new `HelmChart` resource with the given spec.
+
+The `spec.chart.spec.sourceRef` is a reference to an object managed by
 [source-controller](https://github.com/fluxcd/source-controller). When the source
 [revision](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/common.md#source-status) 
 changes, it generates a Kubernetes event that triggers a new release.
@@ -531,30 +546,105 @@ Supported source types:
 * [GitRepository](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/gitrepositories.md)
 * [Bucket](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/buckets.md)
 
+The `HelmChart` is created in the same namespace as the `sourceRef`,
+with a name matching the `HelmRelease` `<metadata.namespace>-<metadata.name>`.
+
+The `chart.spec.chart` can either contain:
+
+* The name of the chart as made available by the `HelmRepository`
+  (without any aliases), for example: `podinfo`
+* The relative path the chart can be found at in the `GitRepository`,
+  for example: `./charts/podinfo`
+
+The `chart.spec.version` can be a fixed semver, or any semver range
+(i.e. `>=4.0.0 <5.0.0`). It is ignored for `HelmRelease` resources
+that reference a `GitRepository` or `Bucket` source.
+
+## Values overrides
+
+The simplest way to define values overrides is inline via `spec.values`.
+It is also possible to define a list of `ConfigMap` and `Secret` resources
+from which to take values via `spec.valuesFrom`. The values are merged in the order given,
+with the later values overwriting earlier, and then `spec.values` overwriting those:
+
+```yaml
+spec:
+  values:
+    replicaCount: 2
+  valuesFrom:
+  - kind: ConfigMap
+    name: prod-env-values
+    valuesKey: values-prod.yaml
+  - kind: Secret
+    name: prod-tls-values
+    valuesKey: crt
+    targetPath: tls.crt
+    optional: true
+```
+
+The definition of the listed keys for items in `spec.valuesFrom` is as follows:
+
+- `kind`: Kind of the values referent (`ConfigMap` or `Secret`).
+- `name`: Name of the values referent, in the same namespace as the
+  `HelmRelease`.
+- `valuesKey` _(Optional)_: The data key where the values.yaml or a
+   specific value can be found. Defaults to `values.yaml` when omitted.
+- `targetPath` _(Optional)_: The YAML dot notation path at which the
+   value should be merged. When set, the `valuesKey` is expected to be
+   a single flat value. Defaults to `None` when omitted, which results
+   in the values getting merged at the root.
+- `optional` _(Optional)_: Whether this values reference is optional. When `true`,
+   a not found error for the values reference is ignored, but any valuesKey, targetPath or
+   transient error will still result in a reconciliation failure. Defaults to `false`
+   when omitted.
+
+> **Note:** that the `targetPath` supports the same formatting as you would supply as an
+> argument to the `helm` binary using `--set [path]=[value]`. In addition to this, the
+> referred value can contain the same value formats (e.g. `{a,b,c}` for a list). You can
+> read more about the available formats and limitations in the
+> [Helm documentation](https://helm.sh/docs/intro/using_helm/#the-format-and-limitations-of---set).
+
 ## Reconciliation
 
-The `HelmRelease` `spec.interval` tells the reconciler at which interval to reconcile the release. The
-interval time units are `s`, `m` and `h` e.g. `interval: 5m`, the minimum value should be over 60 seconds.
+If no Helm release with the matching namespace/name is found it will be installed. It will
+be upgraded any time the desired state is updated, which consists of:
 
-The reconcilation can be suspended by setting `spec.susped` to `true`.
+* `spec` (and thus `metadata.generation`)
+* Latest `HelmChart` revision available
+* [`ConfigMap` and `Secret` values overrides](#values-overrides). Changes to these do not trigger an
+  immediate reconciliation, but will be handled upon the next reconciliation. This is to avoid
+  a large number of upgrades occurring when multiple resources are updated.
+
+If the latest Helm release revision was not made by the helm-controller, it may not match the
+desired state, so an upgrade is made in this case as well.
+
+The `spec.interval` tells the reconciler at which interval to reconcile the release. The
+interval time units are `s`, `m` and `h` e.g. `interval: 5m`, the minimum value should be 60 seconds.
 
 The reconciler can be told to reconcile the `HelmRelease` outside of the specified interval
-by annotating the object:
+by annotating the object with a `fluxcd.io/reconcileAt` annotation. For example:
 
 ```bash
 kubectl annotate --overwrite helmrelease/podinfo fluxcd.io/reconcileAt="$(date +%s)"
 ```
 
-## `HelmRelease` dependencies
+Reconciliation can be suspended by setting `spec.susped` to `true`.
 
-When applying a `HelmRelease`, you may need to make sure other releases exist before the release is
-reconciled. For example, because your chart relies on the presence of a Custom Resource Definition
-installed by another `HelmRelease`.
+The timeout for any individual Kubernetes operation (like Jobs for hooks) during the performance
+of Helm actions can be configured via `spec.timeout` and can be overridden per action
+via `spec.<action>.timeout`.
 
-With `spec.dependsOn` you can specify that the execution of a `HelmRelease` follows another. When
-you add `dependsOn` entries to a `HelmRelease`, that `HelmRelease` is reconciled only after all of
-its dependencies are ready. The readiness state of a `HelmRelease` is determined by its last apply
-status condition.
+### Disabling resource waiting
+
+For install, upgrade, and rollback actions resource waiting is enabled by default,
+but can be disabled by setting `spec.<action>.disableWait`.
+
+### `HelmRelease` dependencies
+
+When applying a `HelmRelease`, you may need to make sure other releases are [Ready](#status)
+before the release is reconciled. For example, because your chart relies on the presence of
+a Custom Resource Definition installed by another `HelmRelease`. The `spec.dependsOn` field
+allows you to specify each of these dependencies.
 
 Assuming two `HelmRelease` resources:
 
@@ -618,13 +708,23 @@ spec:
         memory: 64Mi
 ```
 
-> **Note** that circular dependencies between `HelmRelease` resources must be avoided, otherwise
-> the interdependent `HelmRelease` resources will never be reconciled.
+> **Note** that this does not account for upgrade ordering. Kubernetes only allows
+> applying one resource (`HelmRelease` in this case) at a time, so there is no way for the
+> controller to know when a dependency `HelmRelease` may be updated. Also, circular
+> dependencies between `HelmRelease` resources must be avoided, otherwise the
+> interdependent `HelmRelease` resources will never be reconciled.
 
-## Enabling Helm rollback actions
+### Configuring Helm test actions
 
-From time to time a Helm upgrade made by the helm-controller may fail, automatically recovering
-from this via a Helm rollback action is possible by enabling rollbacks for the `HelmRelease`.
+To make the controller run the Helm tests available for your chart after a successful Helm install
+or upgrade, `spec.test.enable` should be set to `true`.
+
+By default, when tests are enabled, failures in tests are considered release failures, and thus
+are subject to the triggering Helm action's `remediation` configuration. However, test failures
+can be ignored by setting `spec.test.ignoreFailures` to `true`. In this case, no remediation will
+be taken, and the test failure will not affect the `Released` and `Ready` status conditions. This
+can be overridden per Helm action by setting `spec.install.remediation.ignoreTestFailures`
+or `spec.upgrade.remediation.ignoreTestFailures`.
 
 ```yaml
 apiVersion: helm.toolkit.fluxcd.io/v2alpha1
@@ -641,90 +741,6 @@ spec:
         kind: HelmRepository
         name: podinfo
       interval: 1m
-  upgrade:
-    remediation:
-      remediateLastFailure: true
-  values:
-    resources:
-      requests:
-        cpu: 100m
-        memory: 64Mi
-```
-
-## Configuring failure remediation
-
-By default, when a Helm action (install/upgrade/test) fails, no remediation is taken
-(uninstall/rollback/retries). However, remediation can be opted in to in several ways
-using `spec.install.remediation` and `spec.upgrade.remediation`.
-
-Each of these support `retries`, to configure the number of additional attempts after an initial
-failure. A negative integer results in infinite retries. This implicitly opts-in to a remediation
-action between each attempt. The remediation action for install failures is an uninstall. The
-remediation action for upgrade failures is by default a rollback, however
-`spec.upgrade.remediation.strategy` can be set to `uninstall`, in which case after the uninstall,
-the `spec.install` configuration takes over.
-
-One can also opt-in to remediation of the last failure (when no retries remain) by:
-
-1. For installs, setting `spec.install.remediation.remediateLastFailure` to `true`.
-2. For upgrades, setting `spec.upgrade.remediation.remediateLastFailure` to `true`, or configuring
-   at least one retry.
-
-   ```yaml
-   apiVersion: helm.fluxcd.io/v2alpha1
-   kind: HelmRelease
-   metadata:
-     name: podinfo
-   spec:
-     interval: 5m
-     chart:
-       spec:
-         chart: podinfo
-         version: '>=4.0.0 <5.0.0'
-         sourceRef:
-           kind: HelmRepository
-           name: podinfo
-         interval: 1m
-     install:
-       remediation:
-         retries: 3
-     upgrade:
-       remediation:
-         remediateLastFailure: false
-     values:
-       resources:
-         requests:
-           cpu: 100m
-           memory: 64Mi
-   ```
-
-## Configuring Helm test actions
-
-To make the controller run the Helm tests available for your chart after a successful Helm install
-or upgrade, `spec.test.enable` should be set to `true`.
-
-By default, when tests are enabled, failures in tests are considered release failures, and thus
-are subject to the triggering Helm action's `remediation` configuration. However, test failures
-can be ignored by setting `spec.test.ignoreFailures` to `true`. In this case, no remediation will
-be taken, and the test failure will not affect the `Ready` status condition. This can be further
-configured per Helm action by setting `spec.install.remediation.ignoreTestFailures` or
-`spec.upgrade.remediation.ignoreTestFailures`, which default to `spec.test.ignoreFailures`.
-
-```yaml
-apiVersion: helm.toolkit.fluxcd.io/v2alpha1
-kind: HelmRelease
-metadata:
-  name: podinfo
-spec:
-  interval: 5m
-  chart:
-    spec:
-      chart: podinfo
-    version: '>=4.0.0 <5.0.0'
-    sourceRef:
-      kind: HelmRepository
-      name: podinfo
-    interval: 1m
   test:
     enable: true
     ignoreFailures: true
@@ -735,27 +751,77 @@ spec:
         memory: 64Mi
 ```
 
+### Configuring failure remediation
+
+From time to time a Helm install/upgrade and accompanying [Helm test](#configuring-helm-test-actions)
+may fail. When this occurs, by default no action is taken, and the release is left in a failed state.
+However, several automatic failure remediation options can be set via
+`spec.install.remediation` and `spec.upgrade.remediation`.
+
+The `retries` can be set to configure the number of retries after an initial
+failure. A negative integer results in infinite retries. This implicitly opts-in to a remediation
+action between each attempt. The remediation action for install failures is an uninstall. The
+remediation action for upgrade failures is by default a rollback, however
+`spec.upgrade.remediation.strategy` can be set to `uninstall`, in which case after the uninstall,
+the `spec.install` configuration takes over.
+
+One can also opt-in to remediation of the last failure (when no retries remain) by setting
+`spec.<action>.remediation.remediateLastFailure` to `true`. For upgrades, this defaults
+to true if at least one retry is configured.
+
+```yaml
+apiVersion: helm.fluxcd.io/v2alpha1
+kind: HelmRelease
+metadata:
+ name: podinfo
+spec:
+ interval: 5m
+ chart:
+   spec:
+     chart: podinfo
+     version: '>=4.0.0 <5.0.0'
+     sourceRef:
+       kind: HelmRepository
+       name: podinfo
+     interval: 1m
+ install:
+   remediation:
+     retries: 3
+ upgrade:
+   remediation:
+     remediateLastFailure: false
+ values:
+   resources:
+     requests:
+       cpu: 100m
+       memory: 64Mi
+```
+
 ## Status
 
 When the controller completes a reconciliation, it reports the result in the status sub-resource.
 
-The following `status.conditions` are supported:
+The following `status.condtions` types are advertised. Here, "desired state" is as detailed in
+[reconciliation](#reconciliation):
 
 * `Ready` - status of the last reconciliation attempt
-* `Released` - status of the last release attempt (install/upgrade/test) against the current state
-* `TestSuccess` - status of the last test attempt against the current state
+* `Released` - status of the last release attempt (install/upgrade/test) against the latest desired state
+* `TestSuccess` - status of the last test attempt against the latest desired state
 * `Remediated` - status of the last remediation attempt (uninstall/rollback) due to a failure of the
-  last release attempt against the current state
+   last release attempt against the latest desired state
 
-You can wait for the helm-controller to complete a reconciliation with:
+For example, you can wait for a successful helm-controller reconciliation with:
 
 ```sh
 kubectl wait helmrelease/podinfo --for=condition=ready
 ```
 
+Each of these conditions also include descriptive `reason` / `message` fields
+as to why the status is as such.
+
 ### Examples
 
-Install Success:
+#### Install success
 
 ```yaml
 status:
@@ -782,7 +848,7 @@ status:
   observedGeneration: 2
 ```
 
-Upgrade Failure:
+#### Upgrade failure
 
 ```yaml
 status:
@@ -809,7 +875,7 @@ status:
   observedGeneration: 3
 ```
 
-Ignored Test Failure:
+#### Ignored test failure
 
 ```yaml
 status:
@@ -821,7 +887,7 @@ status:
     type: Released
   - lastTransitionTime: "2020-07-13T13:13:40Z"
     message: Helm test failed
-    reason: TestsFailed
+    reason: TestFailed
     status: "False"
     type: TestSuccess
   - lastTransitionTime: "2020-07-13T13:13:42Z"
