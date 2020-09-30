@@ -295,98 +295,14 @@ HelmReleaseStatus
 </table>
 </div>
 </div>
-<h3 id="helm.toolkit.fluxcd.io/v2alpha1.Condition">Condition
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseStatus">HelmReleaseStatus</a>)
-</p>
-<p>Condition contains condition information for a HelmRelease.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>type</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Type of the condition, one of (&lsquo;Ready&rsquo;, &lsquo;Install&rsquo;, &lsquo;Upgrade&rsquo;, &lsquo;Test&rsquo;, &lsquo;Rollback&rsquo;, &lsquo;Uninstall&rsquo;).</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>status</code><br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#conditionstatus-v1-core">
-Kubernetes core/v1.ConditionStatus
-</a>
-</em>
-</td>
-<td>
-<p>Status of the condition, one of (&lsquo;True&rsquo;, &lsquo;False&rsquo;, &lsquo;Unknown&rsquo;).</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>lastTransitionTime</code><br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
-</em>
-</td>
-<td>
-<p>LastTransitionTime is the timestamp corresponding to the last status
-change of this condition.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>reason</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Reason is a brief machine readable explanation for the condition&rsquo;s last
-transition.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>message</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Message is a human readable description of the details of the last
-transition, complementing reason.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
 <h3 id="helm.toolkit.fluxcd.io/v2alpha1.CrossNamespaceObjectReference">CrossNamespaceObjectReference
 </h3>
 <p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmChartTemplateSpec">HelmChartTemplateSpec</a>)
 </p>
-<p>CrossNamespaceObjectReference contains enough information to let you locate the
-typed referenced object at cluster level.</p>
+<p>CrossNamespaceObjectReference contains enough information to let you locate
+the typed referenced object at cluster level.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -456,8 +372,9 @@ string
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
-<p>HelmChartTemplate defines the template from which the controller will generate a
-v1alpha1.HelmChart object in the same namespace as the referenced v1alpha1.Source.</p>
+<p>HelmChartTemplate defines the template from which the controller will
+generate a v1alpha1.HelmChart object in the same namespace as the referenced
+v1alpha1.Source.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -502,8 +419,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Version semver expression, ignored for charts from GitRepository and
-Bucket sources. Defaults to latest when omitted.</p>
+<p>Version semver expression, ignored for charts from v1alpha1.GitRepository and
+v1alpha1.Bucket sources. Defaults to latest when omitted.</p>
 </td>
 </tr>
 <tr>
@@ -530,8 +447,8 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>Interval at which to check the v1alpha1.Source for updates.
-Defaults to &lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
+<p>Interval at which to check the v1alpha1.Source for updates. Defaults to
+&lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -543,8 +460,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Alternative values file to use as the default chart values, expected to be
-a relative path in the SourceRef. Ignored when omitted.</p>
+<p>Alternative values file to use as the default chart values, expected to be a
+relative path in the SourceRef. Ignored when omitted.</p>
 </td>
 </tr>
 </table>
@@ -560,8 +477,8 @@ a relative path in the SourceRef. Ignored when omitted.</p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmChartTemplate">HelmChartTemplate</a>)
 </p>
-<p>HelmChartTemplateSpec defines the template from which the controller will generate
-a v1alpha1.HelmChartSpec object.</p>
+<p>HelmChartTemplateSpec defines the template from which the controller will
+generate a v1alpha1.HelmChartSpec object.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -592,8 +509,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Version semver expression, ignored for charts from GitRepository and
-Bucket sources. Defaults to latest when omitted.</p>
+<p>Version semver expression, ignored for charts from v1alpha1.GitRepository and
+v1alpha1.Bucket sources. Defaults to latest when omitted.</p>
 </td>
 </tr>
 <tr>
@@ -620,8 +537,8 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>Interval at which to check the v1alpha1.Source for updates.
-Defaults to &lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
+<p>Interval at which to check the v1alpha1.Source for updates. Defaults to
+&lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -633,8 +550,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Alternative values file to use as the default chart values, expected to be
-a relative path in the SourceRef. Ignored when omitted.</p>
+<p>Alternative values file to use as the default chart values, expected to be a
+relative path in the SourceRef. Ignored when omitted.</p>
 </td>
 </tr>
 </tbody>
@@ -647,7 +564,7 @@ a relative path in the SourceRef. Ignored when omitted.</p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmRelease">HelmRelease</a>)
 </p>
-<p>HelmReleaseSpec defines the desired state of HelmRelease.</p>
+<p>HelmReleaseSpec defines the desired state of a Helm Release.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -876,7 +793,7 @@ Kubernetes pkg/apis/apiextensions/v1.JSON
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmRelease">HelmRelease</a>)
 </p>
-<p>HelmReleaseStatus defines the observed state of HelmRelease</p>
+<p>HelmReleaseStatus defines the observed state of a HelmRelease.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -916,8 +833,8 @@ annotating the HelmRelease) handled by the reconciler.</p>
 <td>
 <code>conditions</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2alpha1.Condition">
-[]Condition
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#Condition">
+[]github.com/fluxcd/pkg/apis/meta.Condition
 </a>
 </em>
 </td>
@@ -959,7 +876,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastAttemptedValuesChecksum is the SHA1 checksum of the values of the last reconciliation attempt.</p>
+<p>LastAttemptedValuesChecksum is the SHA1 checksum of the values of the last
+reconciliation attempt.</p>
 </td>
 </tr>
 <tr>
@@ -996,8 +914,8 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>Failures is the reconciliation failure count against the latest observed state.
-It is reset after a successful reconciliation.</p>
+<p>Failures is the reconciliation failure count against the latest observed
+state. It is reset after a successful reconciliation.</p>
 </td>
 </tr>
 <tr>
@@ -1009,8 +927,8 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>InstallFailures is the install failure count against the latest observed state.
-It is reset after a successful reconciliation.</p>
+<p>InstallFailures is the install failure count against the latest observed
+state. It is reset after a successful reconciliation.</p>
 </td>
 </tr>
 <tr>
@@ -1022,8 +940,8 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>UpgradeFailures is the upgrade failure count against the latest observed state.
-It is reset after a successful reconciliation.</p>
+<p>UpgradeFailures is the upgrade failure count against the latest observed
+state. It is reset after a successful reconciliation.</p>
 </td>
 </tr>
 </tbody>
@@ -1036,7 +954,8 @@ It is reset after a successful reconciliation.</p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
-<p>Install holds the configuration for Helm install actions performed for this HelmRelease.</p>
+<p>Install holds the configuration for Helm install actions performed for this
+HelmRelease.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1058,8 +977,8 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-for hooks) during the performance of a Helm install action. Defaults to
+<p>Timeout is the time to wait for any individual Kubernetes operation (like
+Jobs for hooks) during the performance of a Helm install action. Defaults to
 &lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
 </td>
 </tr>
@@ -1074,9 +993,8 @@ InstallRemediation
 </td>
 <td>
 <em>(Optional)</em>
-<p>Remediation holds the remediation configuration for when the
-Helm install action for the HelmRelease fails. The default
-is to not perform any action.</p>
+<p>Remediation holds the remediation configuration for when the Helm install
+action for the HelmRelease fails. The default is to not perform any action.</p>
 </td>
 </tr>
 <tr>
@@ -1088,8 +1006,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>DisableWait disables the waiting for resources to be ready after a
-Helm install has been performed.</p>
+<p>DisableWait disables the waiting for resources to be ready after a Helm
+install has been performed.</p>
 </td>
 </tr>
 <tr>
@@ -1113,8 +1031,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>DisableOpenAPIValidation prevents the Helm install action from
-validating rendered templates against the Kubernetes OpenAPI Schema.</p>
+<p>DisableOpenAPIValidation prevents the Helm install action from validating
+rendered templates against the Kubernetes OpenAPI Schema.</p>
 </td>
 </tr>
 <tr>
@@ -1126,8 +1044,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Replace tells the Helm install action to re-use the &lsquo;ReleaseName&rsquo;, but
-only if that name is a deleted release which remains in the history.</p>
+<p>Replace tells the Helm install action to re-use the &lsquo;ReleaseName&rsquo;, but only
+if that name is a deleted release which remains in the history.</p>
 </td>
 </tr>
 <tr>
@@ -1187,9 +1105,9 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>IgnoreTestFailures tells the controller to skip remediation when
-the Helm tests are run after an install action but fail.
-Defaults to &lsquo;Test.IgnoreFailures&rsquo;.</p>
+<p>IgnoreTestFailures tells the controller to skip remediation when the Helm
+tests are run after an install action but fail. Defaults to
+&lsquo;Test.IgnoreFailures&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -1201,8 +1119,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>RemediateLastFailure tells the controller to remediate the last
-failure, when no retries remain. Defaults to &lsquo;false&rsquo;.</p>
+<p>RemediateLastFailure tells the controller to remediate the last failure, when
+no retries remain. Defaults to &lsquo;false&rsquo;.</p>
 </td>
 </tr>
 </tbody>
@@ -1211,21 +1129,24 @@ failure, when no retries remain. Defaults to &lsquo;false&rsquo;.</p>
 </div>
 <h3 id="helm.toolkit.fluxcd.io/v2alpha1.Remediation">Remediation
 </h3>
-<p>Remediation defines a consistent interface for InstallRemediation and UpgradeRemediation.</p>
+<p>Remediation defines a consistent interface for InstallRemediation and
+UpgradeRemediation.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2alpha1.RemediationStrategy">RemediationStrategy
 (<code>string</code> alias)</h3>
 <p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.UpgradeRemediation">UpgradeRemediation</a>)
 </p>
-<p>RemediationStrategy returns the strategy to use to remediate a failed install or upgrade.</p>
+<p>RemediationStrategy returns the strategy to use to remediate a failed install
+or upgrade.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2alpha1.Rollback">Rollback
 </h3>
 <p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
-<p>Rollback holds the configuration for Helm rollback actions for this HelmRelease.</p>
+<p>Rollback holds the configuration for Helm rollback actions for this
+HelmRelease.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1247,8 +1168,8 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-for hooks) during the performance of a Helm rollback action. Defaults to
+<p>Timeout is the time to wait for any individual Kubernetes operation (like
+Jobs for hooks) during the performance of a Helm rollback action. Defaults to
 &lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
 </td>
 </tr>
@@ -1261,8 +1182,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>DisableWait disables the waiting for resources to be ready after a
-Helm rollback has been performed.</p>
+<p>DisableWait disables the waiting for resources to be ready after a Helm
+rollback has been performed.</p>
 </td>
 </tr>
 <tr>
@@ -1344,8 +1265,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Enable enables Helm test actions for this HelmRelease after an
-Helm install or upgrade action has been performed.</p>
+<p>Enable enables Helm test actions for this HelmRelease after an Helm install
+or upgrade action has been performed.</p>
 </td>
 </tr>
 <tr>
@@ -1359,9 +1280,8 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>Timeout is the time to wait for any individual Kubernetes operation
-during the performance of a Helm test action. Defaults to
-&lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
+<p>Timeout is the time to wait for any individual Kubernetes operation during
+the performance of a Helm test action. Defaults to &lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -1373,10 +1293,9 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>IgnoreFailures tells the controller to skip remediation when
-the Helm tests are run but fail.
-Can be overwritten for tests run after install or upgrade actions
-in &lsquo;Install.IgnoreTestFailures&rsquo; and &lsquo;Upgrade.IgnoreTestFailures&rsquo;.</p>
+<p>IgnoreFailures tells the controller to skip remediation when the Helm tests
+are run but fail. Can be overwritten for tests run after install or upgrade
+actions in &lsquo;Install.IgnoreTestFailures&rsquo; and &lsquo;Upgrade.IgnoreTestFailures&rsquo;.</p>
 </td>
 </tr>
 </tbody>
@@ -1389,7 +1308,8 @@ in &lsquo;Install.IgnoreTestFailures&rsquo; and &lsquo;Upgrade.IgnoreTestFailure
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
-<p>Uninstall holds the configuration for Helm uninstall actions for this HelmRelease.</p>
+<p>Uninstall holds the configuration for Helm uninstall actions for this
+HelmRelease.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1411,9 +1331,9 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-for hooks) during the performance of a Helm uninstall action. Defaults to
-&lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
+<p>Timeout is the time to wait for any individual Kubernetes operation (like
+Jobs for hooks) during the performance of a Helm uninstall action. Defaults
+to &lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -1437,8 +1357,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>KeepHistory tells Helm to remove all associated resources and mark the release as
-deleted, but retain the release history.</p>
+<p>KeepHistory tells Helm to remove all associated resources and mark the
+release as deleted, but retain the release history.</p>
 </td>
 </tr>
 </tbody>
@@ -1451,7 +1371,8 @@ deleted, but retain the release history.</p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2alpha1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
-<p>Upgrade holds the configuration for Helm upgrade actions for this HelmRelease.</p>
+<p>Upgrade holds the configuration for Helm upgrade actions for this
+HelmRelease.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1473,8 +1394,8 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-for hooks) during the performance of a Helm upgrade action. Defaults to
+<p>Timeout is the time to wait for any individual Kubernetes operation (like
+Jobs for hooks) during the performance of a Helm upgrade action. Defaults to
 &lsquo;HelmReleaseSpec.Timeout&rsquo;.</p>
 </td>
 </tr>
@@ -1489,9 +1410,8 @@ UpgradeRemediation
 </td>
 <td>
 <em>(Optional)</em>
-<p>Remediation holds the remediation configuration for when the
-Helm upgrade action for the HelmRelease fails. The default
-is to not perform any action.</p>
+<p>Remediation holds the remediation configuration for when the Helm upgrade
+action for the HelmRelease fails. The default is to not perform any action.</p>
 </td>
 </tr>
 <tr>
@@ -1503,8 +1423,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>DisableWait disables the waiting for resources to be ready after a
-Helm upgrade has been performed.</p>
+<p>DisableWait disables the waiting for resources to be ready after a Helm
+upgrade has been performed.</p>
 </td>
 </tr>
 <tr>
@@ -1528,8 +1448,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>DisableOpenAPIValidation prevents the Helm upgrade action from
-validating rendered templates against the Kubernetes OpenAPI Schema.</p>
+<p>DisableOpenAPIValidation prevents the Helm upgrade action from validating
+rendered templates against the Kubernetes OpenAPI Schema.</p>
 </td>
 </tr>
 <tr>
@@ -1553,8 +1473,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>PreserveValues will make Helm reuse the last release&rsquo;s values and merge
-in overrides from &lsquo;Values&rsquo;. Setting this flag makes the HelmRelease
+<p>PreserveValues will make Helm reuse the last release&rsquo;s values and merge in
+overrides from &lsquo;Values&rsquo;. Setting this flag makes the HelmRelease
 non-declarative.</p>
 </td>
 </tr>
@@ -1615,8 +1535,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>IgnoreTestFailures tells the controller to skip remediation when
-the Helm tests are run after an upgrade action but fail.
+<p>IgnoreTestFailures tells the controller to skip remediation when the Helm
+tests are run after an upgrade action but fail.
 Defaults to &lsquo;Test.IgnoreFailures&rsquo;.</p>
 </td>
 </tr>
@@ -1629,9 +1549,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>RemediateLastFailure tells the controller to remediate the last
-failure, when no retries remain. Defaults to &lsquo;false&rsquo; unless &lsquo;Retries&rsquo;
-is greater than 0.</p>
+<p>RemediateLastFailure tells the controller to remediate the last failure, when
+no retries remain. Defaults to &lsquo;false&rsquo; unless &lsquo;Retries&rsquo; is greater than 0.</p>
 </td>
 </tr>
 <tr>
@@ -1645,8 +1564,7 @@ RemediationStrategy
 </td>
 <td>
 <em>(Optional)</em>
-<p>Strategy to use for failure remediation.
-Defaults to &lsquo;rollback&rsquo;.</p>
+<p>Strategy to use for failure remediation. Defaults to &lsquo;rollback&rsquo;.</p>
 </td>
 </tr>
 </tbody>
@@ -1703,8 +1621,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>ValuesKey is the data key where the values.yaml or a specific value can
-be found at. Defaults to &lsquo;values.yaml&rsquo;.</p>
+<p>ValuesKey is the data key where the values.yaml or a specific value can be
+found at. Defaults to &lsquo;values.yaml&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -1716,9 +1634,9 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>TargetPath is the YAML dot notation path the value should be merged at.
-When set, the ValuesKey is expected to be a single flat value.
-Defaults to &lsquo;None&rsquo;, which results in the values getting merged at the root.</p>
+<p>TargetPath is the YAML dot notation path the value should be merged at. When
+set, the ValuesKey is expected to be a single flat value. Defaults to &lsquo;None&rsquo;,
+which results in the values getting merged at the root.</p>
 </td>
 </tr>
 <tr>
@@ -1730,8 +1648,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Optional marks this ValuesReference as optional. When set, a not found
-error for the values reference is ignored, but any ValuesKey, TargetPath or
+<p>Optional marks this ValuesReference as optional. When set, a not found error
+for the values reference is ignored, but any ValuesKey, TargetPath or
 transient error will still result in a reconciliation failure.</p>
 </td>
 </tr>

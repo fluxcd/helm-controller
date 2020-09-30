@@ -30,7 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	consts "github.com/fluxcd/pkg/runtime"
+	"github.com/fluxcd/pkg/apis/meta"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1alpha1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2alpha1"
@@ -115,7 +115,7 @@ func (r *HelmChartWatcher) requestReconciliation(ctx context.Context, hr v2.Helm
 		if hr.Annotations == nil {
 			hr.Annotations = make(map[string]string)
 		}
-		hr.Annotations[consts.ReconcileAtAnnotation] = metav1.Now().String()
+		hr.Annotations[meta.ReconcileAtAnnotation] = metav1.Now().String()
 		err = r.Update(ctx, &hr)
 		return
 	})

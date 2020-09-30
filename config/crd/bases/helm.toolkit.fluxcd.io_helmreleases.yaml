@@ -46,7 +46,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: HelmReleaseSpec defines the desired state of HelmRelease.
+            description: HelmReleaseSpec defines the desired state of a Helm Release.
             properties:
               chart:
                 description: Chart defines the template of the v1alpha1.HelmChart
@@ -98,8 +98,8 @@ spec:
                         type: string
                       version:
                         description: Version semver expression, ignored for charts
-                          from GitRepository and Bucket sources. Defaults to latest
-                          when omitted.
+                          from v1alpha1.GitRepository and v1alpha1.Bucket sources.
+                          Defaults to latest when omitted.
                         type: string
                     required:
                     - chart
@@ -394,12 +394,13 @@ spec:
             - interval
             type: object
           status:
-            description: HelmReleaseStatus defines the observed state of HelmRelease
+            description: HelmReleaseStatus defines the observed state of a HelmRelease.
             properties:
               conditions:
                 description: Conditions holds the conditions for the HelmRelease.
                 items:
-                  description: Condition contains condition information for a HelmRelease.
+                  description: Condition contains condition information of a toolkit
+                    resource.
                   properties:
                     lastTransitionTime:
                       description: LastTransitionTime is the timestamp corresponding
@@ -419,8 +420,7 @@ spec:
                         'Unknown').
                       type: string
                     type:
-                      description: Type of the condition, one of ('Ready', 'Install',
-                        'Upgrade', 'Test', 'Rollback', 'Uninstall').
+                      description: Type of the condition.
                       type: string
                   required:
                   - status
