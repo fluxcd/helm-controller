@@ -44,7 +44,7 @@ operator.
 
 ## Specifications
 
-* [API](docs/spec/v2alpha1/README.md)
+* [API](docs/spec/v2beta1/README.md)
 * [Controller](docs/spec/README.md)
 
 [source-controller]: https://github.com/fluxcd/source-controller

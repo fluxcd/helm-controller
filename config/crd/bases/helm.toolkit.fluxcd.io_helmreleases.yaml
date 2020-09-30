@@ -28,7 +28,7 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
-    name: v2alpha1
+    name: v2beta1
     schema:
       openAPIV3Schema:
         description: HelmRelease is the Schema for the helmreleases API
@@ -49,11 +49,11 @@ spec:
             description: HelmReleaseSpec defines the desired state of a Helm release.
             properties:
               chart:
-                description: Chart defines the template of the v1alpha1.HelmChart
-                  that should be created for this HelmRelease.
+                description: Chart defines the template of the v1beta1.HelmChart that
+                  should be created for this HelmRelease.
                 properties:
                   spec:
-                    description: Spec holds the template for the v1alpha1.HelmChartSpec
+                    description: Spec holds the template for the v1beta1.HelmChartSpec
                       for this HelmRelease.
                     properties:
                       chart:
@@ -61,11 +61,11 @@ spec:
                           at in the SourceRef.
                         type: string
                       interval:
-                        description: Interval at which to check the v1alpha1.Source
+                        description: Interval at which to check the v1beta1.Source
                           for updates. Defaults to 'HelmReleaseSpec.Interval'.
                         type: string
                       sourceRef:
-                        description: The name and namespace of the v1alpha1.Source
+                        description: The name and namespace of the v1beta1.Source
                           the chart is available at.
                         properties:
                           apiVersion:
@@ -98,8 +98,8 @@ spec:
                         type: string
                       version:
                         description: Version semver expression, ignored for charts
-                          from v1alpha1.GitRepository and v1alpha1.Bucket sources.
-                          Defaults to latest when omitted.
+                          from v1beta1.GitRepository and v1beta1.Bucket sources. Defaults
+                          to latest when omitted.
                         type: string
                     required:
                     - chart
