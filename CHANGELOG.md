@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.1.0 (2020-09-30)
+
+This is the first MINOR prerelease, it promotes the
+`helm.toolkit.fluxcd.io` API to `v2beta1` and removes support for
+`v2alpha1`.
+
+Going forward, changes to the API will be accompanied by a conversion
+mechanism. With this release the API becomes more stable, but while in
+beta phase there are no guarantees about backwards compatibility
+between beta releases.
+
+A breaking change was introduced to the `Status` object, as the
+`LastObservedTime` field has been removed in favour of the newly
+introduced `LastHandledReconcileAt`. This field records the value
+of the `fluxcd.io/reconcilateAt` annotation, which makes it possible
+for e.g. the `gotk` CLI to observe if the controller has handled
+the resource since the manual reconciliation request was made.
+
 ## 0.0.10 (2020-09-23)
 
 This prerelease adds support for Helm charts from `Bucket` sources,
