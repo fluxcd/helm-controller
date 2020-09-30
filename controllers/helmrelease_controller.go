@@ -47,9 +47,9 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/recorder"
 	"github.com/fluxcd/pkg/runtime/predicates"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1alpha1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2alpha1"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	"github.com/fluxcd/helm-controller/internal/runner"
 	"github.com/fluxcd/helm-controller/internal/util"
 )
@@ -438,7 +438,7 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 	return nil
 }
 
-// composeValues attempts to resolve all v2alpha1.ValuesReference resources
+// composeValues attempts to resolve all v2beta1.ValuesReference resources
 // and merges them as defined. Referenced resources are only retrieved once
 // to ensure a single version is taken into account during the merge.
 func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRelease) (chartutil.Values, error) {
@@ -567,7 +567,7 @@ func (r *HelmReleaseReconciler) loadHelmChart(source *sourcev1.HelmChart) (*char
 	return loader.Load(f.Name())
 }
 
-// garbageCollect deletes the v1alpha1.HelmChart of the v2alpha1.HelmRelease,
+// garbageCollect deletes the v1beta1.HelmChart of the v2beta1.HelmRelease,
 // and uninstalls the Helm release if the resource has not been suspended.
 func (r *HelmReleaseReconciler) garbageCollect(ctx context.Context, logger logr.Logger, hr v2.HelmRelease) error {
 	if err := r.garbageCollectHelmChart(ctx, hr); err != nil {
@@ -580,8 +580,8 @@ func (r *HelmReleaseReconciler) garbageCollect(ctx context.Context, logger logr.
 	return r.garbageCollectHelmRelease(logger, hr)
 }
 
-// garbageCollectHelmChart deletes the v1alpha1.HelmChart of the
-// v2alpha1.HelmRelease.
+// garbageCollectHelmChart deletes the v1beta1.HelmChart of the
+// v2beta1.HelmRelease.
 func (r *HelmReleaseReconciler) garbageCollectHelmChart(ctx context.Context, hr v2.HelmRelease) error {
 	if hr.Status.HelmChart == "" {
 		return nil
@@ -604,7 +604,7 @@ func (r *HelmReleaseReconciler) garbageCollectHelmChart(ctx context.Context, hr 
 }
 
 // garbageCollectHelmRelease uninstalls the deployed Helm release of
-// the given v2alpha1.HelmRelease.
+// the given v2beta1.HelmRelease.
 func (r *HelmReleaseReconciler) garbageCollectHelmRelease(logger logr.Logger, hr v2.HelmRelease) error {
 	run, err := runner.NewRunner(r.Config, hr.Namespace, logger)
 	if err != nil {

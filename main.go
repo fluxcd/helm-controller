@@ -31,9 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/fluxcd/pkg/recorder"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1alpha1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2alpha1"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	"github.com/fluxcd/helm-controller/controllers"
 	// +kubebuilder:scaffold:imports
 )

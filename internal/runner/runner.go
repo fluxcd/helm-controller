@@ -29,11 +29,11 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2alpha1"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
 
 // Runner represents a Helm action runner capable of performing Helm
-// operations for a v2alpha1.HelmRelease.
+// operations for a v2beta1.HelmRelease.
 type Runner struct {
 	config *action.Configuration
 }
@@ -53,7 +53,7 @@ func NewRunner(clusterCfg *rest.Config, namespace string, logger logr.Logger) (*
 	return &Runner{config: cfg}, nil
 }
 
-// Install runs an Helm install action for the given v2alpha1.HelmRelease.
+// Install runs an Helm install action for the given v2beta1.HelmRelease.
 func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (*release.Release, error) {
 	install := action.NewInstall(r.config)
 	install.ReleaseName = hr.GetReleaseName()
@@ -68,7 +68,7 @@ func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	return install.Run(chart, values.AsMap())
 }
 
-// Upgrade runs an Helm upgrade action for the given v2alpha1.HelmRelease.
+// Upgrade runs an Helm upgrade action for the given v2beta1.HelmRelease.
 func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (*release.Release, error) {
 	upgrade := action.NewUpgrade(r.config)
 	upgrade.Namespace = hr.GetReleaseNamespace()
@@ -84,7 +84,7 @@ func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	return upgrade.Run(hr.GetReleaseName(), chart, values.AsMap())
 }
 
-// Test runs an Helm test action for the given v2alpha1.HelmRelease.
+// Test runs an Helm test action for the given v2beta1.HelmRelease.
 func (r *Runner) Test(hr v2.HelmRelease) (*release.Release, error) {
 	test := action.NewReleaseTesting(r.config)
 	test.Namespace = hr.GetReleaseNamespace()
@@ -93,7 +93,7 @@ func (r *Runner) Test(hr v2.HelmRelease) (*release.Release, error) {
 	return test.Run(hr.GetReleaseName())
 }
 
-// Rollback runs an Helm rollback action for the given v2alpha1.HelmRelease.
+// Rollback runs an Helm rollback action for the given v2beta1.HelmRelease.
 func (r *Runner) Rollback(hr v2.HelmRelease) error {
 	rollback := action.NewRollback(r.config)
 	rollback.Timeout = hr.Spec.GetRollback().GetTimeout(hr.GetTimeout()).Duration
@@ -106,7 +106,7 @@ func (r *Runner) Rollback(hr v2.HelmRelease) error {
 	return rollback.Run(hr.GetReleaseName())
 }
 
-// Uninstall runs an Helm uninstall action for the given v2alpha1.HelmRelease.
+// Uninstall runs an Helm uninstall action for the given v2beta1.HelmRelease.
 func (r *Runner) Uninstall(hr v2.HelmRelease) error {
 	uninstall := action.NewUninstall(r.config)
 	uninstall.Timeout = hr.Spec.GetUninstall().GetTimeout(hr.GetTimeout()).Duration
@@ -118,7 +118,7 @@ func (r *Runner) Uninstall(hr v2.HelmRelease) error {
 }
 
 // ObserveLastRelease observes the last revision, if there is one,
-// for the actual Helm release associated with the given v2alpha1.HelmRelease.
+// for the actual Helm release associated with the given v2beta1.HelmRelease.
 func (r *Runner) ObserveLastRelease(hr v2.HelmRelease) (*release.Release, error) {
 	rel, err := r.config.Releases.Last(hr.GetReleaseName())
 	if err != nil && errors.Is(err, driver.ErrReleaseNotFound) {

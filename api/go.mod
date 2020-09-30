@@ -1,6 +1,6 @@
 module github.com/fluxcd/helm-controller/api
 
-go 1.14
+go 1.15
 
 require (
 	github.com/fluxcd/pkg/apis/meta v0.0.2
