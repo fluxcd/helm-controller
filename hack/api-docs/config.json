@@ -22,13 +22,18 @@
     {
       "typeMatchPrefix": "^github.com/fluxcd/pkg/runtime/dependency\\.CrossNamespaceDependencyReference$",
       "docsURLTemplate": "https://godoc.org/github.com/fluxcd/pkg/runtime/dependency#CrossNamespaceDependencyReference"
+    },
+    {
+      "typeMatchPrefix": "^github.com/fluxcd/pkg/apis/meta\\.Condition$",
+      "docsURLTemplate": "https://godoc.org/github.com/fluxcd/pkg/apis/meta#Condition"
     }
   ],
   "typeDisplayNamePrefixOverrides": {
     "k8s.io/api/": "Kubernetes ",
     "k8s.io/apimachinery/pkg/apis/": "Kubernetes ",
     "k8s.io/apiextensions-apiserver/": "Kubernetes ",
-    "github.com/fluxcd/pkg/runtime/": "Runtime "
+    "github.com/fluxcd/pkg/runtime/": "Runtime ",
+    "github.com/fluxcd/pkg/apis/meta/": "Meta "
   },
   "markdownDisabled": false
 }

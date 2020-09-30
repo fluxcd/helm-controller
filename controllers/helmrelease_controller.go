@@ -44,8 +44,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/recorder"
-	consts "github.com/fluxcd/pkg/runtime"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1alpha1"
 
@@ -143,7 +143,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 
 func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, hr v2.HelmRelease) (v2.HelmRelease, ctrl.Result, error) {
 	// Record the value of the reconciliation request, if any
-	if v, ok := hr.GetAnnotations()[consts.ReconcileAtAnnotation]; ok {
+	if v, ok := hr.GetAnnotations()[meta.ReconcileAtAnnotation]; ok {
 		hr.Status.LastHandledReconcileAt = v
 	}
 
@@ -160,7 +160,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 	if hr.Spec.Suspend {
 		msg := "HelmRelease is suspended, skipping reconciliation"
 		log.Info(msg)
-		return v2.HelmReleaseNotReady(hr, v2.SuspendedReason, msg), ctrl.Result{}, nil
+		return v2.HelmReleaseNotReady(hr, meta.SuspendedReason, msg), ctrl.Result{}, nil
 	}
 
 	// Reconcile chart based on the HelmChartTemplate
@@ -196,7 +196,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 			// Exponential backoff would cause execution to be prolonged too much,
 			// instead we requeue on a fixed interval.
 			return v2.HelmReleaseNotReady(hr,
-				v2.DependencyNotReadyReason, err.Error()), ctrl.Result{RequeueAfter: r.requeueDependency}, nil
+				meta.DependencyNotReadyReason, err.Error()), ctrl.Result{RequeueAfter: r.requeueDependency}, nil
 		}
 		log.Info("all dependencies are ready, proceeding with release")
 	}
@@ -306,7 +306,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 	}
 
 	// Check status of any previous release attempt.
-	released := v2.GetHelmReleaseCondition(hr, v2.ReleasedCondition)
+	released := meta.GetCondition(hr.Status.Conditions, v2.ReleasedCondition)
 	if released != nil {
 		switch released.Status {
 		// Succeed if the previous release attempt succeeded.
@@ -314,7 +314,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 			return v2.HelmReleaseReady(hr), nil
 		case corev1.ConditionFalse:
 			// Fail if the previous release attempt remediation failed.
-			remediated := v2.GetHelmReleaseCondition(hr, v2.RemediatedCondition)
+			remediated := meta.GetCondition(hr.Status.Conditions, v2.RemediatedCondition)
 			if remediated != nil && remediated.Status == corev1.ConditionFalse {
 				err = fmt.Errorf("previous release attempt remediation failed")
 				return v2.HelmReleaseNotReady(hr, remediated.Reason, remediated.Message), err
@@ -360,7 +360,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 
 			// Propagate any test error if not marked ignored.
 			if testErr != nil && !remediation.MustIgnoreTestFailures(hr.Spec.GetTest().IgnoreFailures) {
-				testsPassing := v2.GetHelmReleaseCondition(hr, v2.TestSuccessCondition)
+				testsPassing := meta.GetCondition(hr.Status.Conditions, v2.TestSuccessCondition)
 				v2.SetHelmReleaseCondition(&hr, v2.ReleasedCondition, corev1.ConditionFalse, testsPassing.Reason, testsPassing.Message)
 				err = testErr
 			}
@@ -405,7 +405,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 	hr.Status.LastReleaseRevision = util.ReleaseRevision(rel)
 
 	if err != nil {
-		reason := v2.ReconciliationFailedReason
+		reason := meta.ReconciliationFailedReason
 		var cerr *ConditionError
 		if errors.As(err, &cerr) {
 			reason = cerr.Reason
@@ -431,10 +431,8 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 			return fmt.Errorf("dependency '%s' is not ready", dName)
 		}
 
-		for _, condition := range dHr.Status.Conditions {
-			if condition.Type == consts.ReadyCondition && condition.Status != corev1.ConditionTrue {
-				return fmt.Errorf("dependency '%s' is not ready", dName)
-			}
+		if c := meta.GetCondition(dHr.Status.Conditions, meta.ReadyCondition); c == nil || c.Status != corev1.ConditionTrue {
+			return fmt.Errorf("dependency '%s' is not ready", dName)
 		}
 	}
 	return nil

@@ -10,7 +10,7 @@ reconciliation should happen at, and a set of options to control the settings of
 automated Helm actions that are being performed.
 
 ```go
-// HelmReleaseSpec defines the desired state of HelmRelease.
+// HelmReleaseSpec defines the desired state of a Helm Release.
 type HelmReleaseSpec struct {
 	// Chart defines the template of the v1alpha1.HelmChart that should be created
 	// for this HelmRelease.
@@ -42,10 +42,11 @@ type HelmReleaseSpec struct {
 	// +optional
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 
-	// DependsOn may contain a list of HelmReleases that must be ready before this
-	// HelmRelease can be reconciled.
+	// DependsOn may contain a dependency.CrossNamespaceDependencyReference slice with
+	// references to HelmRelease resources that must be ready before this HelmRelease
+	// can be reconciled.
 	// +optional
-	DependsOn []string `json:"dependsOn,omitempty"`
+	DependsOn []dependency.CrossNamespaceDependencyReference `json:"dependsOn,omitempty"`
 
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm action. Defaults to '5m0s'.
@@ -86,23 +87,24 @@ type HelmReleaseSpec struct {
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
 }
 
-// HelmChartTemplate defines the template from which the controller will generate a
-// v1alpha1.HelmChart object in the same namespace as the referenced v1alpha1.Source.
+// HelmChartTemplate defines the template from which the controller will
+// generate a v1alpha1.HelmChart object in the same namespace as the referenced
+// v1alpha1.Source.
 type HelmChartTemplate struct {
 	// Spec holds the template for the v1alpha1.HelmChartSpec for this HelmRelease.
 	// +required
 	Spec HelmChartTemplateSpec `json:"spec"`
 }
 
-// HelmChartTemplateSpec defines the template from which the controller will generate
-// a v1alpha1.HelmChartSpec object.
+// HelmChartTemplateSpec defines the template from which the controller will
+// generate a v1alpha1.HelmChartSpec object.
 type HelmChartTemplateSpec struct {
 	// The name or path the Helm chart is available at in the SourceRef.
 	// +required
 	Chart string `json:"chart"`
 
-	// Version semver expression, ignored for charts from GitRepository and
-	// Bucket sources. Defaults to latest when omitted.
+	// Version semver expression, ignored for charts from v1alpha1.GitRepository and
+	// v1alpha1.Bucket sources. Defaults to latest when omitted.
 	// +optional
 	Version string `json:"version,omitempty"`
 
@@ -110,28 +112,33 @@ type HelmChartTemplateSpec struct {
 	// +required
 	SourceRef CrossNamespaceObjectReference `json:"sourceRef"`
 
-	// Interval at which to check the v1alpha1.Source for updates.
-	// Defaults to 'HelmReleaseSpec.Interval'.
+	// Interval at which to check the v1alpha1.Source for updates. Defaults to
+	// 'HelmReleaseSpec.Interval'.
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
+
+	// Alternative values file to use as the default chart values, expected to be a
+	// relative path in the SourceRef. Ignored when omitted.
+	// +optional
+	ValuesFile string `json:"valuesFile,omitempty"`
 }
 
-// Install holds the configuration for Helm install actions performed for this HelmRelease.
+// Install holds the configuration for Helm install actions performed for this
+// HelmRelease.
 type Install struct {
-	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-	// for hooks) during the performance of a Helm install action. Defaults to
+	// Timeout is the time to wait for any individual Kubernetes operation (like
+	// Jobs for hooks) during the performance of a Helm install action. Defaults to
 	// 'HelmReleaseSpec.Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
-	// Remediation holds the remediation configuration for when the
-	// Helm install action for the HelmRelease fails. The default
-	// is to not perform any action.
+	// Remediation holds the remediation configuration for when the Helm install
+	// action for the HelmRelease fails. The default is to not perform any action.
 	// +optional
 	Remediation *InstallRemediation `json:"remediation,omitempty"`
 
-	// DisableWait disables the waiting for resources to be ready after a
-	// Helm install has been performed.
+	// DisableWait disables the waiting for resources to be ready after a Helm
+	// install has been performed.
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
 
@@ -139,13 +146,13 @@ type Install struct {
 	// +optional
 	DisableHooks bool `json:"disableHooks,omitempty"`
 
-	// DisableOpenAPIValidation prevents the Helm install action from
-	// validating rendered templates against the Kubernetes OpenAPI Schema.
+	// DisableOpenAPIValidation prevents the Helm install action from validating
+	// rendered templates against the Kubernetes OpenAPI Schema.
 	// +optional
 	DisableOpenAPIValidation bool `json:"disableOpenAPIValidation,omitempty"`
 
-	// Replace tells the Helm install action to re-use the 'ReleaseName', but
-	// only if that name is a deleted release which remains in the history.
+	// Replace tells the Helm install action to re-use the 'ReleaseName', but only
+	// if that name is a deleted release which remains in the history.
 	// +optional
 	Replace bool `json:"replace,omitempty"`
 
@@ -163,34 +170,34 @@ type InstallRemediation struct {
 	// +optional
 	Retries int `json:"retries,omitempty"`
 
-	// IgnoreTestFailures tells the controller to skip remediation when
-	// the Helm tests are run after an install action but fail.
-	// Defaults to 'Test.IgnoreFailures'.
+	// IgnoreTestFailures tells the controller to skip remediation when the Helm
+	// tests are run after an install action but fail. Defaults to
+	// 'Test.IgnoreFailures'.
 	// +optional
 	IgnoreTestFailures *bool `json:"ignoreTestFailures,omitempty"`
 
-	// RemediateLastFailure tells the controller to remediate the last
-	// failure, when no retries remain. Defaults to 'false'.
+	// RemediateLastFailure tells the controller to remediate the last failure, when
+	// no retries remain. Defaults to 'false'.
 	// +optional
 	RemediateLastFailure *bool `json:"remediateLastFailure,omitempty"`
 }
 
-// Upgrade holds the configuration for Helm upgrade actions for this HelmRelease.
+// Upgrade holds the configuration for Helm upgrade actions for this
+// HelmRelease.
 type Upgrade struct {
-	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-	// for hooks) during the performance of a Helm upgrade action. Defaults to
+	// Timeout is the time to wait for any individual Kubernetes operation (like
+	// Jobs for hooks) during the performance of a Helm upgrade action. Defaults to
 	// 'HelmReleaseSpec.Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
-	// Remediation holds the remediation configuration for when the
-	// Helm upgrade action for the HelmRelease fails. The default
-	// is to not perform any action.
+	// Remediation holds the remediation configuration for when the Helm upgrade
+	// action for the HelmRelease fails. The default is to not perform any action.
 	// +optional
 	Remediation *UpgradeRemediation `json:"remediation,omitempty"`
 
-	// DisableWait disables the waiting for resources to be ready after a
-	// Helm upgrade has been performed.
+	// DisableWait disables the waiting for resources to be ready after a Helm
+	// upgrade has been performed.
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
 
@@ -198,8 +205,8 @@ type Upgrade struct {
 	// +optional
 	DisableHooks bool `json:"disableHooks,omitempty"`
 
-	// DisableOpenAPIValidation prevents the Helm upgrade action from
-	// validating rendered templates against the Kubernetes OpenAPI Schema.
+	// DisableOpenAPIValidation prevents the Helm upgrade action from validating
+	// rendered templates against the Kubernetes OpenAPI Schema.
 	// +optional
 	DisableOpenAPIValidation bool `json:"disableOpenAPIValidation,omitempty"`
 
@@ -207,8 +214,8 @@ type Upgrade struct {
 	// +optional
 	Force bool `json:"force,omitempty"`
 
-	// PreserveValues will make Helm reuse the last release's values and merge
-	// in overrides from 'Values'. Setting this flag makes the HelmRelease
+	// PreserveValues will make Helm reuse the last release's values and merge in
+	// overrides from 'Values'. Setting this flag makes the HelmRelease
 	// non-declarative.
 	// +optional
 	PreserveValues bool `json:"preserveValues,omitempty"`
@@ -227,20 +234,18 @@ type UpgradeRemediation struct {
 	// +optional
 	Retries int `json:"retries,omitempty"`
 
-	// IgnoreTestFailures tells the controller to skip remediation when
-	// the Helm tests are run after an upgrade action but fail.
+	// IgnoreTestFailures tells the controller to skip remediation when the Helm
+	// tests are run after an upgrade action but fail.
 	// Defaults to 'Test.IgnoreFailures'.
 	// +optional
 	IgnoreTestFailures *bool `json:"ignoreTestFailures,omitempty"`
 
-	// RemediateLastFailure tells the controller to remediate the last
-	// failure, when no retries remain. Defaults to 'false' unless 'Retries'
-	// is greater than 0.
+	// RemediateLastFailure tells the controller to remediate the last failure, when
+	// no retries remain. Defaults to 'false' unless 'Retries' is greater than 0.
 	// +optional
 	RemediateLastFailure *bool `json:"remediateLastFailure,omitempty"`
 
-	// Strategy to use for failure remediation.
-	// Defaults to 'rollback'.
+	// Strategy to use for failure remediation. Defaults to 'rollback'.
 	// +kubebuilder:validation:Enum=rollback;uninstall
 	// +optional
 	Strategy *RemediationStrategy `json:"strategy,omitempty"`
@@ -248,35 +253,34 @@ type UpgradeRemediation struct {
 
 // Test holds the configuration for Helm test actions for this HelmRelease.
 type Test struct {
-	// Enable enables Helm test actions for this HelmRelease after an
-	// Helm install or upgrade action has been performed.
+	// Enable enables Helm test actions for this HelmRelease after an Helm install
+	// or upgrade action has been performed.
 	// +optional
 	Enable bool `json:"enable,omitempty"`
 
-	// Timeout is the time to wait for any individual Kubernetes operation
-	// during the performance of a Helm test action. Defaults to
-	// 'HelmReleaseSpec.Timeout'.
+	// Timeout is the time to wait for any individual Kubernetes operation during
+	// the performance of a Helm test action. Defaults to 'HelmReleaseSpec.Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
-	// IgnoreFailures tells the controller to skip remediation when
-	// the Helm tests are run but fail.
-	// Can be overwritten for tests run after install or upgrade actions
-	// in 'Install.IgnoreTestFailures' and 'Upgrade.IgnoreTestFailures'.
+	// IgnoreFailures tells the controller to skip remediation when the Helm tests
+	// are run but fail. Can be overwritten for tests run after install or upgrade
+	// actions in 'Install.IgnoreTestFailures' and 'Upgrade.IgnoreTestFailures'.
 	// +optional
 	IgnoreFailures bool `json:"ignoreFailures,omitempty"`
 }
 
-// Rollback holds the configuration for Helm rollback actions for this HelmRelease.
+// Rollback holds the configuration for Helm rollback actions for this
+// HelmRelease.
 type Rollback struct {
-	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-	// for hooks) during the performance of a Helm rollback action. Defaults to
+	// Timeout is the time to wait for any individual Kubernetes operation (like
+	// Jobs for hooks) during the performance of a Helm rollback action. Defaults to
 	// 'HelmReleaseSpec.Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
-	// DisableWait disables the waiting for resources to be ready after a
-	// Helm rollback has been performed.
+	// DisableWait disables the waiting for resources to be ready after a Helm
+	// rollback has been performed.
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
 
@@ -298,11 +302,12 @@ type Rollback struct {
 	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
 }
 
-// Uninstall holds the configuration for Helm uninstall actions for this HelmRelease.
+// Uninstall holds the configuration for Helm uninstall actions for this
+// HelmRelease.
 type Uninstall struct {
-	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
-	// for hooks) during the performance of a Helm uninstall action. Defaults to
-	// 'HelmReleaseSpec.Timeout'.
+	// Timeout is the time to wait for any individual Kubernetes operation (like
+	// Jobs for hooks) during the performance of a Helm uninstall action. Defaults
+	// to 'HelmReleaseSpec.Timeout'.
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -310,14 +315,14 @@ type Uninstall struct {
 	// +optional
 	DisableHooks bool `json:"disableHooks,omitempty"`
 
-	// KeepHistory tells Helm to remove all associated resources and mark the release as
-	// deleted, but retain the release history.
+	// KeepHistory tells Helm to remove all associated resources and mark the
+	// release as deleted, but retain the release history.
 	// +optional
 	KeepHistory bool `json:"keepHistory,omitempty"`
 }
 ```
 
-Reference types:
+### Reference types
 
 ```go
 // CrossNamespaceObjectReference contains enough information to let you locate the
@@ -361,94 +366,155 @@ type ValuesReference struct {
 	// +required
 	Name string `json:"name"`
 
-	// ValuesKey is the data key where the values.yaml or a specific value can
-	// be found at. Defaults to 'values.yaml'.
+	// ValuesKey is the data key where the values.yaml or a specific value can be
+	// found at. Defaults to 'values.yaml'.
 	// +optional
 	ValuesKey string `json:"valuesKey,omitempty"`
 
-	// TargetPath is the YAML dot notation path the value should be merged at.
-	// When set, the ValuesKey is expected to be a single flat value.
-	// Defaults to 'None', which results in the values getting merged at the root.
+	// TargetPath is the YAML dot notation path the value should be merged at. When
+	// set, the ValuesKey is expected to be a single flat value. Defaults to 'None',
+	// which results in the values getting merged at the root.
 	// +optional
 	TargetPath string `json:"targetPath,omitempty"`
+
+	// Optional marks this ValuesReference as optional. When set, a not found error
+	// for the values reference is ignored, but any ValuesKey, TargetPath or
+	// transient error will still result in a reconciliation failure.
+	// +optional
+	Optional bool `json:"optional,omitempty"`
 }
 ```
 
-Status condition types:
+### Status
+
+```go
+// HelmReleaseStatus defines the observed state of a HelmRelease.
+type HelmReleaseStatus struct {
+	// ObservedGeneration is the last observed generation.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// LastHandledReconcileAt is the last manual reconciliation request (by
+	// annotating the HelmRelease) handled by the reconciler.
+	// +optional
+	LastHandledReconcileAt string `json:"lastHandledReconcileAt,omitempty"`
+
+	// Conditions holds the conditions for the HelmRelease.
+	// +optional
+	Conditions []meta.Condition `json:"conditions,omitempty"`
+
+	// LastAppliedRevision is the revision of the last successfully applied source.
+	// +optional
+	LastAppliedRevision string `json:"lastAppliedRevision,omitempty"`
+
+	// LastAttemptedRevision is the revision of the last reconciliation attempt.
+	// +optional
+	LastAttemptedRevision string `json:"lastAttemptedRevision,omitempty"`
+
+	// LastAttemptedValuesChecksum is the SHA1 checksum of the values of the last
+	// reconciliation attempt.
+	// +optional
+	LastAttemptedValuesChecksum string `json:"lastAttemptedValuesChecksum,omitempty"`
+
+	// LastReleaseRevision is the revision of the last successful Helm release.
+	// +optional
+	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`
+
+	// HelmChart is the namespaced name of the HelmChart resource created by
+	// the controller for the HelmRelease.
+	// +optional
+	HelmChart string `json:"helmChart,omitempty"`
+
+	// Failures is the reconciliation failure count against the latest observed
+	// state. It is reset after a successful reconciliation.
+	// +optional
+	Failures int64 `json:"failures,omitempty"`
+
+	// InstallFailures is the install failure count against the latest observed
+	// state. It is reset after a successful reconciliation.
+	// +optional
+	InstallFailures int64 `json:"installFailures,omitempty"`
+
+	// UpgradeFailures is the upgrade failure count against the latest observed
+	// state. It is reset after a successful reconciliation.
+	// +optional
+	UpgradeFailures int64 `json:"upgradeFailures,omitempty"`
+}
+```
+
+#### Condition types
 
 ```go
 const (
-	// ReadyCondition represents the fact that the HelmRelease has been successfully reconciled.
-	ReadyCondition string = "Ready"
-
-	// ReleasedCondition represents the fact that the HelmRelease has been successfully released.
+	// ReleasedCondition represents the fact that the HelmRelease has been
+	// successfully released.
 	ReleasedCondition string = "Released"
 
-	// TestSuccessCondition represents the fact that the tests for the HelmRelease are succeeding.
+	// TestSuccessCondition represents the fact that the tests for the HelmRelease
+	// are succeeding.
 	TestSuccessCondition string = "TestSuccess"
 
-	// RemediatedCondition represents the fact that the HelmRelease has been successfully remediated.
+	// RemediatedCondition represents the fact that the HelmRelease has been
+	// successfully remediated.
 	RemediatedCondition string = "Remediated"
 )
 ```
 
-Status condition reasons:
+#### Condition reasons
 
 ```go
 const (
-	// ReconciliationSucceededReason represents the fact that the reconciliation of the HelmRelease has succeeded.
-	ReconciliationSucceededReason string = "ReconciliationSucceeded"
-
-	// ReconciliationFailedReason represents the fact that the reconciliation of the HelmRelease has failed.
-	ReconciliationFailedReason string = "ReconciliationFailed"
-
-	// InstallSucceededReason represents the fact that the Helm install for the HelmRelease succeeded.
+	// InstallSucceededReason represents the fact that the Helm install for the
+	// HelmRelease succeeded.
 	InstallSucceededReason string = "InstallSucceeded"
 
-	// InstallFailedReason represents the fact that the Helm install for the HelmRelease failed.
+	// InstallFailedReason represents the fact that the Helm install for the
+	// HelmRelease failed.
 	InstallFailedReason string = "InstallFailed"
 
-	// UpgradeSucceededReason represents the fact that the Helm upgrade for the HelmRelease succeeded.
+	// UpgradeSucceededReason represents the fact that the Helm upgrade for the
+	// HelmRelease succeeded.
 	UpgradeSucceededReason string = "UpgradeSucceeded"
 
-	// UpgradeFailedReason represents the fact that the Helm upgrade for the HelmRelease failed.
+	// UpgradeFailedReason represents the fact that the Helm upgrade for the
+	// HelmRelease failed.
 	UpgradeFailedReason string = "UpgradeFailed"
 
-	// TestSucceededReason represents the fact that the Helm tests for the HelmRelease succeeded.
+	// TestSucceededReason represents the fact that the Helm tests for the
+	// HelmRelease succeeded.
 	TestSucceededReason string = "TestSucceeded"
 
-	// TestFailedReason represents the fact that the Helm tests for the HelmRelease failed.
+	// TestFailedReason represents the fact that the Helm tests for the HelmRelease
+	// failed.
 	TestFailedReason string = "TestsFailed"
 
-	// RollbackSucceededReason represents the fact that the Helm rollback for the HelmRelease succeeded.
+	// RollbackSucceededReason represents the fact that the Helm rollback for the
+	// HelmRelease succeeded.
 	RollbackSucceededReason string = "RollbackSucceeded"
 
-	// RollbackFailedReason represents the fact that the Helm test for the HelmRelease failed.
+	// RollbackFailedReason represents the fact that the Helm test for the
+	// HelmRelease failed.
 	RollbackFailedReason string = "RollbackFailed"
 
-	// UninstallSucceededReason represents the fact that the Helm uninstall for the HelmRelease succeeded.
+	// UninstallSucceededReason represents the fact that the Helm uninstall for the
+	// HelmRelease succeeded.
 	UninstallSucceededReason string = "UninstallSucceeded"
 
-	// UninstallFailedReason represents the fact that the Helm uninstall for the HelmRelease failed.
+	// UninstallFailedReason represents the fact that the Helm uninstall for the
+	// HelmRelease failed.
 	UninstallFailedReason string = "UninstallFailed"
 
-	// ArtifactFailedReason represents the fact that the artifact download for the HelmRelease failed.
+	// ArtifactFailedReason represents the fact that the artifact download for the
+	// HelmRelease failed.
 	ArtifactFailedReason string = "ArtifactFailed"
 
-	// InitFailedReason represents the fact that the initialization of the Helm configuration failed.
+	// InitFailedReason represents the fact that the initialization of the Helm
+	// configuration failed.
 	InitFailedReason string = "InitFailed"
 
-	// GetLastReleaseFailedReason represents the fact that observing the last release failed.
+	// GetLastReleaseFailedReason represents the fact that observing the last
+	// release failed.
 	GetLastReleaseFailedReason string = "GetLastReleaseFailed"
-
-	// ProgressingReason represents the fact that the reconciliation for the resource is underway.
-	ProgressingReason string = "Progressing"
-
-	// DependencyNotReadyReason represents the fact that the one of the dependencies is not ready.
-	DependencyNotReadyReason string = "DependencyNotReady"
-
-	// SuspendedReason represents the fact that the reconciliation of the HelmRelease is suspended.
-	SuspendedReason string = "Suspended"
 )
 ```
 
@@ -473,17 +539,7 @@ interval time units are `s`, `m` and `h` e.g. `interval: 5m`, the minimum value 
 The reconcilation can be suspended by setting `spec.susped` to `true`.
 
 The reconciler can be told to reconcile the `HelmRelease` outside of the specified interval
-by annotating the object with:
-
-```go
-const (
-	// ReconcileAtAnnotation is the annotation used for triggering a
-	// reconciliation outside of the specified schedule.
-	ReconcileAtAnnotation string = "fluxcd.io/reconcileAt"
-)
-```
-
-On-demand execution example:
+by annotating the object:
 
 ```bash
 kubectl annotate --overwrite helmrelease/podinfo fluxcd.io/reconcileAt="$(date +%s)"

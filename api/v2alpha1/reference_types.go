@@ -16,8 +16,8 @@ limitations under the License.
 
 package v2alpha1
 
-// CrossNamespaceObjectReference contains enough information to let you locate the
-// typed referenced object at cluster level.
+// CrossNamespaceObjectReference contains enough information to let you locate
+// the typed referenced object at cluster level.
 type CrossNamespaceObjectReference struct {
 	// APIVersion of the referent.
 	// +optional
@@ -57,19 +57,19 @@ type ValuesReference struct {
 	// +required
 	Name string `json:"name"`
 
-	// ValuesKey is the data key where the values.yaml or a specific value can
-	// be found at. Defaults to 'values.yaml'.
+	// ValuesKey is the data key where the values.yaml or a specific value can be
+	// found at. Defaults to 'values.yaml'.
 	// +optional
 	ValuesKey string `json:"valuesKey,omitempty"`
 
-	// TargetPath is the YAML dot notation path the value should be merged at.
-	// When set, the ValuesKey is expected to be a single flat value.
-	// Defaults to 'None', which results in the values getting merged at the root.
+	// TargetPath is the YAML dot notation path the value should be merged at. When
+	// set, the ValuesKey is expected to be a single flat value. Defaults to 'None',
+	// which results in the values getting merged at the root.
 	// +optional
 	TargetPath string `json:"targetPath,omitempty"`
 
-	// Optional marks this ValuesReference as optional. When set, a not found
-	// error for the values reference is ignored, but any ValuesKey, TargetPath or
+	// Optional marks this ValuesReference as optional. When set, a not found error
+	// for the values reference is ignored, but any ValuesKey, TargetPath or
 	// transient error will still result in a reconciliation failure.
 	// +optional
 	Optional bool `json:"optional,omitempty"`
