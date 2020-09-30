@@ -526,6 +526,10 @@ The namespace/name in which to deploy the Helm release defaults to the namespace
 `spec.releaseName`. If `spec.targetNamespace` is set, `spec.releaseName` defaults to
 `<spec.targetNamespace>-<metadata.name>`.
 
+> **Note:** that configuring the `spec.targetNamespace` only defines the namespace the release
+> is made in, the metadata for the release (also known as the "Helm storage") will always be
+> stored in the `metadata.namespace` of the `HelmRelease`.
+
 ## Helm chart template
 
 The `spec.chart.spec` values are used by the helm-controller as a template
@@ -594,13 +598,11 @@ The definition of the listed keys for items in `spec.valuesFrom` is as follows:
    transient error will still result in a reconciliation failure. Defaults to `false`
    when omitted.
 
-!!! hint "Note"
-    The `targetPath` supports the same formatting as you would supply
-    as an argument to the `helm` binary using `--set [path]=[value]`.
-    In addition to this, the referred value can contain the same
-    value formats (e.g. `{a,b,c}` for a list).
-    You can read more about the available formats and limitations in
-    the [Helm documentation](https://helm.sh/docs/intro/using_helm/#the-format-and-limitations-of---set).
+> **Note:** that the `targetPath` supports the same formatting as you would supply as an
+> argument to the `helm` binary using `--set [path]=[value]`. In addition to this, the
+> referred value can contain the same value formats (e.g. `{a,b,c}` for a list). You can
+> read more about the available formats and limitations in the
+> [Helm documentation](https://helm.sh/docs/intro/using_helm/#the-format-and-limitations-of---set).
 
 ## Reconciliation
 

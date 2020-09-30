@@ -46,7 +46,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: HelmReleaseSpec defines the desired state of a Helm Release.
+            description: HelmReleaseSpec defines the desired state of a Helm release.
             properties:
               chart:
                 description: Chart defines the template of the v1alpha1.HelmChart
