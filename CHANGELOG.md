@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.1.1 (2020-10-02)
+
+This prerelease fixes a regression bug introduced in `v0.1.0`
+resulting in the `spec.targetNamespace` not being taken into
+account.
+
 ## 0.1.0 (2020-09-30)
 
 This is the first MINOR prerelease, it promotes the
