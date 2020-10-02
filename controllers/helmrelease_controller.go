@@ -281,7 +281,7 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.Logger,
 	hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (v2.HelmRelease, error) {
 	// Initialize Helm action runner
-	run, err := runner.NewRunner(r.Config, hr.Namespace, r.Log)
+	run, err := runner.NewRunner(r.Config, hr.GetReleaseNamespace(), hr.GetNamespace(), r.Log)
 	if err != nil {
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to initialize Helm action runner"), err
 	}
@@ -606,7 +606,7 @@ func (r *HelmReleaseReconciler) garbageCollectHelmChart(ctx context.Context, hr 
 // garbageCollectHelmRelease uninstalls the deployed Helm release of
 // the given v2beta1.HelmRelease.
 func (r *HelmReleaseReconciler) garbageCollectHelmRelease(logger logr.Logger, hr v2.HelmRelease) error {
-	run, err := runner.NewRunner(r.Config, hr.Namespace, logger)
+	run, err := runner.NewRunner(r.Config, hr.GetReleaseNamespace(), hr.GetNamespace(), logger)
 	if err != nil {
 		return err
 	}

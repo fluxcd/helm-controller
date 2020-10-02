@@ -39,15 +39,16 @@ type Runner struct {
 }
 
 // NewRunner constructs a new Runner configured to run Helm actions with the
-// given rest.Config, and the storage namespace configured to the provided
-// namespace.
-func NewRunner(clusterCfg *rest.Config, namespace string, logger logr.Logger) (*Runner, error) {
+// given rest.Config, and the release and storage namespace configured to the
+// provided values.
+func NewRunner(clusterCfg *rest.Config, releaseNamespace, storageNamespace string, logger logr.Logger) (*Runner, error) {
 	cfg := new(action.Configuration)
 	if err := cfg.Init(&genericclioptions.ConfigFlags{
 		APIServer:   &clusterCfg.Host,
 		CAFile:      &clusterCfg.CAFile,
 		BearerToken: &clusterCfg.BearerToken,
-	}, namespace, "secret", debugLogger(logger)); err != nil {
+		Namespace:   &releaseNamespace,
+	}, storageNamespace, "secret", debugLogger(logger)); err != nil {
 		return nil, err
 	}
 	return &Runner{config: cfg}, nil
