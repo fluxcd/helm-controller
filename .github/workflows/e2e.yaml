@@ -78,6 +78,13 @@ jobs:
             echo -e "$RESULT\n\ndoes not equal\n\n$EXPECTED"
             exit 1
           fi
+      - name: Run target namespace test
+        run: |
+          kubectl -n helm-system apply -f config/testdata/targetnamespace
+          kubectl -n helm-system wait helmreleases/targetnamespace --for=condition=ready --timeout=4m
+
+          # Confirm release in "default" namespace
+          kubectl -n default get deployment default-targetnamespace-podinfo
       - name: Run install fail test
         run: |
           test_name=install-fail
