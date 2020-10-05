@@ -320,19 +320,19 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 				return v2.HelmReleaseNotReady(hr, remediated.Reason, remediated.Message), err
 			}
 		}
-	}
 
-	// Fail if install retries are exhausted.
-	if hr.Spec.GetInstall().GetRemediation().RetriesExhausted(hr) {
-		err = fmt.Errorf("install retries exhausted")
-		return v2.HelmReleaseNotReady(hr, released.Reason, released.Message), err
-	}
+		// Fail if install retries are exhausted.
+		if hr.Spec.GetInstall().GetRemediation().RetriesExhausted(hr) {
+			err = fmt.Errorf("install retries exhausted")
+			return v2.HelmReleaseNotReady(hr, released.Reason, released.Message), err
+		}
 
-	// Fail if there is a release and upgrade retries are exhausted.
-	// This avoids failing after an upgrade uninstall remediation strategy.
-	if rel != nil && hr.Spec.GetUpgrade().GetRemediation().RetriesExhausted(hr) {
-		err = fmt.Errorf("upgrade retries exhausted")
-		return v2.HelmReleaseNotReady(hr, released.Reason, released.Message), err
+		// Fail if there is a release and upgrade retries are exhausted.
+		// This avoids failing after an upgrade uninstall remediation strategy.
+		if rel != nil && hr.Spec.GetUpgrade().GetRemediation().RetriesExhausted(hr) {
+			err = fmt.Errorf("upgrade retries exhausted")
+			return v2.HelmReleaseNotReady(hr, released.Reason, released.Message), err
+		}
 	}
 
 	// Deploy the release.
