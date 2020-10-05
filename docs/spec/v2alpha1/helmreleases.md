@@ -537,14 +537,14 @@ to create a new `HelmChart` resource with the given spec.
 
 The `spec.chart.spec.sourceRef` is a reference to an object managed by
 [source-controller](https://github.com/fluxcd/source-controller). When the source
-[revision](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/common.md#source-status) 
+[revision](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1alpha1/common.md#source-status) 
 changes, it generates a Kubernetes event that triggers a new release.
 
 Supported source types:
 
-* [HelmRepository](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/helmrepositories.md)
-* [GitRepository](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/gitrepositories.md)
-* [Bucket](https://github.com/fluxcd/source-controller/blob/master/docs/spec/v1alpha1/buckets.md)
+* [HelmRepository](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1alpha1/helmrepositories.md)
+* [GitRepository](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1alpha1/gitrepositories.md)
+* [Bucket](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1alpha1/buckets.md)
 
 The `HelmChart` is created in the same namespace as the `sourceRef`,
 with a name matching the `HelmRelease` `<metadata.namespace>-<metadata.name>`.
