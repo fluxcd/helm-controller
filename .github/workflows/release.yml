@@ -102,7 +102,7 @@ jobs:
           draft: false
           prerelease: true
           body: |
-            [CHANGELOG](https://github.com/fluxcd/helm-controller/blob/master/CHANGELOG.md)
+            [CHANGELOG](https://github.com/fluxcd/helm-controller/blob/main/CHANGELOG.md)
       - name: Upload artifacts
         if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
         id: upload-release-asset
