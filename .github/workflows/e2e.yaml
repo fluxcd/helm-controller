@@ -26,13 +26,13 @@ jobs:
       - name: Setup Kubernetes
         uses: engineerd/setup-kind@v0.4.0
       - name: Setup Helm
-        uses: fluxcd/pkg/actions/helm@master
+        uses: fluxcd/pkg/actions/helm@main
       - name: Setup Kustomize
-        uses: fluxcd/pkg/actions/kustomize@master
+        uses: fluxcd/pkg/actions/kustomize@main
       - name: Setup Kubebuilder
-        uses: fluxcd/pkg/actions/kubebuilder@master
+        uses: fluxcd/pkg/actions/kubebuilder@main
       - name: Setup Kubectl
-        uses: fluxcd/pkg/actions/kubectl@master
+        uses: fluxcd/pkg/actions/kubectl@main
       - name: Run tests
         run: make test
         env:
