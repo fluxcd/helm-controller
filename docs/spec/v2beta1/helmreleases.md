@@ -537,7 +537,7 @@ to create a new `HelmChart` resource with the given spec.
 
 The `spec.chart.spec.sourceRef` is a reference to an object managed by
 [source-controller](https://github.com/fluxcd/source-controller). When the source
-[revision](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1beta1/common.md#source-status) 
+[revision](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1beta1/common.md#source-status)
 changes, it generates a Kubernetes event that triggers a new release.
 
 Supported source types:
@@ -633,6 +633,10 @@ Reconciliation can be suspended by setting `spec.susped` to `true`.
 The timeout for any individual Kubernetes operation (like Jobs for hooks) during the performance
 of Helm actions can be configured via `spec.timeout` and can be overridden per action
 via `spec.<action>.timeout`.
+
+> :warning: **If you are using health checks for HelmRelease**: Helm charts containing a single replica will not behave as expected.
+> Its health check will allways succeed no matter the status of the pod. This is due to a [bug in Helms wait functionality](https://github.com/helm/helm/issues/8660).
+> A workaround until this issue is fixed is to add a Helm test with a job that waits until the pod is ready.
 
 ### Disabling resource waiting
 
