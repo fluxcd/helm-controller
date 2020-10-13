@@ -46,6 +46,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/events"
+	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
@@ -63,6 +64,7 @@ type HelmReleaseReconciler struct {
 	requeueDependency     time.Duration
 	EventRecorder         kuberecorder.EventRecorder
 	ExternalEventRecorder *events.Recorder
+	MetricsRecorder       *metrics.Recorder
 }
 
 // ConditionError represents an error with a status condition reason attached.
@@ -111,7 +113,8 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 				// Return the error so we retry the failed garbage collection
 				return ctrl.Result{}, err
 			}
-
+			// Record deleted status
+			r.recordReadiness(hr, true)
 			// Remove our finalizer from the list and update it
 			hr.ObjectMeta.Finalizers = removeString(hr.ObjectMeta.Finalizers, v2.HelmReleaseFinalizer)
 			if err := r.Update(ctx, &hr); err != nil {
@@ -131,6 +134,9 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{Requeue: true}, updateStatusErr
 	}
 
+	// Record ready status
+	r.recordReadiness(hr, false)
+
 	// Log reconciliation duration
 	durationMsg := fmt.Sprintf("reconcilation finished in %s", time.Now().Sub(start).String())
 	if result.RequeueAfter > 0 {
@@ -142,6 +148,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 }
 
 func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, hr v2.HelmRelease) (v2.HelmRelease, ctrl.Result, error) {
+	reconcileStart := time.Now()
 	// Record the value of the reconciliation request, if any
 	if v, ok := hr.GetAnnotations()[meta.ReconcileAtAnnotation]; ok {
 		hr.Status.LastHandledReconcileAt = v
@@ -155,12 +162,23 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 			log.Error(updateStatusErr, "unable to update status after generation update")
 			return hr, ctrl.Result{Requeue: true}, updateStatusErr
 		}
+		// Record progressing status
+		r.recordReadiness(hr, false)
 	}
 
 	if hr.Spec.Suspend {
 		msg := "HelmRelease is suspended, skipping reconciliation"
 		log.Info(msg)
 		return v2.HelmReleaseNotReady(hr, meta.SuspendedReason, msg), ctrl.Result{}, nil
+	}
+
+	// record reconciliation duration
+	if r.MetricsRecorder != nil {
+		objRef, err := reference.GetReference(r.Scheme, &hr)
+		if err != nil {
+			return hr, ctrl.Result{Requeue: true}, err
+		}
+		defer r.MetricsRecorder.RecordDuration(*objRef, reconcileStart)
 	}
 
 	// Reconcile chart based on the HelmChartTemplate
@@ -303,6 +321,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 			log.Error(updateStatusErr, "unable to update status after state update")
 			return hr, updateStatusErr
 		}
+		// Record progressing status
+		r.recordReadiness(hr, false)
 	}
 
 	// Check status of any previous release attempt.
@@ -663,6 +683,29 @@ func (r *HelmReleaseReconciler) event(hr v2.HelmRelease, revision, severity, msg
 			).Error(err, "unable to send event")
 			return
 		}
+	}
+}
+
+func (r *HelmReleaseReconciler) recordReadiness(hr v2.HelmRelease, deleted bool) {
+	if r.MetricsRecorder == nil {
+		return
+	}
+
+	objRef, err := reference.GetReference(r.Scheme, &hr)
+	if err != nil {
+		r.Log.WithValues(
+			strings.ToLower(hr.Kind),
+			fmt.Sprintf("%s/%s", hr.GetNamespace(), hr.GetName()),
+		).Error(err, "unable to record readiness metric")
+		return
+	}
+	if rc := meta.GetCondition(hr.Status.Conditions, meta.ReadyCondition); rc != nil {
+		r.MetricsRecorder.RecordCondition(*objRef, *rc, deleted)
+	} else {
+		r.MetricsRecorder.RecordCondition(*objRef, meta.Condition{
+			Type:   meta.ReadyCondition,
+			Status: corev1.ConditionUnknown,
+		}, deleted)
 	}
 }
 
