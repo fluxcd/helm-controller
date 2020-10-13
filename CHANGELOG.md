@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.1.2 (2020-10-13)
+
+This prerelease comes with Prometheus instrumentation for the controller's resources.
+
+For each kind, the controller exposes a gauge metric to track the `Ready` condition status,
+and a histogram with the reconciliation duration in seconds:
+
+* `gotk_reconcile_condition{kind, name, namespace, status, type="Ready"}`
+* `gotk_reconcile_duration{kind, name, namespace}`
+
 ## 0.1.1 (2020-10-02)
 
 This prerelease fixes a regression bug introduced in `v0.1.0`
