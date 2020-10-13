@@ -4,7 +4,7 @@ The `HelmRelease` API defines a resource for automated controller driven Helm re
 
 ## Specification
 
-A **helmrelease** object defines a resource for controller driven reconciliation
+A **HelmRelease** object defines a resource for controller driven reconciliation
 of Helm releases via Helm actions such as install, upgrade, test, uninstall, and rollback.
 This includes release placement (namespace/name), release content (chart/values overrides),
 action trigger configuration, individual action configuration, and statusing.
@@ -656,6 +656,7 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: backend
+  namespace: default
 spec:
   interval: 5m
   chart:
@@ -665,6 +666,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: podinfo
+        namespace: default
       interval: 1m
   upgrade:
     remediation:
@@ -683,6 +685,7 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: frontend
+  namespace: default
 spec:
   interval: 5m
   chart:
@@ -692,6 +695,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: podinfo
+        namespace: default
       interval: 1m
   dependsOn:
     - backend
@@ -731,6 +735,7 @@ apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: podinfo
+  namespace: default
 spec:
   interval: 5m
   chart:
@@ -740,6 +745,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: podinfo
+        namespace: default
       interval: 1m
   test:
     enable: true
@@ -773,28 +779,30 @@ to true if at least one retry is configured.
 apiVersion: helm.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
- name: podinfo
+  name: podinfo
+  namespace: default
 spec:
- interval: 5m
- chart:
-   spec:
-     chart: podinfo
-     version: '>=4.0.0 <5.0.0'
-     sourceRef:
-       kind: HelmRepository
-       name: podinfo
-     interval: 1m
- install:
-   remediation:
-     retries: 3
- upgrade:
-   remediation:
-     remediateLastFailure: false
- values:
-   resources:
-     requests:
-       cpu: 100m
-       memory: 64Mi
+  interval: 5m
+  chart:
+    spec:
+      chart: podinfo
+      version: '>=4.0.0 <5.0.0'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+        namespace: default
+      interval: 1m
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      remediateLastFailure: false
+  values:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
 ```
 
 ## Status
