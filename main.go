@@ -29,8 +29,10 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	"github.com/fluxcd/pkg/recorder"
+	"github.com/fluxcd/pkg/runtime/events"
+	"github.com/fluxcd/pkg/runtime/metrics"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
@@ -78,15 +80,18 @@ func main() {
 
 	ctrl.SetLogger(newLogger(logLevel, logJSON))
 
-	var eventRecorder *recorder.EventRecorder
+	var eventRecorder *events.Recorder
 	if eventsAddr != "" {
-		if er, err := recorder.NewEventRecorder(eventsAddr, "helm-controller"); err != nil {
+		if er, err := events.NewRecorder(eventsAddr, "helm-controller"); err != nil {
 			setupLog.Error(err, "unable to create event recorder")
 			os.Exit(1)
 		} else {
 			eventRecorder = er
 		}
 	}
+
+	metricsRecorder := metrics.NewRecorder()
+	crtlmetrics.Registry.MustRegister(metricsRecorder.Collectors()...)
 
 	watchNamespace := ""
 	if !watchAllNamespaces {
@@ -122,6 +127,7 @@ func main() {
 		Scheme:                mgr.GetScheme(),
 		EventRecorder:         mgr.GetEventRecorderFor("helm-controller"),
 		ExternalEventRecorder: eventRecorder,
+		MetricsRecorder:       metricsRecorder,
 	}).SetupWithManager(mgr, controllers.HelmReleaseReconcilerOptions{
 		MaxConcurrentReconciles:   concurrent,
 		DependencyRequeueInterval: requeueDependency,
