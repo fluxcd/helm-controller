@@ -7,8 +7,7 @@ replace github.com/fluxcd/helm-controller/api => ./api
 require (
 	github.com/fluxcd/helm-controller/api v0.1.0
 	github.com/fluxcd/pkg/apis/meta v0.0.2
-	github.com/fluxcd/pkg/recorder v0.0.5
-	github.com/fluxcd/pkg/runtime v0.0.6
+	github.com/fluxcd/pkg/runtime v0.1.0
 	github.com/fluxcd/source-controller/api v0.1.0
 	github.com/go-logr/logr v0.1.0
 	github.com/onsi/ginkgo v1.12.1

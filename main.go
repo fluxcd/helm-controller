@@ -30,7 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/fluxcd/pkg/recorder"
+	"github.com/fluxcd/pkg/runtime/events"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
@@ -78,9 +78,9 @@ func main() {
 
 	ctrl.SetLogger(newLogger(logLevel, logJSON))
 
-	var eventRecorder *recorder.EventRecorder
+	var eventRecorder *events.Recorder
 	if eventsAddr != "" {
-		if er, err := recorder.NewEventRecorder(eventsAddr, "helm-controller"); err != nil {
+		if er, err := events.NewRecorder(eventsAddr, "helm-controller"); err != nil {
 			setupLog.Error(err, "unable to create event recorder")
 			os.Exit(1)
 		} else {
