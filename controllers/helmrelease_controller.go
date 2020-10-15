@@ -172,7 +172,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 		return v2.HelmReleaseNotReady(hr, meta.SuspendedReason, msg), ctrl.Result{}, nil
 	}
 
-	// record reconciliation duration
+	// Record reconciliation duration
 	if r.MetricsRecorder != nil {
 		objRef, err := reference.GetReference(r.Scheme, &hr)
 		if err != nil {
@@ -182,25 +182,19 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 	}
 
 	// Reconcile chart based on the HelmChartTemplate
-	hc, ok, reconcileErr := r.reconcileChart(ctx, &hr)
-	if !ok {
-		var msg string
-		if reconcileErr != nil {
-			msg = fmt.Sprintf("chart reconciliation failed: %s", reconcileErr.Error())
-			r.event(hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, msg)
-		} else {
-			msg = "HelmChart is not ready"
-			r.event(hr, hr.Status.LastAttemptedRevision, events.EventSeverityInfo, msg)
-		}
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{}, reconcileErr
+	hc, reconcileErr := r.reconcileChart(ctx, &hr)
+	if reconcileErr != nil {
+		msg := fmt.Sprintf("chart reconciliation failed: %s", reconcileErr.Error())
+		r.event(hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, msg)
+		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{Requeue: true}, reconcileErr
 	}
 
-	// Check chart artifact readiness
-	if hc.GetArtifact() == nil {
-		msg := "HelmChart is not ready"
+	// Check chart readiness
+	if hc.Generation != hc.Status.ObservedGeneration || !meta.HasReadyCondition(hc.Status.Conditions) {
+		msg := fmt.Sprintf("HelmChart '%s/%s' is not ready", hc.GetNamespace(), hc.GetName())
 		r.event(hr, hr.Status.LastAttemptedRevision, events.EventSeverityInfo, msg)
 		log.Info(msg)
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{}, nil
+		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{Requeue: true}, nil
 	}
 
 	// Check dependencies
@@ -256,7 +250,7 @@ func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmRele
 		Complete(r)
 }
 
-func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, bool, error) {
+func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, error) {
 	chartName := types.NamespacedName{
 		Namespace: hr.Spec.Chart.GetNamespace(hr.Namespace),
 		Name:      hr.GetHelmChartName(),
@@ -265,7 +259,7 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	// Garbage collect the previous HelmChart if the namespace named changed.
 	if hr.Status.HelmChart != "" && hr.Status.HelmChart != chartName.String() {
 		if err := r.garbageCollectHelmChart(ctx, *hr); err != nil {
-			return nil, false, err
+			return nil, err
 		}
 	}
 
@@ -273,27 +267,25 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	var helmChart sourcev1.HelmChart
 	err := r.Client.Get(ctx, chartName, &helmChart)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return nil, false, err
+		return nil, err
 	}
 	hc := helmChartFromTemplate(*hr)
 	switch {
 	case apierrors.IsNotFound(err):
 		if err = r.Client.Create(ctx, hc); err != nil {
-			return nil, false, err
+			return nil, err
 		}
 		hr.Status.HelmChart = chartName.String()
-		return nil, false, nil
+		return hc, nil
 	case helmChartRequiresUpdate(*hr, helmChart):
 		r.Log.Info("chart diverged from template", strings.ToLower(sourcev1.HelmChartKind), chartName.String())
 		helmChart.Spec = hc.Spec
 		if err = r.Client.Update(ctx, &helmChart); err != nil {
-			return nil, false, err
+			return nil, err
 		}
 		hr.Status.HelmChart = chartName.String()
-		return nil, false, nil
 	}
-
-	return &helmChart, true, nil
+	return &helmChart, nil
 }
 
 func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.Logger,
