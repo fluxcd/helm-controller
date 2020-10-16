@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.1.3 (2020-10-16)
+
+This prereleases fixes two bugs:
+
+- `HelmRelease` resources with a `spec.valuesFrom` reference making use
+  of a `targetPath` defined as the first item will now compose without
+  failing.
+- The chart reconciliation and readiness logic has been rewritten to
+  better work with no-op chart updates and guarantee readiness state
+  observation accuracy. This prevents it from `HelmRelease`s getting
+  stuck on a "HelmChart is not ready" state.
+
 ## 0.1.2 (2020-10-13)
 
 This prerelease comes with Prometheus instrumentation for the controller's resources.
