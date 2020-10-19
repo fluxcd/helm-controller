@@ -27,7 +27,6 @@ import (
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/rest"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
@@ -39,16 +38,11 @@ type Runner struct {
 }
 
 // NewRunner constructs a new Runner configured to run Helm actions with the
-// given rest.Config, and the release and storage namespace configured to the
-// provided values.
-func NewRunner(clusterCfg *rest.Config, releaseNamespace, storageNamespace string, logger logr.Logger) (*Runner, error) {
+// given genericclioptions.RESTClientGetter, and the release and storage
+// namespace configured to the provided values.
+func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace string, logger logr.Logger) (*Runner, error) {
 	cfg := new(action.Configuration)
-	if err := cfg.Init(&genericclioptions.ConfigFlags{
-		APIServer:   &clusterCfg.Host,
-		CAFile:      &clusterCfg.CAFile,
-		BearerToken: &clusterCfg.BearerToken,
-		Namespace:   &releaseNamespace,
-	}, storageNamespace, "secret", debugLogger(logger)); err != nil {
+	if err := cfg.Init(getter, storageNamespace, "secret", debugLogger(logger)); err != nil {
 		return nil, err
 	}
 	return &Runner{config: cfg}, nil

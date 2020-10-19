@@ -183,6 +183,26 @@ spec:
               interval:
                 description: Interval at which to reconcile the Helm release.
                 type: string
+              kubeConfig:
+                description: KubeConfig for reconciling the HelmRelease on a remote
+                  cluster.
+                properties:
+                  secretRef:
+                    description: SecretRef holds the name to a secret that contains
+                      a 'value' key with the kubeconfig file as the value. It must
+                      be in the same namespace as the HelmRelease. It is recommended
+                      that the kubeconfig is self-contained, and the secret is regularly
+                      updated if credentials such as a cloud-access-token expire.
+                      Cloud specific `cmd-path` auth helpers will not function without
+                      adding binaries and credentials to the Pod that is responsible
+                      for reconciling the HelmRelease.
+                    properties:
+                      name:
+                        description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          TODO: Add other useful fields. apiVersion, kind, uid?'
+                        type: string
+                    type: object
+                type: object
               maxHistory:
                 description: MaxHistory is the number of revisions saved by Helm for
                   this HelmRelease. Use '0' for an unlimited number of revisions;

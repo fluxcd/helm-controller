@@ -37,6 +37,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	kuberecorder "k8s.io/client-go/tools/record"
 	"k8s.io/client-go/tools/reference"
@@ -51,6 +52,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/runner"
 	"github.com/fluxcd/helm-controller/internal/util"
 )
@@ -291,7 +293,11 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.Logger,
 	hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (v2.HelmRelease, error) {
 	// Initialize Helm action runner
-	run, err := runner.NewRunner(r.Config, hr.GetReleaseNamespace(), hr.GetNamespace(), r.Log)
+	getter, err := r.getRESTClientGetter(ctx, hr)
+	if err != nil {
+		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error()), err
+	}
+	run, err := runner.NewRunner(getter, hr.GetNamespace(), r.Log)
 	if err != nil {
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to initialize Helm action runner"), err
 	}
@@ -299,6 +305,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 	// Determine last release revision.
 	rel, observeLastReleaseErr := run.ObserveLastRelease(hr)
 	if observeLastReleaseErr != nil {
+		err = fmt.Errorf("failed to get last release revision: %w", observeLastReleaseErr)
 		return v2.HelmReleaseNotReady(hr, v2.GetLastReleaseFailedReason, "failed to get last release revision"), err
 	}
 
@@ -448,6 +455,25 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 		}
 	}
 	return nil
+}
+
+func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {
+	if hr.Spec.KubeConfig == nil {
+		return kube.NewInClusterRESTClientGetter(r.Config, hr.GetReleaseNamespace()), nil
+	}
+	secretName := types.NamespacedName{
+		Namespace: hr.GetNamespace(),
+		Name:      hr.Spec.KubeConfig.SecretRef.Name,
+	}
+	var secret corev1.Secret
+	if err := r.Get(ctx, secretName, &secret); err != nil {
+		return nil, fmt.Errorf("could not find KubeConfig secret '%s': %w", secretName, err)
+	}
+	kubeConfig, ok := secret.Data["value"]
+	if !ok {
+		return nil, fmt.Errorf("KubeConfig secret '%s' does not contain a 'value' key", secretName)
+	}
+	return kube.NewMemoryRESTClientGetter(kubeConfig, hr.GetReleaseNamespace()), nil
 }
 
 // composeValues attempts to resolve all v2beta1.ValuesReference resources
@@ -618,7 +644,11 @@ func (r *HelmReleaseReconciler) garbageCollectHelmChart(ctx context.Context, hr 
 // garbageCollectHelmRelease uninstalls the deployed Helm release of
 // the given v2beta1.HelmRelease.
 func (r *HelmReleaseReconciler) garbageCollectHelmRelease(logger logr.Logger, hr v2.HelmRelease) error {
-	run, err := runner.NewRunner(r.Config, hr.GetReleaseNamespace(), hr.GetNamespace(), logger)
+	getter, err := r.getRESTClientGetter(context.TODO(), hr)
+	if err != nil {
+		return err
+	}
+	run, err := runner.NewRunner(getter, hr.GetNamespace(), logger)
 	if err != nil {
 		return err
 	}
