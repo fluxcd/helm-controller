@@ -21,6 +21,10 @@ type HelmReleaseSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
+	// KubeConfig for reconciling the HelmRelease on a remote cluster.
+	// +optional
+	KubeConfig *KubeConfig `json:"kubeConfig,omitempty"`
+
 	// Suspend tells the controller to suspend reconciliation for this HelmRelease,
 	// it does not apply to already started reconciliations. Defaults to false.
 	// +optional
@@ -85,6 +89,20 @@ type HelmReleaseSpec struct {
 	// Values holds the values for this Helm release.
 	// +optional
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
+}
+
+// KubeConfig references a Kubernetes secret that contains a kubeconfig file.
+type KubeConfig struct {
+	// SecretRef holds the name to a secret that contains a 'value' key with
+	// the kubeconfig file as the value. It must be in the same namespace as
+	// the HelmRelease.
+	// It is recommended that the kubeconfig is self-contained, and the secret
+	// is regularly updated if credentials such as a cloud-access-token expire.
+	// Cloud specific `cmd-path` auth helpers will not function without adding
+	// binaries and credentials to the Pod that is responsible for reconciling
+	// the HelmRelease.
+	// +required
+	SecretRef corev1.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 // HelmChartTemplate defines the template from which the controller will
@@ -804,6 +822,98 @@ spec:
         cpu: 100m
         memory: 64Mi
 ```
+
+## Remote Clusters / Cluster-API
+
+If the `spec.kubeConfig` field is set, Helm actions will run against the default cluster specified
+in that KubeConfig instead of the local cluster that is responsible for the reconciliation of the
+HelmRelease.
+
+The secret defined in the `spec.kubeConfig.secretRef` must exist in the same namespace as the
+HelmRelease. On every reconciliation, the KubeConfig bytes will be loaded from the `values` key
+of the secret's data, and the secret can thus be regularly updated if cluster-access-tokens have
+to rotate due to expiration. 
+
+The Helm storage is stored on the remote cluster in a namespace that equals to the namespace of
+the HelmRelease, the release itself is made in either this namespace, or the configured
+`spec.targetNamespace`. In any case, both are expected to exist.
+
+Other references to Kubernetes resources in the HelmRelease, like ValuesReference resources,
+are expected to exist on the reconciling cluster.
+
+This composes well with Cluster API bootstrap providers such as CAPBK (kubeadm), as well as the
+CAPA (AWS) EKS integration.
+
+To reconcile a HelmRelease to a CAPI controlled cluster, put the HelmRelease in the same
+namespace as your Cluster object, and set the `spec.kubeConfig.secretRef.name` to 
+`<cluster-name>-kubeconfig`:
+
+```yaml
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: Cluster
+metadata:
+  name: stage  # the kubeconfig Secret will contain the Cluster name
+  namespace: capi-stage
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 10.100.0.0/16
+    serviceDomain: stage-cluster.local
+    services:
+      cidrBlocks:
+      - 10.200.0.0/12
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+    kind: KubeadmControlPlane
+    name: stage-control-plane
+    namespace: capi-stage
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+    kind: DockerCluster
+    name: stage
+    namespace: capi-stage
+---
+# ... unrelated Cluster API objects omitted for brevity ...
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+  namespace: capi-stage
+spec:
+  kubeConfig:
+    secretRef:
+      name: stage-kubeconfig # Cluster API creates this for the matching Cluster
+  chart:
+    spec:
+      chart: prometheus
+      version: '>=4.0.0 <5.0.0'
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+  install:
+    remediation:
+      retries: -1
+```
+
+The Cluster and HelmRelease can be created at the same time if the install remediation
+configuration is set to a forgiving amount of retries. The HelmRelease will then eventually
+reconcile once the cluster is available.
+
+If you wish to target clusters created by other means than CAPI, you can create a ServiceAccount
+on the remote cluster, generate a KubeConfig for that account, and then create a secret on the
+cluster where helm-controller is running e.g.:
+
+```sh
+kubectl -n default create secret generic prod-kubeconfig \
+    --from-file=value=./kubeconfig
+```
+
+> **Note** that the KubeConfig should be self-contained and not rely on binaries, environment,
+> or credential files from the helm-controller Pod. This matches the constraints of KubeConfigs
+> from current Cluster API providers. KubeConfigs with cmd-path in them likely won't work without
+> a custom, per-provider installation of helm-controller.
 
 ## Status
 
