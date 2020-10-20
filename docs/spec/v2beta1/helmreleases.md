@@ -628,7 +628,7 @@ by annotating the object with a `fluxcd.io/reconcileAt` annotation. For example:
 kubectl annotate --overwrite helmrelease/podinfo fluxcd.io/reconcileAt="$(date +%s)"
 ```
 
-Reconciliation can be suspended by setting `spec.susped` to `true`.
+Reconciliation can be suspended by setting `spec.suspend` to `true`.
 
 The timeout for any individual Kubernetes operation (like Jobs for hooks) during the performance
 of Helm actions can be configured via `spec.timeout` and can be overridden per action
