@@ -44,6 +44,10 @@ type HelmReleaseSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
+	// KubeConfig for reconciling the HelmRelease on a remote cluster.
+	// +optional
+	KubeConfig *KubeConfig `json:"kubeConfig,omitempty"`
+
 	// Suspend tells the controller to suspend reconciliation for this HelmRelease,
 	// it does not apply to already started reconciliations. Defaults to false.
 	// +optional
@@ -152,6 +156,20 @@ func (in HelmReleaseSpec) GetUninstall() Uninstall {
 		return Uninstall{}
 	}
 	return *in.Uninstall
+}
+
+// KubeConfig references a Kubernetes secret that contains a kubeconfig file.
+type KubeConfig struct {
+	// SecretRef holds the name to a secret that contains a 'value' key with
+	// the kubeconfig file as the value. It must be in the same namespace as
+	// the HelmRelease.
+	// It is recommended that the kubeconfig is self-contained, and the secret
+	// is regularly updated if credentials such as a cloud-access-token expire.
+	// Cloud specific `cmd-path` auth helpers will not function without adding
+	// binaries and credentials to the Pod that is responsible for reconciling
+	// the HelmRelease.
+	// +required
+	SecretRef corev1.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 // HelmChartTemplate defines the template from which the controller will

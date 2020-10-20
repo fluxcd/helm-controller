@@ -97,6 +97,20 @@ Kubernetes meta/v1.Duration
 </tr>
 <tr>
 <td>
+<code>kubeConfig</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta1.KubeConfig">
+KubeConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>KubeConfig for reconciling the HelmRelease on a remote cluster.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>suspend</code><br>
 <em>
 bool
@@ -600,6 +614,20 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <p>Interval at which to reconcile the Helm release.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>kubeConfig</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta1.KubeConfig">
+KubeConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>KubeConfig for reconciling the HelmRelease on a remote cluster.</p>
 </td>
 </tr>
 <tr>
@@ -1121,6 +1149,47 @@ bool
 <em>(Optional)</em>
 <p>RemediateLastFailure tells the controller to remediate the last failure, when
 no retries remain. Defaults to &lsquo;false&rsquo;.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2beta1.KubeConfig">KubeConfig
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta1.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>KubeConfig references a Kubernetes secret that contains a kubeconfig file.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>secretRef</code><br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
+Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<p>SecretRef holds the name to a secret that contains a &lsquo;value&rsquo; key with
+the kubeconfig file as the value. It must be in the same namespace as
+the HelmRelease.
+It is recommended that the kubeconfig is self-contained, and the secret
+is regularly updated if credentials such as a cloud-access-token expire.
+Cloud specific <code>cmd-path</code> auth helpers will not function without adding
+binaries and credentials to the Pod that is responsible for reconciling
+the HelmRelease.</p>
 </td>
 </tr>
 </tbody>
