@@ -474,8 +474,8 @@ spec:
                   values of the last reconciliation attempt.
                 type: string
               lastHandledReconcileAt:
-                description: LastHandledReconcileAt is the last manual reconciliation
-                  request (by annotating the HelmRelease) handled by the reconciler.
+                description: LastHandledReconcileAt holds the value of the most recent
+                  reconcile request value, so a change can be detected.
                 type: string
               lastReleaseRevision:
                 description: LastReleaseRevision is the revision of the last successful

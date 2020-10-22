@@ -627,10 +627,7 @@ type HelmReleaseStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
-	// LastHandledReconcileAt is the last manual reconciliation request (by
-	// annotating the HelmRelease) handled by the reconciler.
-	// +optional
-	LastHandledReconcileAt string `json:"lastHandledReconcileAt,omitempty"`
+	meta.ReconcileRequestStatus `json:",inline"`
 
 	// Conditions holds the conditions for the HelmRelease.
 	// +optional

@@ -115,7 +115,7 @@ func (r *HelmChartWatcher) requestReconciliation(ctx context.Context, hr v2.Helm
 		if hr.Annotations == nil {
 			hr.Annotations = make(map[string]string)
 		}
-		hr.Annotations[meta.ReconcileAtAnnotation] = metav1.Now().String()
+		hr.Annotations[meta.ReconcileRequestAnnotation] = metav1.Now().String()
 		err = r.Update(ctx, &hr)
 		return
 	})

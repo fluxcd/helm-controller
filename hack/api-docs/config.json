@@ -24,8 +24,8 @@
       "docsURLTemplate": "https://godoc.org/github.com/fluxcd/pkg/runtime/dependency#CrossNamespaceDependencyReference"
     },
     {
-      "typeMatchPrefix": "^github.com/fluxcd/pkg/apis/meta\\.Condition$",
-      "docsURLTemplate": "https://godoc.org/github.com/fluxcd/pkg/apis/meta#Condition"
+      "typeMatchPrefix": "^github.com/fluxcd/pkg/apis/meta",
+      "docsURLTemplate": "https://godoc.org/github.com/fluxcd/pkg/apis/meta#{{ .TypeIdentifier }}"
     }
   ],
   "typeDisplayNamePrefixOverrides": {
