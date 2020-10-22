@@ -152,8 +152,8 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, hr v2.HelmRelease) (v2.HelmRelease, ctrl.Result, error) {
 	reconcileStart := time.Now()
 	// Record the value of the reconciliation request, if any
-	if v, ok := hr.GetAnnotations()[meta.ReconcileAtAnnotation]; ok {
-		hr.Status.LastHandledReconcileAt = v
+	if v, ok := meta.ReconcileAnnotationValue(hr.GetAnnotations()); ok {
+		hr.Status.SetLastHandledReconcileRequest(v)
 	}
 
 	// Observe HelmRelease generation.

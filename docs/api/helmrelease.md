@@ -846,15 +846,17 @@ int64
 </tr>
 <tr>
 <td>
-<code>lastHandledReconcileAt</code><br>
+<code>ReconcileRequestStatus</code><br>
 <em>
-string
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#ReconcileRequestStatus">
+github.com/fluxcd/pkg/apis/meta.ReconcileRequestStatus
+</a>
 </em>
 </td>
 <td>
-<em>(Optional)</em>
-<p>LastHandledReconcileAt is the last manual reconciliation request (by
-annotating the HelmRelease) handled by the reconciler.</p>
+<p>
+(Members of <code>ReconcileRequestStatus</code> are embedded into this type.)
+</p>
 </td>
 </tr>
 <tr>
