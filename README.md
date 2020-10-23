@@ -41,6 +41,8 @@ operator.
 * [Get started with GitOps Toolkit](https://toolkit.fluxcd.io/get-started/)
 * [Manage Helm Releases](https://toolkit.fluxcd.io/guides/helmreleases/)
 * [Setup Notifications](https://toolkit.fluxcd.io/guides/notifications/)
+* Nov 13: Join our planned workshop on migrating from Helm Operator to Helm Controller (part of [GitOps Days EMEA](https://www.gitopsdays.com/)).
+
 
 ## Specifications
 
