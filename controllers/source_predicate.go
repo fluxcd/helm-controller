@@ -23,41 +23,41 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 )
 
-type HelmChartRevisionChangePredicate struct {
+type SourceRevisionChangePredicate struct {
 	predicate.Funcs
 }
 
-func (HelmChartRevisionChangePredicate) Update(e event.UpdateEvent) bool {
+func (SourceRevisionChangePredicate) Update(e event.UpdateEvent) bool {
 	if e.MetaOld == nil || e.MetaNew == nil {
 		return false
 	}
 
-	oldChart, ok := e.ObjectOld.(*sourcev1.HelmChart)
+	oldSource, ok := e.ObjectOld.(sourcev1.Source)
 	if !ok {
 		return false
 	}
 
-	newChart, ok := e.ObjectNew.(*sourcev1.HelmChart)
+	newSource, ok := e.ObjectNew.(sourcev1.Source)
 	if !ok {
 		return false
 	}
 
-	if oldChart.GetArtifact() == nil && newChart.GetArtifact() != nil {
+	if oldSource.GetArtifact() == nil && newSource.GetArtifact() != nil {
 		return true
 	}
 
-	if oldChart.GetArtifact() != nil && newChart.GetArtifact() != nil &&
-		oldChart.GetArtifact().Revision != newChart.GetArtifact().Revision {
+	if oldSource.GetArtifact() != nil && newSource.GetArtifact() != nil &&
+		oldSource.GetArtifact().Revision != newSource.GetArtifact().Revision {
 		return true
 	}
 
 	return false
 }
 
-func (HelmChartRevisionChangePredicate) Create(e event.CreateEvent) bool {
+func (SourceRevisionChangePredicate) Create(e event.CreateEvent) bool {
 	return false
 }
 
-func (HelmChartRevisionChangePredicate) Delete(e event.DeleteEvent) bool {
+func (SourceRevisionChangePredicate) Delete(e event.DeleteEvent) bool {
 	return false
 }
