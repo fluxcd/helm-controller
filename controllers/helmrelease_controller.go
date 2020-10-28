@@ -96,8 +96,8 @@ func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmRele
 		For(&v2.HelmRelease{}, builder.WithPredicates(predicates.ChangePredicate{})).
 		Watches(
 			&source.Kind{Type: &sourcev1.HelmChart{}},
-			&handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(r.helmReleasesForHelmChart)},
-			builder.WithPredicates(HelmChartRevisionChangePredicate{}),
+			&handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(r.requestsForHelmChartChange)},
+			builder.WithPredicates(SourceRevisionChangePredicate{}),
 		).
 		WithOptions(controller.Options{MaxConcurrentReconciles: opts.MaxConcurrentReconciles}).
 		Complete(r)
@@ -704,7 +704,16 @@ func (r *HelmReleaseReconciler) handleHelmActionResult(hr *v2.HelmRelease, revis
 	}
 }
 
-func (r *HelmReleaseReconciler) helmReleasesForHelmChart(obj handler.MapObject) []reconcile.Request {
+func (r *HelmReleaseReconciler) requestsForHelmChartChange(obj handler.MapObject) []reconcile.Request {
+	hc, ok := obj.Object.(*sourcev1.HelmChart)
+	if !ok {
+		panic(fmt.Sprintf("Expected a HelmChart, got %T", hc))
+	}
+	// If we do not have an artifact, we have no requests to make
+	if hc.GetArtifact() == nil {
+		return nil
+	}
+
 	ctx := context.Background()
 	var list v2.HelmReleaseList
 	if err := r.List(ctx, &list, client.MatchingFields{
@@ -713,12 +722,19 @@ func (r *HelmReleaseReconciler) helmReleasesForHelmChart(obj handler.MapObject) 
 		r.Log.Error(err, "failed to list HelmReleases for HelmChart")
 		return nil
 	}
-	reqs := make([]reconcile.Request, len(list.Items), len(list.Items))
-	for i := range list.Items {
-		reqs[i].NamespacedName.Name = list.Items[i].Name
-		reqs[i].NamespacedName.Namespace = list.Items[i].Namespace
 
-		r.Log.Info("requesting reconciliation", v2.HelmReleaseKind, reqs[i].NamespacedName)
+	var reqs []reconcile.Request
+	for _, i := range list.Items {
+		// If the revision of the artifact equals to the last attempted revision,
+		// we should not make a request for this HelmRelease
+		if hc.GetArtifact().Revision == i.Status.LastAttemptedRevision {
+			continue
+		}
+		req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: i.GetNamespace(), Name: i.GetName()}}
+		reqs = append(reqs, req)
+		r.Log.Info("requesting reconciliation due to GitRepository revision change",
+			strings.ToLower(v2.HelmReleaseKind), &req,
+			"revision", hc.GetArtifact().Revision)
 	}
 	return reqs
 }
