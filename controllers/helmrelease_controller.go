@@ -42,8 +42,12 @@ import (
 	kuberecorder "k8s.io/client-go/tools/record"
 	"k8s.io/client-go/tools/reference"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/events"
@@ -57,6 +61,13 @@ import (
 	"github.com/fluxcd/helm-controller/internal/util"
 )
 
+// +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases/finalizers,verbs=get;create;update;patch;delete
+// +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=helmcharts,verbs=get;list;watch
+// +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=helmcharts/status,verbs=get
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+
 // HelmReleaseReconciler reconciles a HelmRelease object
 type HelmReleaseReconciler struct {
 	client.Client
@@ -69,6 +80,29 @@ type HelmReleaseReconciler struct {
 	MetricsRecorder       *metrics.Recorder
 }
 
+func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
+	// Index the HelmRelease by the HelmChart references they point at
+	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v2.HelmRelease{}, v2.SourceIndexKey,
+		func(rawObj runtime.Object) []string {
+			hr := rawObj.(*v2.HelmRelease)
+			return []string{fmt.Sprintf("%s/%s", hr.Spec.Chart.GetNamespace(hr.Namespace), hr.GetHelmChartName())}
+		},
+	); err != nil {
+		return err
+	}
+
+	r.requeueDependency = opts.DependencyRequeueInterval
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&v2.HelmRelease{}, builder.WithPredicates(predicates.ChangePredicate{})).
+		Watches(
+			&source.Kind{Type: &sourcev1.HelmChart{}},
+			&handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(r.helmReleasesForHelmChart)},
+			builder.WithPredicates(HelmChartRevisionChangePredicate{}),
+		).
+		WithOptions(controller.Options{MaxConcurrentReconciles: opts.MaxConcurrentReconciles}).
+		Complete(r)
+}
+
 // ConditionError represents an error with a status condition reason attached.
 type ConditionError struct {
 	Reason string
@@ -78,10 +112,6 @@ type ConditionError struct {
 func (c ConditionError) Error() string {
 	return c.Err.Error()
 }
-
-// +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -241,15 +271,6 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 type HelmReleaseReconcilerOptions struct {
 	MaxConcurrentReconciles   int
 	DependencyRequeueInterval time.Duration
-}
-
-func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
-	r.requeueDependency = opts.DependencyRequeueInterval
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&v2.HelmRelease{}).
-		WithEventFilter(predicates.ChangePredicate{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: opts.MaxConcurrentReconciles}).
-		Complete(r)
 }
 
 func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, error) {
@@ -679,6 +700,25 @@ func (r *HelmReleaseReconciler) handleHelmActionResult(hr *v2.HelmRelease, revis
 		r.event(*hr, revision, events.EventSeverityInfo, msg)
 		return nil
 	}
+}
+
+func (r *HelmReleaseReconciler) helmReleasesForHelmChart(obj handler.MapObject) []reconcile.Request {
+	ctx := context.Background()
+	var list v2.HelmReleaseList
+	if err := r.List(ctx, &list, client.MatchingFields{
+		v2.SourceIndexKey: fmt.Sprintf("%s/%s", obj.Meta.GetNamespace(), obj.Meta.GetName()),
+	}); err != nil {
+		r.Log.Error(err, "failed to list HelmReleases for HelmChart")
+		return nil
+	}
+	reqs := make([]reconcile.Request, len(list.Items), len(list.Items))
+	for i := range list.Items {
+		reqs[i].NamespacedName.Name = list.Items[i].Name
+		reqs[i].NamespacedName.Namespace = list.Items[i].Namespace
+
+		r.Log.Info("requesting reconciliation", v2.HelmReleaseKind, reqs[i].NamespacedName)
+	}
+	return reqs
 }
 
 // event emits a Kubernetes event and forwards the event to notification controller if configured.

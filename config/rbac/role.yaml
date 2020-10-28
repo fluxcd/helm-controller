@@ -28,6 +28,16 @@ rules:
 - apiGroups:
   - helm.toolkit.fluxcd.io
   resources:
+  - helmreleases/finalizers
+  verbs:
+  - create
+  - delete
+  - get
+  - patch
+  - update
+- apiGroups:
+  - helm.toolkit.fluxcd.io
+  resources:
   - helmreleases/status
   verbs:
   - get
