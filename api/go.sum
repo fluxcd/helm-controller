@@ -61,12 +61,10 @@ github.com/evanphx/json-patch v4.2.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLi
 github.com/evanphx/json-patch v4.5.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch v4.9.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
-github.com/fluxcd/pkg/apis/meta v0.0.2 h1:kyA4Y0IzNjf1joBOnFqpWG7aNDHvtLExZcaHQM7qhRI=
-github.com/fluxcd/pkg/apis/meta v0.0.2/go.mod h1:nCNps5JJOcEQr3MNDmZqI4o0chjePSUYL6Q2ktDtotU=
 github.com/fluxcd/pkg/apis/meta v0.1.0 h1:CfOYHYaHslhcb3QlzgKCOXl4ziCbA5zG/fUa1qFlHis=
 github.com/fluxcd/pkg/apis/meta v0.1.0/go.mod h1:nCNps5JJOcEQr3MNDmZqI4o0chjePSUYL6Q2ktDtotU=
-github.com/fluxcd/pkg/runtime v0.1.0 h1:mCLj5GlQZqWtK3tvtZTmfgFOLsTUY1iqg3CmEyS1nRs=
-github.com/fluxcd/pkg/runtime v0.1.0/go.mod h1:OXkrYtDLw3GhclbzvnzfSktUyxRmC3FFhXj0tVVaIX8=
+github.com/fluxcd/pkg/runtime v0.1.2 h1:bKhjJGVOJgTQTWjqhwasyt69lBItq1ZWjX04rUkiypo=
+github.com/fluxcd/pkg/runtime v0.1.2/go.mod h1:HXYTNdkK8ulcT1mhuGhio9tsX65ACKaealtd/MsnkhM=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/fsnotify/fsnotify v1.4.9 h1:hsms1Qyu0jgnwNXIxa+/V/PDsU6CfLf6CNO8H7IWoS4=
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
