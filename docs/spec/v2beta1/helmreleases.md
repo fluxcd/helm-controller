@@ -640,10 +640,10 @@ The `spec.interval` tells the reconciler at which interval to reconcile the rele
 interval time units are `s`, `m` and `h` e.g. `interval: 5m`, the minimum value should be 60 seconds.
 
 The reconciler can be told to reconcile the `HelmRelease` outside of the specified interval
-by annotating the object with a `fluxcd.io/reconcileAt` annotation. For example:
+by annotating the object with a `reconcile.fluxcd.io/requestedAt` annotation. For example:
 
 ```bash
-kubectl annotate --overwrite helmrelease/podinfo fluxcd.io/reconcileAt="$(date +%s)"
+kubectl annotate --overwrite helmrelease/podinfo reconcile.fluxcd.io/requesteddAt="$(date +%s)"
 ```
 
 Reconciliation can be suspended by setting `spec.suspend` to `true`.

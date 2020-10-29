@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.2.0 (2020-10-29)
+
+This is the second MINOR prerelease, it comes with a breaking change:
+
+* The histogram metric `gotk_reconcile_duration` was renamed to `gotk_reconcile_duration_seconds`
+
+Other notable changes:
+
+* Added support for cross-cluster Helm releases by defining a `KubeConfig`
+  reference in the `HelmReleaseSpec`.
+* The annotation `fluxcd.io/reconcileAt` was renamed to `reconcile.fluxcd.io/requestedAt`,
+  the former will be removed in a next release but is backwards
+  compatible for now.
+
 ## 0.1.3 (2020-10-16)
 
 This prereleases fixes two bugs:
