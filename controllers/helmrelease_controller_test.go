@@ -24,7 +24,7 @@ import (
 	"helm.sh/helm/v3/pkg/chartutil"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -234,14 +234,14 @@ invalid`,
 
 func valuesSecret(name string, data map[string][]byte) *corev1.Secret {
 	return &corev1.Secret{
-		ObjectMeta: v1.ObjectMeta{Name: name},
+		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Data:       data,
 	}
 }
 
 func valuesConfigMap(name string, data map[string]string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
-		ObjectMeta: v1.ObjectMeta{Name: name},
+		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Data:       data,
 	}
 }
