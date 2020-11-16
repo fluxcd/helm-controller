@@ -22,6 +22,7 @@ import (
 
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/release"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // MergeMaps merges map b into given map a and returns the result.
@@ -64,4 +65,23 @@ func ReleaseRevision(rel *release.Release) int {
 		return 0
 	}
 	return rel.Version
+}
+
+// LowestNonZeroResult compares two reconciliation results and returns
+// the one with lowest requeue time.
+func LowestNonZeroResult(i, j ctrl.Result) ctrl.Result {
+	switch {
+	case i.IsZero():
+		return j
+	case j.IsZero():
+		return i
+	case i.Requeue:
+		return i
+	case j.Requeue:
+		return j
+	case i.RequeueAfter < j.RequeueAfter:
+		return i
+	default:
+		return j
+	}
 }

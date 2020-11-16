@@ -653,7 +653,7 @@ type HelmReleaseStatus struct {
 	// +optional
 	LastAttemptedValuesChecksum string `json:"lastAttemptedValuesChecksum,omitempty"`
 
-	// LastReleaseRevision is the revision of the last successful Helm release.
+	// LastReleaseRevision is the revision of the last Helm release.
 	// +optional
 	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`
 
@@ -690,41 +690,30 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 // HelmReleaseProgressing resets any failures and registers progress toward
 // reconciling the given HelmRelease by setting the meta.ReadyCondition to
 // 'Unknown' for meta.ProgressingReason.
-func HelmReleaseProgressing(hr HelmRelease) HelmRelease {
+func HelmReleaseProgressing(hr *HelmRelease) {
 	hr.Status.Conditions = []metav1.Condition{}
-	meta.SetResourceCondition(&hr, meta.ReadyCondition, metav1.ConditionUnknown, meta.ProgressingReason,
+	meta.SetResourceCondition(hr, meta.ReadyCondition, metav1.ConditionUnknown, meta.ProgressingReason,
 		"Reconciliation in progress")
-	resetFailureCounts(&hr)
-	return hr
+	resetFailureCounts(hr)
 }
 
 // HelmReleaseNotReady registers a failed reconciliation of the given HelmRelease.
-func HelmReleaseNotReady(hr HelmRelease, reason, message string) HelmRelease {
-	meta.SetResourceCondition(&hr, meta.ReadyCondition, metav1.ConditionFalse, reason, message)
+func HelmReleaseNotReady(hr *HelmRelease, reason, message string) {
+	meta.SetResourceCondition(hr, meta.ReadyCondition, metav1.ConditionFalse, reason, message)
 	hr.Status.Failures++
-	return hr
 }
 
 // HelmReleaseReady registers a successful reconciliation of the given HelmRelease.
-func HelmReleaseReady(hr HelmRelease) HelmRelease {
-	meta.SetResourceCondition(&hr, meta.ReadyCondition, metav1.ConditionTrue, meta.ReconciliationSucceededReason,
-		"Release reconciliation succeeded")
+func HelmReleaseReady(hr *HelmRelease, message string) {
+	meta.SetResourceCondition(hr, meta.ReadyCondition, metav1.ConditionTrue, meta.ReconciliationSucceededReason, message)
 	hr.Status.LastAppliedRevision = hr.Status.LastAttemptedRevision
-	resetFailureCounts(&hr)
-	return hr
+	resetFailureCounts(hr)
 }
 
-// HelmReleaseAttempted registers an attempt of the given HelmRelease with the given state.
-// and returns the modified HelmRelease and a boolean indicating a state change.
-func HelmReleaseAttempted(hr HelmRelease, revision string, releaseRevision int, valuesChecksum string) (HelmRelease, bool) {
-	changed := hr.Status.LastAttemptedRevision != revision ||
-		hr.Status.LastReleaseRevision != releaseRevision ||
-		hr.Status.LastAttemptedValuesChecksum != valuesChecksum
+// HelmReleaseAttempt registers a release attempt of the given HelmRelease.
+func HelmReleaseAttempt(hr *HelmRelease, revision string, valuesChecksum string) {
 	hr.Status.LastAttemptedRevision = revision
-	hr.Status.LastReleaseRevision = releaseRevision
 	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
-
-	return hr, changed
 }
 
 func resetFailureCounts(hr *HelmRelease) {
