@@ -161,7 +161,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	hr, result, err := r.reconcile(ctx, log, hr)
 
 	// Update status after reconciliation.
-	if updateStatusErr := r.Status().Update(ctx, &hr); updateStatusErr != nil {
+	if updateStatusErr := r.patchStatus(ctx, &hr); updateStatusErr != nil {
 		log.Error(updateStatusErr, "unable to update status after reconciliation")
 		return ctrl.Result{Requeue: true}, updateStatusErr
 	}
@@ -190,7 +190,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 	if hr.Status.ObservedGeneration != hr.Generation {
 		hr.Status.ObservedGeneration = hr.Generation
 		hr = v2.HelmReleaseProgressing(hr)
-		if updateStatusErr := r.Status().Update(ctx, &hr); updateStatusErr != nil {
+		if updateStatusErr := r.patchStatus(ctx, &hr); updateStatusErr != nil {
 			log.Error(updateStatusErr, "unable to update status after generation update")
 			return hr, ctrl.Result{Requeue: true}, updateStatusErr
 		}
@@ -339,7 +339,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 	hr, hasNewState := v2.HelmReleaseAttempted(hr, revision, releaseRevision, valuesChecksum)
 	if hasNewState {
 		hr = v2.HelmReleaseProgressing(hr)
-		if updateStatusErr := r.Status().Update(ctx, &hr); updateStatusErr != nil {
+		if updateStatusErr := r.patchStatus(ctx, &hr); updateStatusErr != nil {
 			log.Error(updateStatusErr, "unable to update status after state update")
 			return hr, updateStatusErr
 		}
@@ -702,6 +702,18 @@ func (r *HelmReleaseReconciler) handleHelmActionResult(hr *v2.HelmRelease, revis
 		r.event(*hr, revision, events.EventSeverityInfo, msg)
 		return nil
 	}
+}
+
+func (r *HelmReleaseReconciler) patchStatus(ctx context.Context, hr *v2.HelmRelease) error {
+	key, err := client.ObjectKeyFromObject(hr)
+	if err != nil {
+		return err
+	}
+	latest := &v2.HelmRelease{}
+	if err := r.Client.Get(ctx, key, latest); err != nil {
+		return err
+	}
+	return r.Client.Status().Patch(ctx, hr, client.MergeFrom(latest))
 }
 
 func (r *HelmReleaseReconciler) requestsForHelmChartChange(obj handler.MapObject) []reconcile.Request {
