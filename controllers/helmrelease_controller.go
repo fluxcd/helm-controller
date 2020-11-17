@@ -251,14 +251,14 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 	values, err := r.composeValues(ctx, hr)
 	if err != nil {
 		r.event(hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, err.Error())
-		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error()), ctrl.Result{}, nil
+		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error()), ctrl.Result{Requeue: true}, nil
 	}
 
 	// Load chart from artifact
 	chart, err := r.loadHelmChart(hc)
 	if err != nil {
 		r.event(hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, err.Error())
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, err.Error()), ctrl.Result{}, nil
+		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, err.Error()), ctrl.Result{Requeue: true}, nil
 	}
 
 	// Reconcile Helm release
