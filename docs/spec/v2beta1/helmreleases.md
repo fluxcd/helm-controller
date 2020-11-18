@@ -123,6 +123,7 @@ type HelmChartTemplateSpec struct {
 
 	// Version semver expression, ignored for charts from v1beta1.GitRepository and
 	// v1beta1.Bucket sources. Defaults to latest when omitted.
+	// +kubebuilder:default:=*
 	// +optional
 	Version string `json:"version,omitempty"`
 
