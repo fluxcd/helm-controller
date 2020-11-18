@@ -826,7 +826,9 @@ func helmChartRequiresUpdate(hr v2.HelmRelease, chart sourcev1.HelmChart) bool {
 	switch {
 	case template.Spec.Chart != chart.Spec.Chart:
 		return true
-	case template.Spec.Version != chart.Spec.Version:
+	// TODO(hidde): remove emptiness checks on next MINOR version
+	case template.Spec.Version == "" && chart.Spec.Version != "*",
+		template.Spec.Version != "" && template.Spec.Version != chart.Spec.Version:
 		return true
 	case template.Spec.SourceRef.Name != chart.Spec.SourceRef.Name:
 		return true
