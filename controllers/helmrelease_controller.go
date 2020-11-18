@@ -836,6 +836,8 @@ func helmChartRequiresUpdate(hr v2.HelmRelease, chart sourcev1.HelmChart) bool {
 		return true
 	case template.GetInterval(hr.Spec.Interval) != chart.Spec.Interval:
 		return true
+	case template.Spec.ValuesFile != chart.Spec.ValuesFile:
+		return true
 	default:
 		return false
 	}
