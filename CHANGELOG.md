@@ -2,6 +2,10 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.2.2 (2020-11-18)
+
+This prerelease comes with a bugfix for chart divergence detections.
+
 ## 0.2.1 (2020-11-17)
 
 This prerelease comes with improvements to status reporting, and a
