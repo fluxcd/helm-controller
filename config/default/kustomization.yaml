@@ -5,6 +5,6 @@ resources:
 - ../crd
 - ../rbac
 - ../manager
-- github.com/fluxcd/source-controller/config//crd?ref=v0.2.0
-- github.com/fluxcd/source-controller/config//manager?ref=v0.2.0
+- github.com/fluxcd/source-controller/config//crd?ref=v0.3.0
+- github.com/fluxcd/source-controller/config//manager?ref=v0.3.0
 - namespace.yaml

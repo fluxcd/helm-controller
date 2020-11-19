@@ -45,7 +45,7 @@ string
 <td>
 <code>metadata</code><br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -863,8 +863,8 @@ github.com/fluxcd/pkg/apis/meta.ReconcileRequestStatus
 <td>
 <code>conditions</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#Condition">
-[]github.com/fluxcd/pkg/apis/meta.Condition
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#condition-v1-meta">
+[]Kubernetes meta/v1.Condition
 </a>
 </em>
 </td>
@@ -1178,7 +1178,7 @@ no retries remain. Defaults to &lsquo;false&rsquo;.</p>
 <td>
 <code>secretRef</code><br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#localobjectreference-v1-core">
 Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
