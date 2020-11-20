@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.3.0 (2020-11-20)
+
+This is the third MINOR prerelease. It introduces a breaking change to
+the API package; the status condition type has changed to the type
+introduced in Kubernetes API machinery `v1.19.0`.
+
 ## 0.2.2 (2020-11-18)
 
 This prerelease comes with a bugfix for chart divergence detections.
