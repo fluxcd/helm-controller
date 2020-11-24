@@ -501,3 +501,4 @@ jobs:
           helm ls -n helm-system --all
           kubectl -n helm-system logs deploy/source-controller
           kubectl -n helm-system logs deploy/helm-controller
+          kubectl -n helm-system logs -p deploy/helm-controller
