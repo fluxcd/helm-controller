@@ -45,6 +45,7 @@ type HelmReleaseSpec struct {
 	Interval metav1.Duration `json:"interval"`
 
 	// KubeConfig for reconciling the HelmRelease on a remote cluster.
+	// When specified, KubeConfig takes precedence over ServiceAccountName.
 	// +optional
 	KubeConfig *KubeConfig `json:"kubeConfig,omitempty"`
 
@@ -84,6 +85,11 @@ type HelmReleaseSpec struct {
 	// Use '0' for an unlimited number of revisions; defaults to '10'.
 	// +optional
 	MaxHistory *int `json:"maxHistory,omitempty"`
+
+	// The name of the Kubernetes service account to impersonate
+	// when reconciling this HelmRelease.
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 
 	// Install holds the configuration for Helm install actions for this HelmRelease.
 	// +optional

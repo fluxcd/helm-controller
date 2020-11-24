@@ -442,6 +442,22 @@ jobs:
             echo -e "Unexpected last revision status: $LAST_REVISION_STATUS"
             exit 1
           fi
+      - name: Run impersonation tests
+        run: |
+          kubectl apply -f config/testdata/impersonation
+          kubectl -n impersonation wait helmreleases/podinfo --for=condition=ready --timeout=2m
+          echo -n ">>> Waiting for expected conditions"
+          count=0
+          until [ 'true' == "$( kubectl -n impersonation get helmrelease/podinfo-fail -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="False" and .Ready=="False"' )" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 24 ]]; then
+              echo ' No more retries left!'
+              exit 1
+            fi
+          done
+          echo ' done'
       - name: Logs
         run: |
           kubectl -n helm-system logs deploy/source-controller

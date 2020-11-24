@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: impersonation
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gotk-reconciler
+  namespace: impersonation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gotk-reconciler
+  namespace: impersonation
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - '*'
+    verbs:
+      - '*'
+  - apiGroups:
+      - apps
+    resources:
+      - '*'
+    verbs:
+      - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gotk-reconciler
+  namespace: impersonation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gotk-reconciler
+subjects:
+  - kind: ServiceAccount
+    name: gotk-reconciler
+    namespace: impersonation
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta1
+kind: HelmRepository
+metadata:
+  name: podinfo
+  namespace: impersonation
+spec:
+  interval: 1m
+  url: https://stefanprodan.github.io/podinfo
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: podinfo
+  namespace: impersonation
+spec:
+  serviceAccountName: gotk-reconciler
+  interval: 5m
+  chart:
+    spec:
+      chart: podinfo
+      version: 5.0.3
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: podinfo-fail
+  namespace: impersonation
+spec:
+  serviceAccountName: gotk-reconciler
+  interval: 5m
+  chart:
+    spec:
+      chart: podinfo
+      version: 5.0.3
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+  values:
+    hpa:
+      enabled: true
+      maxReplicas: 2
+      cpu: 10
