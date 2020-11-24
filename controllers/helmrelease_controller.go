@@ -227,9 +227,9 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 		msg := fmt.Sprintf("HelmChart '%s/%s' is not ready", hc.GetNamespace(), hc.GetName())
 		r.event(hr, hr.Status.LastAttemptedRevision, events.EventSeverityInfo, msg)
 		log.Info(msg)
-		// Do not requeue, when the artifact is created the watcher should trigger a
-		// reconciliation.
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{Requeue: false}, nil
+		// Do not requeue immediately, when the artifact is created
+		// the watcher should trigger a reconciliation.
+		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{RequeueAfter: hc.Spec.Interval.Duration}, nil
 	}
 
 	// Check dependencies
