@@ -21,10 +21,6 @@ type HelmReleaseSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
-	// KubeConfig for reconciling the HelmRelease on a remote cluster.
-	// +optional
-	KubeConfig *KubeConfig `json:"kubeConfig,omitempty"`
-
 	// Suspend tells the controller to suspend reconciliation for this HelmRelease,
 	// it does not apply to already started reconciliations. Defaults to false.
 	// +optional
@@ -89,6 +85,16 @@ type HelmReleaseSpec struct {
 	// Values holds the values for this Helm release.
 	// +optional
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
+
+	// KubeConfig for reconciling the HelmRelease on a remote cluster.
+	// When specified, KubeConfig takes precedence over ServiceAccountName.
+	// +optional
+	KubeConfig *KubeConfig `json:"kubeConfig,omitempty"`
+
+	// The name of the Kubernetes service account to impersonate
+	// when reconciling this HelmRelease.
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
 // KubeConfig references a Kubernetes secret that contains a kubeconfig file.
@@ -823,6 +829,80 @@ spec:
         cpu: 100m
         memory: 64Mi
 ```
+
+## Role-based access control
+
+By default, a `HelmRelease` runs under the cluster admin account and can create, modify, delete cluster level objects
+(cluster roles, cluster role binding, CRDs, etc) and namespeced objects (deployments, ingresses, etc).
+For certain `HelmReleases` a cluster admin may wish to control what types of Kubernetes objects can
+be reconciled and under which namespace.
+To restrict a `HelmRelease`, one can assign a service account under which the reconciliation is performed.
+
+Assuming you want to restrict a group of `HelmReleases` to a single namespace, you can create an account
+with a role binding that grants access only to that namespace:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: webapp
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: webapp-reconciler
+  namespace: webapp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: webapp-reconciler
+  namespace: webapp
+rules:
+  - apiGroups: ['*']
+    resources: ['*']
+    verbs: ['*']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: webapp-reconciler
+  namespace: webapp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: webapp-reconciler
+subjects:
+- kind: ServiceAccount
+  name: webapp-reconciler
+  namespace: webapp
+```
+
+> **Note** that the namespace, RBAC and service account manifests should be
+> placed in a Git source and applied with a Kustomization.
+
+Create a `HelmRelease` that prevents altering the cluster state outside of the `webapp` namespace:
+
+```yaml
+apiVersion: helm.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: podinfo
+  namespace: webapp
+spec:
+  serviceAccountName: webapp-reconciler
+  interval: 5m
+  chart:
+    spec:
+      chart: podinfo
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+```
+
+When the controller reconciles the `podinfo` release, it will impersonate the `webapp-reconciler`
+account. If the chart contains cluster level objects like CRDs, the reconciliation will fail since
+the account it runs under has no permissions to alter objects outside of the `webapp` namespace.
 
 ## Remote Clusters / Cluster-API
 
