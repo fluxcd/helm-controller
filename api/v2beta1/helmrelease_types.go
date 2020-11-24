@@ -657,6 +657,10 @@ type HelmReleaseStatus struct {
 	// +optional
 	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`
 
+	// LastSuccessfulReleaseRevision is the revision of the last successful Helm release.
+	// +optional
+	LastSuccessfulReleaseRevision int `json:"lastSuccessfulReleaseRevision,omitempty"`
+
 	// HelmChart is the namespaced name of the HelmChart resource created by
 	// the controller for the HelmRelease.
 	// +optional
@@ -714,6 +718,15 @@ func HelmReleaseReady(hr *HelmRelease, message string) {
 func HelmReleaseAttempt(hr *HelmRelease, revision string, valuesChecksum string) {
 	hr.Status.LastAttemptedRevision = revision
 	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
+}
+
+// StateChanged returns true if the given values differ from the values
+// in the HelmRelease.
+func StateChanged(hr HelmRelease, revision string, releaseRevision int, valuesChecksum string) bool {
+	return hr.Status.LastAttemptedRevision != revision ||
+		hr.Status.LastReleaseRevision != releaseRevision ||
+		hr.Status.LastAttemptedValuesChecksum != valuesChecksum ||
+		hr.Status.ObservedGeneration != hr.Generation
 }
 
 func resetFailureCounts(hr *HelmRelease) {

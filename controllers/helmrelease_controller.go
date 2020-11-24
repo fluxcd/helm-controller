@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -145,7 +144,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, retE
 	}
 
 	// Initialize the Helm action runner.
-	run, err := runner.NewRunner(getter, hr.GetNamespace(), log)
+	run, err := runner.NewRunner(getter, hr, log)
 	if err != nil {
 		v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error())
 		if patchErr := r.patchStatus(ctx, hr); patchErr != nil {
@@ -213,17 +212,8 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, retE
 }
 
 func (r *HelmReleaseReconciler) reconcile(ctx context.Context, run *runner.Runner, hr *v2.HelmRelease) (ctrl.Result, error) {
-	// Observe the last release. If this fails, we likely encountered a
-	// transient error and should return it to requeue a reconciliation.
-	rls, err := run.ObserveLastRelease(*hr)
-	if err != nil {
-		msg := "failed to determine last deployed Helm release revision"
-		v2.HelmReleaseNotReady(hr, v2.GetLastReleaseFailedReason, msg)
-		return ctrl.Result{}, err
-	}
-
 	// Step through the release phases.
-	steps := []func(context.Context, *runner.Runner, *v2.HelmRelease, *release.Release) (ctrl.Result, error){
+	steps := []func(context.Context, *runner.Runner, *v2.HelmRelease) (ctrl.Result, error){
 		r.reconcileRelease,
 		r.reconcileTest,
 		r.reconcileRemediation,
@@ -231,7 +221,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, run *runner.Runne
 	result := ctrl.Result{}
 	var errs []error
 	for _, step := range steps {
-		stepResult, err := step(ctx, run, hr, rls)
+		stepResult, err := step(ctx, run, hr)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -391,7 +381,7 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(obj handler.MapObject
 		}
 		req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: i.GetNamespace(), Name: i.GetName()}}
 		reqs = append(reqs, req)
-		r.Log.Info(fmt.Sprintf("requesting reconciliation due to %s revision change", hc.Kind),
+		r.Log.Info("requesting reconciliation due to HelmChart revision change",
 			strings.ToLower(v2.HelmReleaseKind), &req,
 			"revision", hc.GetArtifact().Revision)
 	}

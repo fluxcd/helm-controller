@@ -525,6 +525,10 @@ spec:
                 description: LastReleaseRevision is the revision of the last Helm
                   release.
                 type: integer
+              lastSuccessfulReleaseRevision:
+                description: LastSuccessfulReleaseRevision is the revision of the
+                  last successful Helm release.
+                type: integer
               observedGeneration:
                 description: ObservedGeneration is the last observed generation.
                 format: int64

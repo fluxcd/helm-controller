@@ -36,7 +36,7 @@ import (
 	"github.com/fluxcd/helm-controller/internal/util"
 )
 
-func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, run *runner.Runner, hr *v2.HelmRelease, rls *release.Release) (ctrl.Result, error) {
+func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, run *runner.Runner, hr *v2.HelmRelease) (ctrl.Result, error) {
 	defer r.patchStatus(ctx, hr)
 	defer r.recordReadiness(*hr)
 
@@ -57,7 +57,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, run *runne
 	if hc.GetArtifact() == nil {
 		msg := fmt.Sprintf("HelmChart '%s/%s' has no artifact", hc.GetNamespace(), hc.GetName())
 		v2.HelmReleaseNotReady(hr, meta.DependencyNotReadyReason, msg)
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
 	}
 
 	// Compose the values. Given race conditions may happen due to
@@ -72,51 +72,46 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, run *runne
 	// Calculate the checksum for the values.
 	valuesChecksum := util.ValuesChecksum(values)
 
+	// Observe the last release. If this fails, we likely encountered a
+	// transient error and should return it to requeue a reconciliation.
+	rls, err := run.ObserveLastRelease(*hr)
+	if err != nil {
+		msg := "failed to determine last deployed Helm release revision"
+		v2.HelmReleaseNotReady(hr, v2.GetLastReleaseFailedReason, msg)
+		return ctrl.Result{}, err
+	}
+
+	// Determine the remediation strategy that applies.
+	remediation := hr.Spec.GetInstall().GetRemediation()
+	if hr.Status.LastSuccessfulReleaseRevision > 0 {
+		remediation = hr.Spec.GetUpgrade().GetRemediation()
+	}
+
+	releaseRevision := util.ReleaseRevision(rls)
+	switch {
+	// Previous release attempt resulted in a locked pending state,
+	// attempt to remediate.
+	case rls != nil && hr.Status.LastReleaseRevision == releaseRevision && rls.Info.Status.IsPending():
+		v2.HelmReleaseNotReady(hr, v2.RemediatedCondition,
+			fmt.Sprintf("previous release did not finish (%s)", rls.Info.Status))
+		remediation.IncrementFailureCount(hr)
+		return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
 	// Determine if there are any state changes to things we depend on
-	// (chart revision, values checksum), or if the revision in the Helm
-	// storage no longer matches what we ought to have run ourselves.
-	// In both scenarios we should reset state and allow a release to be
-	// made.
-	if hr.Status.LastAttemptedRevision != hc.GetArtifact().Revision ||
-		hr.Status.LastReleaseRevision != util.ReleaseRevision(rls) ||
-		hr.Status.LastAttemptedValuesChecksum != valuesChecksum ||
-		hr.Status.ObservedGeneration != hr.Generation {
+	// (chart revision, values checksum), or if the revision of the
+	// release does not match what we have run ourselves.
+	case v2.StateChanged(*hr, hc.GetArtifact().Revision, releaseRevision, valuesChecksum):
 		v2.HelmReleaseProgressing(hr)
 		r.patchStatus(ctx, hr)
-	}
-
-	// If we already made a release and it was successful, we have
-	// nothing to do.
-	if released := apimeta.FindStatusCondition(hr.Status.Conditions, v2.ReleasedCondition); released != nil {
-		if released.Status == metav1.ConditionTrue {
-			// We may have encountered a transient error in a previous
-			// run, ensure ready condition is reset.
-			v2.HelmReleaseReady(hr, released.Message)
-			return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
-		}
-	}
-
-	// The remediation failed, and making a release on top of this
-	// can give unpredicted results. Return as a safety precaution.
-	remediated := apimeta.FindStatusCondition(hr.Status.Conditions, v2.RemediatedCondition)
-	if remediated != nil && remediated.Status == metav1.ConditionFalse {
-		if remediated.Status == metav1.ConditionFalse {
-			v2.HelmReleaseNotReady(hr, meta.ReconciliationFailedReason, remediated.Message)
-			return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
-		}
-	}
-
-	// Determine the active remediation strategy configuration based on the
-	// failure counts.
-	var prevStrategy v2.DeploymentAction
-	prevStrategy = hr.Spec.GetUpgrade()
-	if prevStrategy.GetRemediation().GetFailureCount(*hr) == 0 {
-		prevStrategy = hr.Spec.GetInstall()
-	}
-
-	// Determine if we have exhausted our install or upgrade retries.
-	if prevStrategy.GetRemediation().RetriesExhausted(*hr) {
-		v2.HelmReleaseNotReady(hr, meta.ReconciliationFailedReason, fmt.Sprintf("Exhausted %s retries", prevStrategy.GetDescription()))
+	// The state has not changed and the release is not in a failed state.
+	case remediation.GetFailureCount(*hr) == 0:
+		v2.HelmReleaseReady(hr, rls.Info.Description)
+		return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
+	// We have exhausted our retries.
+	case remediation.RetriesExhausted(*hr):
+		v2.HelmReleaseNotReady(hr, meta.ReconciliationFailedReason, "exhausted release retries")
+		return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
+	// Our previous reconciliation attempt failed, skip release to retry.
+	case hr.Status.LastSuccessfulReleaseRevision > 0 && hr.Status.LastReleaseRevision != hr.Status.LastSuccessfulReleaseRevision:
 		return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
 	}
 
@@ -138,18 +133,14 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, run *runne
 		successReason, failureReason = v2.UpgradeSucceededReason, v2.UpgradeFailedReason
 	}
 
-	// Register our attempt and ensure the release is no longer marked
-	// as remediated.
+	// Register our new release attempt.
 	v2.HelmReleaseAttempt(hr, hc.GetArtifact().Revision, valuesChecksum)
-	apimeta.RemoveStatusCondition(hr.GetStatusConditions(), v2.RemediatedCondition)
 
 	// Make the actual release.
-	rls, err = makeRelease(*hr, loadedChart, values)
+	err = makeRelease(*hr, loadedChart, values)
 
-	// Record the new revision if we have one.
-	if revision := util.ReleaseRevision(rls); revision > hr.Status.LastReleaseRevision {
-		hr.Status.LastReleaseRevision = revision
-	}
+	// Always record the revision when a new release has been made.
+	hr.Status.LastReleaseRevision = util.ReleaseRevision(run.GetLastObservedRelease())
 
 	if err != nil {
 		// Record the release failure and increment the failure count.
@@ -163,127 +154,156 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, run *runne
 		return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
 	}
 
-	// Record the release success and ensure the release is no longer
-	// marked as tested.
-	meta.SetResourceCondition(hr, v2.ReleasedCondition, metav1.ConditionTrue, successReason, rls.Info.Description)
-	apimeta.RemoveStatusCondition(hr.GetStatusConditions(), v2.TestSuccessCondition)
-
-	// If we do not need to perform any more actions, we can already
-	// mark the release as ready.
-	if !hr.Spec.GetTest().Enable || remediation.MustIgnoreTestFailures(hr.Spec.GetTest().IgnoreFailures) {
-		v2.HelmReleaseReady(hr, rls.Info.Description)
-	}
+	// Record the release success.
+	meta.SetResourceCondition(hr, v2.ReleasedCondition, metav1.ConditionTrue, successReason,
+		run.GetLastObservedRelease().Info.Description)
 
 	return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
 }
 
-func (r *HelmReleaseReconciler) reconcileTest(ctx context.Context, run *runner.Runner, hr *v2.HelmRelease, rls *release.Release) (ctrl.Result, error) {
+func (r *HelmReleaseReconciler) reconcileTest(ctx context.Context, run *runner.Runner, hr *v2.HelmRelease) (ctrl.Result, error) {
 	defer r.patchStatus(ctx, hr)
 	defer r.recordReadiness(*hr)
 
+	// If this release was already marked as successful,
+	// we have nothing to do.
+	if hr.Status.LastReleaseRevision == hr.Status.LastSuccessfulReleaseRevision {
+		return ctrl.Result{}, nil
+	}
+
+	// Confirm the last release in storage equals to the release
+	// we ourselves made.
+	if revision := util.ReleaseRevision(run.GetLastObservedRelease()); revision != hr.Status.LastReleaseRevision {
+		err := fmt.Errorf("unexpected revision change from %q to %q", hr.Status.LastReleaseRevision, revision)
+		v2.HelmReleaseNotReady(hr, meta.ReconciliationFailedReason, err.Error())
+		return ctrl.Result{}, err
+	}
+
+	// If the release is not in a deployed state, we should not run the
+	// tests.
+	if run.GetLastObservedRelease() == nil || run.GetLastObservedRelease().Info.Status != release.StatusDeployed {
+		return ctrl.Result{}, nil
+	}
+
 	// If tests are not enabled for this resource, we have nothing to do.
 	if !hr.Spec.GetTest().Enable {
+		hr.Status.LastSuccessfulReleaseRevision = util.ReleaseRevision(run.GetLastObservedRelease())
+		apimeta.RemoveStatusCondition(hr.GetStatusConditions(), v2.TestSuccessCondition)
+		v2.HelmReleaseReady(hr, run.GetLastObservedRelease().Info.Description)
 		return ctrl.Result{}, nil
 	}
 
-	// If we already run the tests, we have nothing to do.
-	if tested := apimeta.FindStatusCondition(hr.Status.Conditions, v2.TestSuccessCondition); tested != nil {
+	// Test suite was already run for this release.
+	if hasRunTestSuite(run.GetLastObservedRelease()) {
 		return ctrl.Result{}, nil
 	}
 
-	// If the release did not succeed, we should not run the tests.
-	released := apimeta.FindStatusCondition(hr.Status.Conditions, v2.ReleasedCondition)
-	if released == nil || released.Status == metav1.ConditionFalse {
+	// If the release does not have a test suite, we are successful.
+	if !hasTestSuite(run.GetLastObservedRelease()) {
+		msg := "No test suite"
+		meta.SetResourceCondition(hr, v2.TestSuccessCondition, metav1.ConditionTrue, v2.TestSucceededReason, msg)
+		v2.HelmReleaseReady(hr, msg)
+		hr.Status.LastSuccessfulReleaseRevision = util.ReleaseRevision(run.GetLastObservedRelease())
 		return ctrl.Result{}, nil
 	}
 
-	// Run the tests.
-	var err error
-	_, err = run.Test(*hr)
+	// Remove any previous test condition and run the tests.
+	apimeta.RemoveStatusCondition(hr.GetStatusConditions(), v2.TestSuccessCondition)
+	err := run.Test(*hr)
+
+	// Given we can not target the revision to test, we need to reconfirm
+	// that we actually run the tests for a release we made ourselves.
+	if revision := util.ReleaseRevision(run.GetLastObservedRelease()); revision != hr.Status.LastReleaseRevision {
+		err := fmt.Errorf("unexpected revision change from %q to %q during test run", hr.Status, revision)
+		v2.HelmReleaseNotReady(hr, meta.ReconciliationFailedReason, err.Error())
+		return ctrl.Result{}, err
+	}
+
+	// Calculate the test results.
+	successful, failed := calculateHelmTestSuiteResult(run.GetLastObservedRelease())
+
+	// Only increment the failure counter if this test suite run
+	// resulted in a failure.
 	if err != nil {
-		// Record the test failure.
-		meta.SetResourceCondition(hr, v2.TestSuccessCondition, metav1.ConditionFalse, v2.TestFailedReason, err.Error())
+		msg := fmt.Sprintf("Helm test suite failed (success: %v, failed: %v)", successful, failed)
+		meta.SetResourceCondition(hr, v2.TestSuccessCondition, metav1.ConditionFalse, v2.TestFailedReason, msg)
 
 		// Determine the remediation strategy that applies, and if we
 		// need to increment the failure count.
 		remediation := hr.Spec.GetInstall().GetRemediation()
-		if released.Reason == v2.UpgradeSucceededReason {
+		if hr.Status.LastSuccessfulReleaseRevision > 0 {
 			remediation = hr.Spec.GetUpgrade().GetRemediation()
 		}
-		if !remediation.MustIgnoreTestFailures(hr.Spec.GetTest().IgnoreFailures) {
-			remediation.IncrementFailureCount(hr)
-			meta.SetResourceCondition(hr, v2.ReleasedCondition, metav1.ConditionFalse, v2.TestFailedReason, err.Error())
-			v2.HelmReleaseNotReady(hr, v2.TestFailedReason, err.Error())
+
+		// We should ignore the test results for the readiness of
+		// the resource.
+		if remediation.MustIgnoreTestFailures(hr.Spec.GetTest().IgnoreFailures) {
+			hr.Status.LastSuccessfulReleaseRevision = util.ReleaseRevision(run.GetLastObservedRelease())
+			v2.HelmReleaseReady(hr, run.GetLastObservedRelease().Info.Description)
+			return ctrl.Result{}, nil
 		}
 
+		remediation.IncrementFailureCount(hr)
+		v2.HelmReleaseNotReady(hr, v2.TestFailedReason, msg)
 		return ctrl.Result{}, nil
 	}
 
 	// Record the test success and mark the release as ready.
-	msg := "Tests succeeded"
+	msg := fmt.Sprintf("Helm test suite succeeded (success: %v)", successful)
 	meta.SetResourceCondition(hr, v2.TestSuccessCondition, metav1.ConditionTrue, v2.TestSucceededReason, msg)
 	v2.HelmReleaseReady(hr, msg)
+	hr.Status.LastSuccessfulReleaseRevision = util.ReleaseRevision(run.GetLastObservedRelease())
 
 	return ctrl.Result{}, nil
 }
 
-func (r *HelmReleaseReconciler) reconcileRemediation(ctx context.Context, run *runner.Runner, hr *v2.HelmRelease, rls *release.Release) (ctrl.Result, error) {
+func (r *HelmReleaseReconciler) reconcileRemediation(ctx context.Context, run *runner.Runner, hr *v2.HelmRelease) (ctrl.Result, error) {
 	defer r.patchStatus(ctx, hr)
 	defer r.recordReadiness(*hr)
 
-	// Compare the revision in our status to the revision of the given
-	// release. If they still equal, we did not create a new release
-	// during this reconciliation run and should not remediate.
-	if revision := util.ReleaseRevision(rls); revision == hr.Status.LastReleaseRevision {
-		return ctrl.Result{}, nil
+	// Last release was successful, nothing to remediate.
+	if hr.Status.LastReleaseRevision == hr.Status.LastSuccessfulReleaseRevision {
+		return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
 	}
 
-	// Determine the remediation strategy configuration based on the
-	// failure counts.
+	// Determine the remediation strategy that applies.
 	remediation := hr.Spec.GetUpgrade().GetRemediation()
 	if remediation.GetFailureCount(*hr) == 0 {
 		remediation = hr.Spec.GetInstall().GetRemediation()
 	}
 
-	// If there are no failures, we should not remediate.
-	if remediation.GetFailureCount(*hr) == 0 {
-		return ctrl.Result{}, nil
-	}
-
 	// Return if there are no retries left, or if we should not remediate
 	// the last failure.
 	if remediation.RetriesExhausted(*hr) && !remediation.MustRemediateLastFailure() {
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
 	}
 
 	// Perform the remediation action for the configured strategy.
 	switch remediation.GetStrategy() {
 	case v2.RollbackRemediationStrategy:
-		if err := run.Rollback(*hr); err != nil {
+		err := run.Rollback(*hr)
+		hr.Status.LastReleaseRevision = util.ReleaseRevision(run.GetLastObservedRelease())
+		if err != nil {
 			meta.SetResourceCondition(hr, v2.RemediatedCondition, metav1.ConditionFalse, v2.RollbackFailedReason, err.Error())
 			v2.HelmReleaseNotReady(hr, v2.RollbackFailedReason, err.Error())
-			return ctrl.Result{}, nil
+			return ctrl.Result{Requeue: true}, nil
 		}
 		meta.SetResourceCondition(hr, v2.RemediatedCondition, metav1.ConditionTrue, v2.RollbackSucceededReason, "Rollback complete")
+		hr.Status.LastSuccessfulReleaseRevision = hr.Status.LastReleaseRevision
 	case v2.UninstallRemediationStrategy:
 		if err := run.Uninstall(*hr); err != nil {
 			meta.SetResourceCondition(hr, v2.RemediatedCondition, metav1.ConditionFalse, v2.UninstallFailedReason, err.Error())
 			v2.HelmReleaseNotReady(hr, v2.UninstallFailedReason, err.Error())
-			return ctrl.Result{}, nil
+			return ctrl.Result{Requeue: true}, nil
 		}
-		meta.SetResourceCondition(hr, v2.RemediatedCondition, metav1.ConditionTrue, v2.UninstallSucceededReason, "Uninstallation complete")
-	}
 
-	// Determine the release revision after successfully performing
-	// the remediation.
-	var err error
-	rls, err = run.ObserveLastRelease(*hr)
-	if err != nil {
-		meta.SetResourceCondition(hr, v2.RemediatedCondition, metav1.ConditionFalse, v2.GetLastReleaseFailedReason, err.Error())
-		v2.HelmReleaseNotReady(hr, v2.GetLastReleaseFailedReason, err.Error())
-		return ctrl.Result{}, nil
+		meta.SetResourceCondition(hr, v2.RemediatedCondition, metav1.ConditionTrue, v2.UninstallSucceededReason, "Uninstallation complete")
+		hr.Status.LastReleaseRevision = util.ReleaseRevision(run.GetLastObservedRelease())
+		if !hr.Spec.GetUninstall().KeepHistory {
+			hr.Status.LastReleaseRevision = 0
+			hr.Status.LastSuccessfulReleaseRevision = 0
+		}
 	}
-	hr.Status.LastReleaseRevision = util.ReleaseRevision(rls)
 
 	// Requeue instantly to retry.
 	return ctrl.Result{Requeue: true}, nil
@@ -388,4 +408,55 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 		}
 	}
 	return util.MergeMaps(result, hr.GetValues()), nil
+}
+
+func calculateHelmTestSuiteResult(rls *release.Release) ([]string, []string) {
+	result := make(map[release.HookPhase][]string)
+	executions := executionsByHookEvent(rls)
+	tests, ok := executions[release.HookTest]
+	if !ok {
+		return nil, nil
+	}
+	for _, h := range tests {
+		names := result[h.LastRun.Phase]
+		result[h.LastRun.Phase] = append(names, h.Name)
+	}
+	return result[release.HookPhaseSucceeded], result[release.HookPhaseFailed]
+}
+
+func hasRunTestSuite(rls *release.Release) bool {
+	executions := executionsByHookEvent(rls)
+	tests, ok := executions[release.HookTest]
+	if !ok {
+		return false
+	}
+	for _, h := range tests {
+		if !h.LastRun.StartedAt.IsZero() {
+			return true
+		}
+	}
+	return false
+}
+
+func hasTestSuite(rls *release.Release) bool {
+	executions := executionsByHookEvent(rls)
+	tests, ok := executions[release.HookTest]
+	if !ok {
+		return false
+	}
+	return len(tests) > 0
+}
+
+func executionsByHookEvent(rls *release.Release) map[release.HookEvent][]*release.Hook {
+	result := make(map[release.HookEvent][]*release.Hook)
+	for _, h := range rls.Hooks {
+		for _, e := range h.Events {
+			executions, ok := result[e]
+			if !ok {
+				executions = []*release.Hook{}
+			}
+			result[e] = append(executions, h)
+		}
+	}
+	return result
 }
