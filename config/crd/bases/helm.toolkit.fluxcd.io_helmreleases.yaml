@@ -186,7 +186,7 @@ spec:
                 type: string
               kubeConfig:
                 description: KubeConfig for reconciling the HelmRelease on a remote
-                  cluster.
+                  cluster. When specified, KubeConfig takes precedence over ServiceAccountName.
                 properties:
                   secretRef:
                     description: SecretRef holds the name to a secret that contains
@@ -245,6 +245,10 @@ spec:
                       Helm rollback action. Defaults to 'HelmReleaseSpec.Timeout'.
                     type: string
                 type: object
+              serviceAccountName:
+                description: The name of the Kubernetes service account to impersonate
+                  when reconciling this HelmRelease.
+                type: string
               suspend:
                 description: Suspend tells the controller to suspend reconciliation
                   for this HelmRelease, it does not apply to already started reconciliations.

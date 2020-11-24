@@ -483,6 +483,18 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 
 func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {
 	if hr.Spec.KubeConfig == nil {
+		// impersonate service account if specified
+		if hr.Spec.ServiceAccountName != "" {
+			token, err := r.getServiceAccountToken(ctx, hr)
+			if err != nil {
+				return nil, fmt.Errorf("could not impersonate ServiceAccount '%s': %w", hr.Spec.ServiceAccountName, err)
+			}
+
+			config := *r.Config
+			config.BearerToken = token
+			return kube.NewInClusterRESTClientGetter(&config, hr.GetReleaseNamespace()), nil
+		}
+
 		return kube.NewInClusterRESTClientGetter(r.Config, hr.GetReleaseNamespace()), nil
 	}
 	secretName := types.NamespacedName{
@@ -498,6 +510,46 @@ func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.H
 		return nil, fmt.Errorf("KubeConfig secret '%s' does not contain a 'value' key", secretName)
 	}
 	return kube.NewMemoryRESTClientGetter(kubeConfig, hr.GetReleaseNamespace()), nil
+}
+
+func (r *HelmReleaseReconciler) getServiceAccountToken(ctx context.Context, hr v2.HelmRelease) (string, error) {
+	namespacedName := types.NamespacedName{
+		Namespace: hr.Namespace,
+		Name:      hr.Spec.ServiceAccountName,
+	}
+
+	var serviceAccount corev1.ServiceAccount
+	err := r.Client.Get(ctx, namespacedName, &serviceAccount)
+	if err != nil {
+		return "", err
+	}
+
+	secretName := types.NamespacedName{
+		Namespace: hr.Namespace,
+		Name:      hr.Spec.ServiceAccountName,
+	}
+
+	for _, secret := range serviceAccount.Secrets {
+		if strings.HasPrefix(secret.Name, fmt.Sprintf("%s-token", serviceAccount.Name)) {
+			secretName.Name = secret.Name
+			break
+		}
+	}
+
+	var secret corev1.Secret
+	err = r.Client.Get(ctx, secretName, &secret)
+	if err != nil {
+		return "", err
+	}
+
+	var token string
+	if data, ok := secret.Data["token"]; ok {
+		token = string(data)
+	} else {
+		return "", fmt.Errorf("the service account secret '%s' does not containt a token", secretName.String())
+	}
+
+	return token, nil
 }
 
 // composeValues attempts to resolve all v2beta1.ValuesReference resources

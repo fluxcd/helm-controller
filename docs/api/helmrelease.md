@@ -106,7 +106,8 @@ KubeConfig
 </td>
 <td>
 <em>(Optional)</em>
-<p>KubeConfig for reconciling the HelmRelease on a remote cluster.</p>
+<p>KubeConfig for reconciling the HelmRelease on a remote cluster.
+When specified, KubeConfig takes precedence over ServiceAccountName.</p>
 </td>
 </tr>
 <tr>
@@ -190,6 +191,19 @@ int
 <em>(Optional)</em>
 <p>MaxHistory is the number of revisions saved by Helm for this HelmRelease.
 Use &lsquo;0&rsquo; for an unlimited number of revisions; defaults to &lsquo;10&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceAccountName</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The name of the Kubernetes service account to impersonate
+when reconciling this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -627,7 +641,8 @@ KubeConfig
 </td>
 <td>
 <em>(Optional)</em>
-<p>KubeConfig for reconciling the HelmRelease on a remote cluster.</p>
+<p>KubeConfig for reconciling the HelmRelease on a remote cluster.
+When specified, KubeConfig takes precedence over ServiceAccountName.</p>
 </td>
 </tr>
 <tr>
@@ -711,6 +726,19 @@ int
 <em>(Optional)</em>
 <p>MaxHistory is the number of revisions saved by Helm for this HelmRelease.
 Use &lsquo;0&rsquo; for an unlimited number of revisions; defaults to &lsquo;10&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceAccountName</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The name of the Kubernetes service account to impersonate
+when reconciling this HelmRelease.</p>
 </td>
 </tr>
 <tr>
