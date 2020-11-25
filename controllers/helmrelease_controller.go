@@ -142,7 +142,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 				return ctrl.Result{}, err
 			}
 			// Record deleted status
-			r.recordReadiness(hr, true)
+			r.recordReadiness(hr)
 			// Remove our finalizer from the list and update it
 			hr.ObjectMeta.Finalizers = removeString(hr.ObjectMeta.Finalizers, v2.HelmReleaseFinalizer)
 			if err := r.Update(ctx, &hr); err != nil {
@@ -163,7 +163,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	}
 
 	// Record ready status
-	r.recordReadiness(hr, false)
+	r.recordReadiness(hr)
 
 	// Log reconciliation duration
 	durationMsg := fmt.Sprintf("reconcilation finished in %s", time.Now().Sub(start).String())
@@ -191,7 +191,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 			return hr, ctrl.Result{Requeue: true}, updateStatusErr
 		}
 		// Record progressing status
-		r.recordReadiness(hr, false)
+		r.recordReadiness(hr)
 	}
 
 	if hr.Spec.Suspend {
@@ -302,7 +302,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 			return hr, updateStatusErr
 		}
 		// Record progressing status
-		r.recordReadiness(hr, false)
+		r.recordReadiness(hr)
 	}
 
 	// Check status of any previous release attempt.
@@ -737,7 +737,7 @@ func (r *HelmReleaseReconciler) event(hr v2.HelmRelease, revision, severity, msg
 	}
 }
 
-func (r *HelmReleaseReconciler) recordReadiness(hr v2.HelmRelease, deleted bool) {
+func (r *HelmReleaseReconciler) recordReadiness(hr v2.HelmRelease) {
 	if r.MetricsRecorder == nil {
 		return
 	}
@@ -751,12 +751,12 @@ func (r *HelmReleaseReconciler) recordReadiness(hr v2.HelmRelease, deleted bool)
 		return
 	}
 	if rc := apimeta.FindStatusCondition(hr.Status.Conditions, meta.ReadyCondition); rc != nil {
-		r.MetricsRecorder.RecordCondition(*objRef, *rc, deleted)
+		r.MetricsRecorder.RecordCondition(*objRef, *rc, !hr.DeletionTimestamp.IsZero())
 	} else {
 		r.MetricsRecorder.RecordCondition(*objRef, metav1.Condition{
 			Type:   meta.ReadyCondition,
 			Status: metav1.ConditionUnknown,
-		}, deleted)
+		}, !hr.DeletionTimestamp.IsZero())
 	}
 }
 
