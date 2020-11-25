@@ -25,6 +25,9 @@ spec:
     - jsonPath: .status.conditions[?(@.type=="Ready")].message
       name: Status
       type: string
+    - jsonPath: .spec.suspend
+      name: Suspended
+      type: boolean
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -250,6 +253,7 @@ spec:
                   when reconciling this HelmRelease.
                 type: string
               suspend:
+                default: false
                 description: Suspend tells the controller to suspend reconciliation
                   for this HelmRelease, it does not apply to already started reconciliations.
                   Defaults to false.

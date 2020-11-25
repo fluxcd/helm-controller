@@ -135,6 +135,12 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return r.reconcileDelete(ctx, log, hr)
 	}
 
+	// Return early if the HelmRelease is suspended.
+	if hr.Spec.Suspend {
+		log.Info("Reconciliation is suspended for this object")
+		return ctrl.Result{}, nil
+	}
+
 	hr, result, err := r.reconcile(ctx, log, hr)
 
 	// Update status after reconciliation.
@@ -173,12 +179,6 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 		}
 		// Record progressing status
 		r.recordReadiness(hr)
-	}
-
-	if hr.Spec.Suspend {
-		msg := "HelmRelease is suspended, skipping reconciliation"
-		log.Info(msg)
-		return v2.HelmReleaseNotReady(hr, meta.SuspendedReason, msg), ctrl.Result{}, nil
 	}
 
 	// Record reconciliation duration
