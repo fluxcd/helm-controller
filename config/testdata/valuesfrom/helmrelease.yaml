@@ -10,7 +10,7 @@ spec:
       version: '>=4.0.0 <5.0.0'
       sourceRef:
         kind: HelmRepository
-        name: valuesfrom
+        name: podinfo
       interval: 1m
   valuesFrom:
     - kind: ConfigMap
