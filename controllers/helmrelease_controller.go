@@ -41,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -120,38 +121,18 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 
 	log := r.Log.WithValues("controller", strings.ToLower(v2.HelmReleaseKind), "request", req.NamespacedName)
 
+	// Add our finalizer if it does not exist
+	if !controllerutil.ContainsFinalizer(&hr, v2.HelmReleaseFinalizer) {
+		controllerutil.AddFinalizer(&hr, v2.HelmReleaseFinalizer)
+		if err := r.Update(ctx, &hr); err != nil {
+			log.Error(err, "unable to register finalizer")
+			return ctrl.Result{}, err
+		}
+	}
+
 	// Examine if the object is under deletion
-	if hr.ObjectMeta.DeletionTimestamp.IsZero() {
-		// The object is not being deleted, so if it does not have our finalizer,
-		// then lets add the finalizer and update the object. This is equivalent
-		// registering our finalizer.
-		if !containsString(hr.ObjectMeta.Finalizers, v2.HelmReleaseFinalizer) {
-			hr.ObjectMeta.Finalizers = append(hr.ObjectMeta.Finalizers, v2.HelmReleaseFinalizer)
-			if err := r.Update(ctx, &hr); err != nil {
-				log.Error(err, "unable to register finalizer")
-				return ctrl.Result{}, err
-			}
-		}
-	} else {
-		// The object is being deleted
-		if containsString(hr.ObjectMeta.Finalizers, v2.HelmReleaseFinalizer) {
-			// Our finalizer is still present, so lets handle garbage collection
-			if err := r.garbageCollect(ctx, log, hr); err != nil {
-				r.event(hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, err.Error())
-				// Return the error so we retry the failed garbage collection
-				return ctrl.Result{}, err
-			}
-			// Record deleted status
-			r.recordReadiness(hr, true)
-			// Remove our finalizer from the list and update it
-			hr.ObjectMeta.Finalizers = removeString(hr.ObjectMeta.Finalizers, v2.HelmReleaseFinalizer)
-			if err := r.Update(ctx, &hr); err != nil {
-				return ctrl.Result{}, err
-			}
-			r.event(hr, hr.Status.LastAttemptedRevision, events.EventSeverityInfo, "Helm uninstall for deleted resource succeeded")
-		}
-		// Stop reconciliation as the object is being deleted
-		return ctrl.Result{}, nil
+	if !hr.ObjectMeta.DeletionTimestamp.IsZero() {
+		return r.reconcileDelete(ctx, log, hr)
 	}
 
 	hr, result, err := r.reconcile(ctx, log, hr)
@@ -163,7 +144,7 @@ func (r *HelmReleaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	}
 
 	// Record ready status
-	r.recordReadiness(hr, false)
+	r.recordReadiness(hr)
 
 	// Log reconciliation duration
 	durationMsg := fmt.Sprintf("reconcilation finished in %s", time.Now().Sub(start).String())
@@ -191,7 +172,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, log logr.Logger, 
 			return hr, ctrl.Result{Requeue: true}, updateStatusErr
 		}
 		// Record progressing status
-		r.recordReadiness(hr, false)
+		r.recordReadiness(hr)
 	}
 
 	if hr.Spec.Suspend {
@@ -302,7 +283,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 			return hr, updateStatusErr
 		}
 		// Record progressing status
-		r.recordReadiness(hr, false)
+		r.recordReadiness(hr)
 	}
 
 	// Check status of any previous release attempt.
@@ -610,22 +591,36 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 	return util.MergeMaps(result, hr.GetValues()), nil
 }
 
-// garbageCollect deletes the v1beta1.HelmChart of the v2beta1.HelmRelease,
+// reconcileDelete deletes the v1beta1.HelmChart of the v2beta1.HelmRelease,
 // and uninstalls the Helm release if the resource has not been suspended.
-func (r *HelmReleaseReconciler) garbageCollect(ctx context.Context, logger logr.Logger, hr v2.HelmRelease) error {
+func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, logger logr.Logger, hr v2.HelmRelease) (ctrl.Result, error) {
+	r.recordReadiness(hr)
+
 	if err := r.deleteHelmChart(ctx, &hr); err != nil {
-		return err
+		return ctrl.Result{}, err
 	}
+
 	if hr.Spec.Suspend {
-		logger.Info("skipping garbage collection for suspended resource")
-		return nil
+		logger.Info("skipping Helm uninstall for suspended resource")
+		return ctrl.Result{}, nil
 	}
-	return r.garbageCollectHelmRelease(logger, hr)
+
+	if err := r.uninstallHelmRelease(logger, hr); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Remove our finalizer from the list and update it
+	controllerutil.RemoveFinalizer(&hr, v2.HelmReleaseFinalizer)
+	if err := r.Update(ctx, &hr); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
 }
 
-// garbageCollectHelmRelease uninstalls the deployed Helm release of
+// uninstallHelmRelease uninstalls the deployed Helm release of
 // the given v2beta1.HelmRelease.
-func (r *HelmReleaseReconciler) garbageCollectHelmRelease(logger logr.Logger, hr v2.HelmRelease) error {
+func (r *HelmReleaseReconciler) uninstallHelmRelease(logger logr.Logger, hr v2.HelmRelease) error {
 	getter, err := r.getRESTClientGetter(context.TODO(), hr)
 	if err != nil {
 		return err
@@ -636,7 +631,7 @@ func (r *HelmReleaseReconciler) garbageCollectHelmRelease(logger logr.Logger, hr
 	}
 	rel, err := run.ObserveLastRelease(hr)
 	if err != nil {
-		err = fmt.Errorf("failed to garbage collect resource: %w", err)
+		err = fmt.Errorf("failed to perform Helm uninstall for deleted resource: %w", err)
 		return err
 	}
 	if rel == nil {
@@ -644,7 +639,7 @@ func (r *HelmReleaseReconciler) garbageCollectHelmRelease(logger logr.Logger, hr
 	}
 	err = run.Uninstall(hr)
 	if err != nil {
-		err = fmt.Errorf("failed to garbage collect resource: %w", err)
+		err = fmt.Errorf("failed to perform Helm uninstall for deleted resource: %w", err)
 	}
 	return err
 }
@@ -737,7 +732,7 @@ func (r *HelmReleaseReconciler) event(hr v2.HelmRelease, revision, severity, msg
 	}
 }
 
-func (r *HelmReleaseReconciler) recordReadiness(hr v2.HelmRelease, deleted bool) {
+func (r *HelmReleaseReconciler) recordReadiness(hr v2.HelmRelease) {
 	if r.MetricsRecorder == nil {
 		return
 	}
@@ -751,30 +746,11 @@ func (r *HelmReleaseReconciler) recordReadiness(hr v2.HelmRelease, deleted bool)
 		return
 	}
 	if rc := apimeta.FindStatusCondition(hr.Status.Conditions, meta.ReadyCondition); rc != nil {
-		r.MetricsRecorder.RecordCondition(*objRef, *rc, deleted)
+		r.MetricsRecorder.RecordCondition(*objRef, *rc, !hr.DeletionTimestamp.IsZero())
 	} else {
 		r.MetricsRecorder.RecordCondition(*objRef, metav1.Condition{
 			Type:   meta.ReadyCondition,
 			Status: metav1.ConditionUnknown,
-		}, deleted)
+		}, !hr.DeletionTimestamp.IsZero())
 	}
-}
-
-func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
-func removeString(slice []string, s string) (result []string) {
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		result = append(result, item)
-	}
-	return
 }

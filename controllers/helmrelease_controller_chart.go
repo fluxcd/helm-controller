@@ -36,7 +36,6 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
 
-// reconcileChart reconciles the
 func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, error) {
 	chartName := types.NamespacedName{
 		Namespace: hr.Spec.Chart.GetNamespace(hr.Namespace),
