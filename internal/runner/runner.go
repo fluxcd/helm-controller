@@ -25,31 +25,40 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/release"
+	helmstorage "helm.sh/helm/v3/pkg/storage"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/fluxcd/helm-controller/internal/storage"
 )
 
-// Runner represents a Helm action runner capable of performing Helm
-// operations for a v2beta1.HelmRelease.
+// Runner is a Helm action runner capable of performing Helm operations
+// for a v2beta1.HelmRelease.
 type Runner struct {
-	config *action.Configuration
+	config   *action.Configuration
+	observer *storage.Observer
 }
 
 // NewRunner constructs a new Runner configured to run Helm actions with the
 // given genericclioptions.RESTClientGetter, and the release and storage
 // namespace configured to the provided values.
-func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace string, logger logr.Logger) (*Runner, error) {
+func NewRunner(getter genericclioptions.RESTClientGetter, hr *v2.HelmRelease, log logr.Logger) (*Runner, error) {
 	cfg := new(action.Configuration)
-	if err := cfg.Init(getter, storageNamespace, "secret", debugLogger(logger)); err != nil {
+	if err := cfg.Init(getter, hr.GetNamespace(), "secret", debugLogger(log)); err != nil {
 		return nil, err
 	}
-	return &Runner{config: cfg}, nil
+	last, err := cfg.Releases.Get(hr.GetReleaseName(), hr.Status.LastReleaseRevision)
+	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
+		return nil, err
+	}
+	observer := storage.NewObserver(cfg.Releases.Driver, last)
+	cfg.Releases = helmstorage.Init(observer)
+	return &Runner{config: cfg, observer: observer}, nil
 }
 
 // Install runs an Helm install action for the given v2beta1.HelmRelease.
-func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (*release.Release, error) {
+func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) error {
 	install := action.NewInstall(r.config)
 	install.ReleaseName = hr.GetReleaseName()
 	install.Namespace = hr.GetReleaseNamespace()
@@ -64,11 +73,12 @@ func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 		install.CreateNamespace = hr.Spec.GetInstall().CreateNamespace
 	}
 
-	return install.Run(chart, values.AsMap())
+	_, err := install.Run(chart, values.AsMap())
+	return err
 }
 
 // Upgrade runs an Helm upgrade action for the given v2beta1.HelmRelease.
-func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (*release.Release, error) {
+func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) error {
 	upgrade := action.NewUpgrade(r.config)
 	upgrade.Namespace = hr.GetReleaseNamespace()
 	upgrade.ResetValues = !hr.Spec.GetUpgrade().PreserveValues
@@ -80,19 +90,22 @@ func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	upgrade.Force = hr.Spec.GetUpgrade().Force
 	upgrade.CleanupOnFail = hr.Spec.GetUpgrade().CleanupOnFail
 
-	return upgrade.Run(hr.GetReleaseName(), chart, values.AsMap())
+	_, err := upgrade.Run(hr.GetReleaseName(), chart, values.AsMap())
+	return err
 }
 
 // Test runs an Helm test action for the given v2beta1.HelmRelease.
-func (r *Runner) Test(hr v2.HelmRelease) (*release.Release, error) {
+func (r *Runner) Test(hr v2.HelmRelease) error {
 	test := action.NewReleaseTesting(r.config)
 	test.Namespace = hr.GetReleaseNamespace()
 	test.Timeout = hr.Spec.GetTest().GetTimeout(hr.GetTimeout()).Duration
 
-	return test.Run(hr.GetReleaseName())
+	_, err := test.Run(hr.GetReleaseName())
+	return err
 }
 
-// Rollback runs an Helm rollback action for the given v2beta1.HelmRelease.
+// Rollback runs an Helm rollback action to the last successful release
+// revision of the given v2beta1.HelmRelease.
 func (r *Runner) Rollback(hr v2.HelmRelease) error {
 	rollback := action.NewRollback(r.config)
 	rollback.Timeout = hr.Spec.GetRollback().GetTimeout(hr.GetTimeout()).Duration
@@ -101,12 +114,13 @@ func (r *Runner) Rollback(hr v2.HelmRelease) error {
 	rollback.Force = hr.Spec.GetRollback().Force
 	rollback.Recreate = hr.Spec.GetRollback().Recreate
 	rollback.CleanupOnFail = hr.Spec.GetRollback().CleanupOnFail
+	rollback.Version = hr.Status.LastSuccessfulReleaseRevision
 
 	return rollback.Run(hr.GetReleaseName())
 }
 
 // Uninstall runs an Helm uninstall action for the given v2beta1.HelmRelease.
-func (r *Runner) Uninstall(hr v2.HelmRelease) error {
+func (r *Runner) Uninstall(hr *v2.HelmRelease) error {
 	uninstall := action.NewUninstall(r.config)
 	uninstall.Timeout = hr.Spec.GetUninstall().GetTimeout(hr.GetTimeout()).Duration
 	uninstall.DisableHooks = hr.Spec.GetUninstall().DisableHooks
@@ -118,12 +132,18 @@ func (r *Runner) Uninstall(hr v2.HelmRelease) error {
 
 // ObserveLastRelease observes the last revision, if there is one,
 // for the actual Helm release associated with the given v2beta1.HelmRelease.
-func (r *Runner) ObserveLastRelease(hr v2.HelmRelease) (*release.Release, error) {
+func (r *Runner) ObserveLastRelease(hr *v2.HelmRelease) (*release.Release, error) {
 	rel, err := r.config.Releases.Last(hr.GetReleaseName())
 	if err != nil && errors.Is(err, driver.ErrReleaseNotFound) {
 		err = nil
 	}
 	return rel, err
+}
+
+// GetLastPersistedRelease returns the release last persisted to the
+// Helm storage by a Runner action.
+func (r *Runner) GetLastPersistedRelease() *release.Release {
+	return r.observer.GetLastObservedRelease()
 }
 
 func debugLogger(logger logr.Logger) func(format string, v ...interface{}) {

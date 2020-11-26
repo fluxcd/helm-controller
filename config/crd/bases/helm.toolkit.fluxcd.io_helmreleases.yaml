@@ -527,8 +527,12 @@ spec:
                   reconcile request value, so a change can be detected.
                 type: string
               lastReleaseRevision:
-                description: LastReleaseRevision is the revision of the last successful
+                description: LastReleaseRevision is the revision of the last performed
                   Helm release.
+                type: integer
+              lastSuccessfulReleaseRevision:
+                description: LastSuccessfulReleaseRevision is the revision of the
+                  last successful Helm release.
                 type: integer
               observedGeneration:
                 description: ObservedGeneration is the last observed generation.
