@@ -134,7 +134,7 @@ jobs:
           kubectl -n helm-system apply -f config/testdata/$test_name
           echo -n ">>> Waiting for expected conditions"
           count=0
-          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="False" and .TestSuccess=="False" and .Ready=="False"' )" ]; do
+          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="True" and .TestSuccess=="False" and .Ready=="False"' )" ]; do
             echo -n '.'
             sleep 5
             count=$((count + 1))
@@ -301,7 +301,7 @@ jobs:
           kubectl -n helm-system apply -f config/testdata/$test_name/upgrade.yaml
           echo -n ">>> Waiting for expected conditions"
           count=0
-          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="False" and .TestSuccess=="False" and .Ready=="False"' )" ]; do
+          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="True" and .TestSuccess=="False" and .Ready=="False"' )" ]; do
             echo -n '.'
             sleep 5
             count=$((count + 1))
