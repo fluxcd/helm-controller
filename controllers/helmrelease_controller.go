@@ -596,20 +596,19 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, logger logr.Logger, hr v2.HelmRelease) (ctrl.Result, error) {
 	r.recordReadiness(hr)
 
+	// Delete the HelmChart that belongs to this resource.
 	if err := r.deleteHelmChart(ctx, &hr); err != nil {
 		return ctrl.Result{}, err
 	}
 
+	// Only uninstall the Helm Release if the resource is not suspended.
 	if hr.Spec.Suspend {
 		logger.Info("skipping Helm uninstall for suspended resource")
-		return ctrl.Result{}, nil
-	}
-
-	if err := r.uninstallHelmRelease(logger, hr); err != nil {
+	} else if err := r.uninstallHelmRelease(logger, hr); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// Remove our finalizer from the list and update it
+	// Remove our finalizer from the list and update it.
 	controllerutil.RemoveFinalizer(&hr, v2.HelmReleaseFinalizer)
 	if err := r.Update(ctx, &hr); err != nil {
 		return ctrl.Result{}, err
