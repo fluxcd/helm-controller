@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.4.0 (2020-11-26)
+
+This the fourth MINOR prerelease. It adds support for impersonating a
+Service Account during Helm actions by defining a `ServiceAccountName`
+in the `HelmRelease`, and includes various bug fixes.
+
 ## 0.3.0 (2020-11-20)
 
 This is the third MINOR prerelease. It introduces a breaking change to
