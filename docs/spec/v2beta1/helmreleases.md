@@ -185,6 +185,12 @@ type Install struct {
 	// CRDs are installed if not already present.
 	// +optional
 	SkipCRDs bool `json:"skipCRDs,omitempty"`
+
+	// CreateNamespace tells the Helm install action to create the
+	// HelmReleaseSpec.TargetNamespace if it does not exist yet.
+	// On uninstall, the namespace will not be garbage collected.
+	// +optional
+	CreateNamespace bool `json:"createNamespace,omitempty"`
 }
 
 // InstallRemediation holds the configuration for Helm install remediation.

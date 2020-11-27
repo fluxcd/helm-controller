@@ -60,6 +60,10 @@ func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	install.Replace = hr.Spec.GetInstall().Replace
 	install.SkipCRDs = hr.Spec.GetInstall().SkipCRDs
 
+	if hr.Spec.TargetNamespace != "" {
+		install.CreateNamespace = hr.Spec.GetInstall().CreateNamespace
+	}
+
 	return install.Run(chart, values.AsMap())
 }
 
