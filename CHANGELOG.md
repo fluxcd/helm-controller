@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.4.1 (2020-11-30)
+
+This prerelease introduces support for Helm's namespace creation
+feature by defining `CreateNamespace` in the `Install` configuration
+of the `HelmRelease`. Take note that deleting the `HelmRelease` does
+not remove the created namespace, and managing namespaces outside of
+the `HelmRelease` is advised.
+
+In addition, it includes a fix for a bug that caused the finalizer to
+never be removed if a release no longer existed in the Helm storage.
+
 ## 0.4.0 (2020-11-26)
 
 This the fourth MINOR prerelease. It adds support for impersonating a
