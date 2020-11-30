@@ -94,6 +94,15 @@ jobs:
           kubectl -n default get deployment default-targetnamespace-podinfo
 
           kubectl -n helm-system delete -f config/testdata/targetnamespace
+      - name: Run install create target namespace test
+        run: |
+          kubectl -n helm-system apply -f config/testdata/install-create-target-ns
+          kubectl -n helm-system wait helmreleases/install-create-target-ns --for=condition=ready --timeout=4m
+
+          # Confirm release in "install-create-target-ns" namespace
+          kubectl -n install-create-target-ns get deployment install-create-target-ns-install-create-target-ns-podinfo
+
+          kubectl -n helm-system delete -f config/testdata/install-create-target-ns
       - name: Run install fail test
         run: |
           test_name=install-fail

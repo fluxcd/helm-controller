@@ -1119,6 +1119,20 @@ bool
 CRDs are installed if not already present.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>createNamespace</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CreateNamespace tells the Helm install action to create the
+HelmReleaseSpec.TargetNamespace if it does not exist yet.
+On uninstall, the namespace will not be garbage collected.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
