@@ -26,6 +26,7 @@ import (
 	"github.com/go-logr/logr"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
+	"helm.sh/helm/v3/pkg/storage/driver"
 	"helm.sh/helm/v3/pkg/strvals"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -602,10 +603,22 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, logger logr
 	}
 
 	// Only uninstall the Helm Release if the resource is not suspended.
-	if hr.Spec.Suspend {
+	if !hr.Spec.Suspend {
+		getter, err := r.getRESTClientGetter(ctx, hr)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		run, err := runner.NewRunner(getter, hr.GetNamespace(), logger)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if err := run.Uninstall(hr); err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
+			return ctrl.Result{}, err
+		}
+		logger.Info("uninstalled Helm release for deleted resource")
+
+	} else {
 		logger.Info("skipping Helm uninstall for suspended resource")
-	} else if err := r.uninstallHelmRelease(logger, hr); err != nil {
-		return ctrl.Result{}, err
 	}
 
 	// Remove our finalizer from the list and update it.
@@ -615,32 +628,6 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, logger logr
 	}
 
 	return ctrl.Result{}, nil
-}
-
-// uninstallHelmRelease uninstalls the deployed Helm release of
-// the given v2beta1.HelmRelease.
-func (r *HelmReleaseReconciler) uninstallHelmRelease(logger logr.Logger, hr v2.HelmRelease) error {
-	getter, err := r.getRESTClientGetter(context.TODO(), hr)
-	if err != nil {
-		return err
-	}
-	run, err := runner.NewRunner(getter, hr.GetNamespace(), logger)
-	if err != nil {
-		return err
-	}
-	rel, err := run.ObserveLastRelease(hr)
-	if err != nil {
-		err = fmt.Errorf("failed to perform Helm uninstall for deleted resource: %w", err)
-		return err
-	}
-	if rel == nil {
-		return nil
-	}
-	err = run.Uninstall(hr)
-	if err != nil {
-		err = fmt.Errorf("failed to perform Helm uninstall for deleted resource: %w", err)
-	}
-	return err
 }
 
 func (r *HelmReleaseReconciler) handleHelmActionResult(hr *v2.HelmRelease, revision string, err error, action string, condition string, succeededReason string, failedReason string) error {
