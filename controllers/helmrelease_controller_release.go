@@ -45,7 +45,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 	hc, err := r.getHelmChart(ctx, hr)
 	if err != nil {
 		err = fmt.Errorf("failed to get HelmChart for resource: %w", err)
-		v2.HelmReleaseNotReady(hr, v2.GetLastReleaseFailedReason, err.Error())
+		v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, err.Error())
 		return ctrl.Result{}, err
 	}
 
@@ -55,7 +55,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 	// a new reconciliation.
 	if hc.GetArtifact() == nil {
 		msg := fmt.Sprintf("HelmChart '%s/%s' has no artifact", hc.GetNamespace(), hc.GetName())
-		v2.HelmReleaseNotReady(hr, meta.DependencyNotReadyReason, msg)
+		v2.HelmReleaseNotReady(hr, v2.ArtifactNotReadyReason, msg)
 		return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
 	}
 
@@ -84,7 +84,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 	// release in the Helm storage.
 	makeRelease, remediation := run.Install, hr.Spec.GetInstall().GetRemediation()
 	successReason, failureReason := v2.InstallSucceededReason, v2.InstallFailedReason
-	if rls != nil {
+	if rls != nil && hr.Status.LastSuccessfulReleaseRevision > 0 {
 		makeRelease, remediation = run.Upgrade, hr.Spec.GetUpgrade().GetRemediation()
 		successReason, failureReason = v2.UpgradeSucceededReason, v2.UpgradeFailedReason
 	}
@@ -94,7 +94,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 	releaseRevision := util.ReleaseRevision(rls)
 	if rls != nil && hr.Status.LastReleaseRevision == releaseRevision && rls.Info.Status.IsPending() {
 		msg := fmt.Sprintf("previous release did not finish (%s)", rls.Info.Status)
-		v2.HelmReleaseNotReady(hr, v2.RemediatedCondition, msg)
+		v2.HelmReleaseNotReady(hr, meta.ReconciliationFailedReason, msg)
 		r.event(hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, msg)
 		remediation.IncrementFailureCount(hr)
 		return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
@@ -119,8 +119,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, log logr.L
 	case remediation.RetriesExhausted(*hr):
 		v2.HelmReleaseNotReady(hr, meta.ReconciliationFailedReason, "exhausted release retries")
 		return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
-	// Our previous reconciliation attempt failed, skip release to retry.
-	case hr.Status.LastSuccessfulReleaseRevision > 0 && hr.Status.LastReleaseRevision != hr.Status.LastSuccessfulReleaseRevision:
+	// Our previous remediation attempt failed, skip release to retry.
+	case hr.Status.LastReleaseRevision != hr.Status.LastSuccessfulReleaseRevision:
 		return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
 	}
 
@@ -168,7 +168,7 @@ func (r *HelmReleaseReconciler) reconcileTest(ctx context.Context, log logr.Logg
 	// If this release was already marked as successful,
 	// we have nothing to do.
 	if hr.Status.LastReleaseRevision == hr.Status.LastSuccessfulReleaseRevision {
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
 	}
 
 	// Confirm the last release in storage equals to the release
