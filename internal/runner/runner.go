@@ -19,6 +19,7 @@ package runner
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"helm.sh/helm/v3/pkg/action"
@@ -45,9 +46,15 @@ type Runner struct {
 // namespace configured to the provided values.
 func NewRunner(getter genericclioptions.RESTClientGetter, hr *v2.HelmRelease, log logr.Logger) (*Runner, error) {
 	cfg := new(action.Configuration)
-	if err := cfg.Init(getter, hr.GetNamespace(), "secret", debugLogger(log)); err != nil {
+	if err := cfg.Init(getter, hr.GetNamespace(), strings.ToLower(driver.SecretsDriverName), debugLogger(log)); err != nil {
 		return nil, err
 	}
+	return NewRunnerWithConfig(cfg, hr)
+}
+
+// NewRunnerWithConfig constructs a new Runner configured with the
+// given action.Configuration.
+func NewRunnerWithConfig(cfg *action.Configuration, hr *v2.HelmRelease) (*Runner, error) {
 	last, err := cfg.Releases.Get(hr.GetReleaseName(), hr.Status.LastReleaseRevision)
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
 		return nil, err
