@@ -3,6 +3,8 @@ module github.com/fluxcd/helm-controller
 go 1.15
 
 replace github.com/fluxcd/helm-controller/api => ./api
+// TODO: Remove once we move to a controller-runtime version which doesn't use this version.
+replace github.com/imdario/mergo v0.3.9 => github.com/imdario/mergo v0.3.8
 
 require (
 	github.com/fluxcd/helm-controller/api v0.4.1
@@ -23,3 +25,4 @@ require (
 	sigs.k8s.io/controller-runtime v0.6.3
 	sigs.k8s.io/yaml v1.2.0
 )
+
