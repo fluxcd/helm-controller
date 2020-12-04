@@ -2,6 +2,10 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.4.2 (2020-12-04)
+
+This prerelease fixes a bug in the merging of values.
+
 ## 0.4.1 (2020-11-30)
 
 This prerelease introduces support for Helm's namespace creation
