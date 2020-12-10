@@ -2,11 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
-## 0.4.2 (2020-12-04)
+## 0.4.2
+
+**Release date:** 2020-12-04
 
 This prerelease fixes a bug in the merging of values.
 
-## 0.4.1 (2020-11-30)
+## 0.4.1
+
+**Release date:** 2020-11-30
 
 This prerelease introduces support for Helm's namespace creation
 feature by defining `CreateNamespace` in the `Install` configuration
@@ -17,29 +21,39 @@ the `HelmRelease` is advised.
 In addition, it includes a fix for a bug that caused the finalizer to
 never be removed if a release no longer existed in the Helm storage.
 
-## 0.4.0 (2020-11-26)
+## 0.4.0
+
+**Release date:** 2020-11-26
 
 This the fourth MINOR prerelease. It adds support for impersonating a
 Service Account during Helm actions by defining a `ServiceAccountName`
 in the `HelmRelease`, and includes various bug fixes.
 
-## 0.3.0 (2020-11-20)
+## 0.3.0
+
+**Release date:** 2020-11-20
 
 This is the third MINOR prerelease. It introduces a breaking change to
 the API package; the status condition type has changed to the type
 introduced in Kubernetes API machinery `v1.19.0`.
 
-## 0.2.2 (2020-11-18)
+## 0.2.2
+
+**Release date:** 2020-11-18
 
 This prerelease comes with a bugfix for chart divergence detections.
 
-## 0.2.1 (2020-11-17)
+## 0.2.1
+
+**Release date:** 2020-11-17
 
 This prerelease comes with improvements to status reporting, and a
 bugfix for the (temporary) dead lock that would occur on some
 transient values composition and chart loading errors.
 
-## 0.2.0 (2020-10-29)
+## 0.2.0
+
+**Release date:** 2020-10-29
 
 This is the second MINOR prerelease, it comes with a breaking change:
 
@@ -53,7 +67,9 @@ Other notable changes:
   the former will be removed in a next release but is backwards
   compatible for now.
 
-## 0.1.3 (2020-10-16)
+## 0.1.3
+
+**Release date:** 2020-10-16
 
 This prereleases fixes two bugs:
 
@@ -65,7 +81,9 @@ This prereleases fixes two bugs:
   observation accuracy. This prevents it from `HelmRelease`s getting
   stuck on a "HelmChart is not ready" state.
 
-## 0.1.2 (2020-10-13)
+## 0.1.2
+
+**Release date:** 2020-10-13
 
 This prerelease comes with Prometheus instrumentation for the controller's resources.
 
@@ -75,13 +93,17 @@ and a histogram with the reconciliation duration in seconds:
 * `gotk_reconcile_condition{kind, name, namespace, status, type="Ready"}`
 * `gotk_reconcile_duration{kind, name, namespace}`
 
-## 0.1.1 (2020-10-02)
+## 0.1.1
+
+**Release date:** 2020-10-02
 
 This prerelease fixes a regression bug introduced in `v0.1.0`
 resulting in the `spec.targetNamespace` not being taken into
 account.
 
-## 0.1.0 (2020-09-30)
+## 0.1.0
+
+**Release date:** 2020-09-30
 
 This is the first MINOR prerelease, it promotes the
 `helm.toolkit.fluxcd.io` API to `v2beta1` and removes support for
@@ -99,13 +121,17 @@ of the `fluxcd.io/reconcilateAt` annotation, which makes it possible
 for e.g. the `gotk` CLI to observe if the controller has handled
 the resource since the manual reconciliation request was made.
 
-## 0.0.10 (2020-09-23)
+## 0.0.10
+
+**Release date:** 2020-09-23
 
 This prerelease adds support for Helm charts from `Bucket` sources,
 support for optional `ValuesFrom` references, and a Helm upgrade from
 `3.3.3` to `3.3.4`.
 
-## 0.0.9 (2020-09-22)
+## 0.0.9
+
+**Release date:** 2020-09-22
 
 This prerelease adds support for `DependsOn` references to other namespaces
 than the `HelmRelease` resource resides in, container images for ARMv7 and
@@ -134,7 +160,9 @@ While introducing the following new `Status` conditions:
    regardless of any subsequent other failures such as dependency failures,
    Kubernetes API failures, etc.
 
-## 0.0.8 (2020-09-11)
+## 0.0.8
+
+**Release date:** 2020-09-11
 
 This prerelease adds support for defining a `ValuesFile` in the
 `HelmChartTemplateSpec` to overwrite the default chart values with another
@@ -142,12 +170,16 @@ values file, as supported by `>=0.0.15` of the source-controller, and a
 `--watch-all-namespaces` flag (defaults to `true`) to provide the option
 to only watch the runtime namespace of the controller for resources.
 
-## 0.0.7 (2020-09-04)
+## 0.0.7
+
+**Release date:** 2020-09-04
 
 This prerelease comes with documentation fixes.
 Container images for linux/amd64 and linux/arm64 are published to GHCR.
 
-## 0.0.6 (2020-09-02)
+## 0.0.6
+
+**Release date:** 2020-09-02
 
 This prerelease adds support for Helm charts from `GitRepository` sources,
 improvements for a more graceful failure recovery, and an upgrade of Helm
@@ -180,7 +212,9 @@ The `status` object has two new fields to help end-users and automation
   running on the configured `spec.interval` and/or reacting to `ReconcileAt`
   annotations.
 
-## 0.0.5 (2020-08-26)
+## 0.0.5
+
+**Release date:** 2020-08-26
 
 This prerelease adds support for conditional remediation on failed Helm
 actions, and includes several (breaking) changes to the API:
@@ -193,54 +227,74 @@ actions, and includes several (breaking) changes to the API:
   default, ignoring test failures can be re-enabled by configuring
   `test.ignoreFailures` to `true`.
 
-## 0.0.4 (2020-08-20)
+## 0.0.4
+
+**Release date:** 2020-08-20
 
 This prerelease adds support for merging a flat single value from
 a `ValueReference` at the defined `TargetPath`, and fixes a bug in
 the merging of values where overwrites of a map with a flat single
 value was not allowed.
 
-## 0.0.3 (2020-08-18)
+## 0.0.3
+
+**Release date:** 2020-08-18
 
 This prerelease upgrades the `github.com/fluxcd/pkg/*` dependencies to
 dedicated versioned modules, and makes the `api` package available as
 a dedicated versioned module.
 
-## 0.0.2 (2020-08-12)
+## 0.0.2
+
+**Release date:** 2020-08-12
 
 In this prerelease the Helm package was upgraded to [v3.3.0](https://github.com/helm/helm/releases/tag/v3.3.0).
 
-## 0.0.1 (2020-07-31)
+## 0.0.1
+
+**Release date:** 2020-07-31
 
 This prerelease comes with a breaking change, the CRDs group has been
 renamed to `helm.toolkit.fluxcd.io`. The dependency on `source-controller`
 has been updated to `v0.0.7` to be able to work with `source.toolkit.fluxcd.io`
 resources.
 
-## 0.0.1-beta.4 (2020-07-22)
+## 0.0.1-beta.4
+
+**Release date:** 2020-07-22
 
 This beta release fixes a bug affecting helm release status reevaluation.
 
-## 0.0.1-beta.3 (2020-07-21)
+## 0.0.1-beta.3
+
+**Release date:** 2020-07-21
 
 This beta release fixes a bug affecting helm charts reconciliation.
 
-## 0.0.1-beta.2 (2020-07-21)
+## 0.0.1-beta.2
+
+**Release date:** 2020-07-21
 
 This beta release comes with various bug fixes and minor improvements.
 
-## 0.0.1-beta.1 (2020-07-20)
+## 0.0.1-beta.1
+
+**Release date:** 2020-07-20
 
 This beta release drops support for Kubernetes <1.16.
 The CRDs have been updated to `apiextensions.k8s.io/v1`.
 
-## 0.0.1-alpha.2 (2020-07-16)
+## 0.0.1-alpha.2
+
+**Release date:** 2020-07-16
 
 This alpha release comes with improvements to alerts delivering,
 logging, and fixes a bug in the lookup of HelmReleases when a
 HelmChart revision had changed.
 
-## 0.0.1-alpha.1 (2020-07-13)
+## 0.0.1-alpha.1
+
+**Release date:** 2020-07-13
 
 This is the first alpha release of helm-controller.
 The controller is an implementation of the
