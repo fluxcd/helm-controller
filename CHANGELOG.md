@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.4.3
+
+**Release date:** 2020-12-10
+
+This prerelease upgrades various dependencies.
+
+* Kubernetes dependency upgrades to `v1.19.4`
+* Helm upgrade to `v3.4.2`
+
 ## 0.4.2
 
 **Release date:** 2020-12-04
