@@ -17,7 +17,7 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
     spec:
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 600
       containers:
       - name: manager
         image: fluxcd/helm-controller
