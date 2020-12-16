@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.4.4
+
+**Release date:** 2020-12-16
+
+This prerelease increases the `terminationGracePeriodSeconds` of the
+controller `Deployment` from `10` to `600`, to allow release processes
+that make use of the default timeout (`5m0s`) to finish, and upgrades
+the source-controller API dependency to `v0.5.5`.
+
 ## 0.4.3
 
 **Release date:** 2020-12-10
