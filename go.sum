@@ -212,8 +212,8 @@ github.com/fluxcd/pkg/apis/meta v0.5.0 h1:FaU++mQY0g4sVVl+hG+vk0CXBLbb4EVfRuzs3I
 github.com/fluxcd/pkg/apis/meta v0.5.0/go.mod h1:aEUuZIawboAAFLlYz/juVJ7KNmlWbBtJFYkOWWmGUR4=
 github.com/fluxcd/pkg/runtime v0.4.0 h1:d/1okReK7ZyrQ2k/GKY1BEiMZNHu1rWKUxlHx2O45EY=
 github.com/fluxcd/pkg/runtime v0.4.0/go.mod h1:0Rbkgh3qj8Dl4uitccLc13hZyet1vvNJCAFAVUwNZDM=
-github.com/fluxcd/source-controller/api v0.5.2 h1:oWoDjCrPGTO+NNUk1XfwXUY33N9C0kDPmTfpQQiBKyI=
-github.com/fluxcd/source-controller/api v0.5.2/go.mod h1:/mpW0EM2dUnRey6rffqsSmgNkSAYm+zq9i0GfmTO7I0=
+github.com/fluxcd/source-controller/api v0.5.5 h1:F6xmaKSks8YaETG8IEocpJQ1g07JbaJiVJAqmM2jP0M=
+github.com/fluxcd/source-controller/api v0.5.5/go.mod h1:/mpW0EM2dUnRey6rffqsSmgNkSAYm+zq9i0GfmTO7I0=
 github.com/franela/goblin v0.0.0-20200105215937-c9ffbefa60db/go.mod h1:7dvUGVsVBjqR7JHJk0brhHOZYGmfBYOrK0ZhYMEtBr4=
 github.com/franela/goreq v0.0.0-20171204163338-bcd34c9993f8/go.mod h1:ZhphrRTfi2rbfLwlschooIH4+wKKDR4Pdxhh+TRoA20=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
