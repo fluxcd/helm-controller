@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
+	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,8 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
@@ -158,10 +158,9 @@ func TestHelmReleaseReconciler_reconcileChart(t *testing.T) {
 
 			r := &HelmReleaseReconciler{
 				Client: c,
-				Log:    log.NullLogger{},
 			}
 
-			hc, err := r.reconcileChart(context.TODO(), tt.hr)
+			hc, err := r.reconcileChart(logr.NewContext(context.TODO(), log.NullLogger{}), tt.hr)
 			if tt.expectErr {
 				g.Expect(err).To(HaveOccurred())
 				g.Expect(hc).To(BeNil())
@@ -173,8 +172,7 @@ func TestHelmReleaseReconciler_reconcileChart(t *testing.T) {
 			g.Expect(tt.hr.Status.HelmChart).To(Equal(tt.expectHelmChartStatus))
 
 			if tt.expectGC {
-				objKey, err := client.ObjectKeyFromObject(tt.hc)
-				g.Expect(err).ToNot(HaveOccurred())
+				objKey := client.ObjectKeyFromObject(tt.hc)
 				err = c.Get(context.TODO(), objKey, tt.hc.DeepCopy())
 				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			}
