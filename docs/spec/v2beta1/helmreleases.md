@@ -729,7 +729,7 @@ spec:
         namespace: default
       interval: 1m
   dependsOn:
-    - backend
+    - name: backend
   upgrade:
     remediation:
       remediateLastFailure: true
