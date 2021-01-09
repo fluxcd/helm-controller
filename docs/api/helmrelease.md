@@ -947,7 +947,19 @@ int
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastReleaseRevision is the revision of the last successful Helm release.</p>
+<p>LastReleaseRevision is the revision of the last performed Helm release.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastSuccessfulReleaseRevision</code><br>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastSuccessfulReleaseRevision is the revision of the last successful Helm release.</p>
 </td>
 </tr>
 <tr>

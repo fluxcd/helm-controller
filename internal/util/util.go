@@ -22,6 +22,7 @@ import (
 
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/release"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // MergeMaps merges map b into given map a and returns the result.
@@ -64,4 +65,74 @@ func ReleaseRevision(rel *release.Release) int {
 		return 0
 	}
 	return rel.Version
+}
+
+// LowestNonZeroResult compares two reconciliation results and returns
+// the one with lowest requeue time.
+func LowestNonZeroResult(i, j ctrl.Result) ctrl.Result {
+	switch {
+	case i.IsZero():
+		return j
+	case j.IsZero():
+		return i
+	case i.Requeue:
+		return i
+	case j.Requeue:
+		return j
+	case i.RequeueAfter < j.RequeueAfter:
+		return i
+	default:
+		return j
+	}
+}
+
+func CalculateTestSuiteResult(rls *release.Release) ([]string, []string) {
+	result := make(map[release.HookPhase][]string)
+	executions := executionsByHookEvent(rls)
+	tests, ok := executions[release.HookTest]
+	if !ok {
+		return nil, nil
+	}
+	for _, h := range tests {
+		names := result[h.LastRun.Phase]
+		result[h.LastRun.Phase] = append(names, h.Name)
+	}
+	return result[release.HookPhaseSucceeded], result[release.HookPhaseFailed]
+}
+
+func HasRunTestSuite(rls *release.Release) bool {
+	executions := executionsByHookEvent(rls)
+	tests, ok := executions[release.HookTest]
+	if !ok {
+		return false
+	}
+	for _, h := range tests {
+		if !h.LastRun.StartedAt.IsZero() {
+			return true
+		}
+	}
+	return false
+}
+
+func HasTestSuite(rls *release.Release) bool {
+	executions := executionsByHookEvent(rls)
+	tests, ok := executions[release.HookTest]
+	if !ok {
+		return false
+	}
+	return len(tests) > 0
+}
+
+func executionsByHookEvent(rls *release.Release) map[release.HookEvent][]*release.Hook {
+	result := make(map[release.HookEvent][]*release.Hook)
+	for _, h := range rls.Hooks {
+		for _, e := range h.Events {
+			executions, ok := result[e]
+			if !ok {
+				executions = []*release.Hook{}
+			}
+			result[e] = append(executions, h)
+		}
+	}
+	return result
 }

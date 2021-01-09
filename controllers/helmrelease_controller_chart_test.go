@@ -161,7 +161,7 @@ func TestHelmReleaseReconciler_reconcileChart(t *testing.T) {
 				Log:    log.NullLogger{},
 			}
 
-			hc, err := r.reconcileChart(context.TODO(), tt.hr)
+			hc, err := r.reconcileChart(context.TODO(), log.NullLogger{}, tt.hr)
 			if tt.expectErr {
 				g.Expect(err).To(HaveOccurred())
 				g.Expect(hc).To(BeNil())

@@ -18,14 +18,15 @@ package controllers
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
+	. "github.com/onsi/gomega"
 	"helm.sh/helm/v3/pkg/chartutil"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
@@ -34,10 +35,6 @@ import (
 )
 
 func TestHelmReleaseReconciler_composeValues(t *testing.T) {
-	scheme := runtime.NewScheme()
-	_ = corev1.AddToScheme(scheme)
-	_ = v2.AddToScheme(scheme)
-
 	tests := []struct {
 		name       string
 		resources  []runtime.Object
@@ -207,26 +204,32 @@ invalid`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := fake.NewFakeClientWithScheme(scheme, tt.resources...)
-			r := &HelmReleaseReconciler{Client: c, Log: log.NullLogger{}}
+			g := NewWithT(t)
+
+			g.Expect(corev1.AddToScheme(scheme.Scheme)).To(Succeed())
+			g.Expect(v2.AddToScheme(scheme.Scheme)).To(Succeed())
+
+			c := fake.NewFakeClientWithScheme(scheme.Scheme, tt.resources...)
+			r := &HelmReleaseReconciler{Client: c}
+
 			var values *apiextensionsv1.JSON
 			if tt.values != "" {
 				v, _ := yaml.YAMLToJSON([]byte(tt.values))
 				values = &apiextensionsv1.JSON{Raw: v}
 			}
-			hr := v2.HelmRelease{
+			hr := &v2.HelmRelease{
 				Spec: v2.HelmReleaseSpec{
 					ValuesFrom: tt.references,
 					Values:     values,
 				},
 			}
-			got, err := r.composeValues(context.TODO(), hr)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("composeValues() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("composeValues() got = %v, want %v", got, tt.want)
+			got, err := r.composeValues(context.TODO(), log.NullLogger{}, hr)
+			if !tt.wantErr {
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(got).To(Equal(tt.want))
+			} else {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(got).To(BeNil())
 			}
 		})
 	}

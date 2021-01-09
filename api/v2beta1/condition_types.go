@@ -72,6 +72,10 @@ const (
 	// HelmRelease failed.
 	UninstallFailedReason string = "UninstallFailed"
 
+	// ArtifactNotReadyReason represents the fact that the artifact for the HelmChart
+	// is not available.
+	ArtifactNotReadyReason string = "ArtifactNotReady"
+
 	// ArtifactFailedReason represents the fact that the artifact download for the
 	// HelmRelease failed.
 	ArtifactFailedReason string = "ArtifactFailed"

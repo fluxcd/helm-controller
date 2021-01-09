@@ -25,18 +25,20 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-logr/logr"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
 
-func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, error) {
+func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, log logr.Logger, hr *v2.HelmRelease) (ctrl.Result, error) {
 	chartName := types.NamespacedName{
 		Namespace: hr.Spec.Chart.GetNamespace(hr.Namespace),
 		Name:      hr.GetHelmChartName(),
@@ -45,7 +47,7 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	// Garbage collect the previous HelmChart if the namespace named changed.
 	if hr.Status.HelmChart != "" && hr.Status.HelmChart != chartName.String() {
 		if err := r.deleteHelmChart(ctx, hr); err != nil {
-			return nil, err
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -53,25 +55,23 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	var helmChart sourcev1.HelmChart
 	err := r.Client.Get(ctx, chartName, &helmChart)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return nil, err
+		return ctrl.Result{}, err
 	}
 	hc := buildHelmChartFromTemplate(hr)
 	switch {
 	case apierrors.IsNotFound(err):
 		if err = r.Client.Create(ctx, hc); err != nil {
-			return nil, err
+			return ctrl.Result{}, err
 		}
-		hr.Status.HelmChart = chartName.String()
-		return hc, nil
 	case helmChartRequiresUpdate(hr, &helmChart):
-		r.Log.Info("chart diverged from template", strings.ToLower(sourcev1.HelmChartKind), chartName.String())
+		log.Info("chart diverged from template", strings.ToLower(sourcev1.HelmChartKind), chartName.String())
 		helmChart.Spec = hc.Spec
 		if err = r.Client.Update(ctx, &helmChart); err != nil {
-			return nil, err
+			return ctrl.Result{}, err
 		}
-		hr.Status.HelmChart = chartName.String()
 	}
-	return &helmChart, nil
+	hr.Status.HelmChart = chartName.String()
+	return ctrl.Result{}, nil
 }
 
 // getHelmChart retrieves the v1beta1.HelmChart for the given
