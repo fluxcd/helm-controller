@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"helm.sh/helm/v3/pkg/chartutil"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -208,7 +209,7 @@ invalid`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := fake.NewFakeClientWithScheme(scheme, tt.resources...)
-			r := &HelmReleaseReconciler{Client: c, Log: log.NullLogger{}}
+			r := &HelmReleaseReconciler{Client: c}
 			var values *apiextensionsv1.JSON
 			if tt.values != "" {
 				v, _ := yaml.YAMLToJSON([]byte(tt.values))
@@ -220,7 +221,7 @@ invalid`,
 					Values:     values,
 				},
 			}
-			got, err := r.composeValues(context.TODO(), hr)
+			got, err := r.composeValues(logr.NewContext(context.TODO(), log.NullLogger{}), hr)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("composeValues() error = %v, wantErr %v", err, tt.wantErr)
 				return

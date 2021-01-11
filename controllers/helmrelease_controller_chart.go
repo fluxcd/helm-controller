@@ -25,6 +25,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-logr/logr"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -64,7 +65,7 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 		hr.Status.HelmChart = chartName.String()
 		return hc, nil
 	case helmChartRequiresUpdate(hr, &helmChart):
-		r.Log.Info("chart diverged from template", strings.ToLower(sourcev1.HelmChartKind), chartName.String())
+		logr.FromContext(ctx).Info("chart diverged from template", strings.ToLower(sourcev1.HelmChartKind), chartName.String())
 		helmChart.Spec = hc.Spec
 		if err = r.Client.Update(ctx, &helmChart); err != nil {
 			return nil, err

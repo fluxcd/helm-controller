@@ -17,18 +17,16 @@ limitations under the License.
 package main
 
 import (
-	"flag"
+	goflag "flag"
 	"os"
 	"time"
 
-	"github.com/go-logr/logr"
-	uzap "go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/fluxcd/pkg/runtime/logger"
+	flag "github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/fluxcd/pkg/runtime/events"
@@ -62,9 +60,8 @@ func main() {
 		enableLeaderElection bool
 		concurrent           int
 		requeueDependency    time.Duration
-		logLevel             string
-		logJSON              bool
 		watchAllNamespaces   bool
+		logOptions           logger.Options
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -75,13 +72,17 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.IntVar(&concurrent, "concurrent", 4, "The number of concurrent HelmRelease reconciles.")
 	flag.DurationVar(&requeueDependency, "requeue-dependency", 30*time.Second, "The interval at which failing dependencies are reevaluated.")
-	flag.StringVar(&logLevel, "log-level", "info", "Set logging level. Can be debug, info or error.")
-	flag.BoolVar(&logJSON, "log-json", false, "Set logging to JSON format.")
 	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
 		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
+	flag.CommandLine.MarkDeprecated("log-json", "Please use --log-encoding=json instead.")
+	{
+		var fs goflag.FlagSet
+		logOptions.BindFlags(&fs)
+		flag.CommandLine.AddGoFlagSet(&fs)
+	}
 	flag.Parse()
 
-	ctrl.SetLogger(newLogger(logLevel, logJSON))
+	ctrl.SetLogger(logger.NewLogger(logOptions))
 
 	var eventRecorder *events.Recorder
 	if eventsAddr != "" {
@@ -121,7 +122,6 @@ func main() {
 	if err = (&controllers.HelmReleaseReconciler{
 		Client:                mgr.GetClient(),
 		Config:                mgr.GetConfig(),
-		Log:                   ctrl.Log.WithName("controllers").WithName(v2.HelmReleaseKind),
 		Scheme:                mgr.GetScheme(),
 		EventRecorder:         mgr.GetEventRecorderFor("helm-controller"),
 		ExternalEventRecorder: eventRecorder,
@@ -140,30 +140,4 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-}
-
-// newLogger returns a logger configured for dev or production use.
-// For production the log format is JSON, the timestamps format is ISO8601
-// and stack traces are logged when the level is set to debug.
-func newLogger(level string, production bool) logr.Logger {
-	if !production {
-		return zap.New(zap.UseDevMode(true))
-	}
-
-	encCfg := uzap.NewProductionEncoderConfig()
-	encCfg.EncodeTime = zapcore.ISO8601TimeEncoder
-	encoder := zap.Encoder(zapcore.NewJSONEncoder(encCfg))
-
-	logLevel := zap.Level(zapcore.InfoLevel)
-	stacktraceLevel := zap.StacktraceLevel(zapcore.PanicLevel)
-
-	switch level {
-	case "debug":
-		logLevel = zap.Level(zapcore.DebugLevel)
-		stacktraceLevel = zap.StacktraceLevel(zapcore.ErrorLevel)
-	case "error":
-		logLevel = zap.Level(zapcore.ErrorLevel)
-	}
-
-	return zap.New(encoder, logLevel, stacktraceLevel)
 }

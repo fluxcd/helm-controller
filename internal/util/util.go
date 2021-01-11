@@ -22,6 +22,8 @@ import (
 
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/release"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // MergeMaps merges map b into given map a and returns the result.
@@ -64,4 +66,12 @@ func ReleaseRevision(rel *release.Release) int {
 		return 0
 	}
 	return rel.Version
+}
+
+// ObjectKey returns client.ObjectKey for the object.
+func ObjectKey(object metav1.Object) client.ObjectKey {
+	return client.ObjectKey{
+		Namespace: object.GetNamespace(),
+		Name:      object.GetName(),
+	}
 }
