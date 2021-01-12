@@ -11,7 +11,7 @@ require (
 	github.com/fluxcd/helm-controller/api v0.4.4
 	github.com/fluxcd/pkg/apis/meta v0.5.0
 	github.com/fluxcd/pkg/runtime v0.6.0
-	github.com/fluxcd/source-controller/api v0.5.5
+	github.com/fluxcd/source-controller/api v0.6.0
 	github.com/go-logr/logr v0.3.0
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
