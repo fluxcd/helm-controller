@@ -8,7 +8,7 @@ replace github.com/fluxcd/helm-controller/api => ./api
 replace github.com/imdario/mergo v0.3.9 => github.com/imdario/mergo v0.3.8
 
 require (
-	github.com/fluxcd/helm-controller/api v0.4.4
+	github.com/fluxcd/helm-controller/api v0.5.0
 	github.com/fluxcd/pkg/apis/meta v0.5.0
 	github.com/fluxcd/pkg/runtime v0.6.0
 	github.com/fluxcd/source-controller/api v0.6.0
