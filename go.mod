@@ -4,9 +4,6 @@ go 1.15
 
 replace github.com/fluxcd/helm-controller/api => ./api
 
-// TODO: Remove once we move to a controller-runtime version which doesn't use this version.
-replace github.com/imdario/mergo v0.3.9 => github.com/imdario/mergo v0.3.8
-
 require (
 	github.com/fluxcd/helm-controller/api v0.5.0
 	github.com/fluxcd/pkg/apis/meta v0.5.0
