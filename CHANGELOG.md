@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.5.1
+
+**Release date:** 2021-01-14
+
+This prerelease fixes a regression bug introduced in `v0.5.0` that caused
+reconciliation request annotations to be ignored in certain scenarios.
+
 ## 0.5.0
 
 **Release date:** 2021-01-12
