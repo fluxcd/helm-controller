@@ -1,6 +1,11 @@
 # Changelog
 
-All notable changes to this project are documented in this file.
+## 0.5.2
+
+**Release date:** 2021-01-18
+
+This prerelease comes with updates to Kubernetes and Helm dependencies.
+The Kubernetes packages were updated to `v1.20.2` and Helm to `v3.5.0`.
 
 ## 0.5.1
 
