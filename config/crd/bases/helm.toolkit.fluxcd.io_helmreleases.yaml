@@ -255,6 +255,12 @@ spec:
                 description: The name of the Kubernetes service account to impersonate
                   when reconciling this HelmRelease.
                 type: string
+              storageNamespace:
+                description: StorageNamespace used for the Helm storage. Defaults
+                  to the namespace of the HelmRelease.
+                maxLength: 63
+                minLength: 1
+                type: string
               suspend:
                 description: Suspend tells the controller to suspend reconciliation
                   for this HelmRelease, it does not apply to already started reconciliations.

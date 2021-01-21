@@ -69,6 +69,14 @@ type HelmReleaseSpec struct {
 	// +optional
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 
+	// StorageNamespace used for the Helm storage.
+	// Defaults to the namespace of the HelmRelease.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Optional
+	// +optional
+	StorageNamespace string `json:"storageNamespace,omitempty"`
+
 	// DependsOn may contain a dependency.CrossNamespaceDependencyReference slice with
 	// references to HelmRelease resources that must be ready before this HelmRelease
 	// can be reconciled.
@@ -789,6 +797,15 @@ func (in HelmRelease) GetReleaseName() string {
 func (in HelmRelease) GetReleaseNamespace() string {
 	if in.Spec.TargetNamespace != "" {
 		return in.Spec.TargetNamespace
+	}
+	return in.Namespace
+}
+
+// GetStorageNamespace returns the configured StorageNamespace for helm, or the namespace
+// of the HelmRelease.
+func (in HelmRelease) GetStorageNamespace() string {
+	if in.Spec.StorageNamespace != "" {
+		return in.Spec.StorageNamespace
 	}
 	return in.Namespace
 }
