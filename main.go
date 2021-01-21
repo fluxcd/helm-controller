@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	goflag "flag"
 	"os"
 	"time"
 
@@ -29,6 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
+	"github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/probes"
@@ -61,6 +61,7 @@ func main() {
 		concurrent           int
 		requeueDependency    time.Duration
 		watchAllNamespaces   bool
+		clientOptions        client.Options
 		logOptions           logger.Options
 	)
 
@@ -75,11 +76,8 @@ func main() {
 	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
 		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
 	flag.CommandLine.MarkDeprecated("log-json", "Please use --log-encoding=json instead.")
-	{
-		var fs goflag.FlagSet
-		logOptions.BindFlags(&fs)
-		flag.CommandLine.AddGoFlagSet(&fs)
-	}
+	clientOptions.BindFlags(flag.CommandLine)
+	logOptions.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	ctrl.SetLogger(logger.NewLogger(logOptions))
@@ -102,7 +100,8 @@ func main() {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restConfig := client.GetConfigOrDie(clientOptions)
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
 		HealthProbeBindAddress: healthAddr,

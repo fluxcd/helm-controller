@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -175,7 +174,7 @@ type KubeConfig struct {
 	// binaries and credentials to the Pod that is responsible for reconciling
 	// the HelmRelease.
 	// +required
-	SecretRef corev1.LocalObjectReference `json:"secretRef,omitempty"`
+	SecretRef meta.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 // HelmChartTemplate defines the template from which the controller will
