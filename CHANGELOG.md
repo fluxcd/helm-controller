@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.0
+
+**Release date:** 2021-01-22
+
+This is the sixth MINOR prerelease.
+
+Two new argument flags are introduced to support configuring the QPS
+(`--kube-api-qps`) and burst (`--kube-api-burst`) while communicating
+with the Kubernetes API server.
+
+The `LocalObjectReference` from the Kubernetes core has been replaced
+with our own, making `Name` a required field. The impact of this should
+be limited to direct API consumers only, as the field was already
+required by controller logic.
+
 ## 0.5.2
 
 **Release date:** 2021-01-18
