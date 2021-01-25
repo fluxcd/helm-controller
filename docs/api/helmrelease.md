@@ -151,6 +151,19 @@ Defaults to the namespace of the HelmRelease.</p>
 </tr>
 <tr>
 <td>
+<code>storageNamespace</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StorageNamespace used for the Helm storage.
+Defaults to the namespace of the HelmRelease.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>dependsOn</code><br>
 <em>
 <a href="https://godoc.org/github.com/fluxcd/pkg/runtime/dependency#CrossNamespaceDependencyReference">
@@ -681,6 +694,19 @@ string
 <td>
 <em>(Optional)</em>
 <p>TargetNamespace to target when performing operations for the HelmRelease.
+Defaults to the namespace of the HelmRelease.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>storageNamespace</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StorageNamespace used for the Helm storage.
 Defaults to the namespace of the HelmRelease.</p>
 </td>
 </tr>

@@ -265,7 +265,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	if err != nil {
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error()), err
 	}
-	run, err := runner.NewRunner(getter, hr.GetNamespace(), log)
+	run, err := runner.NewRunner(getter, hr.GetStorageNamespace(), log)
 	if err != nil {
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to initialize Helm action runner"), err
 	}
@@ -616,7 +616,7 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmR
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		run, err := runner.NewRunner(getter, hr.GetNamespace(), logr.FromContext(ctx))
+		run, err := runner.NewRunner(getter, hr.GetStorageNamespace(), logr.FromContext(ctx))
 		if err != nil {
 			return ctrl.Result{}, err
 		}
