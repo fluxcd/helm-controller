@@ -42,6 +42,14 @@ type HelmReleaseSpec struct {
 	// +optional
 	TargetNamespace string `json:"targetNamespace,omitempty"`
 
+	// StorageNamespace used for the Helm storage.
+	// Defaults to the namespace of the HelmRelease.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Optional
+	// +optional
+	StorageNamespace string `json:"storageNamespace,omitempty"`
+
 	// DependsOn may contain a dependency.CrossNamespaceDependencyReference slice with
 	// references to HelmRelease resources that must be ready before this HelmRelease
 	// can be reconciled.
@@ -552,14 +560,14 @@ const (
 
 ## Helm release placement
 
-The namespace/name in which to deploy the Helm release defaults to the namespace/name of the
-`HelmRelease`. These can be overridden respectively via `spec.targetNamespace` and
-`spec.releaseName`. If `spec.targetNamespace` is set, `spec.releaseName` defaults to
-`<spec.targetNamespace>-<metadata.name>`.
+The namespace/name in which to deploy and store the Helm release defaults to the namespace/name
+of the `HelmRelease`. These can be overridden respectively via `spec.targetNamespace`,
+`spec.storageNamespace` and `spec.releaseName`. If `spec.targetNamespace` is set,
+`spec.releaseName` defaults to `<spec.targetNamespace>-<metadata.name>`.
 
 > **Note:** that configuring the `spec.targetNamespace` only defines the namespace the release
-> is made in, the metadata for the release (also known as the "Helm storage") will always be
-> stored in the `metadata.namespace` of the `HelmRelease`.
+> is made in, the metadata for the release (also known as the "Helm storage") will be stored in
+> the `metadata.namespace` or `spec.storageNamespace` of the `HelmRelease`.
 
 ## Helm chart template
 
@@ -922,8 +930,10 @@ of the secret's data, and the secret can thus be regularly updated if cluster-ac
 to rotate due to expiration. 
 
 The Helm storage is stored on the remote cluster in a namespace that equals to the namespace of
-the HelmRelease, the release itself is made in either this namespace, or the configured
-`spec.targetNamespace`. In any case, both are expected to exist.
+the HelmRelease, or the configured `spec.storageNamespace`. The release itself is made in a
+namespace that equals to the namespace of the HelmRelease, or the configured `spec.targetNamespace`.
+The namespaces are expected to exist, with the exception that `spec.targetNamespace` can be
+created on demand by Helm when `spec.createNamespace` is set to `true`.
 
 Other references to Kubernetes resources in the HelmRelease, like ValuesReference resources,
 are expected to exist on the reconciling cluster.
