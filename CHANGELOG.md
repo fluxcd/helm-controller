@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.1
+
+**Release date:** 2021-01-25
+
+This prerelease adds support for configuring the namespace of the
+Helm storage by defining a `StorageNamespace` in the `HelmRelease`
+resource (defaults to the namespace of the resource).
+
 ## 0.6.0
 
 **Release date:** 2021-01-22
