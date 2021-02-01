@@ -32,6 +32,39 @@ import (
 const HelmReleaseKind = "HelmRelease"
 const HelmReleaseFinalizer = "finalizers.fluxcd.io"
 
+// PatchJSON6902 contains a JSON patch and the target it applies to.
+type PatchJSON6902 struct {
+	// Patch is the YAML content of a patch.
+	Patch []apiextensionsv1.JSON `json:"patch,omitempty" yaml:"patch,omitempty"`
+
+	// Target points to the resources that the patch is applied to.
+	Target Selector `json:"target,omitempty" yaml:"target,omitempty"`
+}
+
+// Kustomize Helm PostRenderer specification.
+type Kustomize struct {
+	// Strategic merge patches, defined as inline YAML objects.
+	// +optional
+	PatchesStrategicMerge []apiextensionsv1.JSON `json:"patchesStrategicMerge,omitempty"`
+
+	// JSON 6902 patches, defined as inline YAML objects.
+	// +optional
+	PatchesJSON6902 []PatchJSON6902 `json:"patchesJson6902,omitempty"`
+
+	// Images is a list of (image name, new name, new tag or digest)
+	// for changing image names, tags or digests. This can also be achieved with a
+	// patch, but this operator is simpler to specify.
+	// +optional
+	Images []Image `json:"images,omitempty" yaml:"images,omitempty"`
+}
+
+// PostRenderer contains a Helm PostRenderer specification.
+type PostRenderer struct {
+	// Kustomization to apply as PostRenderer.
+	// +optional
+	Kustomize *Kustomize `json:"kustomize,omitempty"`
+}
+
 // HelmReleaseSpec defines the desired state of a Helm release.
 type HelmReleaseSpec struct {
 	// Chart defines the template of the v1beta1.HelmChart that should be created
@@ -125,6 +158,11 @@ type HelmReleaseSpec struct {
 	// Values holds the values for this Helm release.
 	// +optional
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
+
+	// PostRenderers holds an array of Helm PostRenderers, which will be applied in order
+	// of their definition.
+	// +optional
+	PostRenderers []PostRenderer `json:"postRenderers,omitempty"`
 }
 
 // GetInstall returns the configuration for Helm install actions for the

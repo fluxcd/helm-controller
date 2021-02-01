@@ -1,0 +1,35 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: post-renderer-kustomize
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: podinfo
+      version: '>=4.0.0 <5.0.0'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+      interval: 1m
+  values:
+    fullnameOverride: mypodinfo
+  postRenderers:
+  - kustomize: 
+      patchesStrategicMerge:
+      - kind: Deployment
+        apiVersion: apps/v1
+        metadata:
+          name: mypodinfo
+          labels:
+            xxxx: yyyy
+      patchesJson6902:
+      - target:
+          group: apps
+          version: v1
+          kind: Deployment
+          name: mypodinfo
+        patch:
+        - op: add
+          path: /metadata/labels/yyyy
+          value: xxxx

@@ -24,6 +24,7 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
+	"helm.sh/helm/v3/pkg/postrender"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -48,6 +49,21 @@ func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace strin
 	return &Runner{config: cfg}, nil
 }
 
+// Create post renderer instances from HelmRelease and combine them into
+// a single combined post renderer.
+func postRenderers(hr v2.HelmRelease) (postrender.PostRenderer, error) {
+	var combinedRenderer = newCombinedPostRenderer()
+	for _, r := range hr.Spec.PostRenderers {
+		if r.Kustomize != nil {
+			combinedRenderer.addRenderer(newPostRendererKustomize(r.Kustomize))
+		}
+	}
+	if len(combinedRenderer.renderers) == 0 {
+		return nil, nil
+	}
+	return &combinedRenderer, nil
+}
+
 // Install runs an Helm install action for the given v2beta1.HelmRelease.
 func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (*release.Release, error) {
 	install := action.NewInstall(r.config)
@@ -59,7 +75,11 @@ func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	install.DisableOpenAPIValidation = hr.Spec.GetInstall().DisableOpenAPIValidation
 	install.Replace = hr.Spec.GetInstall().Replace
 	install.SkipCRDs = hr.Spec.GetInstall().SkipCRDs
-
+	renderer, err := postRenderers(hr)
+	if err != nil {
+		return nil, err
+	}
+	install.PostRenderer = renderer
 	if hr.Spec.TargetNamespace != "" {
 		install.CreateNamespace = hr.Spec.GetInstall().CreateNamespace
 	}
@@ -79,6 +99,11 @@ func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	upgrade.DisableHooks = hr.Spec.GetUpgrade().DisableHooks
 	upgrade.Force = hr.Spec.GetUpgrade().Force
 	upgrade.CleanupOnFail = hr.Spec.GetUpgrade().CleanupOnFail
+	renderer, err := postRenderers(hr)
+	if err != nil {
+		return nil, err
+	}
+	upgrade.PostRenderer = renderer
 
 	return upgrade.Run(hr.GetReleaseName(), chart, values.AsMap())
 }

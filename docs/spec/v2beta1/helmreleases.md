@@ -103,6 +103,11 @@ type HelmReleaseSpec struct {
 	// when reconciling this HelmRelease.
 	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
+	// PostRenderers holds an array of Helm PostRenderers, which will be applied in order
+	// of their definition.
+	// +optional
+	PostRenderers []PostRenderer `json:"postRenderers,omitempty"`
 }
 
 // KubeConfig references a Kubernetes secret that contains a kubeconfig file.
@@ -359,6 +364,39 @@ type Uninstall struct {
 	// +optional
 	KeepHistory bool `json:"keepHistory,omitempty"`
 }
+
+// PatchJSON6902 contains a JSON patch and the target it applies to.
+type PatchJSON6902 struct {
+	// Patch is the YAML content of a patch.
+	Patch []apiextensionsv1.JSON `json:"patch,omitempty" yaml:"patch,omitempty"`
+
+	// Target points to the resources that the patch is applied to.
+	Target Selector `json:"target,omitempty" yaml:"target,omitempty"`
+}
+
+// Kustomize Helm PostRenderer specification.
+type Kustomize struct {
+	// Strategic merge patches, defined as inline YAML objects.
+	// +optional
+	PatchesStrategicMerge []apiextensionsv1.JSON `json:"patchesStrategicMerge,omitempty"`
+
+	// JSON 6902 patches, defined as inline YAML objects.
+	// +optional
+	PatchesJSON6902 []PatchJSON6902 `json:"patchesJson6902,omitempty"`
+
+	// Images is a list of (image name, new name, new tag or digest)
+	// for changing image names, tags or digests. This can also be achieved with a
+	// patch, but this operator is simpler to specify.
+	// +optional
+	Images []Image `json:"images,omitempty" yaml:"images,omitempty"`
+}
+
+// PostRenderer contains a Helm PostRenderer specification.
+type PostRenderer struct {
+	// Kustomization to apply as PostRenderer.
+	// +optional
+	Kustomize *Kustomize `json:"kustomize,omitempty"`
+}
 ```
 
 ### Reference types
@@ -576,23 +614,23 @@ to create a new `HelmChart` resource with the given spec.
 
 The `spec.chart.spec.sourceRef` is a reference to an object managed by
 [source-controller](https://github.com/fluxcd/source-controller). When the source
-[revision](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1beta1/common.md#source-status) 
+[revision](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1beta1/common.md#source-status)
 changes, it generates a Kubernetes event that triggers a new release.
 
 Supported source types:
 
-* [HelmRepository](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1beta1/helmrepositories.md)
-* [GitRepository](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1beta1/gitrepositories.md)
-* [Bucket](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1beta1/buckets.md)
+- [HelmRepository](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1beta1/helmrepositories.md)
+- [GitRepository](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1beta1/gitrepositories.md)
+- [Bucket](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1beta1/buckets.md)
 
 The `HelmChart` is created in the same namespace as the `sourceRef`,
 with a name matching the `HelmRelease` `<metadata.namespace>-<metadata.name>`.
 
 The `chart.spec.chart` can either contain:
 
-* The name of the chart as made available by the `HelmRepository`
+- The name of the chart as made available by the `HelmRepository`
   (without any aliases), for example: `podinfo`
-* The relative path the chart can be found at in the `GitRepository`,
+- The relative path the chart can be found at in the `GitRepository`,
   for example: `./charts/podinfo`
 
 The `chart.spec.version` can be a fixed semver, or any semver range
@@ -611,14 +649,14 @@ spec:
   values:
     replicaCount: 2
   valuesFrom:
-  - kind: ConfigMap
-    name: prod-env-values
-    valuesKey: values-prod.yaml
-  - kind: Secret
-    name: prod-tls-values
-    valuesKey: crt
-    targetPath: tls.crt
-    optional: true
+    - kind: ConfigMap
+      name: prod-env-values
+      valuesKey: values-prod.yaml
+    - kind: Secret
+      name: prod-tls-values
+      valuesKey: crt
+      targetPath: tls.crt
+      optional: true
 ```
 
 The definition of the listed keys for items in `spec.valuesFrom` is as follows:
@@ -627,15 +665,15 @@ The definition of the listed keys for items in `spec.valuesFrom` is as follows:
 - `name`: Name of the values referent, in the same namespace as the
   `HelmRelease`.
 - `valuesKey` _(Optional)_: The data key where the values.yaml or a
-   specific value can be found. Defaults to `values.yaml` when omitted.
+  specific value can be found. Defaults to `values.yaml` when omitted.
 - `targetPath` _(Optional)_: The YAML dot notation path at which the
-   value should be merged. When set, the `valuesKey` is expected to be
-   a single flat value. Defaults to `None` when omitted, which results
-   in the values getting merged at the root.
+  value should be merged. When set, the `valuesKey` is expected to be
+  a single flat value. Defaults to `None` when omitted, which results
+  in the values getting merged at the root.
 - `optional` _(Optional)_: Whether this values reference is optional. When `true`,
-   a not found error for the values reference is ignored, but any valuesKey, targetPath or
-   transient error will still result in a reconciliation failure. Defaults to `false`
-   when omitted.
+  a not found error for the values reference is ignored, but any valuesKey, targetPath or
+  transient error will still result in a reconciliation failure. Defaults to `false`
+  when omitted.
 
 > **Note:** that the `targetPath` supports the same formatting as you would supply as an
 > argument to the `helm` binary using `--set [path]=[value]`. In addition to this, the
@@ -648,9 +686,9 @@ The definition of the listed keys for items in `spec.valuesFrom` is as follows:
 If no Helm release with the matching namespace/name is found it will be installed. It will
 be upgraded any time the desired state is updated, which consists of:
 
-* `spec` (and thus `metadata.generation`)
-* Latest `HelmChart` revision available
-* [`ConfigMap` and `Secret` values overrides](#values-overrides). Changes to these do not trigger an
+- `spec` (and thus `metadata.generation`)
+- Latest `HelmChart` revision available
+- [`ConfigMap` and `Secret` values overrides](#values-overrides). Changes to these do not trigger an
   immediate reconciliation, but will be handled upon the next reconciliation. This is to avoid
   a large number of upgrades occurring when multiple resources are updated.
 
@@ -701,7 +739,7 @@ spec:
   chart:
     spec:
       chart: podinfo
-      version: '>=4.0.0 <5.0.0'
+      version: ">=4.0.0 <5.0.0"
       sourceRef:
         kind: HelmRepository
         name: podinfo
@@ -730,7 +768,7 @@ spec:
   chart:
     spec:
       chart: podinfo
-      version: '>=4.0.0 <5.0.0'
+      version: ">=4.0.0 <5.0.0"
       sourceRef:
         kind: HelmRepository
         name: podinfo
@@ -780,7 +818,7 @@ spec:
   chart:
     spec:
       chart: podinfo
-      version: '>=4.0.0 <5.0.0'
+      version: ">=4.0.0 <5.0.0"
       sourceRef:
         kind: HelmRepository
         name: podinfo
@@ -825,7 +863,7 @@ spec:
   chart:
     spec:
       chart: podinfo
-      version: '>=4.0.0 <5.0.0'
+      version: ">=4.0.0 <5.0.0"
       sourceRef:
         kind: HelmRepository
         name: podinfo
@@ -873,9 +911,9 @@ metadata:
   name: webapp-reconciler
   namespace: webapp
 rules:
-  - apiGroups: ['*']
-    resources: ['*']
-    verbs: ['*']
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -887,9 +925,9 @@ roleRef:
   kind: Role
   name: webapp-reconciler
 subjects:
-- kind: ServiceAccount
-  name: webapp-reconciler
-  namespace: webapp
+  - kind: ServiceAccount
+    name: webapp-reconciler
+    namespace: webapp
 ```
 
 > **Note** that the namespace, RBAC and service account manifests should be
@@ -927,7 +965,7 @@ HelmRelease.
 The secret defined in the `spec.kubeConfig.secretRef` must exist in the same namespace as the
 HelmRelease. On every reconciliation, the KubeConfig bytes will be loaded from the `values` key
 of the secret's data, and the secret can thus be regularly updated if cluster-access-tokens have
-to rotate due to expiration. 
+to rotate due to expiration.
 
 The Helm storage is stored on the remote cluster in a namespace that equals to the namespace of
 the HelmRelease, or the configured `spec.storageNamespace`. The release itself is made in a
@@ -942,24 +980,24 @@ This composes well with Cluster API bootstrap providers such as CAPBK (kubeadm),
 CAPA (AWS) EKS integration.
 
 To reconcile a HelmRelease to a CAPI controlled cluster, put the HelmRelease in the same
-namespace as your Cluster object, and set the `spec.kubeConfig.secretRef.name` to 
+namespace as your Cluster object, and set the `spec.kubeConfig.secretRef.name` to
 `<cluster-name>-kubeconfig`:
 
 ```yaml
 apiVersion: cluster.x-k8s.io/v1alpha3
 kind: Cluster
 metadata:
-  name: stage  # the kubeconfig Secret will contain the Cluster name
+  name: stage # the kubeconfig Secret will contain the Cluster name
   namespace: capi-stage
 spec:
   clusterNetwork:
     pods:
       cidrBlocks:
-      - 10.100.0.0/16
+        - 10.100.0.0/16
     serviceDomain: stage-cluster.local
     services:
       cidrBlocks:
-      - 10.200.0.0/12
+        - 10.200.0.0/12
   controlPlaneRef:
     apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
     kind: KubeadmControlPlane
@@ -985,7 +1023,7 @@ spec:
   chart:
     spec:
       chart: prometheus
-      version: '>=4.0.0 <5.0.0'
+      version: ">=4.0.0 <5.0.0"
       sourceRef:
         kind: HelmRepository
         name: prometheus-community
@@ -1012,6 +1050,75 @@ kubectl -n default create secret generic prod-kubeconfig \
 > from current Cluster API providers. KubeConfigs with cmd-path in them likely won't work without
 > a custom, per-provider installation of helm-controller.
 
+## Post Renderers
+
+HelmRelease resources has a built-in [Kustomize](https://kubectl.docs.kubernetes.io/references/kustomize/)
+compatible [Post Renderer](https://helm.sh/docs/topics/advanced/#post-rendering), which provides
+the following Kustomize directives:
+
+- [patchesStrategicMerge](https://kubectl.docs.kubernetes.io/references/kustomize/patchesstrategicmerge/)
+- [patchesJson6902](https://kubectl.docs.kubernetes.io/references/kustomize/patchesjson6902/)
+- [images](https://kubectl.docs.kubernetes.io/references/kustomize/images/)
+
+The following example uses the built-in `kustomize` _Post Renderer_ to apply a strategic merge patch,
+which adds a [toleration](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
+to the Helm rendered output:
+
+```yaml
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: metrics-server
+  namespace: kube-system
+spec:
+  interval: 1m
+  chart:
+    spec:
+      chart: metrics-server
+      version: "5.3.4"
+      sourceRef:
+        kind: HelmRepository
+        name: bitnami
+        namespace: kube-system
+      interval: 1m
+  postRenderers:
+  	# instruct helm-controller to use built-in "kustomize" post renderer.
+	- kustomize:
+		# Array of inline strategic merge patch definitions as YAML object.
+		# Note, this is a YAML object and not a string, to avoid syntax
+		# indention errors.
+        patchesStrategicMerge:
+          - kind: Deployment
+            apiVersion: apps/v1
+            metadata:
+              name: metrics-server
+            spec:
+              template:
+                spec:
+                  tolerations:
+                    - key: "workload-type"
+                      operator: "Equal"
+                      value: "cluster-services"
+					  effect: "NoSchedule"
+		# Array of inline JSON6902 patch definitions as YAML object.
+		# Note, this is a YAML object and not a string, to avoid syntax
+		# indention errors.
+		patchesJson6902:
+		  - target:
+				version: v1
+				kind: Deployment
+				name: metrics-server
+			patch:
+			  - op: add
+				path: /spec/template/priorityClassName
+				value: system-cluster-critical
+		images:
+		  - name: docker.io/bitnami/metrics-server
+			newName: docker.io/bitnami/metrics-server
+			newTag: 0.4.1-debian-10-r54
+
+```
+
 ## Status
 
 When the controller completes a reconciliation, it reports the result in the status sub-resource.
@@ -1019,11 +1126,11 @@ When the controller completes a reconciliation, it reports the result in the sta
 The following `status.condtions` types are advertised. Here, "desired state" is as detailed in
 [reconciliation](#reconciliation):
 
-* `Ready` - status of the last reconciliation attempt
-* `Released` - status of the last release attempt (install/upgrade/test) against the latest desired state
-* `TestSuccess` - status of the last test attempt against the latest desired state
-* `Remediated` - status of the last remediation attempt (uninstall/rollback) due to a failure of the
-   last release attempt against the latest desired state
+- `Ready` - status of the last reconciliation attempt
+- `Released` - status of the last release attempt (install/upgrade/test) against the latest desired state
+- `TestSuccess` - status of the last test attempt against the latest desired state
+- `Remediated` - status of the last remediation attempt (uninstall/rollback) due to a failure of the
+  last release attempt against the latest desired state
 
 For example, you can wait for a successful helm-controller reconciliation with:
 
@@ -1041,21 +1148,21 @@ as to why the status is as such.
 ```yaml
 status:
   conditions:
-  - lastTransitionTime: "2020-07-13T13:13:40Z"
-    message: Helm install succeeded
-    reason: InstallSucceeded
-    status: "True"
-    type: Released
-  - lastTransitionTime: "2020-07-13T13:13:40Z"
-    message: Helm test succeeded
-    reason: TestSucceeded
-    status: "True"
-    type: TestSuccess
-  - lastTransitionTime: "2020-07-13T13:13:42Z"
-    message: release reconciliation succeeded
-    reason: ReconciliationSucceeded
-    status: "True"
-    type: Ready
+    - lastTransitionTime: "2020-07-13T13:13:40Z"
+      message: Helm install succeeded
+      reason: InstallSucceeded
+      status: "True"
+      type: Released
+    - lastTransitionTime: "2020-07-13T13:13:40Z"
+      message: Helm test succeeded
+      reason: TestSucceeded
+      status: "True"
+      type: TestSuccess
+    - lastTransitionTime: "2020-07-13T13:13:42Z"
+      message: release reconciliation succeeded
+      reason: ReconciliationSucceeded
+      status: "True"
+      type: Ready
   lastAppliedRevision: 4.0.6
   lastAttemptedRevision: 4.0.6
   lastReleaseRevision: 1
@@ -1067,20 +1174,22 @@ status:
 ```yaml
 status:
   conditions:
-  - lastTransitionTime: "2020-07-13T13:17:28Z"
-    message: 'error validating "": error validating data: ValidationError(Deployment.spec.replicas):
-      invalid type for io.k8s.api.apps.v1.DeploymentSpec.replicas: got "string",
-      expected "integer"'
-    reason: UpgradeFailed
-    status: "False"
-    type: Released
-  - lastTransitionTime: "2020-07-13T13:17:28Z"
-    message: 'error validating "": error validating data: ValidationError(Deployment.spec.replicas):
-      invalid type for io.k8s.api.apps.v1.DeploymentSpec.replicas: got "string",
-      expected "integer"'
-    reason: UpgradeFailed
-    status: "False"
-    type: Ready
+    - lastTransitionTime: "2020-07-13T13:17:28Z"
+      message:
+        'error validating "": error validating data: ValidationError(Deployment.spec.replicas):
+        invalid type for io.k8s.api.apps.v1.DeploymentSpec.replicas: got "string",
+        expected "integer"'
+      reason: UpgradeFailed
+      status: "False"
+      type: Released
+    - lastTransitionTime: "2020-07-13T13:17:28Z"
+      message:
+        'error validating "": error validating data: ValidationError(Deployment.spec.replicas):
+        invalid type for io.k8s.api.apps.v1.DeploymentSpec.replicas: got "string",
+        expected "integer"'
+      reason: UpgradeFailed
+      status: "False"
+      type: Ready
   failures: 1
   lastAppliedRevision: 4.0.6
   lastAttemptedRevision: 4.0.6
@@ -1093,21 +1202,21 @@ status:
 ```yaml
 status:
   conditions:
-  - lastTransitionTime: "2020-07-13T13:13:40Z"
-    message: Helm install succeeded
-    reason: InstallSucceeded
-    status: "True"
-    type: Released
-  - lastTransitionTime: "2020-07-13T13:13:40Z"
-    message: Helm test failed
-    reason: TestFailed
-    status: "False"
-    type: TestSuccess
-  - lastTransitionTime: "2020-07-13T13:13:42Z"
-    message: release reconciliation succeeded
-    reason: ReconciliationSucceeded
-    status: "True"
-    type: Ready
+    - lastTransitionTime: "2020-07-13T13:13:40Z"
+      message: Helm install succeeded
+      reason: InstallSucceeded
+      status: "True"
+      type: Released
+    - lastTransitionTime: "2020-07-13T13:13:40Z"
+      message: Helm test failed
+      reason: TestFailed
+      status: "False"
+      type: TestSuccess
+    - lastTransitionTime: "2020-07-13T13:13:42Z"
+      message: release reconciliation succeeded
+      reason: ReconciliationSucceeded
+      status: "True"
+      type: Ready
   lastAppliedRevision: 4.0.6
   lastAttemptedRevision: 4.0.6
   lastReleaseRevision: 1
