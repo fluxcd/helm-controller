@@ -24,6 +24,10 @@
       "docsURLTemplate": "https://godoc.org/github.com/fluxcd/pkg/runtime/dependency#CrossNamespaceDependencyReference"
     },
     {
+      "typeMatchPrefix": "^github.com/fluxcd/pkg/apis/kustomize",
+      "docsURLTemplate": "https://godoc.org/github.com/fluxcd/pkg/apis/kustomize#{{ .TypeIdentifier }}"
+    },
+    {
       "typeMatchPrefix": "^github.com/fluxcd/pkg/apis/meta",
       "docsURLTemplate": "https://godoc.org/github.com/fluxcd/pkg/apis/meta#{{ .TypeIdentifier }}"
     },
@@ -37,6 +41,7 @@
     "k8s.io/apimachinery/pkg/apis/": "Kubernetes ",
     "k8s.io/apiextensions-apiserver/": "Kubernetes ",
     "github.com/fluxcd/pkg/runtime/": "Runtime ",
+    "github.com/fluxcd/pkg/apis/kustomize/": "Kustomize ",
     "github.com/fluxcd/pkg/apis/meta/": "Meta "
   },
   "markdownDisabled": false

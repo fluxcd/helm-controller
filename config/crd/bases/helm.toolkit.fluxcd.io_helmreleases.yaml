@@ -250,22 +250,46 @@ spec:
                                 description: NewTag is the value used to replace the
                                   original tag.
                                 type: string
+                            required:
+                            - name
                             type: object
                           type: array
                         patchesJson6902:
                           description: JSON 6902 patches, defined as inline YAML objects.
                           items:
-                            description: PatchJSON6902 contains a JSON patch and the
-                              target it applies to.
+                            description: JSON6902Patch contains a JSON6902 patch and
+                              the target the patch should be applied to.
                             properties:
                               patch:
-                                description: Patch is the YAML content of a patch.
+                                description: Patch contains the JSON6902 patch document
+                                  with an array of operation objects.
                                 items:
-                                  x-kubernetes-preserve-unknown-fields: true
+                                  description: JSON6902 is a JSON6902 operation object.
+                                    https://tools.ietf.org/html/rfc6902#section-4
+                                  properties:
+                                    from:
+                                      type: string
+                                    op:
+                                      enum:
+                                      - test
+                                      - remove
+                                      - add
+                                      - replace
+                                      - move
+                                      - copy
+                                      type: string
+                                    path:
+                                      type: string
+                                    value:
+                                      x-kubernetes-preserve-unknown-fields: true
+                                  required:
+                                  - op
+                                  - path
+                                  type: object
                                 type: array
                               target:
                                 description: Target points to the resources that the
-                                  patch is applied to.
+                                  patch document should be applied to.
                                 properties:
                                   annotationSelector:
                                     description: AnnotationSelector is a string that
@@ -273,8 +297,16 @@ spec:
                                       It matches with the resource annotations.
                                     type: string
                                   group:
+                                    description: Group is the API group to select
+                                      resources from. Together with Version and Kind
+                                      it is capable of unambiguously identifying and/or
+                                      selecting resources. https://github.com/kubernetes/community/blob/master/contributors/design-proposals/api-machinery/api-group.md
                                     type: string
                                   kind:
+                                    description: Kind of the API Group to select resources
+                                      from. Together with Group and Version it is
+                                      capable of unambiguously identifying and/or
+                                      selecting resources. https://github.com/kubernetes/community/blob/master/contributors/design-proposals/api-machinery/api-group.md
                                     type: string
                                   labelSelector:
                                     description: LabelSelector is a string that follows
@@ -282,12 +314,21 @@ spec:
                                       It matches with the resource labels.
                                     type: string
                                   name:
+                                    description: Name to match resources with.
                                     type: string
                                   namespace:
+                                    description: Namespace to select resources from.
                                     type: string
                                   version:
+                                    description: Version of the API Group to select
+                                      resources from. Together with Group and Kind
+                                      it is capable of unambiguously identifying and/or
+                                      selecting resources. https://github.com/kubernetes/community/blob/master/contributors/design-proposals/api-machinery/api-group.md
                                     type: string
                                 type: object
+                            required:
+                            - patch
+                            - target
                             type: object
                           type: array
                         patchesStrategicMerge:

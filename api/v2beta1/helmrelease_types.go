@@ -25,21 +25,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/dependency"
 )
 
 const HelmReleaseKind = "HelmRelease"
 const HelmReleaseFinalizer = "finalizers.fluxcd.io"
-
-// PatchJSON6902 contains a JSON patch and the target it applies to.
-type PatchJSON6902 struct {
-	// Patch is the YAML content of a patch.
-	Patch []apiextensionsv1.JSON `json:"patch,omitempty" yaml:"patch,omitempty"`
-
-	// Target points to the resources that the patch is applied to.
-	Target Selector `json:"target,omitempty" yaml:"target,omitempty"`
-}
 
 // Kustomize Helm PostRenderer specification.
 type Kustomize struct {
@@ -49,13 +41,13 @@ type Kustomize struct {
 
 	// JSON 6902 patches, defined as inline YAML objects.
 	// +optional
-	PatchesJSON6902 []PatchJSON6902 `json:"patchesJson6902,omitempty"`
+	PatchesJSON6902 []kustomize.JSON6902Patch `json:"patchesJson6902,omitempty"`
 
 	// Images is a list of (image name, new name, new tag or digest)
 	// for changing image names, tags or digests. This can also be achieved with a
 	// patch, but this operator is simpler to specify.
 	// +optional
-	Images []Image `json:"images,omitempty" yaml:"images,omitempty"`
+	Images []kustomize.Image `json:"images,omitempty" yaml:"images,omitempty"`
 }
 
 // PostRenderer contains a Helm PostRenderer specification.
