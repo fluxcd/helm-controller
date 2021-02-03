@@ -1,14 +1,33 @@
+/*
+Copyright 2021 The Flux authors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package runner
 
 import (
 	"bytes"
 	"encoding/json"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/konfig"
 	"sigs.k8s.io/kustomize/api/krusty"
 	kustypes "sigs.k8s.io/kustomize/api/types"
+
+	"github.com/fluxcd/pkg/apis/kustomize"
+
+	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
 
 type postRendererKustomize struct {
@@ -45,7 +64,7 @@ func writeFile(fs filesys.FileSystem, path string, content *bytes.Buffer) error 
 	return nil
 }
 
-func adaptImages(images []v2.Image) (output []kustypes.Image) {
+func adaptImages(images []kustomize.Image) (output []kustypes.Image) {
 	for _, image := range images {
 		output = append(output, kustypes.Image{
 			Name:    image.Name,
@@ -57,12 +76,12 @@ func adaptImages(images []v2.Image) (output []kustypes.Image) {
 	return
 }
 
-func adaptSelector(selector *v2.Selector) (output *kustypes.Selector) {
+func adaptSelector(selector *kustomize.Selector) (output *kustypes.Selector) {
 	if selector != nil {
 		output = &kustypes.Selector{}
-		output.Gvk.Group = selector.Gvk.Group
-		output.Gvk.Kind = selector.Gvk.Kind
-		output.Gvk.Version = selector.Gvk.Version
+		output.Gvk.Group = selector.Group
+		output.Gvk.Kind = selector.Kind
+		output.Gvk.Version = selector.Version
 		output.Name = selector.Name
 		output.Namespace = selector.Namespace
 		output.LabelSelector = selector.LabelSelector

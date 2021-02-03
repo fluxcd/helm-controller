@@ -422,58 +422,6 @@ string
 <h3 id="helm.toolkit.fluxcd.io/v2beta1.DeploymentAction">DeploymentAction
 </h3>
 <p>DeploymentAction defines a consistent interface for Install and Upgrade.</p>
-<h3 id="helm.toolkit.fluxcd.io/v2beta1.Gvk">Gvk
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2beta1.Selector">Selector</a>)
-</p>
-<p>Gvk identifies a Kubernetes API type.
-<a href="https://github.com/kubernetes/community/blob/master/contributors/design-proposals/api-machinery/api-group.md">https://github.com/kubernetes/community/blob/master/contributors/design-proposals/api-machinery/api-group.md</a></p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>group</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
-<code>version</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
-<code>kind</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
 <h3 id="helm.toolkit.fluxcd.io/v2beta1.HelmChartTemplate">HelmChartTemplate
 </h3>
 <p>
@@ -1114,73 +1062,6 @@ state. It is reset after a successful reconciliation.</p>
 </table>
 </div>
 </div>
-<h3 id="helm.toolkit.fluxcd.io/v2beta1.Image">Image
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2beta1.Kustomize">Kustomize</a>)
-</p>
-<p>Image contains an image name, a new name, a new tag or digest,
-which will replace the original name and tag.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>name</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Name is a tag-less image name.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>newName</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>NewName is the value used to replace the original name.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>newTag</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>NewTag is the value used to replace the original tag.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>digest</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Digest is the value used to replace the original image tag.
-If digest is present NewTag value is ignored.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
 <h3 id="helm.toolkit.fluxcd.io/v2beta1.Install">Install
 </h3>
 <p>
@@ -1450,8 +1331,8 @@ the HelmRelease.</p>
 <td>
 <code>patchesJson6902</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2beta1.PatchJSON6902">
-[]PatchJSON6902
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/kustomize#JSON6902Patch">
+[]github.com/fluxcd/pkg/apis/kustomize.JSON6902Patch
 </a>
 </em>
 </td>
@@ -1464,8 +1345,8 @@ the HelmRelease.</p>
 <td>
 <code>images</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2beta1.Image">
-[]Image
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/kustomize#Image">
+[]github.com/fluxcd/pkg/apis/kustomize.Image
 </a>
 </em>
 </td>
@@ -1474,53 +1355,6 @@ the HelmRelease.</p>
 <p>Images is a list of (image name, new name, new tag or digest)
 for changing image names, tags or digests. This can also be achieved with a
 patch, but this operator is simpler to specify.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<h3 id="helm.toolkit.fluxcd.io/v2beta1.PatchJSON6902">PatchJSON6902
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2beta1.Kustomize">Kustomize</a>)
-</p>
-<p>PatchJSON6902 contains a JSON patch and the target it applies to.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>patch</code><br>
-<em>
-<a href="https://pkg.go.dev/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1?tab=doc#JSON">
-[]Kubernetes pkg/apis/apiextensions/v1.JSON
-</a>
-</em>
-</td>
-<td>
-<p>Patch is the YAML content of a patch.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>target</code><br>
-<em>
-<a href="#helm.toolkit.fluxcd.io/v2beta1.Selector">
-Selector
-</a>
-</em>
-</td>
-<td>
-<p>Target points to the resources that the patch is applied to.</p>
 </td>
 </tr>
 </tbody>
@@ -1668,90 +1502,6 @@ bool
 <em>(Optional)</em>
 <p>CleanupOnFail allows deletion of new resources created during the Helm
 rollback action when it fails.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<h3 id="helm.toolkit.fluxcd.io/v2beta1.Selector">Selector
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2beta1.PatchJSON6902">PatchJSON6902</a>)
-</p>
-<p>Selector specifies a set of resources.
-Any resource that matches intersection of all conditions
-is included in this set.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>Gvk</code><br>
-<em>
-<a href="#helm.toolkit.fluxcd.io/v2beta1.Gvk">
-Gvk
-</a>
-</em>
-</td>
-<td>
-<p>
-(Members of <code>Gvk</code> are embedded into this type.)
-</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>namespace</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
-<code>name</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
-<code>annotationSelector</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>AnnotationSelector is a string that follows the label selection expression
-<a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#api">https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#api</a>
-It matches with the resource annotations.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>labelSelector</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>LabelSelector is a string that follows the label selection expression
-<a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#api">https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#api</a>
-It matches with the resource labels.</p>
 </td>
 </tr>
 </tbody>

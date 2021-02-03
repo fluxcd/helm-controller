@@ -1,14 +1,32 @@
+/*
+Copyright 2021 The Flux authors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package controllers
 
 import (
 	"encoding/json"
 	"testing"
 
+	"github.com/fluxcd/pkg/apis/kustomize"
+
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
 
 func TestHelmReleaseTypes_unmarshal_PatchJSON6902(t *testing.T) {
-	var p v2.PatchJSON6902
+	var p kustomize.JSON6902Patch
 	err := json.Unmarshal([]byte(`{"target": {"namespace": "ns", "name": "x", "kind": "k", "version": "v"},"patch": [{"op": "add", "path": "/some/new/path", "value": "value"}]}`), &p)
 	if err != nil {
 		t.Error(err)
