@@ -496,6 +496,21 @@ jobs:
             fi
           done
           echo ' done'
+      - name: Run post-renderer-kustomize test
+        run: |
+          kubectl -n helm-system apply -f config/testdata/post-renderer-kustomize
+          kubectl -n helm-system wait helmreleases/post-renderer-kustomize --for=condition=ready --timeout=4m
+          RESULT=$(kubectl get deployment -n helm-system mypodinfo -o jsonpath='{.metadata.labels.xxxx}')
+          if [ "$RESULT" != "yyyy" ]; then
+            echo -e "$RESULT\n\ndoes not equal\n\nyyyy"
+            exit 1
+          fi
+          RESULT=$(kubectl get deployment -n helm-system mypodinfo -o jsonpath='{.metadata.labels.yyyy}')
+          if [ "$RESULT" != "xxxx" ]; then
+            echo -e "$RESULT\n\ndoes not equal\n\nxxxx"
+            exit 1
+          fi
+          kubectl -n helm-system delete -f config/testdata/post-renderer-kustomize
       - name: Logs
         run: |
           kubectl -n helm-system logs deploy/source-controller

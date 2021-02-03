@@ -215,6 +215,90 @@ spec:
                   this HelmRelease. Use '0' for an unlimited number of revisions;
                   defaults to '10'.
                 type: integer
+              postRenderers:
+                description: PostRenderers holds an array of Helm PostRenderers, which
+                  will be applied in order of their definition.
+                items:
+                  description: PostRenderer contains a Helm PostRenderer specification.
+                  properties:
+                    kustomize:
+                      description: Kustomization to apply as PostRenderer.
+                      properties:
+                        images:
+                          description: Images is a list of (image name, new name,
+                            new tag or digest) for changing image names, tags or digests.
+                            This can also be achieved with a patch, but this operator
+                            is simpler to specify.
+                          items:
+                            description: Image contains an image name, a new name,
+                              a new tag or digest, which will replace the original
+                              name and tag.
+                            properties:
+                              digest:
+                                description: Digest is the value used to replace the
+                                  original image tag. If digest is present NewTag
+                                  value is ignored.
+                                type: string
+                              name:
+                                description: Name is a tag-less image name.
+                                type: string
+                              newName:
+                                description: NewName is the value used to replace
+                                  the original name.
+                                type: string
+                              newTag:
+                                description: NewTag is the value used to replace the
+                                  original tag.
+                                type: string
+                            type: object
+                          type: array
+                        patchesJson6902:
+                          description: JSON 6902 patches, defined as inline YAML objects.
+                          items:
+                            description: PatchJSON6902 contains a JSON patch and the
+                              target it applies to.
+                            properties:
+                              patch:
+                                description: Patch is the YAML content of a patch.
+                                items:
+                                  x-kubernetes-preserve-unknown-fields: true
+                                type: array
+                              target:
+                                description: Target points to the resources that the
+                                  patch is applied to.
+                                properties:
+                                  annotationSelector:
+                                    description: AnnotationSelector is a string that
+                                      follows the label selection expression https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#api
+                                      It matches with the resource annotations.
+                                    type: string
+                                  group:
+                                    type: string
+                                  kind:
+                                    type: string
+                                  labelSelector:
+                                    description: LabelSelector is a string that follows
+                                      the label selection expression https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#api
+                                      It matches with the resource labels.
+                                    type: string
+                                  name:
+                                    type: string
+                                  namespace:
+                                    type: string
+                                  version:
+                                    type: string
+                                type: object
+                            type: object
+                          type: array
+                        patchesStrategicMerge:
+                          description: Strategic merge patches, defined as inline
+                            YAML objects.
+                          items:
+                            x-kubernetes-preserve-unknown-fields: true
+                          type: array
+                      type: object
+                  type: object
+                type: array
               releaseName:
                 description: ReleaseName used for the Helm release. Defaults to a
                   composition of '[TargetNamespace-]Name'.
