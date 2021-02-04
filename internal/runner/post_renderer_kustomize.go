@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/konfig"
 	"sigs.k8s.io/kustomize/api/krusty"
+	"sigs.k8s.io/kustomize/api/resmap"
 	kustypes "sigs.k8s.io/kustomize/api/types"
 
 	"github.com/fluxcd/pkg/apis/kustomize"
@@ -91,35 +92,25 @@ func adaptSelector(selector *kustomize.Selector) (output *kustypes.Selector) {
 }
 
 func (k *postRendererKustomize) Run(renderedManifests *bytes.Buffer) (modifiedManifests *bytes.Buffer, err error) {
-	buildOptions := &krusty.Options{
-		UseKyaml:               false,
-		DoLegacyResourceSort:   true,
-		LoadRestrictions:       kustypes.LoadRestrictionsNone,
-		AddManagedbyLabel:      false,
-		DoPrune:                false,
-		PluginConfig:           konfig.DisabledPluginConfig(),
-		AllowResourceIdChanges: false,
-	}
 	fs := filesys.MakeFsInMemory()
 	cfg := kustypes.Kustomization{}
-	cfg.APIVersion = "kustomize.config.k8s.io/v1beta1"
-	cfg.Kind = "Kustomization"
+	cfg.APIVersion = kustypes.KustomizationVersion
+	cfg.Kind = kustypes.KustomizationKind
 	cfg.Images = adaptImages(k.spec.Images)
-	// add rendered Helm output as input resource to the Kustomization.
+
+	// Add rendered Helm output as input resource to the Kustomization.
 	const input = "helm-output.yaml"
 	cfg.Resources = append(cfg.Resources, input)
 	if err := writeFile(fs, input, renderedManifests); err != nil {
 		return nil, err
 	}
-	// add strategic merge patches
+
+	// Add strategic merge patches.
 	for _, m := range k.spec.PatchesStrategicMerge {
-		patch, err := json.Marshal(m)
-		if err != nil {
-			return nil, err
-		}
-		cfg.PatchesStrategicMerge = append(cfg.PatchesStrategicMerge, kustypes.PatchStrategicMerge(patch))
+		cfg.PatchesStrategicMerge = append(cfg.PatchesStrategicMerge, kustypes.PatchStrategicMerge(m.Raw))
 	}
-	// add JSON patches
+
+	// Add JSON 6902 patches.
 	for _, m := range k.spec.PatchesJSON6902 {
 		patch, err := json.Marshal(m.Patch)
 		if err != nil {
@@ -130,6 +121,8 @@ func (k *postRendererKustomize) Run(renderedManifests *bytes.Buffer) (modifiedMa
 			Target: adaptSelector(&m.Target),
 		})
 	}
+
+	// Write kustomization config to file.
 	kustomization, err := json.Marshal(cfg)
 	if err != nil {
 		return nil, err
@@ -137,8 +130,7 @@ func (k *postRendererKustomize) Run(renderedManifests *bytes.Buffer) (modifiedMa
 	if err := writeToFile(fs, "kustomization.yaml", kustomization); err != nil {
 		return nil, err
 	}
-	kustomizer := krusty.MakeKustomizer(fs, buildOptions)
-	resMap, err := kustomizer.Run(".")
+	resMap, err := buildKustomization(fs, ".")
 	if err != nil {
 		return nil, err
 	}
@@ -147,4 +139,27 @@ func (k *postRendererKustomize) Run(renderedManifests *bytes.Buffer) (modifiedMa
 		return nil, err
 	}
 	return bytes.NewBuffer(yaml), nil
+}
+
+// buildKustomization wraps krusty.MakeKustomizer with the following settings:
+// - disable kyaml due to critical bugs like:
+//	 - https://github.com/kubernetes-sigs/kustomize/issues/3446
+//	 - https://github.com/kubernetes-sigs/kustomize/issues/3480
+// - reorder the resources just before output (Namespaces and Cluster roles/role bindings first, CRDs before CRs, Webhooks last)
+// - load files from outside the kustomization.yaml root
+// - disable plugins except for the builtin ones
+// - prohibit changes to resourceIds, patch name/kind don't overwrite target name/kind
+func buildKustomization(fs filesys.FileSystem, dirPath string) (resmap.ResMap, error) {
+	buildOptions := &krusty.Options{
+		UseKyaml:               false,
+		DoLegacyResourceSort:   true,
+		LoadRestrictions:       kustypes.LoadRestrictionsNone,
+		AddManagedbyLabel:      false,
+		DoPrune:                false,
+		PluginConfig:           konfig.DisabledPluginConfig(),
+		AllowResourceIdChanges: false,
+	}
+
+	k := krusty.MakeKustomizer(fs, buildOptions)
+	return k.Run(dirPath)
 }
