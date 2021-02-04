@@ -525,8 +525,13 @@ spec:
                       - ConfigMap
                       type: string
                     name:
-                      description: Name of the values referent. Should reside in the
-                        same namespace as the referring resource.
+                      description: Name of the values referent.
+                      maxLength: 253
+                      minLength: 1
+                      type: string
+                    namespace:
+                      description: Namespace of the values referent. If not present,
+                        then the namespace of the referring resource will be used.
                       maxLength: 253
                       minLength: 1
                       type: string

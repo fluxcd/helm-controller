@@ -1877,8 +1877,20 @@ string
 </em>
 </td>
 <td>
-<p>Name of the values referent. Should reside in the same namespace as the
-referring resource.</p>
+<p>Name of the values referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>namespace</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Namespace of the values referent. If not present, then the namespace of
+the referring resource will be used.</p>
 </td>
 </tr>
 <tr>

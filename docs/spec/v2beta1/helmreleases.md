@@ -427,12 +427,18 @@ type ValuesReference struct {
 	// +required
 	Kind string `json:"kind"`
 
-	// Name of the values referent. Should reside in the same namespace as the
-	// referring resource.
+	// Name of the values referent.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
 	// +required
 	Name string `json:"name"`
+
+	// Namespace of the values referent. If not present, then the namespace of
+	// the referring resource will be used.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
 
 	// ValuesKey is the data key where the values.yaml or a specific value can be
 	// found at. Defaults to 'values.yaml'.
@@ -644,7 +650,8 @@ spec:
       name: prod-env-values
       valuesKey: values-prod.yaml
     - kind: Secret
-      name: prod-tls-values
+	  name: prod-tls-values
+	  namespace: other-namespace
       valuesKey: crt
       targetPath: tls.crt
       optional: true
@@ -653,8 +660,9 @@ spec:
 The definition of the listed keys for items in `spec.valuesFrom` is as follows:
 
 - `kind`: Kind of the values referent (`ConfigMap` or `Secret`).
-- `name`: Name of the values referent, in the same namespace as the
-  `HelmRelease`.
+- `name`: Name of the values referent.
+- `namespace` _(Optional)_: Namespace of the values referent. Defaults to
+  the namespace of the `HelmRelease`.
 - `valuesKey` _(Optional)_: The data key where the values.yaml or a
   specific value can be found. Defaults to `values.yaml` when omitted.
 - `targetPath` _(Optional)_: The YAML dot notation path at which the

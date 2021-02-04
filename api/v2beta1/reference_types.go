@@ -50,12 +50,18 @@ type ValuesReference struct {
 	// +required
 	Kind string `json:"kind"`
 
-	// Name of the values referent. Should reside in the same namespace as the
-	// referring resource.
+	// Name of the values referent.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
 	// +required
 	Name string `json:"name"`
+
+	// Namespace of the values referent. If not present, then the namespace of
+	// the referring resource will be used.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
 
 	// ValuesKey is the data key where the values.yaml or a specific value can be
 	// found at. Defaults to 'values.yaml'.

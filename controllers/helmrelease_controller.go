@@ -509,7 +509,11 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 	secrets := make(map[string]*corev1.Secret)
 
 	for _, v := range hr.Spec.ValuesFrom {
-		namespacedName := types.NamespacedName{Namespace: hr.Namespace, Name: v.Name}
+		namespace := v.Namespace
+		if namespace == "" {
+			namespace = hr.Namespace
+		}
+		namespacedName := types.NamespacedName{Namespace: namespace, Name: v.Name}
 		var valuesData []byte
 
 		switch v.Kind {
