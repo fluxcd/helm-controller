@@ -513,8 +513,8 @@ const (
 //
 // 1. If resource is in the same namespace, it is shared by default and can be accessed.
 // 2. If resource is in a different namespace and has a "helm.fluxcd.io/share-with"
-//    annotation of type string with the wildcard value "*" or with the namespace name,
-//    then it is shared and can be accessed.
+//    annotation of type string with the wildcard value "*", then it is shared and
+//    can be accessed.
 // 3. If resource is in a different namespace and has a "helm.fluxcd.io/share-with"
 //    annotation (an array of namespace names) which contains the namespace, it is
 //    shared and can be accessed.
@@ -528,12 +528,12 @@ func isSharedWith(kind string, resource *metav1.ObjectMeta, namespace string) er
 		}
 		if resource.Annotations != nil {
 			shareWithString := strings.TrimSpace(resource.Annotations[shareWithAnnotation])
-			if shareWithString == "*" || shareWithString == namespace {
+			if shareWithString == "*" {
 				// Rule 2.
 				return nil
 			}
 			if shareWithString != "" {
-				var shareWith []string
+				var shareWith []string = make([]string, 0)
 				if err := json.Unmarshal([]byte(shareWithString), &shareWith); err != nil {
 					return fmt.Errorf(
 						"%s '%s/%s' has invalid %s annotation value, expected string or array of string got '%s': %w",
