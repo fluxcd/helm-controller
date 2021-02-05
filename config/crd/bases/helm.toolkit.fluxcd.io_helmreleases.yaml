@@ -532,6 +532,9 @@ spec:
                     namespace:
                       description: Namespace of the values referent. If not present,
                         then the namespace of the referring resource will be used.
+                        If present, the referred resource must have an approriate
+                        `helm.fluxcd.io/share-with` annotation value, which contains
+                        the namespace of the referring resource.
                       maxLength: 253
                       minLength: 1
                       type: string

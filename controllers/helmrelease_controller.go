@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -38,6 +39,7 @@ import (
 	"k8s.io/client-go/rest"
 	kuberecorder "k8s.io/client-go/tools/record"
 	"k8s.io/client-go/tools/reference"
+	"k8s.io/kubectl/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -499,6 +501,57 @@ func (r *HelmReleaseReconciler) getServiceAccountToken(ctx context.Context, hr v
 	return token, nil
 }
 
+const (
+	// Annotation on resources to explicitly share them with other
+	// namespaces. The annotation must be either an array of strings, containing the
+	// names of the namespaces with which the resource is shared or a string with
+	// the wildcard value "*" to share the resource with all namesapces.
+	shareWithAnnotation = "helm.fluxcd.io/share-with"
+)
+
+// Check if a resource is shared with a given namespace, according to the following rules:
+//
+// 1. If resource is in the same namespace, it is shared by default and can be accessed.
+// 2. If resource is in a different namespace and has a "helm.fluxcd.io/share-with"
+//    annotation of type string with the wildcard value "*" or with the namespace name,
+//    then it is shared and can be accessed.
+// 3. If resource is in a different namespace and has a "helm.fluxcd.io/share-with"
+//    annotation (an array of namespace names) which contains the namespace, it is
+//    shared and can be accessed.
+// 4. If non of the above rules applies, the resource is not shared and cannot be
+//    accessed.
+func isSharedWith(kind string, resource *metav1.ObjectMeta, namespace string) error {
+	if resource != nil {
+		if resource.Namespace == namespace {
+			// Rule 1.
+			return nil
+		}
+		if resource.Annotations != nil {
+			shareWithString := strings.TrimSpace(resource.Annotations[shareWithAnnotation])
+			if shareWithString == "*" || shareWithString == namespace {
+				// Rule 2.
+				return nil
+			}
+			if shareWithString != "" {
+				var shareWith []string
+				if err := json.Unmarshal([]byte(shareWithString), &shareWith); err != nil {
+					return fmt.Errorf(
+						"%s '%s/%s' has invalid %s annotation value, expected string or array of string got '%s': %w",
+						kind, resource.Namespace, resource.Name, shareWithAnnotation, shareWithString, err)
+				}
+				if slice.ContainsString(shareWith, namespace, nil) {
+					// Rule 3.
+					return nil
+				}
+			}
+		}
+	}
+	// Rule 4.
+	return fmt.Errorf(
+		"%s '%s/%s' is not shared with namespace '%s' (change its '%s' annotation to enable sharing)",
+		kind, resource.Namespace, resource.Name, namespace, shareWithAnnotation)
+}
+
 // composeValues attempts to resolve all v2beta1.ValuesReference resources
 // and merges them as defined. Referenced resources are only retrieved once
 // to ensure a single version is taken into account during the merge.
@@ -535,7 +588,15 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 					}
 					return nil, err
 				}
-				configMaps[namespacedName.String()] = resource
+				if err := isSharedWith(resource.Kind, &resource.ObjectMeta, hr.Namespace); err != nil {
+					if !v.Optional {
+						return nil, err
+					}
+					(logr.FromContext(ctx)).Error(err, "Found optional %s '%s', but %s", v.Kind, namespacedName, err)
+					resource = nil
+				} else {
+					configMaps[namespacedName.String()] = resource
+				}
 			}
 			if resource == nil {
 				if v.Optional {
@@ -567,7 +628,15 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 					}
 					return nil, err
 				}
-				secrets[namespacedName.String()] = resource
+				if err := isSharedWith(resource.Kind, &resource.ObjectMeta, hr.Namespace); err != nil {
+					if !v.Optional {
+						return nil, err
+					}
+					(logr.FromContext(ctx)).Error(err, "Found optional %s '%s', but %s", v.Kind, namespacedName, err)
+					resource = nil
+				} else {
+					secrets[namespacedName.String()] = resource
+				}
 			}
 			if resource == nil {
 				if v.Optional {
