@@ -58,7 +58,7 @@ type ValuesReference struct {
 
 	// Namespace of the values referent. If not present, then the namespace of
 	// the referring resource will be used. If present, the referred resource
-	// must have an approriate `helm.fluxcd.io/share-with` annotation value,
+	// must have an approriate `helm.toolkit.fluxcd.io/share-with` annotation value,
 	// which contains the namespace of the referring resource.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253

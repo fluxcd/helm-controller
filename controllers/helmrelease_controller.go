@@ -506,16 +506,16 @@ const (
 	// namespaces. The annotation must be either an array of strings, containing the
 	// names of the namespaces with which the resource is shared or a string with
 	// the wildcard value "*" to share the resource with all namesapces.
-	shareWithAnnotation = "helm.fluxcd.io/share-with"
+	shareWithAnnotation = "helm.toolkit.fluxcd.io/share-with"
 )
 
 // Check if a resource is shared with a given namespace, according to the following rules:
 //
 // 1. If resource is in the same namespace, it is shared by default and can be accessed.
-// 2. If resource is in a different namespace and has a "helm.fluxcd.io/share-with"
+// 2. If resource is in a different namespace and has a "helm.toolkit.fluxcd.io/share-with"
 //    annotation of type string with the wildcard value "*", then it is shared and
 //    can be accessed.
-// 3. If resource is in a different namespace and has a "helm.fluxcd.io/share-with"
+// 3. If resource is in a different namespace and has a "helm.toolkit.fluxcd.io/share-with"
 //    annotation (an array of namespace names) which contains the namespace, it is
 //    shared and can be accessed.
 // 4. If non of the above rules applies, the resource is not shared and cannot be

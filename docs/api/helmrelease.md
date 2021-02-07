@@ -1891,7 +1891,7 @@ string
 <em>(Optional)</em>
 <p>Namespace of the values referent. If not present, then the namespace of
 the referring resource will be used. If present, the referred resource
-must have an approriate <code>helm.fluxcd.io/share-with</code> annotation value,
+must have an approriate <code>helm.toolkit.fluxcd.io/share-with</code> annotation value,
 which contains the namespace of the referring resource.</p>
 </td>
 </tr>
