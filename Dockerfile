@@ -21,7 +21,7 @@ COPY internal/ internal/
 # build without specifing the arch
 RUN CGO_ENABLED=0 go build -a -o helm-controller main.go
 
-FROM alpine:3.12
+FROM alpine:3.13
 
 # link repo to the GitHub Container Registry image
 LABEL org.opencontainers.image.source="https://github.com/fluxcd/helm-controller"
@@ -30,7 +30,7 @@ RUN apk add --no-cache ca-certificates tini
 
 COPY --from=builder /workspace/helm-controller /usr/local/bin/
 
-RUN addgroup -S controller && adduser -S -g controller controller
+RUN addgroup -S controller && adduser -S controller -G controller
 
 USER controller
 
