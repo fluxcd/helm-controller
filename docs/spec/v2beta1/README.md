@@ -17,6 +17,7 @@ Kubernetes manifests.
         * [`HelmRelease` dependencies](helmreleases.md#helmrelease-dependencies)
         * [Configuring Helm test actions](helmreleases.md#configuring-helm-test-actions)
         * [Configuring failure remediation](helmreleases.md#configuring-failure-remediation)
+    + [Post Renders](helmreleases.md#post-renderers)
     + [Status](helmreleases.md#status)
 
 ## Implementation

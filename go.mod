@@ -5,11 +5,11 @@ go 1.15
 replace github.com/fluxcd/helm-controller/api => ./api
 
 require (
-	github.com/fluxcd/helm-controller/api v0.6.1
+	github.com/fluxcd/helm-controller/api v0.7.0
 	github.com/fluxcd/pkg/apis/kustomize v0.0.1
 	github.com/fluxcd/pkg/apis/meta v0.8.0
 	github.com/fluxcd/pkg/runtime v0.8.1
-	github.com/fluxcd/source-controller/api v0.7.4
+	github.com/fluxcd/source-controller/api v0.8.0
 	github.com/go-logr/logr v0.3.0
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2

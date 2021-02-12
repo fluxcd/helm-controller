@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.7.0
+
+**Release date:** 2021-02-12
+
+This is the seventh MINOR prerelease.
+
+Support has been added for Kustomize based post renderer, making it possible
+to define images, strategic merge and JSON 6902 patches within the
+`HelmRelease`.
+
+`pprof` endpoints have been enabled on the metrics server, making it easier to
+collect runtime information to for example debug performance issues.
+
+Features:
+* Support for Kustomize based PostRenderer
+  [#202](https://github.com/fluxcd/helm-controller/pull/202)
+  [#205](https://github.com/fluxcd/helm-controller/pull/205)
+  [#206](https://github.com/fluxcd/helm-controller/pull/206)
+
+Improvements:
+* Update dependencies
+  [#207](https://github.com/fluxcd/helm-controller/pull/207)
+* Enable pprof endpoints on metrics server
+  [#209](https://github.com/fluxcd/helm-controller/pull/209)
+* Update Alpine to v3.13
+  [#210](https://github.com/fluxcd/helm-controller/pull/210)
+
 ## 0.6.1
 
 **Release date:** 2021-01-25
