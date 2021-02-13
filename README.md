@@ -35,6 +35,8 @@ operator.
   depends-on relationship defined in a set of `HelmRelease` objects
 * Reports Helm release statuses (alerting provided by
   [notification-controller][])
+* Built-in Kustomize compatible Helm post renderer, providing support
+  for strategic merge, JSON 6902 and images patches
 
 ## Guides
 
