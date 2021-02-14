@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -98,16 +99,17 @@ func (r *HelmReleaseReconciler) loadHelmChart(source *sourcev1.HelmChart) (*char
 	defer f.Close()
 	defer os.Remove(f.Name())
 
-	url := source.GetArtifact().URL
+	artifactURL := source.GetArtifact().URL
 	if hostname := os.Getenv("SOURCE_CONTROLLER_LOCALHOST"); hostname != "" {
-		url = fmt.Sprintf("http://%s/%s/%s/%s/latest.tar.gz",
-			hostname,
-			strings.ToLower(source.Kind),
-			source.GetNamespace(),
-			source.GetName())
+		u, err := url.Parse(artifactURL)
+		if err != nil {
+			return nil, err
+		}
+		u.Host = hostname
+		artifactURL = u.String()
 	}
 
-	res, err := http.Get(url)
+	res, err := http.Get(artifactURL)
 	if err != nil {
 		return nil, err
 	}
