@@ -98,7 +98,16 @@ func (r *HelmReleaseReconciler) loadHelmChart(source *sourcev1.HelmChart) (*char
 	defer f.Close()
 	defer os.Remove(f.Name())
 
-	res, err := http.Get(source.GetArtifact().URL)
+	url := source.GetArtifact().URL
+	if hostname := os.Getenv("SOURCE_CONTROLLER_LOCALHOST"); hostname != "" {
+		url = fmt.Sprintf("http://%s/%s/%s/%s/latest.tar.gz",
+			hostname,
+			strings.ToLower(source.Kind),
+			source.GetNamespace(),
+			source.GetName())
+	}
+
+	res, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
