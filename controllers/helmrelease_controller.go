@@ -325,11 +325,13 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	// Deploy the release.
 	var deployAction v2.DeploymentAction
 	if rel == nil {
+		r.event(ctx, hr, revision, events.EventSeverityInfo, "Helm install has started")
 		deployAction = hr.Spec.GetInstall()
 		rel, err = run.Install(hr, chart, values)
 		err = r.handleHelmActionResult(ctx, &hr, revision, err, deployAction.GetDescription(),
 			v2.ReleasedCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
 	} else {
+		r.event(ctx, hr, revision, events.EventSeverityInfo, "Helm upgrade has started")
 		deployAction = hr.Spec.GetUpgrade()
 		rel, err = run.Upgrade(hr, chart, values)
 		err = r.handleHelmActionResult(ctx, &hr, revision, err, deployAction.GetDescription(),
