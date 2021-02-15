@@ -26,30 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// MergeMaps merges map b into given map a and returns the result.
-// It allows overwrites of map values with flat values, and vice versa.
-// This is copied from https://github.com/helm/helm/blob/v3.3.0/pkg/cli/values/options.go#L88,
-// as the public chartutil.CoalesceTables function does not allow
-// overwriting maps with flat values.
-func MergeMaps(a, b map[string]interface{}) map[string]interface{} {
-	out := make(map[string]interface{}, len(a))
-	for k, v := range a {
-		out[k] = v
-	}
-	for k, v := range b {
-		if v, ok := v.(map[string]interface{}); ok {
-			if bv, ok := out[k]; ok {
-				if bv, ok := bv.(map[string]interface{}); ok {
-					out[k] = MergeMaps(bv, v)
-					continue
-				}
-			}
-		}
-		out[k] = v
-	}
-	return out
-}
-
 // ValuesChecksum calculates and returns the SHA1 checksum for the
 // given chartutil.Values.
 func ValuesChecksum(values chartutil.Values) string {
