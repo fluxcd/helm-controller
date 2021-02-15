@@ -52,6 +52,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
+	"github.com/fluxcd/pkg/runtime/transform"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
@@ -588,7 +589,7 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 			if err != nil {
 				return nil, fmt.Errorf("unable to read values from key '%s' in %s '%s': %w", v.GetValuesKey(), v.Kind, namespacedName, err)
 			}
-			result = util.MergeMaps(result, values)
+			result = transform.MergeMaps(result, values)
 		default:
 			// TODO(hidde): this is a bit of hack, as it mimics the way the option string is passed
 			// 	to Helm from a CLI perspective. Given the parser is however not publicly accessible
@@ -599,7 +600,7 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 			}
 		}
 	}
-	return util.MergeMaps(result, hr.GetValues()), nil
+	return transform.MergeMaps(result, hr.GetValues()), nil
 }
 
 // reconcileDelete deletes the v1beta1.HelmChart of the v2beta1.HelmRelease,
