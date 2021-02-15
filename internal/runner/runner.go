@@ -76,6 +76,7 @@ func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	install.DisableOpenAPIValidation = hr.Spec.GetInstall().DisableOpenAPIValidation
 	install.Replace = hr.Spec.GetInstall().Replace
 	install.SkipCRDs = hr.Spec.GetInstall().SkipCRDs
+	install.Devel = true
 	renderer, err := postRenderers(hr)
 	if err != nil {
 		return nil, err
@@ -100,6 +101,7 @@ func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	upgrade.DisableHooks = hr.Spec.GetUpgrade().DisableHooks
 	upgrade.Force = hr.Spec.GetUpgrade().Force
 	upgrade.CleanupOnFail = hr.Spec.GetUpgrade().CleanupOnFail
+	upgrade.Devel = true
 	renderer, err := postRenderers(hr)
 	if err != nil {
 		return nil, err
