@@ -322,6 +322,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		}
 	}
 
+	// Send event to mark the beginning release deploy
+	r.event(ctx, hr, revision, events.EventSeverityInfo, "Helm release deployment has started")
 	// Deploy the release.
 	var deployAction v2.DeploymentAction
 	if rel == nil {
