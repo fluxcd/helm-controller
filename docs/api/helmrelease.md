@@ -1877,8 +1877,22 @@ string
 </em>
 </td>
 <td>
-<p>Name of the values referent. Should reside in the same namespace as the
-referring resource.</p>
+<p>Name of the values referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>namespace</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Namespace of the values referent. If not present, then the namespace of
+the referring resource will be used. If present, the referred resource
+must have an approriate <code>helm.toolkit.fluxcd.io/share-with</code> annotation value,
+which contains the namespace of the referring resource.</p>
 </td>
 </tr>
 <tr>
