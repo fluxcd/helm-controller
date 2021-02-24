@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.8.0
+
+**Release date:** 2021-02-24
+
+This is the eight MINOR prerelease.
+
+Due to changes in Helm [v3.5.2](https://github.com/helm/helm/releases/tag/v3.5.2),
+charts not versioned using **strict semver** are no longer compatible with
+source-controller (and the embedded `HelmChart` template in the `HelmRelease`).
+When using charts from Git, make sure that the `version`
+field is set in `Chart.yaml`.
+
+Improvements:
+* Allow the controller to be run locally
+  [#216](https://github.com/fluxcd/helm-controller/pull/216)
+* Add a release deployment event when reconciling a release
+  [#217](https://github.com/fluxcd/helm-controller/pull/217)
+* Use `MergeMaps` from pkg/runtime v0.8.2
+  [#220](https://github.com/fluxcd/helm-controller/pull/220)
+* Refactor release workflow
+  [#223](https://github.com/fluxcd/helm-controller/pull/223)
+* Update dependencies
+  [#225](https://github.com/fluxcd/helm-controller/pull/225)
+* Use source-controller manifest from GitHub releae
+  [#226](https://github.com/fluxcd/helm-controller/pull/226)
+
 ## 0.7.0
 
 **Release date:** 2021-02-12
