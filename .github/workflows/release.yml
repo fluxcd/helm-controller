@@ -4,6 +4,9 @@ on:
     tags:
       - 'v*'
 
+env:
+  CONTROLLER: ${{ github.event.repository.name }}
+
 jobs:
   build-push:
     runs-on: ubuntu-latest
@@ -49,8 +52,8 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm/v7,linux/arm64
           tags: |
-            ghcr.io/fluxcd/helm-controller:${{ steps.prep.outputs.VERSION }}
-            docker.io/fluxcd/helm-controller:${{ steps.prep.outputs.VERSION }}
+            ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+            docker.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
           labels: |
             org.opencontainers.image.title=${{ github.event.repository.name }}
             org.opencontainers.image.description=${{ github.event.repository.description }}
@@ -60,39 +63,21 @@ jobs:
             org.opencontainers.image.created=${{ steps.prep.outputs.BUILD_DATE }}
       - name: Check images
         run: |
-          docker buildx imagetools inspect docker.io/fluxcd/helm-controller:${{ steps.prep.outputs.VERSION }}
-          docker buildx imagetools inspect ghcr.io/fluxcd/helm-controller:${{ steps.prep.outputs.VERSION }}
-          docker pull docker.io/fluxcd/helm-controller:${{ steps.prep.outputs.VERSION }}
-          docker pull ghcr.io/fluxcd/helm-controller:${{ steps.prep.outputs.VERSION }}
-      - name: Generate release asset
-        if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+          docker buildx imagetools inspect docker.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+          docker buildx imagetools inspect ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+          docker pull docker.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+          docker pull ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+      - name: Generate release manifests
         run: |
           mkdir -p config/release
-          cp config/default/* config/release
-          cd config/release
-          kustomize edit set image fluxcd/helm-controller=fluxcd/helm-controller:${{ steps.get_version.outputs.VERSION }}
-          kustomize build . > helm-controller.yaml
+          kustomize build ./config/crd > ./config/release/${{ env.CONTROLLER }}.crds.yaml
+          kustomize build ./config/manager > ./config/release/${{ env.CONTROLLER }}.deployment.yaml
       - name: Create release
-        if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
-        id: create_release
-        uses: actions/create-release@latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: false
           prerelease: true
+          artifacts: "config/release/*.yaml"
+          artifactContentType: "text/plain"
           body: |
-            [CHANGELOG](https://github.com/fluxcd/helm-controller/blob/main/CHANGELOG.md)
-      - name: Upload artifacts
-        if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./config/release/helm-controller.yaml
-          asset_name: helm-controller.yaml
-          asset_content_type: text/plain
+            [CHANGELOG](https://github.com/fluxcd/${{ env.CONTROLLER }}/blob/main/CHANGELOG.md)
+          token: ${{ secrets.GITHUB_TOKEN }}
