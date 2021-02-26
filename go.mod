@@ -11,6 +11,7 @@ require (
 	github.com/fluxcd/pkg/runtime v0.8.3
 	github.com/fluxcd/source-controller/api v0.9.0
 	github.com/go-logr/logr v0.3.0
+	github.com/hashicorp/go-retryablehttp v0.6.8
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
 	github.com/spf13/pflag v1.0.5

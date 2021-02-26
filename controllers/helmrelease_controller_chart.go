@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/hashicorp/go-retryablehttp"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -109,17 +110,22 @@ func (r *HelmReleaseReconciler) loadHelmChart(source *sourcev1.HelmChart) (*char
 		artifactURL = u.String()
 	}
 
-	res, err := http.Get(artifactURL)
+	req, err := retryablehttp.NewRequest(http.MethodGet, artifactURL, nil)
 	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("artifact '%s' download failed (status code: %s)", source.GetArtifact().URL, res.Status)
+		return nil, fmt.Errorf("failed to create a new request: %w", err)
 	}
 
-	if _, err = io.Copy(f, res.Body); err != nil {
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download artifact, error: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("artifact '%s' download failed (status code: %s)", source.GetArtifact().URL, resp.Status)
+	}
+
+	if _, err = io.Copy(f, resp.Body); err != nil {
 		return nil, err
 	}
 

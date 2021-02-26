@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/hashicorp/go-retryablehttp"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/storage/driver"
@@ -71,6 +72,7 @@ import (
 // HelmReleaseReconciler reconciles a HelmRelease object
 type HelmReleaseReconciler struct {
 	client.Client
+	httpClient            *retryablehttp.Client
 	Config                *rest.Config
 	Scheme                *runtime.Scheme
 	requeueDependency     time.Duration
@@ -93,6 +95,16 @@ func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmRele
 	}
 
 	r.requeueDependency = opts.DependencyRequeueInterval
+
+	// Configure the retryable http client used for fetching artifacts.
+	// By default it retries 10 times within a 3.5 minutes window.
+	httpClient := retryablehttp.NewClient()
+	httpClient.RetryWaitMin = 5 * time.Second
+	httpClient.RetryWaitMax = 30 * time.Second
+	httpClient.RetryMax = opts.HTTPRetry
+	httpClient.Logger = nil
+	r.httpClient = httpClient
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v2.HelmRelease{}, builder.WithPredicates(
 			predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{}),
@@ -254,6 +266,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 
 type HelmReleaseReconcilerOptions struct {
 	MaxConcurrentReconciles   int
+	HTTPRetry                 int
 	DependencyRequeueInterval time.Duration
 }
 
