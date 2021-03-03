@@ -540,7 +540,8 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 				if err := r.Get(ctx, namespacedName, resource); err != nil {
 					if apierrors.IsNotFound(err) {
 						if v.Optional {
-							(logr.FromContext(ctx)).Info("could not find optional %s '%s'", v.Kind, namespacedName)
+							(logr.FromContext(ctx)).
+								Info(fmt.Sprintf("could not find optional %s '%s'", v.Kind, namespacedName))
 							continue
 						}
 						return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
@@ -551,7 +552,7 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 			}
 			if resource == nil {
 				if v.Optional {
-					(logr.FromContext(ctx)).Info("could not find optional %s '%s'", v.Kind, namespacedName)
+					(logr.FromContext(ctx)).Info(fmt.Sprintf("could not find optional %s '%s'", v.Kind, namespacedName))
 					continue
 				}
 				return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
@@ -572,7 +573,8 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 				if err := r.Get(ctx, namespacedName, resource); err != nil {
 					if apierrors.IsNotFound(err) {
 						if v.Optional {
-							(logr.FromContext(ctx)).Info("could not find optional %s '%s'", v.Kind, namespacedName)
+							(logr.FromContext(ctx)).
+								Info(fmt.Sprintf("could not find optional %s '%s'", v.Kind, namespacedName))
 							continue
 						}
 						return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
@@ -583,7 +585,7 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 			}
 			if resource == nil {
 				if v.Optional {
-					(logr.FromContext(ctx)).Info("could not find optional %s '%s'", v.Kind, namespacedName)
+					(logr.FromContext(ctx)).Info(fmt.Sprintf("could not find optional %s '%s'", v.Kind, namespacedName))
 					continue
 				}
 				return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
