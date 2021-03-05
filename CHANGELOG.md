@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.8.1
+
+**Release date:** 2021-03-05
+
+This prerelease comes with improvements to the notification system.
+The controller retries with exponential backoff when fetching artifacts,
+preventing spamming events when source-controller becomes
+unavailable for a short period of time.
+
+Improvements:
+* Retry with exponential backoff when fetching artifacts
+  [#216](https://github.com/fluxcd/helm-controller/pull/216)
+
+Fixes:
+* fix: log messages contain '%s'
+  [#229](https://github.com/fluxcd/helm-controller/pull/229)
+
 ## 0.8.0
 
 **Release date:** 2021-02-24
