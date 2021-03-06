@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -173,8 +174,9 @@ func buildHelmChartFromTemplate(hr *v2.HelmRelease) *sourcev1.HelmChart {
 				Name: template.Spec.SourceRef.Name,
 				Kind: template.Spec.SourceRef.Kind,
 			},
-			Interval:   template.GetInterval(hr.Spec.Interval),
-			ValuesFile: template.Spec.ValuesFile,
+			Interval:    template.GetInterval(hr.Spec.Interval),
+			ValuesFiles: template.Spec.ValuesFiles,
+			ValuesFile:  template.Spec.ValuesFile,
 		},
 	}
 }
@@ -196,6 +198,8 @@ func helmChartRequiresUpdate(hr *v2.HelmRelease, chart *sourcev1.HelmChart) bool
 	case template.Spec.SourceRef.Kind != chart.Spec.SourceRef.Kind:
 		return true
 	case template.GetInterval(hr.Spec.Interval) != chart.Spec.Interval:
+		return true
+	case !reflect.DeepEqual(template.Spec.ValuesFiles, chart.Spec.ValuesFiles):
 		return true
 	case template.Spec.ValuesFile != chart.Spec.ValuesFile:
 		return true

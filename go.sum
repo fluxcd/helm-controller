@@ -239,8 +239,8 @@ github.com/fluxcd/pkg/apis/meta v0.8.0 h1:wqWpUsxhKHB1ZztcvOz+vnyhdKW9cWmjFp8Vci
 github.com/fluxcd/pkg/apis/meta v0.8.0/go.mod h1:yHuY8kyGHYz22I0jQzqMMGCcHViuzC/WPdo9Gisk8Po=
 github.com/fluxcd/pkg/runtime v0.10.2 h1:JAI/pOfU3Rgr4MysWJoWenEP6vq03EspBmoekSZMUfo=
 github.com/fluxcd/pkg/runtime v0.10.2/go.mod h1:JD0eZIn5xkTeHHQUWXSqJPIh/ecO0d0qrUKbSVHnpnw=
-github.com/fluxcd/source-controller/api v0.10.0 h1:Mu4cAXtZ7yq/rIrab81q1jbbhWwUxxAZ2R5bZ1m8AxE=
-github.com/fluxcd/source-controller/api v0.10.0/go.mod h1:Vuw+7UqEUUOdkKBfTUPHwaQgbn6LL2FwqPDx2UAk7NE=
+github.com/fluxcd/source-controller/api v0.11.1-0.20210419133153-f56c96fff636 h1:MKewkVohNKjqpQW/J4dU9oyKGv8TCN5jcfuS09iPkjY=
+github.com/fluxcd/source-controller/api v0.11.1-0.20210419133153-f56c96fff636/go.mod h1:/LRxF55Mf+j5mXVfHLbonb/2YYHVSaouLa5zt5aj7D4=
 github.com/form3tech-oss/jwt-go v3.2.2+incompatible/go.mod h1:pbq4aXjuKjdthFRnoDwaVPLA+WlJuPGy+QneDUgJi2k=
 github.com/franela/goblin v0.0.0-20200105215937-c9ffbefa60db/go.mod h1:7dvUGVsVBjqR7JHJk0brhHOZYGmfBYOrK0ZhYMEtBr4=
 github.com/franela/goreq v0.0.0-20171204163338-bcd34c9993f8/go.mod h1:ZhphrRTfi2rbfLwlschooIH4+wKKDR4Pdxhh+TRoA20=
@@ -1275,8 +1275,9 @@ k8s.io/apiextensions-apiserver v0.20.2 h1:rfrMWQ87lhd8EzQWRnbQ4gXrniL/yTRBgYH1x1
 k8s.io/apiextensions-apiserver v0.20.2/go.mod h1:F6TXp389Xntt+LUq3vw6HFOLttPa0V8821ogLGwb6Zs=
 k8s.io/apimachinery v0.17.0/go.mod h1:b9qmWdKlLuU9EBh+06BtLcSf/Mu89rWL33naRxs1uZg=
 k8s.io/apimachinery v0.20.1/go.mod h1:WlLqWAHZGg07AeltaI0MV5uk1Omp8xaN0JGLY6gkRpU=
-k8s.io/apimachinery v0.20.2 h1:hFx6Sbt1oG0n6DZ+g4bFt5f6BoMkOjKWsQFu077M3Vg=
 k8s.io/apimachinery v0.20.2/go.mod h1:WlLqWAHZGg07AeltaI0MV5uk1Omp8xaN0JGLY6gkRpU=
+k8s.io/apimachinery v0.20.4 h1:vhxQ0PPUUU2Ns1b9r4/UFp13UPs8cw2iOoTjnY9faa0=
+k8s.io/apimachinery v0.20.4/go.mod h1:WlLqWAHZGg07AeltaI0MV5uk1Omp8xaN0JGLY6gkRpU=
 k8s.io/apiserver v0.20.1/go.mod h1:ro5QHeQkgMS7ZGpvf4tSMx6bBOgPfE+f52KwvXfScaU=
 k8s.io/apiserver v0.20.2 h1:lGno2t3gcZnLtzsKH4oG0xA9/4GTiBzMO1DGp+K+Bak=
 k8s.io/apiserver v0.20.2/go.mod h1:2nKd93WyMhZx4Hp3RfgH2K5PhwyTrprrkWYnI7id7jA=
