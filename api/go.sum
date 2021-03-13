@@ -90,11 +90,10 @@ github.com/evanphx/json-patch v4.9.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLi
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fluxcd/pkg/apis/kustomize v0.0.1 h1:TkA80R0GopRY27VJqzKyS6ifiKIAfwBd7OHXtV3t2CI=
 github.com/fluxcd/pkg/apis/kustomize v0.0.1/go.mod h1:JAFPfnRmcrAoG1gNiA8kmEXsnOBuDyZ/F5X4DAQcVV0=
-github.com/fluxcd/pkg/apis/meta v0.7.0/go.mod h1:yHuY8kyGHYz22I0jQzqMMGCcHViuzC/WPdo9Gisk8Po=
 github.com/fluxcd/pkg/apis/meta v0.8.0 h1:wqWpUsxhKHB1ZztcvOz+vnyhdKW9cWmjFp8Vci/XOdk=
 github.com/fluxcd/pkg/apis/meta v0.8.0/go.mod h1:yHuY8kyGHYz22I0jQzqMMGCcHViuzC/WPdo9Gisk8Po=
-github.com/fluxcd/pkg/runtime v0.8.3 h1:Zjk4fyAfBdBQ4GTokjisab7KyHHczCqKSpJi8+oVrNw=
-github.com/fluxcd/pkg/runtime v0.8.3/go.mod h1:AM/hMD0mKtRqhKPU7NGDzm+3UXPpdnX8oBlcxLt11AY=
+github.com/fluxcd/pkg/runtime v0.8.4 h1:amuhfoHGCUfFCPXg3Zrcyy7f9J+fho+/+FbQDDyewko=
+github.com/fluxcd/pkg/runtime v0.8.4/go.mod h1:JD0eZIn5xkTeHHQUWXSqJPIh/ecO0d0qrUKbSVHnpnw=
 github.com/form3tech-oss/jwt-go v3.2.2+incompatible/go.mod h1:pbq4aXjuKjdthFRnoDwaVPLA+WlJuPGy+QneDUgJi2k=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/fsnotify/fsnotify v1.4.9 h1:hsms1Qyu0jgnwNXIxa+/V/PDsU6CfLf6CNO8H7IWoS4=
@@ -664,8 +663,8 @@ rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.14/go.mod h1:LEScyzhFmoF5pso/YSeBstl57mOzx9xlU9n85RGrDQg=
-sigs.k8s.io/controller-runtime v0.8.2 h1:SBWmI0b3uzMIUD/BIXWNegrCeZmPJ503pOtwxY0LPHM=
-sigs.k8s.io/controller-runtime v0.8.2/go.mod h1:U/l+DUopBc1ecfRZ5aviA9JDmGFQKvLf5YkZNx2e0sU=
+sigs.k8s.io/controller-runtime v0.8.3 h1:GMHvzjTmaWHQB8HadW+dIvBoJuLvZObYJ5YoZruPRao=
+sigs.k8s.io/controller-runtime v0.8.3/go.mod h1:U/l+DUopBc1ecfRZ5aviA9JDmGFQKvLf5YkZNx2e0sU=
 sigs.k8s.io/structured-merge-diff/v4 v4.0.2 h1:YHQV7Dajm86OuqnIR6zAelnDWBRjo+YhYV9PmGrh1s8=
 sigs.k8s.io/structured-merge-diff/v4 v4.0.2/go.mod h1:bJZC9H9iH24zzfZ/41RGcq60oK1F7G282QMXDPYydCw=
 sigs.k8s.io/yaml v1.1.0/go.mod h1:UJmg0vDUVViEyp3mgSv9WPwZCDxu4rQW1olrI1uml+o=
