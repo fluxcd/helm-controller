@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.2
+
+**Release date:** 2021-03-15
+
+This prerelese comes with patch updates to Helm and controller-runtime
+dependencies.
+
+Improvements:
+* Update dependencies
+  [#232](https://github.com/fluxcd/helm-controller/pull/232)
+
 ## 0.8.1
 
 **Release date:** 2021-03-05
