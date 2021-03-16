@@ -153,6 +153,13 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Return early if the HelmRelease is suspended.
 	if hr.Spec.Suspend {
+		if r.MetricsRecorder != nil {
+			objRef, err := reference.GetReference(r.Scheme, &hr)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			defer r.MetricsRecorder.RecordSuspend(*objRef, hr.Spec.Suspend)
+		}
 		log.Info("Reconciliation is suspended for this object")
 		return ctrl.Result{}, nil
 	}
