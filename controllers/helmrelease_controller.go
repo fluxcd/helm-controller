@@ -137,6 +137,9 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// record suspension metrics
+	defer r.recordSuspension(ctx, hr)
+
 	// Add our finalizer if it does not exist
 	if !controllerutil.ContainsFinalizer(&hr, v2.HelmReleaseFinalizer) {
 		controllerutil.AddFinalizer(&hr, v2.HelmReleaseFinalizer)
@@ -728,6 +731,25 @@ func (r *HelmReleaseReconciler) event(ctx context.Context, hr v2.HelmRelease, re
 			logr.FromContext(ctx).Error(err, "unable to send event")
 			return
 		}
+	}
+}
+
+func (r *HelmReleaseReconciler) recordSuspension(ctx context.Context, hr v2.HelmRelease) {
+	if r.MetricsRecorder == nil {
+		return
+	}
+	log := logr.FromContext(ctx)
+
+	objRef, err := reference.GetReference(r.Scheme, &hr)
+	if err != nil {
+		log.Error(err, "unable to record suspended metric")
+		return
+	}
+
+	if !hr.DeletionTimestamp.IsZero() {
+		r.MetricsRecorder.RecordSuspend(*objRef, false)
+	} else {
+		r.MetricsRecorder.RecordSuspend(*objRef, hr.Spec.Suspend)
 	}
 }
 
