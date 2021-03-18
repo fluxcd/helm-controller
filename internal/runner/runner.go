@@ -58,6 +58,7 @@ func postRenderers(hr v2.HelmRelease) (postrender.PostRenderer, error) {
 			combinedRenderer.addRenderer(newPostRendererKustomize(r.Kustomize))
 		}
 	}
+	combinedRenderer.addRenderer(newPostRendererOriginLabels(&hr))
 	if len(combinedRenderer.renderers) == 0 {
 		return nil, nil
 	}
