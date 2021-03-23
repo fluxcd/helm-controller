@@ -328,14 +328,14 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		// Fail if install retries are exhausted.
 		if hr.Spec.GetInstall().GetRemediation().RetriesExhausted(hr) {
 			err = fmt.Errorf("install retries exhausted")
-			return v2.HelmReleaseNotReady(hr, released.Reason, released.Message), err
+			return v2.HelmReleaseNotReady(hr, released.Reason, err.Error()), err
 		}
 
 		// Fail if there is a release and upgrade retries are exhausted.
 		// This avoids failing after an upgrade uninstall remediation strategy.
 		if rel != nil && hr.Spec.GetUpgrade().GetRemediation().RetriesExhausted(hr) {
 			err = fmt.Errorf("upgrade retries exhausted")
-			return v2.HelmReleaseNotReady(hr, released.Reason, released.Message), err
+			return v2.HelmReleaseNotReady(hr, released.Reason, err.Error()), err
 		}
 	}
 
@@ -415,9 +415,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 
 	if err != nil {
 		reason := meta.ReconciliationFailedReason
-		var cerr *ConditionError
-		if errors.As(err, &cerr) {
-			reason = cerr.Reason
+		if condErr := (*ConditionError)(nil); errors.As(err, &condErr) {
+			reason = condErr.Reason
 		}
 		return v2.HelmReleaseNotReady(hr, reason, err.Error()), err
 	}
@@ -662,10 +661,14 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmR
 func (r *HelmReleaseReconciler) handleHelmActionResult(ctx context.Context,
 	hr *v2.HelmRelease, revision string, err error, action string, condition string, succeededReason string, failedReason string) error {
 	if err != nil {
-		msg := fmt.Sprintf("Helm %s failed: %s", action, err.Error())
+		err = fmt.Errorf("Helm %s failed: %w", action, err)
+		msg := err.Error()
+		if actionErr := (*runner.ActionError)(nil); errors.As(err, &actionErr) {
+			msg = msg + "\n\nLast Helm logs:\n\n" + actionErr.CapturedLogs
+		}
 		meta.SetResourceCondition(hr, condition, metav1.ConditionFalse, failedReason, msg)
 		r.event(ctx, *hr, revision, events.EventSeverityError, msg)
-		return &ConditionError{Reason: failedReason, Err: errors.New(msg)}
+		return &ConditionError{Reason: failedReason, Err: err}
 	} else {
 		msg := fmt.Sprintf("Helm %s succeeded", action)
 		meta.SetResourceCondition(hr, condition, metav1.ConditionTrue, succeededReason, msg)
