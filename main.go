@@ -59,6 +59,9 @@ func main() {
 		eventsAddr           string
 		healthAddr           string
 		enableLeaderElection bool
+		leaseDuration        time.Duration
+		renewDeadline        time.Duration
+		retryPeriod          time.Duration
 		concurrent           int
 		requeueDependency    time.Duration
 		watchAllNamespaces   bool
@@ -73,6 +76,9 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.DurationVar(&leaseDuration, "leader-election-lease", 35*time.Second, "The duration that non-leader candidates will wait to force acquire leadership.")
+	flag.DurationVar(&renewDeadline, "leader-election-deadline", 30*time.Second, "The duration that the acting controlplane will retry refreshing leadership before giving up.")
+	flag.DurationVar(&retryPeriod, "leader-election-retry", 5*time.Second, "The duration the LeaderElector clients should wait between tries of actions.")
 	flag.IntVar(&concurrent, "concurrent", 4, "The number of concurrent HelmRelease reconciles.")
 	flag.DurationVar(&requeueDependency, "requeue-dependency", 30*time.Second, "The interval at which failing dependencies are reevaluated.")
 	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
@@ -105,14 +111,18 @@ func main() {
 
 	restConfig := client.GetConfigOrDie(clientOptions)
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		HealthProbeBindAddress: healthAddr,
-		Port:                   9443,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "5b6ca942.fluxcd.io",
-		Namespace:              watchNamespace,
-		Logger:                 ctrl.Log,
+		Scheme:                        scheme,
+		MetricsBindAddress:            metricsAddr,
+		HealthProbeBindAddress:        healthAddr,
+		Port:                          9443,
+		LeaderElection:                enableLeaderElection,
+		LeaderElectionReleaseOnCancel: true,
+		LeaseDuration:                 &leaseDuration,
+		RenewDeadline:                 &renewDeadline,
+		RetryPeriod:                   &retryPeriod,
+		LeaderElectionID:              "5b6ca942.fluxcd.io",
+		Namespace:                     watchNamespace,
+		Logger:                        ctrl.Log,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
