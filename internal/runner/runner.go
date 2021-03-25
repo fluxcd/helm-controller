@@ -18,7 +18,7 @@ package runner
 
 import (
 	"errors"
-	"fmt"
+	"sync"
 
 	"github.com/go-logr/logr"
 	"helm.sh/helm/v3/pkg/action"
@@ -32,21 +32,39 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
 
+type ActionError struct {
+	Err          error
+	CapturedLogs string
+}
+
+func (e ActionError) Error() string {
+	return e.Err.Error()
+}
+
+func (e ActionError) Unwrap() error {
+	return e.Err
+}
+
 // Runner represents a Helm action runner capable of performing Helm
 // operations for a v2beta1.HelmRelease.
 type Runner struct {
-	config *action.Configuration
+	mu        sync.Mutex
+	config    *action.Configuration
+	logBuffer *LogBuffer
 }
 
 // NewRunner constructs a new Runner configured to run Helm actions with the
 // given genericclioptions.RESTClientGetter, and the release and storage
 // namespace configured to the provided values.
 func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace string, logger logr.Logger) (*Runner, error) {
-	cfg := new(action.Configuration)
-	if err := cfg.Init(getter, storageNamespace, "secret", debugLogger(logger)); err != nil {
+	runner := &Runner{
+		logBuffer: NewLogBuffer(NewDebugLog(logger).Log, 0),
+	}
+	runner.config = new(action.Configuration)
+	if err := runner.config.Init(getter, storageNamespace, "secret", runner.logBuffer.Log); err != nil {
 		return nil, err
 	}
-	return &Runner{config: cfg}, nil
+	return runner, nil
 }
 
 // Create post renderer instances from HelmRelease and combine them into
@@ -67,6 +85,10 @@ func postRenderers(hr v2.HelmRelease) (postrender.PostRenderer, error) {
 
 // Install runs an Helm install action for the given v2beta1.HelmRelease.
 func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (*release.Release, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	defer r.logBuffer.Reset()
+
 	install := action.NewInstall(r.config)
 	install.ReleaseName = hr.GetReleaseName()
 	install.Namespace = hr.GetReleaseNamespace()
@@ -76,6 +98,7 @@ func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	install.DisableOpenAPIValidation = hr.Spec.GetInstall().DisableOpenAPIValidation
 	install.Replace = hr.Spec.GetInstall().Replace
 	install.SkipCRDs = hr.Spec.GetInstall().SkipCRDs
+	install.Devel = true
 	renderer, err := postRenderers(hr)
 	if err != nil {
 		return nil, err
@@ -85,11 +108,16 @@ func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 		install.CreateNamespace = hr.Spec.GetInstall().CreateNamespace
 	}
 
-	return install.Run(chart, values.AsMap())
+	rel, err := install.Run(chart, values.AsMap())
+	return rel, wrapActionErr(r.logBuffer, err)
 }
 
 // Upgrade runs an Helm upgrade action for the given v2beta1.HelmRelease.
 func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (*release.Release, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	defer r.logBuffer.Reset()
+
 	upgrade := action.NewUpgrade(r.config)
 	upgrade.Namespace = hr.GetReleaseNamespace()
 	upgrade.ResetValues = !hr.Spec.GetUpgrade().PreserveValues
@@ -100,26 +128,37 @@ func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	upgrade.DisableHooks = hr.Spec.GetUpgrade().DisableHooks
 	upgrade.Force = hr.Spec.GetUpgrade().Force
 	upgrade.CleanupOnFail = hr.Spec.GetUpgrade().CleanupOnFail
+	upgrade.Devel = true
 	renderer, err := postRenderers(hr)
 	if err != nil {
 		return nil, err
 	}
 	upgrade.PostRenderer = renderer
 
-	return upgrade.Run(hr.GetReleaseName(), chart, values.AsMap())
+	rel, err := upgrade.Run(hr.GetReleaseName(), chart, values.AsMap())
+	return rel, wrapActionErr(r.logBuffer, err)
 }
 
 // Test runs an Helm test action for the given v2beta1.HelmRelease.
 func (r *Runner) Test(hr v2.HelmRelease) (*release.Release, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	defer r.logBuffer.Reset()
+
 	test := action.NewReleaseTesting(r.config)
 	test.Namespace = hr.GetReleaseNamespace()
 	test.Timeout = hr.Spec.GetTest().GetTimeout(hr.GetTimeout()).Duration
 
-	return test.Run(hr.GetReleaseName())
+	rel, err := test.Run(hr.GetReleaseName())
+	return rel, wrapActionErr(r.logBuffer, err)
 }
 
 // Rollback runs an Helm rollback action for the given v2beta1.HelmRelease.
 func (r *Runner) Rollback(hr v2.HelmRelease) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	defer r.logBuffer.Reset()
+
 	rollback := action.NewRollback(r.config)
 	rollback.Timeout = hr.Spec.GetRollback().GetTimeout(hr.GetTimeout()).Duration
 	rollback.Wait = !hr.Spec.GetRollback().DisableWait
@@ -128,18 +167,23 @@ func (r *Runner) Rollback(hr v2.HelmRelease) error {
 	rollback.Recreate = hr.Spec.GetRollback().Recreate
 	rollback.CleanupOnFail = hr.Spec.GetRollback().CleanupOnFail
 
-	return rollback.Run(hr.GetReleaseName())
+	err := rollback.Run(hr.GetReleaseName())
+	return wrapActionErr(r.logBuffer, err)
 }
 
 // Uninstall runs an Helm uninstall action for the given v2beta1.HelmRelease.
 func (r *Runner) Uninstall(hr v2.HelmRelease) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	defer r.logBuffer.Reset()
+
 	uninstall := action.NewUninstall(r.config)
 	uninstall.Timeout = hr.Spec.GetUninstall().GetTimeout(hr.GetTimeout()).Duration
 	uninstall.DisableHooks = hr.Spec.GetUninstall().DisableHooks
 	uninstall.KeepHistory = hr.Spec.GetUninstall().KeepHistory
 
 	_, err := uninstall.Run(hr.GetReleaseName())
-	return err
+	return wrapActionErr(r.logBuffer, err)
 }
 
 // ObserveLastRelease observes the last revision, if there is one,
@@ -152,8 +196,13 @@ func (r *Runner) ObserveLastRelease(hr v2.HelmRelease) (*release.Release, error)
 	return rel, err
 }
 
-func debugLogger(logger logr.Logger) func(format string, v ...interface{}) {
-	return func(format string, v ...interface{}) {
-		logger.V(1).Info(fmt.Sprintf(format, v...))
+func wrapActionErr(log *LogBuffer, err error) error {
+	if err == nil {
+		return err
 	}
+	err = &ActionError{
+		Err:          err,
+		CapturedLogs: log.String(),
+	}
+	return err
 }
