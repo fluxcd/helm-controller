@@ -29,6 +29,7 @@ import (
 
 	"github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/events"
+	"github.com/fluxcd/pkg/runtime/leaderelection"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/pprof"
@@ -55,30 +56,21 @@ func init() {
 
 func main() {
 	var (
-		metricsAddr          string
-		eventsAddr           string
-		healthAddr           string
-		enableLeaderElection bool
-		leaseDuration        time.Duration
-		renewDeadline        time.Duration
-		retryPeriod          time.Duration
-		concurrent           int
-		requeueDependency    time.Duration
-		watchAllNamespaces   bool
-		httpRetry            int
-		clientOptions        client.Options
-		logOptions           logger.Options
+		metricsAddr           string
+		eventsAddr            string
+		healthAddr            string
+		concurrent            int
+		requeueDependency     time.Duration
+		watchAllNamespaces    bool
+		httpRetry             int
+		clientOptions         client.Options
+		logOptions            logger.Options
+		leaderElectionOptions leaderelection.Options
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
 	flag.StringVar(&healthAddr, "health-addr", ":9440", "The address the health endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
-	flag.DurationVar(&leaseDuration, "leader-election-lease", 35*time.Second, "The duration that non-leader candidates will wait to force acquire leadership.")
-	flag.DurationVar(&renewDeadline, "leader-election-deadline", 30*time.Second, "The duration that the acting controlplane will retry refreshing leadership before giving up.")
-	flag.DurationVar(&retryPeriod, "leader-election-retry", 5*time.Second, "The duration the LeaderElector clients should wait between tries of actions.")
 	flag.IntVar(&concurrent, "concurrent", 4, "The number of concurrent HelmRelease reconciles.")
 	flag.DurationVar(&requeueDependency, "requeue-dependency", 30*time.Second, "The interval at which failing dependencies are reevaluated.")
 	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
@@ -87,6 +79,7 @@ func main() {
 	flag.CommandLine.MarkDeprecated("log-json", "Please use --log-encoding=json instead.")
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
+	leaderElectionOptions.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	ctrl.SetLogger(logger.NewLogger(logOptions))
@@ -115,11 +108,11 @@ func main() {
 		MetricsBindAddress:            metricsAddr,
 		HealthProbeBindAddress:        healthAddr,
 		Port:                          9443,
-		LeaderElection:                enableLeaderElection,
-		LeaderElectionReleaseOnCancel: true,
-		LeaseDuration:                 &leaseDuration,
-		RenewDeadline:                 &renewDeadline,
-		RetryPeriod:                   &retryPeriod,
+		LeaderElection:                leaderElectionOptions.Enable,
+		LeaderElectionReleaseOnCancel: leaderElectionOptions.ReleaseOnCancel,
+		LeaseDuration:                 &leaderElectionOptions.LeaseDuration,
+		RenewDeadline:                 &leaderElectionOptions.RenewDeadline,
+		RetryPeriod:                   &leaderElectionOptions.RetryPeriod,
 		LeaderElectionID:              "5b6ca942.fluxcd.io",
 		Namespace:                     watchNamespace,
 		Logger:                        ctrl.Log,
