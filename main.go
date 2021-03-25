@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -40,6 +41,8 @@ import (
 	"github.com/fluxcd/helm-controller/controllers"
 	// +kubebuilder:scaffold:imports
 )
+
+const controllerName = "helm-controller"
 
 var (
 	scheme   = runtime.NewScheme()
@@ -85,7 +88,7 @@ func main() {
 
 	var eventRecorder *events.Recorder
 	if eventsAddr != "" {
-		if er, err := events.NewRecorder(eventsAddr, "helm-controller"); err != nil {
+		if er, err := events.NewRecorder(eventsAddr, controllerName); err != nil {
 			setupLog.Error(err, "unable to create event recorder")
 			os.Exit(1)
 		} else {
@@ -112,7 +115,7 @@ func main() {
 		LeaseDuration:                 &leaderElectionOptions.LeaseDuration,
 		RenewDeadline:                 &leaderElectionOptions.RenewDeadline,
 		RetryPeriod:                   &leaderElectionOptions.RetryPeriod,
-		LeaderElectionID:              "5b6ca942.fluxcd.io",
+		LeaderElectionID:              fmt.Sprintf("%s-leader-election", controllerName),
 		Namespace:                     watchNamespace,
 		Logger:                        ctrl.Log,
 	})
@@ -128,7 +131,7 @@ func main() {
 		Client:                mgr.GetClient(),
 		Config:                mgr.GetConfig(),
 		Scheme:                mgr.GetScheme(),
-		EventRecorder:         mgr.GetEventRecorderFor("helm-controller"),
+		EventRecorder:         mgr.GetEventRecorderFor(controllerName),
 		ExternalEventRecorder: eventRecorder,
 		MetricsRecorder:       metricsRecorder,
 	}).SetupWithManager(mgr, controllers.HelmReleaseReconcilerOptions{
