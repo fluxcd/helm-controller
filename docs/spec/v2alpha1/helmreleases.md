@@ -634,6 +634,14 @@ The timeout for any individual Kubernetes operation (like Jobs for hooks) during
 of Helm actions can be configured via `spec.timeout` and can be overridden per action
 via `spec.<action>.timeout`.
 
+To list all Kubernetes objects reconciled from a HelmRelease:
+
+```sh
+kubectl get all --all-namespaces \
+  -l=helm.toolkit.fluxcd.io/name="<HelmRelease name>" \
+  -l=helm.toolkit.fluxcd.io/namespace="<HelmRelease namespace>"
+```
+
 ### Disabling resource waiting
 
 For install, upgrade, and rollback actions resource waiting is enabled by default,
