@@ -1,10 +1,45 @@
 # Changelog
 
+## 0.9.0
+
+**Release date:** 2021-03-26
+
+This prerelease comes with a breaking change to the leader election ID
+from `5b6ca942.fluxcd.io` to `helm-controller-leader-election`
+to be more descriptive. This change should not have an impact on most
+installations, as the default replica count is `1`. If you are running
+a setup with multiple replicas, it is however advised to scale down
+before  upgrading.
+
+To ease debugging wait timeout errors, the last 5 deduplicated log lines
+from Helm are now recorded in the status conditions and events of the
+`HelmRelease`.
+
+To track the origin of resources that are created by a Helm operation
+performed by the controllers, they are now labeled with
+`helm.toolkit.fluxcd.io/name` and `helm.toolkit.fluxcd.io/namespace`
+using a builtin post render.
+
+The suspended status of resources is now recorded to a
+`gotk_suspend_status` Prometheus gauge metric.
+
+Improvements:
+* Capture and expose debug (log) information on release failure
+  [#219](https://github.com/fluxcd/helm-controller/pull/219)
+* Record suspension metrics
+  [#236](https://github.com/fluxcd/helm-controller/pull/236)
+* Label release resources with HelmRelease origin
+  [#238](https://github.com/fluxcd/helm-controller/pull/238)
+* Set leader election deadline to 30s
+  [#239](https://github.com/fluxcd/helm-controller/pull/239)
+* Update source-controller API to v0.10.0
+  [#240](https://github.com/fluxcd/helm-controller/pull/240)
+
 ## 0.8.2
 
 **Release date:** 2021-03-15
 
-This prerelese comes with patch updates to Helm and controller-runtime
+This prerelease comes with patch updates to Helm and controller-runtime
 dependencies.
 
 Improvements:
@@ -51,7 +86,7 @@ Improvements:
   [#223](https://github.com/fluxcd/helm-controller/pull/223)
 * Update dependencies
   [#225](https://github.com/fluxcd/helm-controller/pull/225)
-* Use source-controller manifest from GitHub releae
+* Use source-controller manifest from GitHub release
   [#226](https://github.com/fluxcd/helm-controller/pull/226)
 
 ## 0.7.0
