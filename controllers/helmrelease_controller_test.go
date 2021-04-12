@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	v2 "github.com/fluxcd/helm-controller/pkg/apis/helmrelease/v2beta1"
 )
 
 func TestHelmReleaseReconciler_composeValues(t *testing.T) {

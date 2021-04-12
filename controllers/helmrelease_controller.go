@@ -56,10 +56,10 @@ import (
 	"github.com/fluxcd/pkg/runtime/transform"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/runner"
 	"github.com/fluxcd/helm-controller/internal/util"
+	v2 "github.com/fluxcd/helm-controller/pkg/apis/helmrelease/v2beta1"
 )
 
 // +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete

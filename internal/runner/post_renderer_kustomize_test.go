@@ -27,7 +27,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	v2 "github.com/fluxcd/helm-controller/pkg/apis/helmrelease/v2beta1"
 )
 
 const replaceImageMock = `apiVersion: v1

@@ -2,10 +2,10 @@ module github.com/fluxcd/helm-controller
 
 go 1.15
 
-replace github.com/fluxcd/helm-controller/api => ./api
+replace github.com/fluxcd/helm-controller/pkg/apis => ./pkg/apis
 
 require (
-	github.com/fluxcd/helm-controller/api v0.9.0
+	github.com/fluxcd/helm-controller/pkg/apis v0.9.0
 	github.com/fluxcd/pkg/apis/kustomize v0.0.1
 	github.com/fluxcd/pkg/apis/meta v0.8.0
 	github.com/fluxcd/pkg/runtime v0.10.1
@@ -21,6 +21,7 @@ require (
 	k8s.io/apimachinery v0.20.2
 	k8s.io/cli-runtime v0.20.2
 	k8s.io/client-go v0.20.2
+	k8s.io/code-generator v0.20.2
 	sigs.k8s.io/controller-runtime v0.8.3
 	sigs.k8s.io/kustomize/api v0.7.2
 	sigs.k8s.io/yaml v1.2.0

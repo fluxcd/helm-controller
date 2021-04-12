@@ -1,4 +1,4 @@
-module github.com/fluxcd/helm-controller/api
+module github.com/fluxcd/helm-controller/pkg/apis
 
 go 1.15
 

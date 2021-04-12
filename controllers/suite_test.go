@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/fluxcd/helm-controller/pkg/apis/helmrelease/v2beta1"
 	// +kubebuilder:scaffold:imports
 )
 
