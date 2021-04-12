@@ -21,3 +21,6 @@ vendor/
 *.swp
 *.swo
 *~
+
+# Code Generator
+/_tmp

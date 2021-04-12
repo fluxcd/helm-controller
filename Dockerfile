@@ -4,7 +4,7 @@ FROM golang:1.15-alpine as builder
 WORKDIR /workspace
 
 # copy api submodule
-COPY api/ api/
+COPY pkg/ pkg/
 
 # copy modules manifests
 COPY go.mod go.mod

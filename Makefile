@@ -14,8 +14,8 @@ all: manager
 
 # Run tests
 test: generate fmt vet manifests api-docs
-	go test ./... -coverprofile cover.out
-	cd api; go test ./... -coverprofile cover.out
+	go test $$(go list ./... | grep -v /pkg/client/) -coverprofile cover.out
+	cd pkg/apis; go test ./... -coverprofile cover.out
 
 # Build manager binary
 manager: generate fmt vet
@@ -55,30 +55,30 @@ dev-cleanup: manifests
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:crd:artifacts:config="config/crd/bases"
-	cd api; $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:crd:artifacts:config="../config/crd/bases"
+	cd pkg/apis; $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:crd:artifacts:config="../../config/crd/bases"
 
 # Generate API reference documentation
 api-docs: gen-crd-api-reference-docs
-	$(API_REF_GEN) -api-dir=./api/v2beta1 -config=./hack/api-docs/config.json -template-dir=./hack/api-docs/template -out-file=./docs/api/helmrelease.md
+	$(API_REF_GEN) -api-dir=./pkg/apis/helmrelease/v2beta1 -config=./hack/api-docs/config.json -template-dir=./hack/api-docs/template -out-file=./docs/api/helmrelease.md
 
 # Run go mod tidy
 tidy:
-	cd api; rm -f go.sum; go mod tidy
+	cd pkg/apis; rm -f go.sum; go mod tidy
 	rm -f go.sum; go mod tidy
 
 # Run go fmt against code
 fmt:
 	go fmt ./...
-	cd api; go fmt ./...
+	cd pkg/apis; go fmt ./...
 
 # Run go vet against code
 vet:
 	go vet ./...
-	cd api; go vet ./...
+	cd pkg/apis; go vet ./...
 
 # Generate code
 generate: controller-gen
-	cd api; $(CONTROLLER_GEN) object:headerFile="../hack/boilerplate.go.txt" paths="./..."
+	cd pkg/apis; $(CONTROLLER_GEN) object:headerFile="../../hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
 docker-build: test
