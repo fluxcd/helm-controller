@@ -1,0 +1,23 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: crds-upgrade-test
+  namespace: default
+spec:
+  interval: 1m
+  chart:
+    spec:
+      chart: config/testdata/charts/crds/v2
+      sourceRef:
+        kind: GitRepository
+        name: this
+        namespace: default
+      interval: 1m
+  upgrade:
+    upgradeCRDs: Create
+  values:
+    a: v2beta1
+    b: v2beta1
+    c: v2beta2
+    d: v2beta1

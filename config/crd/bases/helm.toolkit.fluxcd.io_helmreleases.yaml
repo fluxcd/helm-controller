@@ -515,6 +515,20 @@ spec:
                       operation (like Jobs for hooks) during the performance of a
                       Helm upgrade action. Defaults to 'HelmReleaseSpec.Timeout'.
                     type: string
+                  upgradeCRDs:
+                    description: "UpgradeCRDs upgrade CRDs from the Helm Chart's crds
+                      directory according to the CRD upgrade policy provided here.
+                      Valid values are `Create` or `CreateReplace`. If omitted (the
+                      default) CRDs are not upgraded. \n Create: new CRDs are created,
+                      existing CRDs are neither updated nor deleted. \n CreateReplace:
+                      new CRDs are created, existing CRDs are updated (replaced) but
+                      not deleted. \n By default, CRDs are not applied during Helm
+                      upgrade action. With this option users can opt-in to CRD upgrade,
+                      which is not (yet) natively supported by Helm. https://helm.sh/docs/chart_best_practices/custom_resource_definitions."
+                    enum:
+                    - Create
+                    - CreateReplace
+                    type: string
                 type: object
               values:
                 description: Values holds the values for this Helm release.

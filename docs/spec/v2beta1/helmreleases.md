@@ -268,6 +268,24 @@ type Upgrade struct {
 	// upgrade action when it fails.
 	// +optional
 	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
+
+	// UpgradeCRDs upgrade CRDs from the Helm Chart's crds directory according
+	// to the CRD upgrade policy provided here. Valid values are `Create` or
+	// `CreateReplace`. If omitted (the default) CRDs
+	// are not upgraded.
+	//
+	// Create: new CRDs are created, existing CRDs are neither updated nor deleted.
+	//
+	// CreateReplace: new CRDs are created, existing CRDs are updated (replaced)
+	// but not deleted.
+	//
+	// By default, CRDs are not applied during Helm upgrade action. With this
+	// option users can opt-in to CRD upgrade, which is not (yet) natively supported by Helm.
+	// https://helm.sh/docs/chart_best_practices/custom_resource_definitions.
+	//
+	// +kubebuilder:validation:Enum=Create;CreateReplace
+	// +optional
+	UpgradeCRDs CRDsChangePolicy `json:"upgradeCRDs,omitempty"`
 }
 
 // UpgradeRemediation holds the configuration for Helm upgrade remediation.
@@ -1107,6 +1125,53 @@ spec:
         - name: docker.io/bitnami/metrics-server
           newName: docker.io/bitnami/metrics-server
           newTag: 0.4.1-debian-10-r54
+```
+
+## CRDs
+
+Helm does support [installing CRDs](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#method-1-let-helm-do-it-for-you),
+but it has no native support for [upgrading CRDs](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations):
+
+> There is no support at this time for upgrading or deleting CRDs using Helm.
+> This was an explicit decision after much community discussion due to the danger for unintentional
+> data loss. Furthermore, there is currently no community consensus around how to handle CRDs and
+> their lifecycle. As this evolves, Helm will add support for those use cases.
+
+If your write your own Helm Charts you can work-around this limitation by putting your CRDs into
+the `templates` instead of the `crds` directory or by out-factoring them into a separate Helm
+Chart as suggested by the
+[offical Helm documentation](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#method-2-separate-charts).
+
+However, if you have to integrate and use many existing (upstream) Helm Charts, not being able to
+upgrade the CRDs via FluxCD `HelmRelease` objects might become a cumbersome limitation within your GitOps
+workflow. Therefore, FluxCD allows you to opt-in to upgrading CRDs by setting the `UpgradeCRDs` policy on
+the `HelmRelease.spec.upgrade` object. The following UpgradeCRDs policies are supported:
+
+- `Create` Only create new CRDs which doe not yet exist, neither update nor delete any existing CRDs.
+- `CreateReplace` Create new CRDs, update (replace) existing ones, but do **not** delete CRDs which
+  no longer exist in the current helm release.
+
+**Example**:
+
+```yaml
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: my-operator
+  namespace: default
+spec:
+  interval: 1m
+  chart:
+    spec:
+      chart: my-operator
+      version: "1.0.1"
+      sourceRef:
+        kind: HelmRepository
+        name: my-operator-repo
+        namespace: default
+      interval: 1m
+  upgrade:
+	upgradeCRDs: CreateReplace
 ```
 
 ## Status

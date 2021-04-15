@@ -351,6 +351,14 @@ HelmReleaseStatus
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2beta1.CRDsChangePolicy">CRDsChangePolicy
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta1.Upgrade">Upgrade</a>)
+</p>
+<p>CRDsUpgradePolicy defines the upgrade approach to use for CRDs when upgrading
+a HelmRelease.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2beta1.CrossNamespaceObjectReference">CrossNamespaceObjectReference
 </h3>
 <p>
@@ -1792,6 +1800,29 @@ bool
 <em>(Optional)</em>
 <p>CleanupOnFail allows deletion of new resources created during the Helm
 upgrade action when it fails.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>upgradeCRDs</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta1.CRDsChangePolicy">
+CRDsChangePolicy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>UpgradeCRDs upgrade CRDs from the Helm Chart&rsquo;s crds directory according
+to the CRD upgrade policy provided here. Valid values are <code>Create</code> or
+<code>CreateReplace</code>. If omitted (the default) CRDs
+are not upgraded.</p>
+<p>Create: new CRDs are created, existing CRDs are neither updated nor deleted.</p>
+<p>CreateReplace: new CRDs are created, existing CRDs are updated (replaced)
+but not deleted.</p>
+<p>By default, CRDs are not applied during Helm upgrade action. With this
+option users can opt-in to CRD upgrade, which is not (yet) natively supported by Helm.
+<a href="https://helm.sh/docs/chart_best_practices/custom_resource_definitions">https://helm.sh/docs/chart_best_practices/custom_resource_definitions</a>.</p>
 </td>
 </tr>
 </tbody>
