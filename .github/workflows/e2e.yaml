@@ -6,7 +6,7 @@ on:
   push:
     branches:
       - main
-
+      - "feature/**"
 jobs:
   kind:
     runs-on: ubuntu-latest
@@ -513,6 +513,7 @@ jobs:
           fi
           kubectl -n helm-system delete -f config/testdata/post-renderer-kustomize
       - name: Boostrap CRDs Upgrade Tests
+        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') }}
         run: |
           REF=${{ github.ref }}
           if echo "$REF" | grep 'refs/tags/'; then 
@@ -532,10 +533,12 @@ jobs:
           kubectl -n default apply -f config/testdata/crds-upgrade/init
           kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
       - name: CRDs Upgrade Test Create
+        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') }}
         run: |
           kubectl -n default apply -f config/testdata/crds-upgrade/create
           kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
       - name: CRDs Upgrade Test CreateReplace
+        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') }}
         run: |
           kubectl -n default apply -f config/testdata/crds-upgrade/create-replace
           kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m

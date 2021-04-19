@@ -351,14 +351,15 @@ HelmReleaseStatus
 </table>
 </div>
 </div>
-<h3 id="helm.toolkit.fluxcd.io/v2beta1.CRDsChangePolicy">CRDsChangePolicy
+<h3 id="helm.toolkit.fluxcd.io/v2beta1.CRDsPolicy">CRDsPolicy
 (<code>string</code> alias)</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta1.Install">Install</a>, 
 <a href="#helm.toolkit.fluxcd.io/v2beta1.Upgrade">Upgrade</a>)
 </p>
-<p>CRDsUpgradePolicy defines the upgrade approach to use for CRDs when upgrading
-a HelmRelease.</p>
+<p>CRDsPolicy defines the install/upgrade approach to use for CRDs when
+installing or upgrading a HelmRelease.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2beta1.CrossNamespaceObjectReference">CrossNamespaceObjectReference
 </h3>
 <p>
@@ -1219,6 +1220,31 @@ CRDs are installed if not already present.</p>
 </tr>
 <tr>
 <td>
+<code>crds</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta1.CRDsPolicy">
+CRDsPolicy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CRDs upgrade CRDs from the Helm Chart&rsquo;s crds directory according
+to the CRD upgrade policy provided here. Valid values are <code>Skip</code>,
+<code>Create</code> or <code>CreateReplace</code>. Default is <code>Create</code> and if omitted
+CRDs are installed but not updated.</p>
+<p>Skip: do neither install nor replace (update) any CRDs.</p>
+<p>Create: new CRDs are created, existing CRDs are neither updated nor deleted.</p>
+<p>CreateReplace: new CRDs are created, existing CRDs are updated (replaced)
+but not deleted.</p>
+<p>By default, CRDs are applied (installed) during Helm install action.
+With this option users can opt-in to CRD replace existing CRDs on Helm
+install actions, which is not (yet) natively supported by Helm.
+<a href="https://helm.sh/docs/chart_best_practices/custom_resource_definitions">https://helm.sh/docs/chart_best_practices/custom_resource_definitions</a>.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>createNamespace</code><br>
 <em>
 bool
@@ -1804,19 +1830,20 @@ upgrade action when it fails.</p>
 </tr>
 <tr>
 <td>
-<code>upgradeCRDs</code><br>
+<code>crds</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2beta1.CRDsChangePolicy">
-CRDsChangePolicy
+<a href="#helm.toolkit.fluxcd.io/v2beta1.CRDsPolicy">
+CRDsPolicy
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>UpgradeCRDs upgrade CRDs from the Helm Chart&rsquo;s crds directory according
-to the CRD upgrade policy provided here. Valid values are <code>Create</code> or
-<code>CreateReplace</code>. If omitted (the default) CRDs
-are not upgraded.</p>
+<p>CRDs upgrade CRDs from the Helm Chart&rsquo;s crds directory according
+to the CRD upgrade policy provided here. Valid values are <code>Skip</code>,
+<code>Create</code> or <code>CreateReplace</code>. Default is <code>Skip</code> and if omitted
+CRDs are neither installed nor upgraded.</p>
+<p>Skip: do neither install nor replace (update) any CRDs.</p>
 <p>Create: new CRDs are created, existing CRDs are neither updated nor deleted.</p>
 <p>CreateReplace: new CRDs are created, existing CRDs are updated (replaced)
 but not deleted.</p>

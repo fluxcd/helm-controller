@@ -142,6 +142,24 @@ spec:
                 description: Install holds the configuration for Helm install actions
                   for this HelmRelease.
                 properties:
+                  crds:
+                    description: "CRDs upgrade CRDs from the Helm Chart's crds directory
+                      according to the CRD upgrade policy provided here. Valid values
+                      are `Skip`, `Create` or `CreateReplace`. Default is `Create`
+                      and if omitted CRDs are installed but not updated. \n Skip:
+                      do neither install nor replace (update) any CRDs. \n Create:
+                      new CRDs are created, existing CRDs are neither updated nor
+                      deleted. \n CreateReplace: new CRDs are created, existing CRDs
+                      are updated (replaced) but not deleted. \n By default, CRDs
+                      are applied (installed) during Helm install action. With this
+                      option users can opt-in to CRD replace existing CRDs on Helm
+                      install actions, which is not (yet) natively supported by Helm.
+                      https://helm.sh/docs/chart_best_practices/custom_resource_definitions."
+                    enum:
+                    - Skip
+                    - Create
+                    - CreateReplace
+                    type: string
                   createNamespace:
                     description: CreateNamespace tells the Helm install action to
                       create the HelmReleaseSpec.TargetNamespace if it does not exist
@@ -459,6 +477,23 @@ spec:
                     description: CleanupOnFail allows deletion of new resources created
                       during the Helm upgrade action when it fails.
                     type: boolean
+                  crds:
+                    description: "CRDs upgrade CRDs from the Helm Chart's crds directory
+                      according to the CRD upgrade policy provided here. Valid values
+                      are `Skip`, `Create` or `CreateReplace`. Default is `Skip` and
+                      if omitted CRDs are neither installed nor upgraded. \n Skip:
+                      do neither install nor replace (update) any CRDs. \n Create:
+                      new CRDs are created, existing CRDs are neither updated nor
+                      deleted. \n CreateReplace: new CRDs are created, existing CRDs
+                      are updated (replaced) but not deleted. \n By default, CRDs
+                      are not applied during Helm upgrade action. With this option
+                      users can opt-in to CRD upgrade, which is not (yet) natively
+                      supported by Helm. https://helm.sh/docs/chart_best_practices/custom_resource_definitions."
+                    enum:
+                    - Skip
+                    - Create
+                    - CreateReplace
+                    type: string
                   disableHooks:
                     description: DisableHooks prevents hooks from running during the
                       Helm upgrade action.
@@ -514,20 +549,6 @@ spec:
                     description: Timeout is the time to wait for any individual Kubernetes
                       operation (like Jobs for hooks) during the performance of a
                       Helm upgrade action. Defaults to 'HelmReleaseSpec.Timeout'.
-                    type: string
-                  upgradeCRDs:
-                    description: "UpgradeCRDs upgrade CRDs from the Helm Chart's crds
-                      directory according to the CRD upgrade policy provided here.
-                      Valid values are `Create` or `CreateReplace`. If omitted (the
-                      default) CRDs are not upgraded. \n Create: new CRDs are created,
-                      existing CRDs are neither updated nor deleted. \n CreateReplace:
-                      new CRDs are created, existing CRDs are updated (replaced) but
-                      not deleted. \n By default, CRDs are not applied during Helm
-                      upgrade action. With this option users can opt-in to CRD upgrade,
-                      which is not (yet) natively supported by Helm. https://helm.sh/docs/chart_best_practices/custom_resource_definitions."
-                    enum:
-                    - Create
-                    - CreateReplace
                     type: string
                 type: object
               values:

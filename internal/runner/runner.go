@@ -109,15 +109,38 @@ func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	install.DisableHooks = hr.Spec.GetInstall().DisableHooks
 	install.DisableOpenAPIValidation = hr.Spec.GetInstall().DisableOpenAPIValidation
 	install.Replace = hr.Spec.GetInstall().Replace
-	install.SkipCRDs = hr.Spec.GetInstall().SkipCRDs
+	var legacyCRDsPolicy v2.CRDsPolicy = v2.Create
+	if hr.Spec.GetInstall().SkipCRDs {
+		legacyCRDsPolicy = v2.Skip
+	}
+	cRDsPolicy, err := r.validateCRDsPolicy(hr.Spec.GetInstall().CRDs, legacyCRDsPolicy)
+	if err != nil {
+		return nil, wrapActionErr(r.logBuffer, err)
+	}
+	if (cRDsPolicy != v2.Skip && legacyCRDsPolicy == v2.Skip) || (cRDsPolicy == v2.Skip && legacyCRDsPolicy != v2.Skip) {
+		return nil, wrapActionErr(r.logBuffer,
+			fmt.Errorf("Contradicting CRDs installation settings, skipCRDs is set to %t and crds is set to %s", hr.Spec.GetInstall().SkipCRDs, cRDsPolicy))
+	}
+	if cRDsPolicy == v2.Skip || cRDsPolicy == v2.CreateReplace {
+		install.SkipCRDs = true
+	}
 	install.Devel = true
 	renderer, err := postRenderers(hr)
 	if err != nil {
-		return nil, err
+		return nil, wrapActionErr(r.logBuffer, err)
 	}
 	install.PostRenderer = renderer
 	if hr.Spec.TargetNamespace != "" {
 		install.CreateNamespace = hr.Spec.GetInstall().CreateNamespace
+	}
+
+	if cRDsPolicy == v2.CreateReplace {
+		crds := chart.CRDObjects()
+		if len(crds) > 0 {
+			if err := r.applyCRDs(cRDsPolicy, hr, chart); err != nil {
+				return nil, wrapActionErr(r.logBuffer, err)
+			}
+		}
 	}
 
 	rel, err := install.Run(chart, values.AsMap())
@@ -147,14 +170,14 @@ func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	}
 	upgrade.PostRenderer = renderer
 	// If user opted-in to upgrade CRDs, upgrade them first.
-	cRDsChangePolicy, err := r.validateCRDsChangePolicy(hr.Spec.GetUpgrade().UpgradeCRDs)
+	cRDsPolicy, err := r.validateCRDsPolicy(hr.Spec.GetUpgrade().CRDs, v2.Skip)
 	if err != nil {
 		return nil, wrapActionErr(r.logBuffer, err)
 	}
-	if cRDsChangePolicy != "" {
+	if cRDsPolicy != v2.Skip {
 		crds := chart.CRDObjects()
 		if len(crds) > 0 {
-			if err := r.upgradeCRDs(cRDsChangePolicy, hr, chart); err != nil {
+			if err := r.applyCRDs(cRDsPolicy, hr, chart); err != nil {
 				return nil, wrapActionErr(r.logBuffer, err)
 			}
 		}
@@ -163,19 +186,20 @@ func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	return rel, wrapActionErr(r.logBuffer, err)
 }
 
-func (r *Runner) validateCRDsChangePolicy(policy v2.CRDsChangePolicy) (v2.CRDsChangePolicy, error) {
+func (r *Runner) validateCRDsPolicy(policy v2.CRDsPolicy, defaultValue v2.CRDsPolicy) (v2.CRDsPolicy, error) {
 	switch policy {
 	case "":
+		return defaultValue, nil
+	case v2.Skip:
 		break
 	case v2.Create:
 		break
 	case v2.CreateReplace:
 		break
 	default:
-		return policy, errors.New(
-			fmt.Sprintf("Invalid CRD upgrade policy '%s' defined in field upgradeCRDs, valid values are '%s' or '%s'",
-				policy, v2.Create, v2.CreateReplace,
-			))
+		return policy, fmt.Errorf("invalid CRD upgrade policy '%s' defined in field upgradeCRDs, valid values are '%s', '%s' or '%s'",
+			policy, v2.Skip, v2.Create, v2.CreateReplace,
+		)
 	}
 	return policy, nil
 }
@@ -187,9 +211,9 @@ func (*rootScoped) Name() meta.RESTScopeName {
 }
 
 // This has been adapte from https://github.com/helm/helm/blob/v3.5.4/pkg/action/install.go#L127
-func (r *Runner) upgradeCRDs(policy v2.CRDsChangePolicy, hr v2.HelmRelease, chart *chart.Chart) error {
+func (r *Runner) applyCRDs(policy v2.CRDsPolicy, hr v2.HelmRelease, chart *chart.Chart) error {
 	cfg := r.config
-	cfg.Log("upgrade CRDs with policy %s", policy)
+	cfg.Log("apply CRDs with policy %s", policy)
 	// Collect all CRDs from all files in `crds` directory.
 	allCrds := make(kube.ResourceList, 0)
 	for _, obj := range chart.CRDObjects() {
@@ -202,7 +226,10 @@ func (r *Runner) upgradeCRDs(policy v2.CRDsChangePolicy, hr v2.HelmRelease, char
 		allCrds = append(allCrds, res...)
 	}
 	totalItems := []*resource.Info{}
-	if policy == v2.Create {
+	switch policy {
+	case v2.Skip:
+		break
+	case v2.Create:
 		for i := range allCrds {
 			if rr, err := cfg.KubeClient.Create(allCrds[i : i+1]); err != nil {
 				crdName := allCrds[i].Name
@@ -214,15 +241,16 @@ func (r *Runner) upgradeCRDs(policy v2.CRDsChangePolicy, hr v2.HelmRelease, char
 					}
 					continue
 				}
-				cfg.Log("failed to upgrade CRD %s: %s", crdName, err)
-				return errors.New(fmt.Sprintf("failed to upgrade CRD %s: %s", crdName, err))
+				cfg.Log("failed to create CRD %s: %s", crdName, err)
+				return errors.New(fmt.Sprintf("failed to create CRD %s: %s", crdName, err))
 			} else {
 				if rr != nil && rr.Created != nil {
 					totalItems = append(totalItems, rr.Created...)
 				}
 			}
 		}
-	} else if policy == v2.CreateReplace {
+		break
+	case v2.CreateReplace:
 		config, err := r.config.RESTClientGetter.ToRESTConfig()
 		if err != nil {
 			r.logBuffer.Log("Error while creating Kubernetes client config: %s", err)
@@ -268,8 +296,8 @@ func (r *Runner) upgradeCRDs(policy v2.CRDsChangePolicy, hr v2.HelmRelease, char
 		}
 		// Send them to Kube
 		if rr, err := cfg.KubeClient.Update(original, allCrds, true); err != nil {
-			cfg.Log("failed to upgrade CRD %s", err)
-			return errors.New(fmt.Sprintf("failed to upgrade CRD %s", err))
+			cfg.Log("failed to apply CRD %s", err)
+			return errors.New(fmt.Sprintf("failed to apply CRD %s", err))
 		} else {
 			if rr != nil {
 				if rr.Created != nil {
@@ -283,6 +311,7 @@ func (r *Runner) upgradeCRDs(policy v2.CRDsChangePolicy, hr v2.HelmRelease, char
 				}
 			}
 		}
+		break
 	}
 	if len(totalItems) > 0 {
 		// Invalidate the local cache, since it will not have the new CRDs

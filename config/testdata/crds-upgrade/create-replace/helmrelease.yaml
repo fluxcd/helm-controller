@@ -15,7 +15,7 @@ spec:
         namespace: default
       interval: 1m
   upgrade:
-    upgradeCRDs: CreateReplace
+    crds: CreateReplace
   values:
     a: v2beta1
     b: v2beta2

@@ -199,6 +199,27 @@ type Install struct {
 	// +optional
 	SkipCRDs bool `json:"skipCRDs,omitempty"`
 
+	// CRDs upgrade CRDs from the Helm Chart's crds directory according
+	// to the CRD upgrade policy provided here. Valid values are `Skip`,
+	// `Create` or `CreateReplace`. Default is `Create` and if omitted
+	// CRDs are installed but not updated.
+	//
+	// Skip: do neither install nor replace (update) any CRDs.
+	//
+	// Create: new CRDs are created, existing CRDs are neither updated nor deleted.
+	//
+	// CreateReplace: new CRDs are created, existing CRDs are updated (replaced)
+	// but not deleted.
+	//
+	// By default, CRDs are applied (installed) during Helm install action.
+	// With this option users can opt-in to CRD replace existing CRDs on Helm
+	// install actions, which is not (yet) natively supported by Helm.
+	// https://helm.sh/docs/chart_best_practices/custom_resource_definitions.
+	//
+	// +kubebuilder:validation:Enum=Skip;Create;CreateReplace
+	// +optional
+	CRDs CRDsPolicy `json:"crds,omitempty"`
+
 	// CreateNamespace tells the Helm install action to create the
 	// HelmReleaseSpec.TargetNamespace if it does not exist yet.
 	// On uninstall, the namespace will not be garbage collected.
@@ -269,10 +290,12 @@ type Upgrade struct {
 	// +optional
 	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
 
-	// UpgradeCRDs upgrade CRDs from the Helm Chart's crds directory according
-	// to the CRD upgrade policy provided here. Valid values are `Create` or
-	// `CreateReplace`. If omitted (the default) CRDs
-	// are not upgraded.
+	// CRDs upgrade CRDs from the Helm Chart's crds directory according
+	// to the CRD upgrade policy provided here. Valid values are `Skip`,
+	// `Create` or `CreateReplace`. Default is `Skip` and if omitted
+	// CRDs are neither installed nor upgraded.
+	//
+	// Skip: do neither install nor replace (update) any CRDs.
 	//
 	// Create: new CRDs are created, existing CRDs are neither updated nor deleted.
 	//
@@ -283,9 +306,9 @@ type Upgrade struct {
 	// option users can opt-in to CRD upgrade, which is not (yet) natively supported by Helm.
 	// https://helm.sh/docs/chart_best_practices/custom_resource_definitions.
 	//
-	// +kubebuilder:validation:Enum=Create;CreateReplace
+	// +kubebuilder:validation:Enum=Skip;Create;CreateReplace
 	// +optional
-	UpgradeCRDs CRDsChangePolicy `json:"upgradeCRDs,omitempty"`
+	CRDs CRDsPolicy `json:"crds,omitempty"`
 }
 
 // UpgradeRemediation holds the configuration for Helm upgrade remediation.
@@ -1144,9 +1167,11 @@ Chart as suggested by the
 
 However, if you have to integrate and use many existing (upstream) Helm Charts, not being able to
 upgrade the CRDs via FluxCD `HelmRelease` objects might become a cumbersome limitation within your GitOps
-workflow. Therefore, FluxCD allows you to opt-in to upgrading CRDs by setting the `UpgradeCRDs` policy on
-the `HelmRelease.spec.upgrade` object. The following UpgradeCRDs policies are supported:
+workflow. Therefore, FluxCD allows you to opt-in to upgrading CRDs by setting the `crds` policy on
+the `HelmRelease.spec.install` and `HelmRelease.spec.upgrade` objects.
+The following UpgradeCRDs policies are supported:
 
+- `Skip` Skip CRDs do neither install nor replace (update) any CRDs.
 - `Create` Only create new CRDs which doe not yet exist, neither update nor delete any existing CRDs.
 - `CreateReplace` Create new CRDs, update (replace) existing ones, but do **not** delete CRDs which
   no longer exist in the current helm release.
@@ -1170,8 +1195,10 @@ spec:
         name: my-operator-repo
         namespace: default
       interval: 1m
+  install:
+    crds: CreateReplace
   upgrade:
-	upgradeCRDs: CreateReplace
+    crds: CreateReplace
 ```
 
 ## Status
