@@ -1216,6 +1216,7 @@ bool
 <em>(Optional)</em>
 <p>SkipCRDs tells the Helm install action to not install any CRDs. By default,
 CRDs are installed if not already present.</p>
+<p>Deprecated use CRD policy (<code>crds</code>) attribute with value <code>Skip</code> instead.</p>
 </td>
 </tr>
 <tr>

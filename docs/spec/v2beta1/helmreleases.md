@@ -196,6 +196,10 @@ type Install struct {
 
 	// SkipCRDs tells the Helm install action to not install any CRDs. By default,
 	// CRDs are installed if not already present.
+	//
+	// Deprecated use CRD policy (`crds`) attribute with value `Skip` instead.
+	//
+	// +deprecated
 	// +optional
 	SkipCRDs bool `json:"skipCRDs,omitempty"`
 

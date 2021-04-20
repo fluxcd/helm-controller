@@ -206,8 +206,10 @@ spec:
                       remains in the history.
                     type: boolean
                   skipCRDs:
-                    description: SkipCRDs tells the Helm install action to not install
+                    description: "SkipCRDs tells the Helm install action to not install
                       any CRDs. By default, CRDs are installed if not already present.
+                      \n Deprecated use CRD policy (`crds`) attribute with value `Skip`
+                      instead."
                     type: boolean
                   timeout:
                     description: Timeout is the time to wait for any individual Kubernetes
