@@ -210,7 +210,7 @@ func (*rootScoped) Name() meta.RESTScopeName {
 	return meta.RESTScopeNameRoot
 }
 
-// This has been adapte from https://github.com/helm/helm/blob/v3.5.4/pkg/action/install.go#L127
+// This has been adapted from https://github.com/helm/helm/blob/v3.5.4/pkg/action/install.go#L127
 func (r *Runner) applyCRDs(policy v2.CRDsPolicy, hr v2.HelmRelease, chart *chart.Chart) error {
 	cfg := r.config
 	cfg.Log("apply CRDs with policy %s", policy)

@@ -1176,7 +1176,7 @@ the `HelmRelease.spec.install` and `HelmRelease.spec.upgrade` objects.
 The following UpgradeCRDs policies are supported:
 
 - `Skip` Skip CRDs do neither install nor replace (update) any CRDs.
-- `Create` Only create new CRDs which doe not yet exist, neither update nor delete any existing CRDs.
+- `Create` Only create new CRDs which do not yet exist, neither update nor delete any existing CRDs.
 - `CreateReplace` Create new CRDs, update (replace) existing ones, but do **not** delete CRDs which
   no longer exist in the current helm release.
 
