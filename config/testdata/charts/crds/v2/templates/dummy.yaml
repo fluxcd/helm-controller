@@ -1,0 +1,32 @@
+{{- if .Values.a }}
+---
+kind: CrdUpgradeTesta
+apiVersion: crd-upgrades.helmreleases.helm.toolkit.fluxcd.io/{{.Values.a}}
+metadata:
+  name: a
+spec: {}
+{{- end }}
+{{- if .Values.b }}
+---
+kind: CrdUpgradeTestb
+apiVersion: crd-upgrades.helmreleases.helm.toolkit.fluxcd.io/{{.Values.b}}
+metadata:
+  name: b
+spec: {}
+{{- end }}
+{{- if .Values.c }}
+---
+kind: CrdUpgradeTestc
+apiVersion: crd-upgrades.helmreleases.helm.toolkit.fluxcd.io/{{.Values.c}}
+metadata:
+  name: c
+spec: {}
+{{- end }}
+{{- if .Values.d }}
+---
+kind: CrdUpgradeTestd
+apiVersion: crd-upgrades.helmreleases.helm.toolkit.fluxcd.io/{{.Values.d}}
+metadata:
+  name: d
+spec: {}
+{{- end }}

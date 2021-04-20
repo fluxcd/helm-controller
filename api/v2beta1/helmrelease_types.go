@@ -335,8 +335,33 @@ type Install struct {
 
 	// SkipCRDs tells the Helm install action to not install any CRDs. By default,
 	// CRDs are installed if not already present.
+	//
+	// Deprecated use CRD policy (`crds`) attribute with value `Skip` instead.
+	//
+	// +deprecated
 	// +optional
 	SkipCRDs bool `json:"skipCRDs,omitempty"`
+
+	// CRDs upgrade CRDs from the Helm Chart's crds directory according
+	// to the CRD upgrade policy provided here. Valid values are `Skip`,
+	// `Create` or `CreateReplace`. Default is `Create` and if omitted
+	// CRDs are installed but not updated.
+	//
+	// Skip: do neither install nor replace (update) any CRDs.
+	//
+	// Create: new CRDs are created, existing CRDs are neither updated nor deleted.
+	//
+	// CreateReplace: new CRDs are created, existing CRDs are updated (replaced)
+	// but not deleted.
+	//
+	// By default, CRDs are applied (installed) during Helm install action.
+	// With this option users can opt-in to CRD replace existing CRDs on Helm
+	// install actions, which is not (yet) natively supported by Helm.
+	// https://helm.sh/docs/chart_best_practices/custom_resource_definitions.
+	//
+	// +kubebuilder:validation:Enum=Skip;Create;CreateReplace
+	// +optional
+	CRDs CRDsPolicy `json:"crds,omitempty"`
 
 	// CreateNamespace tells the Helm install action to create the
 	// HelmReleaseSpec.TargetNamespace if it does not exist yet.
@@ -431,6 +456,21 @@ func (in InstallRemediation) RetriesExhausted(hr HelmRelease) bool {
 	return in.Retries >= 0 && in.GetFailureCount(hr) > int64(in.Retries)
 }
 
+// CRDsPolicy defines the install/upgrade approach to use for CRDs when
+// installing or upgrading a HelmRelease.
+type CRDsPolicy string
+
+const (
+	// Skip CRDs do neither install nor replace (update) any CRDs.
+	Skip CRDsPolicy = "Skip"
+	// Create CRDs which do not already exist, do not replace (update) already existing
+	// CRDs and keep (do not delete) CRDs which no longer exist in the current release.
+	Create CRDsPolicy = "Create"
+	// Create CRDs which do not already exist, Replace (update) already existing CRDs
+	// and keep (do not delete) CRDs which no longer exist in the current release.
+	CreateReplace CRDsPolicy = "CreateReplace"
+)
+
 // Upgrade holds the configuration for Helm upgrade actions for this
 // HelmRelease.
 type Upgrade struct {
@@ -473,6 +513,26 @@ type Upgrade struct {
 	// upgrade action when it fails.
 	// +optional
 	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
+
+	// CRDs upgrade CRDs from the Helm Chart's crds directory according
+	// to the CRD upgrade policy provided here. Valid values are `Skip`,
+	// `Create` or `CreateReplace`. Default is `Skip` and if omitted
+	// CRDs are neither installed nor upgraded.
+	//
+	// Skip: do neither install nor replace (update) any CRDs.
+	//
+	// Create: new CRDs are created, existing CRDs are neither updated nor deleted.
+	//
+	// CreateReplace: new CRDs are created, existing CRDs are updated (replaced)
+	// but not deleted.
+	//
+	// By default, CRDs are not applied during Helm upgrade action. With this
+	// option users can opt-in to CRD upgrade, which is not (yet) natively supported by Helm.
+	// https://helm.sh/docs/chart_best_practices/custom_resource_definitions.
+	//
+	// +kubebuilder:validation:Enum=Skip;Create;CreateReplace
+	// +optional
+	CRDs CRDsPolicy `json:"crds,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm upgrade action, or the

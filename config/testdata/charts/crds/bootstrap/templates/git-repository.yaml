@@ -1,0 +1,16 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta1
+kind: GitRepository
+metadata:
+  name: this
+  namespace: default
+spec:
+  interval: 1m
+  url: "{{ .Values.url }}"
+  ref:
+    {{- if .Values.branch }}
+    branch: "{{ .Values.branch }}"
+    {{- end}}
+    {{- if .Values.branch }}
+    tag: "{{ .Values.tag }}"
+    {{- end}}
