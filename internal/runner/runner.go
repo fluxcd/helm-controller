@@ -70,7 +70,7 @@ type Runner struct {
 // namespace configured to the provided values.
 func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace string, logger logr.Logger) (*Runner, error) {
 	runner := &Runner{
-		logBuffer: NewLogBuffer(NewDebugLog(logger).Log, 100),
+		logBuffer: NewLogBuffer(NewDebugLog(logger).Log, defaultBufferSize),
 	}
 	runner.config = new(action.Configuration)
 	if err := runner.config.Init(getter, storageNamespace, "secret", runner.logBuffer.Log); err != nil {

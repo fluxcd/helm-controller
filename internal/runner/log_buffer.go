@@ -47,7 +47,7 @@ type LogBuffer struct {
 }
 
 func NewLogBuffer(log action.DebugLog, size int) *LogBuffer {
-	if size == 0 {
+	if size <= 0 {
 		size = defaultBufferSize
 	}
 	return &LogBuffer{
