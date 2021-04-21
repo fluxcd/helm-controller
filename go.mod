@@ -9,7 +9,7 @@ require (
 	github.com/fluxcd/pkg/apis/kustomize v0.0.1
 	github.com/fluxcd/pkg/apis/meta v0.9.0
 	github.com/fluxcd/pkg/runtime v0.11.0
-	github.com/fluxcd/source-controller/api v0.11.1-0.20210419133153-f56c96fff636
+	github.com/fluxcd/source-controller/api v0.12.0
 	github.com/go-logr/logr v0.4.0
 	github.com/hashicorp/go-retryablehttp v0.6.8
 	github.com/onsi/ginkgo v1.14.1
