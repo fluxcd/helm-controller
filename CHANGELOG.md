@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.10.0
+
+**Release date:** 2021-04-21
+
+This prerelease introduces support for defining a `CRDsPolicy` in the
+`HelmReleaseSpec`, `Install` and `Upgrade` objects, while deprecating
+the `SkipCRDs` fields.
+
+Supported policies:
+
+* `Skip`: Do neither install nor replace (update) any CRDs.
+* `Create`: New CRDs are created, existing CRDs are neither updated nor
+  deleted.
+* `CreateReplace`: New CRDs are created, existing CRDs are updated
+  (replaced) but not deleted.
+  
+In case `CreateReplace` is used as an `Upgrade` policy, Custom Resource
+Definitions are applied by the controller before a Helm upgrade is
+performed. On rollbacks, the Custom Resource Definitions are left
+untouched and **not** rolled back.
+
+The `ValuesFile` field in the `HelmChart` template has been deprecated
+in favour of the new `ValuesFiles` field.
+
+Features:
+* Initial support for CRDs (upgrade) policies
+  [#250](https://github.com/fluxcd/helm-controller/pull/250)
+  [#254](https://github.com/fluxcd/helm-controller/pull/254)
+* Add `ValuesFiles` to `HelmChart` spec
+  [#252](https://github.com/fluxcd/helm-controller/pull/252)
+
+Improvements:
+* Update Helm to v3.5.4
+  [#253](https://github.com/fluxcd/helm-controller/pull/253)
+* Update dependencies
+  [#251](https://github.com/fluxcd/helm-controller/pull/251)
+  [#253](https://github.com/fluxcd/helm-controller/pull/253)
+
+Fixes:
+* docs: minor `createNamespace` placement fix
+  [#246](https://github.com/fluxcd/helm-controller/pull/246)
+
 ## 0.9.0
 
 **Release date:** 2021-03-26
