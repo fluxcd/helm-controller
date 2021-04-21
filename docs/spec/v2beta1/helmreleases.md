@@ -1015,7 +1015,7 @@ The Helm storage is stored on the remote cluster in a namespace that equals to t
 the HelmRelease, or the configured `spec.storageNamespace`. The release itself is made in a
 namespace that equals to the namespace of the HelmRelease, or the configured `spec.targetNamespace`.
 The namespaces are expected to exist, with the exception that `spec.targetNamespace` can be
-created on demand by Helm when `spec.createNamespace` is set to `true`.
+created on demand by Helm when `spec.install.createNamespace` is set to `true`.
 
 Other references to Kubernetes resources in the HelmRelease, like ValuesReference resources,
 are expected to exist on the reconciling cluster.
