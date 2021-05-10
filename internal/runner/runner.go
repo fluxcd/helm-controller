@@ -109,17 +109,13 @@ func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	install.DisableHooks = hr.Spec.GetInstall().DisableHooks
 	install.DisableOpenAPIValidation = hr.Spec.GetInstall().DisableOpenAPIValidation
 	install.Replace = hr.Spec.GetInstall().Replace
-	var legacyCRDsPolicy v2.CRDsPolicy = v2.Create
+	var legacyCRDsPolicy = v2.Create
 	if hr.Spec.GetInstall().SkipCRDs {
 		legacyCRDsPolicy = v2.Skip
 	}
 	cRDsPolicy, err := r.validateCRDsPolicy(hr.Spec.GetInstall().CRDs, legacyCRDsPolicy)
 	if err != nil {
 		return nil, wrapActionErr(r.logBuffer, err)
-	}
-	if (cRDsPolicy != v2.Skip && legacyCRDsPolicy == v2.Skip) || (cRDsPolicy == v2.Skip && legacyCRDsPolicy != v2.Skip) {
-		return nil, wrapActionErr(r.logBuffer,
-			fmt.Errorf("Contradicting CRDs installation settings, skipCRDs is set to %t and crds is set to %s", hr.Spec.GetInstall().SkipCRDs, cRDsPolicy))
 	}
 	if cRDsPolicy == v2.Skip || cRDsPolicy == v2.CreateReplace {
 		install.SkipCRDs = true
