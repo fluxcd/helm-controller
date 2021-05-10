@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.10.1
+
+**Release date:** 2021-05-10
+
+This prerelease fixes a bug where an `skipCRDs is set to false and
+crds is set to Skip` error would be thrown if the deprecated `skipCRDs`
+field was omitted by giving the CRD policy field precedence over the
+deprecated one.
+
+Improvements:
+* Update source-controller dependencies to v0.12.2
+  [#262](https://github.com/fluxcd/helm-controller/pull/262)
+
+Fixes:
+* Give CRD policy precedence over skipCRDs field
+  [#261](https://github.com/fluxcd/helm-controller/pull/261)
+
 ## 0.10.0
 
 **Release date:** 2021-04-21
