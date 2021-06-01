@@ -106,6 +106,7 @@ func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	install.Namespace = hr.GetReleaseNamespace()
 	install.Timeout = hr.Spec.GetInstall().GetTimeout(hr.GetTimeout()).Duration
 	install.Wait = !hr.Spec.GetInstall().DisableWait
+	install.WaitForJobs = !hr.Spec.GetInstall().DisableWaitForJobs
 	install.DisableHooks = hr.Spec.GetInstall().DisableHooks
 	install.DisableOpenAPIValidation = hr.Spec.GetInstall().DisableOpenAPIValidation
 	install.Replace = hr.Spec.GetInstall().Replace
@@ -156,6 +157,7 @@ func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	upgrade.MaxHistory = hr.GetMaxHistory()
 	upgrade.Timeout = hr.Spec.GetUpgrade().GetTimeout(hr.GetTimeout()).Duration
 	upgrade.Wait = !hr.Spec.GetUpgrade().DisableWait
+	upgrade.WaitForJobs = !hr.Spec.GetUpgrade().DisableWaitForJobs
 	upgrade.DisableHooks = hr.Spec.GetUpgrade().DisableHooks
 	upgrade.Force = hr.Spec.GetUpgrade().Force
 	upgrade.CleanupOnFail = hr.Spec.GetUpgrade().CleanupOnFail
@@ -353,6 +355,7 @@ func (r *Runner) Rollback(hr v2.HelmRelease) error {
 	rollback := action.NewRollback(r.config)
 	rollback.Timeout = hr.Spec.GetRollback().GetTimeout(hr.GetTimeout()).Duration
 	rollback.Wait = !hr.Spec.GetRollback().DisableWait
+	rollback.WaitForJobs = !hr.Spec.GetRollback().DisableWaitForJobs
 	rollback.DisableHooks = hr.Spec.GetRollback().DisableHooks
 	rollback.Force = hr.Spec.GetRollback().Force
 	rollback.Recreate = hr.Spec.GetRollback().Recreate

@@ -319,6 +319,11 @@ type Install struct {
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
 
+	// DisableWaitForJobs disables waiting for jobs to complete after a Helm
+	// install has been performed.
+	// +optional
+	DisableWaitForJobs bool `json:"disableWaitForJobs,omitempty"`
+
 	// DisableHooks prevents hooks from running during the Helm install action.
 	// +optional
 	DisableHooks bool `json:"disableHooks,omitempty"`
@@ -489,6 +494,11 @@ type Upgrade struct {
 	// upgrade has been performed.
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
+
+	// DisableWaitForJobs disables waiting for jobs to complete after a Helm
+	// upgrade has been performed.
+	// +optional
+	DisableWaitForJobs bool `json:"disableWaitForJobs,omitempty"`
 
 	// DisableHooks prevents hooks from running during the Helm upgrade action.
 	// +optional
@@ -685,6 +695,11 @@ type Rollback struct {
 	// rollback has been performed.
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
+
+	// DisableWaitForJobs disables waiting for jobs to complete after a Helm
+	// rollback has been performed.
+	// +optional
+	DisableWaitForJobs bool `json:"disableWaitForJobs,omitempty"`
 
 	// DisableHooks prevents hooks from running during the Helm rollback action.
 	// +optional

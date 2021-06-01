@@ -1169,6 +1169,19 @@ install has been performed.</p>
 </tr>
 <tr>
 <td>
+<code>disableWaitForJobs</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableWaitForJobs disables waiting for jobs to complete after a Helm
+install has been performed.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>disableHooks</code><br>
 <em>
 bool
@@ -1526,6 +1539,19 @@ rollback has been performed.</p>
 </tr>
 <tr>
 <td>
+<code>disableWaitForJobs</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableWaitForJobs disables waiting for jobs to complete after a Helm
+rollback has been performed.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>disableHooks</code><br>
 <em>
 bool
@@ -1762,6 +1788,19 @@ bool
 <td>
 <em>(Optional)</em>
 <p>DisableWait disables the waiting for resources to be ready after a Helm
+upgrade has been performed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>disableWaitForJobs</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableWaitForJobs disables waiting for jobs to complete after a Helm
 upgrade has been performed.</p>
 </td>
 </tr>
