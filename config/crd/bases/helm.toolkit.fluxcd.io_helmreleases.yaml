@@ -178,6 +178,10 @@ spec:
                     description: DisableWait disables the waiting for resources to
                       be ready after a Helm install has been performed.
                     type: boolean
+                  disableWaitForJobs:
+                    description: DisableWaitForJobs disables waiting for jobs to complete
+                      after a Helm install has been performed.
+                    type: boolean
                   remediation:
                     description: Remediation holds the remediation configuration for
                       when the Helm install action for the HelmRelease fails. The
@@ -393,6 +397,10 @@ spec:
                     description: DisableWait disables the waiting for resources to
                       be ready after a Helm rollback has been performed.
                     type: boolean
+                  disableWaitForJobs:
+                    description: DisableWaitForJobs disables waiting for jobs to complete
+                      after a Helm rollback has been performed.
+                    type: boolean
                   force:
                     description: Force forces resource updates through a replacement
                       strategy.
@@ -508,6 +516,10 @@ spec:
                   disableWait:
                     description: DisableWait disables the waiting for resources to
                       be ready after a Helm upgrade has been performed.
+                    type: boolean
+                  disableWaitForJobs:
+                    description: DisableWaitForJobs disables waiting for jobs to complete
+                      after a Helm upgrade has been performed.
                     type: boolean
                   force:
                     description: Force forces resource updates through a replacement
