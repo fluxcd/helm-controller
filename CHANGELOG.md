@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.11.0
+
+**Release date:** 2021-06-09
+
+This prerelease comes with an update to the Kubernetes and controller-runtime
+dependencies to align them with the Kubernetes 1.21 release, including an update
+of Helm to `v3.6.0`.
+
+It introduces breaking changes to the Helm behavior as the `--wait-for-jobs`
+flag that was introduced in Helm `v3.5.0` is now enabled by default. Disabling
+this behavior is possible by declaring `spec.<install|upgrade|rollback>.disableWaitForJobs: true`
+in a `HelmRelease`.
+
+Improvements:
+* Add support for Helm `--wait-for-jobs` flag
+  [#271](https://github.com/fluxcd/helm-controller/pull/271)
+* Update dependencies
+  [#273](https://github.com/fluxcd/helm-controller/pull/273)
+* Add nightly builds workflow and allow RC releases
+  [#274](https://github.com/fluxcd/helm-controller/pull/274)
+
+Fixes:
+* Fix HelmChartTemplateSpec Doc missing valuesFiles info
+  [#266](https://github.com/fluxcd/helm-controller/pull/266)
+
 ## 0.10.1
 
 **Release date:** 2021-05-10
