@@ -148,8 +148,8 @@ spec:
 kind: Pod
 metadata:
   annotations:
-    d: 42
-    e: 42
+    d: "42"
+    e: "42"
   name: json6902
 `,
 		},
