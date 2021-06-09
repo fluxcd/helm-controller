@@ -21,9 +21,8 @@ import (
 	"fmt"
 
 	"sigs.k8s.io/kustomize/api/builtins"
-	"sigs.k8s.io/kustomize/api/k8sdeps/kunstruct"
+	"sigs.k8s.io/kustomize/api/provider"
 	"sigs.k8s.io/kustomize/api/resmap"
-	"sigs.k8s.io/kustomize/api/resource"
 	kustypes "sigs.k8s.io/kustomize/api/types"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
@@ -42,8 +41,8 @@ type postRendererOriginLabels struct {
 }
 
 func (k *postRendererOriginLabels) Run(renderedManifests *bytes.Buffer) (modifiedManifests *bytes.Buffer, err error) {
-	resFactory := resource.NewFactory(kunstruct.NewKunstructuredFactoryImpl())
-	resMapFactory := resmap.NewFactory(resFactory, nil)
+	resFactory := provider.NewDefaultDepProvider().GetResourceFactory()
+	resMapFactory := resmap.NewFactory(resFactory)
 
 	resMap, err := resMapFactory.NewResMapFromBytes(renderedManifests.Bytes())
 	if err != nil {
