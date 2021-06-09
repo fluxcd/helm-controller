@@ -3,6 +3,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'image tag prefix'
+        default: 'rc'
+        required: true
 
 env:
   CONTROLLER: ${{ github.event.repository.name }}
@@ -17,7 +23,7 @@ jobs:
       - name: Prepare
         id: prep
         run: |
-          VERSION=sha-${GITHUB_SHA::8}
+          VERSION="${{ github.event.inputs.tag }}-${GITHUB_SHA::8}"
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF/refs\/tags\//}
           fi
@@ -68,11 +74,13 @@ jobs:
           docker pull docker.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
           docker pull ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
       - name: Generate release manifests
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -p config/release
           kustomize build ./config/crd > ./config/release/${{ env.CONTROLLER }}.crds.yaml
           kustomize build ./config/manager > ./config/release/${{ env.CONTROLLER }}.deployment.yaml
       - name: Create release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: ncipollo/release-action@v1
         with:
           prerelease: true
