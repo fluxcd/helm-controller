@@ -9,14 +9,14 @@ require (
 	github.com/fluxcd/pkg/apis/kustomize v0.1.0
 	github.com/fluxcd/pkg/apis/meta v0.10.0
 	github.com/fluxcd/pkg/runtime v0.12.0
-	github.com/fluxcd/source-controller/api v0.14.0
+	github.com/fluxcd/source-controller/api v0.15.1
 	github.com/go-logr/logr v0.4.0
 	github.com/hashicorp/go-retryablehttp v0.6.8
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.13.0
 	github.com/spf13/pflag v1.0.5
-	helm.sh/helm/v3 v3.6.0
+	helm.sh/helm/v3 v3.6.1
 	k8s.io/api v0.21.1
 	k8s.io/apiextensions-apiserver v0.21.1
 	k8s.io/apimachinery v0.21.1

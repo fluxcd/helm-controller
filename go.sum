@@ -218,8 +218,8 @@ github.com/fluxcd/pkg/apis/meta v0.10.0 h1:N7wVGHC1cyPdT87hrDC7UwCwRwnZdQM46PBSL
 github.com/fluxcd/pkg/apis/meta v0.10.0/go.mod h1:CW9X9ijMTpNe7BwnokiUOrLl/h13miwVr/3abEQLbKE=
 github.com/fluxcd/pkg/runtime v0.12.0 h1:BPZZ8bBkimpqGAPXqOf3LTaw+tcw6HgbWyCuzbbsJGs=
 github.com/fluxcd/pkg/runtime v0.12.0/go.mod h1:EyaTR2TOYcjL5U//C4yH3bt2tvTgIOSXpVRbWxUn/C4=
-github.com/fluxcd/source-controller/api v0.14.0 h1:BiRhSF13RAcDzAi9k/HzOgzdobcDhEATYINr7Dn+wiE=
-github.com/fluxcd/source-controller/api v0.14.0/go.mod h1:P1pIkaoIsiCJ/NLC7IBXPb9XEime9NvA1WN4hZu2Of4=
+github.com/fluxcd/source-controller/api v0.15.1 h1:ajJHCP3e3AST13nOJrM2ax2mqTS2vSjj7jkedhbMds0=
+github.com/fluxcd/source-controller/api v0.15.1/go.mod h1:P1pIkaoIsiCJ/NLC7IBXPb9XEime9NvA1WN4hZu2Of4=
 github.com/form3tech-oss/jwt-go v3.2.2+incompatible/go.mod h1:pbq4aXjuKjdthFRnoDwaVPLA+WlJuPGy+QneDUgJi2k=
 github.com/franela/goblin v0.0.0-20200105215937-c9ffbefa60db/go.mod h1:7dvUGVsVBjqR7JHJk0brhHOZYGmfBYOrK0ZhYMEtBr4=
 github.com/franela/goreq v0.0.0-20171204163338-bcd34c9993f8/go.mod h1:ZhphrRTfi2rbfLwlschooIH4+wKKDR4Pdxhh+TRoA20=
@@ -1163,8 +1163,8 @@ gotest.tools v2.2.0+incompatible/go.mod h1:DsYFclhRJ6vuDpmuTbkuFWG+y2sxOXAzmJt81
 gotest.tools/v3 v3.0.2/go.mod h1:3SzNCllyD9/Y+b5r9JIKQ474KzkZyqLqEfYqMsX94Bk=
 gotest.tools/v3 v3.0.3 h1:4AuOwCGf4lLR9u3YOe2awrHygurzhO/HeQ6laiA6Sx0=
 gotest.tools/v3 v3.0.3/go.mod h1:Z7Lb0S5l+klDB31fvDQX8ss/FlKDxtlFlw3Oa8Ymbl8=
-helm.sh/helm/v3 v3.6.0 h1:/9IMxJ2lXJHbvTMHcW1AO71lXQHqDC+3bcpGp7yCsb8=
-helm.sh/helm/v3 v3.6.0/go.mod h1:mIIus8EOqj+obtycw3sidsR4ORr2aFDmXMSI3k+oeVY=
+helm.sh/helm/v3 v3.6.1 h1:TQ6q4pAatXr7qh2fbLcb0oNd0I3J7kv26oo5cExKTtc=
+helm.sh/helm/v3 v3.6.1/go.mod h1:mIIus8EOqj+obtycw3sidsR4ORr2aFDmXMSI3k+oeVY=
 honnef.co/go/tools v0.0.0-20180728063816-88497007e858/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.0-20190106161140-3f1c8253044a/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
