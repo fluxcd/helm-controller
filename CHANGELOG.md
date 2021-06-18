@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.11.1
+
+**Release date:** 2021-06-18
+
+This prerelease updates Helm to `v3.6.1`, this is a security update which has
+no impact as transport is handled by the source-controller. For more details
+please see the [source-controller `v0.15.1`
+changelog](https://github.com/fluxcd/source-controller/blob/v0.15.1/CHANGELOG.md).
+
+Improvements:
+* Update Helm and source-controller
+  [#277](https://github.com/fluxcd/helm-controller/pull/277)
+* Panic on non-nil AddToScheme errors in main init
+  [#278](https://github.com/fluxcd/helm-controller/pull/278)
+
 ## 0.11.0
 
 **Release date:** 2021-06-09
