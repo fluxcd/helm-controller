@@ -108,6 +108,41 @@ other: values
 			},
 		},
 		{
+			name: "target path with array",
+			resources: []runtime.Object{
+				valuesSecret("values", map[string][]byte{"single": []byte("value")}),
+			},
+			references: []v2.ValuesReference{
+				{
+					Kind:       "Secret",
+					Name:       "values",
+					ValuesKey:  "single",
+					TargetPath: "merge.at.specific.path[0].url",
+				},
+			},
+			values: `
+merge:
+  at:
+    specific:
+      path:
+      - url2: value2
+`,
+			want: chartutil.Values{
+				"merge": map[string]interface{}{
+					"at": map[string]interface{}{
+						"specific": map[string]interface{}{
+							"path": []interface{}{
+								map[string]interface{}{
+									"url":  "value",
+									"url2": "value2",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "values reference to non existing secret",
 			references: []v2.ValuesReference{
 				{

@@ -521,7 +521,10 @@ func (r *HelmReleaseReconciler) getServiceAccountToken(ctx context.Context, hr v
 // and merges them as defined. Referenced resources are only retrieved once
 // to ensure a single version is taken into account during the merge.
 func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRelease) (chartutil.Values, error) {
-	result := chartutil.Values{}
+	result := hr.GetValues()
+	if result == nil {
+		result = chartutil.Values{}
+	}
 
 	configMaps := make(map[string]*corev1.ConfigMap)
 	secrets := make(map[string]*corev1.Secret)
@@ -617,7 +620,7 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 			}
 		}
 	}
-	return transform.MergeMaps(result, hr.GetValues()), nil
+	return result, nil
 }
 
 // reconcileDelete deletes the v1beta1.HelmChart of the v2beta1.HelmRelease,
