@@ -882,6 +882,7 @@ type HelmRelease struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   HelmReleaseSpec   `json:"spec,omitempty"`
+	// +kubebuilder:default:={"observedGeneration":-1}
 	Status HelmReleaseStatus `json:"status,omitempty"`
 }
 
