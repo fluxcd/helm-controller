@@ -57,14 +57,14 @@ jobs:
       - name: Install CRDs
         run: make install
       - name: Run default status test
-          run: |
-            kubectl apply -f config/testdata/status-defaults
-            RESULT=$(kubectl get helmrelease status-defaults -o jsonpath={.status})
-            EXPECTED='{"observedGeneration":-1}'
-            if [ "${RESULT}" != "${EXPECTED}" ] ; then
-              echo -e "${RESULT}\n\ndoes not equal\n\n${EXPECTED}"
-              exit 1
-            fi
+        run: |
+          kubectl apply -f config/testdata/status-defaults
+          RESULT=$(kubectl get helmrelease status-defaults -o jsonpath={.status})
+          EXPECTED='{"observedGeneration":-1}'
+          if [ "${RESULT}" != "${EXPECTED}" ] ; then
+            echo -e "${RESULT}\n\ndoes not equal\n\n${EXPECTED}"
+            exit 1
+          fi
       - name: Deploy controllers
         run: |
           make dev-deploy IMG=test/helm-controller:latest
