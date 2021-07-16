@@ -14,8 +14,8 @@ all: manager
 
 # Run tests
 test: generate fmt vet manifests api-docs
-	go test ./... -coverprofile cover.out
-	cd api; go test ./... -coverprofile cover.out
+	go test ./... -race -coverprofile cover.out
+	cd api; go test ./... -race -coverprofile cover.out
 
 # Build manager binary
 manager: generate fmt vet
