@@ -22,7 +22,7 @@ package v2beta1
 
 import (
 	"github.com/fluxcd/pkg/apis/kustomize"
-	"github.com/fluxcd/pkg/runtime/dependency"
+	"github.com/fluxcd/pkg/apis/meta"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -156,7 +156,7 @@ func (in *HelmReleaseSpec) DeepCopyInto(out *HelmReleaseSpec) {
 	}
 	if in.DependsOn != nil {
 		in, out := &in.DependsOn, &out.DependsOn
-		*out = make([]dependency.CrossNamespaceDependencyReference, len(*in))
+		*out = make([]meta.NamespacedObjectReference, len(*in))
 		copy(*out, *in)
 	}
 	if in.Timeout != nil {

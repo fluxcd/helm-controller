@@ -27,7 +27,6 @@ import (
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/dependency"
 )
 
 const HelmReleaseKind = "HelmRelease"
@@ -106,7 +105,7 @@ type HelmReleaseSpec struct {
 	// references to HelmRelease resources that must be ready before this HelmRelease
 	// can be reconciled.
 	// +optional
-	DependsOn []dependency.CrossNamespaceDependencyReference `json:"dependsOn,omitempty"`
+	DependsOn []meta.NamespacedObjectReference `json:"dependsOn,omitempty"`
 
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm action. Defaults to '5m0s'.
@@ -929,7 +928,7 @@ func (in HelmRelease) GetMaxHistory() int {
 
 // GetDependsOn returns the types.NamespacedName of the HelmRelease, and a
 // dependency.CrossNamespaceDependencyReference slice it depends on.
-func (in HelmRelease) GetDependsOn() (types.NamespacedName, []dependency.CrossNamespaceDependencyReference) {
+func (in HelmRelease) GetDependsOn() (types.NamespacedName, []meta.NamespacedObjectReference) {
 	return types.NamespacedName{
 		Namespace: in.Namespace,
 		Name:      in.Namespace,
