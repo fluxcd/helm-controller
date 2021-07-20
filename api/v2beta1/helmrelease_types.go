@@ -824,15 +824,15 @@ func (in *HelmRelease) SetConditions(conditions []metav1.Condition) {
 
 // HelmReleaseAttempted registers an attempt of the given HelmRelease with the given state.
 // and returns the modified HelmRelease and a boolean indicating a state change.
-func HelmReleaseAttempted(hr HelmRelease, revision string, releaseRevision int, valuesChecksum string) (HelmRelease, bool) {
-	changed := hr.Status.LastAttemptedRevision != revision ||
-		hr.Status.LastReleaseRevision != releaseRevision ||
-		hr.Status.LastAttemptedValuesChecksum != valuesChecksum
-	hr.Status.LastAttemptedRevision = revision
-	hr.Status.LastReleaseRevision = releaseRevision
-	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
+func HelmReleaseAttempted(obj *HelmRelease, revision string, releaseRevision int, valuesChecksum string) bool {
+	changed := obj.Status.LastAttemptedRevision != revision ||
+		obj.Status.LastReleaseRevision != releaseRevision ||
+		obj.Status.LastAttemptedValuesChecksum != valuesChecksum
+	obj.Status.LastAttemptedRevision = revision
+	obj.Status.LastReleaseRevision = releaseRevision
+	obj.Status.LastAttemptedValuesChecksum = valuesChecksum
 
-	return hr, changed
+	return changed
 }
 
 func resetFailureCounts(hr *HelmRelease) {
@@ -928,6 +928,9 @@ func (in HelmRelease) GetMaxHistory() int {
 
 // GetDependsOn returns the types.NamespacedName of the HelmRelease, and a
 // dependency.CrossNamespaceDependencyReference slice it depends on.
+// TODO: This should probably have the signature
+// GetDependsOn() []meta.NamespacedObjectReference
+// to comply with github.com/fluxcd/pkg/apis/meta#ObjectWithDependencies
 func (in HelmRelease) GetDependsOn() (types.NamespacedName, []meta.NamespacedObjectReference) {
 	return types.NamespacedName{
 		Namespace: in.Namespace,
