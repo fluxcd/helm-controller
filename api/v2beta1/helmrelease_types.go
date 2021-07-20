@@ -815,12 +815,12 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 	return split[0], split[1]
 }
 
-func (hr HelmRelease) GetConditions() []metav1.Condition {
-	return hr.Status.Conditions
+func (in HelmRelease) GetConditions() []metav1.Condition {
+	return in.Status.Conditions
 }
 
-func (hr *HelmRelease) SetConditions(conditions []metav1.Condition) {
-	hr.Status.Conditions = conditions
+func (in *HelmRelease) SetConditions(conditions []metav1.Condition) {
+	in.Status.Conditions = conditions
 }
 
 // HelmReleaseAttempted registers an attempt of the given HelmRelease with the given state.
