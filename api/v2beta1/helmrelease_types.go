@@ -27,7 +27,6 @@ import (
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/dependency"
 )
 
 const HelmReleaseKind = "HelmRelease"
@@ -106,7 +105,7 @@ type HelmReleaseSpec struct {
 	// references to HelmRelease resources that must be ready before this HelmRelease
 	// can be reconciled.
 	// +optional
-	DependsOn []dependency.CrossNamespaceDependencyReference `json:"dependsOn,omitempty"`
+	DependsOn []meta.NamespacedObjectReference `json:"dependsOn,omitempty"`
 
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm action. Defaults to '5m0s'.
@@ -815,44 +814,25 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 	return split[0], split[1]
 }
 
-// HelmReleaseProgressing resets any failures and registers progress toward
-// reconciling the given HelmRelease by setting the meta.ReadyCondition to
-// 'Unknown' for meta.ProgressingReason.
-func HelmReleaseProgressing(hr HelmRelease) HelmRelease {
-	hr.Status.Conditions = []metav1.Condition{}
-	meta.SetResourceCondition(&hr, meta.ReadyCondition, metav1.ConditionUnknown, meta.ProgressingReason,
-		"Reconciliation in progress")
-	resetFailureCounts(&hr)
-	return hr
+func (in HelmRelease) GetConditions() []metav1.Condition {
+	return in.Status.Conditions
 }
 
-// HelmReleaseNotReady registers a failed reconciliation of the given HelmRelease.
-func HelmReleaseNotReady(hr HelmRelease, reason, message string) HelmRelease {
-	meta.SetResourceCondition(&hr, meta.ReadyCondition, metav1.ConditionFalse, reason, message)
-	hr.Status.Failures++
-	return hr
-}
-
-// HelmReleaseReady registers a successful reconciliation of the given HelmRelease.
-func HelmReleaseReady(hr HelmRelease) HelmRelease {
-	meta.SetResourceCondition(&hr, meta.ReadyCondition, metav1.ConditionTrue, meta.ReconciliationSucceededReason,
-		"Release reconciliation succeeded")
-	hr.Status.LastAppliedRevision = hr.Status.LastAttemptedRevision
-	resetFailureCounts(&hr)
-	return hr
+func (in *HelmRelease) SetConditions(conditions []metav1.Condition) {
+	in.Status.Conditions = conditions
 }
 
 // HelmReleaseAttempted registers an attempt of the given HelmRelease with the given state.
 // and returns the modified HelmRelease and a boolean indicating a state change.
-func HelmReleaseAttempted(hr HelmRelease, revision string, releaseRevision int, valuesChecksum string) (HelmRelease, bool) {
-	changed := hr.Status.LastAttemptedRevision != revision ||
-		hr.Status.LastReleaseRevision != releaseRevision ||
-		hr.Status.LastAttemptedValuesChecksum != valuesChecksum
-	hr.Status.LastAttemptedRevision = revision
-	hr.Status.LastReleaseRevision = releaseRevision
-	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
+func HelmReleaseAttempted(obj *HelmRelease, revision string, releaseRevision int, valuesChecksum string) bool {
+	changed := obj.Status.LastAttemptedRevision != revision ||
+		obj.Status.LastReleaseRevision != releaseRevision ||
+		obj.Status.LastAttemptedValuesChecksum != valuesChecksum
+	obj.Status.LastAttemptedRevision = revision
+	obj.Status.LastReleaseRevision = releaseRevision
+	obj.Status.LastAttemptedValuesChecksum = valuesChecksum
 
-	return hr, changed
+	return changed
 }
 
 func resetFailureCounts(hr *HelmRelease) {
@@ -948,7 +928,10 @@ func (in HelmRelease) GetMaxHistory() int {
 
 // GetDependsOn returns the types.NamespacedName of the HelmRelease, and a
 // dependency.CrossNamespaceDependencyReference slice it depends on.
-func (in HelmRelease) GetDependsOn() (types.NamespacedName, []dependency.CrossNamespaceDependencyReference) {
+// TODO: This should probably have the signature
+// GetDependsOn() []meta.NamespacedObjectReference
+// to comply with github.com/fluxcd/pkg/apis/meta#ObjectWithDependencies
+func (in HelmRelease) GetDependsOn() (types.NamespacedName, []meta.NamespacedObjectReference) {
 	return types.NamespacedName{
 		Namespace: in.Namespace,
 		Name:      in.Namespace,
@@ -956,6 +939,7 @@ func (in HelmRelease) GetDependsOn() (types.NamespacedName, []dependency.CrossNa
 }
 
 // GetStatusConditions returns a pointer to the Status.Conditions slice
+// Deprecated: use GetConditions instead.
 func (in *HelmRelease) GetStatusConditions() *[]metav1.Condition {
 	return &in.Status.Conditions
 }

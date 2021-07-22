@@ -27,13 +27,12 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
-	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/fluxcd/pkg/runtime/client"
+	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
 	"github.com/fluxcd/pkg/runtime/logger"
-	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
@@ -89,16 +88,19 @@ func main() {
 
 	var eventRecorder *events.Recorder
 	if eventsAddr != "" {
-		if er, err := events.NewRecorder(eventsAddr, controllerName); err != nil {
+		er, err := events.NewRecorder(eventsAddr, controllerName)
+		if err != nil {
 			setupLog.Error(err, "unable to create event recorder")
 			os.Exit(1)
-		} else {
-			eventRecorder = er
 		}
+		eventRecorder = er
 	}
 
-	metricsRecorder := metrics.NewRecorder()
-	crtlmetrics.Registry.MustRegister(metricsRecorder.Collectors()...)
+	/*metricsRecorder := metrics.NewRecorder()
+	crtlmetrics.Registry.MustRegister(metricsRecorder.Collectors()...)*/
+
+	events := helper.MakeEvents(mgr, controllerName, eventRecorder)
+	metrics := helper.MustMakeMetrics(mgr)
 
 	watchNamespace := ""
 	if !watchAllNamespaces {
@@ -129,12 +131,14 @@ func main() {
 	pprof.SetupHandlers(mgr, setupLog)
 
 	if err = (&controllers.HelmReleaseReconciler{
-		Client:                mgr.GetClient(),
-		Config:                mgr.GetConfig(),
-		Scheme:                mgr.GetScheme(),
+		Client:  mgr.GetClient(),
+		Config:  mgr.GetConfig(),
+		Events:  events,
+		Metrics: metrics,
+		/*Scheme:                mgr.GetScheme(),
 		EventRecorder:         mgr.GetEventRecorderFor(controllerName),
 		ExternalEventRecorder: eventRecorder,
-		MetricsRecorder:       metricsRecorder,
+		MetricsRecorder:       metricsRecorder,*/
 	}).SetupWithManager(mgr, controllers.HelmReleaseReconcilerOptions{
 		MaxConcurrentReconciles:   concurrent,
 		DependencyRequeueInterval: requeueDependency,
