@@ -611,8 +611,19 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 			// TODO(hidde): this is a bit of hack, as it mimics the way the option string is passed
 			// 	to Helm from a CLI perspective. Given the parser is however not publicly accessible
 			// 	while it contains all logic around parsing the target path, it is a fair trade-off.
-			singleValue := v.TargetPath + "=" + string(valuesData)
-			if err := strvals.ParseInto(singleValue, result); err != nil {
+			stringValuesData := string(valuesData)
+			const singleQuote = "'"
+			const doubleQuote = "\""
+			var err error
+			if (strings.HasPrefix(stringValuesData, singleQuote) && strings.HasSuffix(stringValuesData, singleQuote)) || (strings.HasPrefix(stringValuesData, doubleQuote) && strings.HasSuffix(stringValuesData, doubleQuote)) {
+				stringValuesData = strings.Trim(stringValuesData, singleQuote+doubleQuote)
+				singleValue := v.TargetPath + "=" + stringValuesData
+				err = strvals.ParseIntoString(singleValue, result)
+			} else {
+				singleValue := v.TargetPath + "=" + stringValuesData
+				err = strvals.ParseInto(singleValue, result)
+			}
+			if err != nil {
 				return nil, fmt.Errorf("unable to merge value from key '%s' in %s '%s' into target path '%s': %w", v.GetValuesKey(), v.Kind, namespacedName, v.TargetPath, err)
 			}
 		}

@@ -108,6 +108,52 @@ other: values
 			},
 		},
 		{
+			name: "target path with boolean value",
+			resources: []runtime.Object{
+				valuesSecret("values", map[string][]byte{"single": []byte("true")}),
+			},
+			references: []v2.ValuesReference{
+				{
+					Kind:       "Secret",
+					Name:       "values",
+					ValuesKey:  "single",
+					TargetPath: "merge.at.specific.path",
+				},
+			},
+			want: chartutil.Values{
+				"merge": map[string]interface{}{
+					"at": map[string]interface{}{
+						"specific": map[string]interface{}{
+							"path": true,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "target path with set-string behavior",
+			resources: []runtime.Object{
+				valuesSecret("values", map[string][]byte{"single": []byte("\"true\"")}),
+			},
+			references: []v2.ValuesReference{
+				{
+					Kind:       "Secret",
+					Name:       "values",
+					ValuesKey:  "single",
+					TargetPath: "merge.at.specific.path",
+				},
+			},
+			want: chartutil.Values{
+				"merge": map[string]interface{}{
+					"at": map[string]interface{}{
+						"specific": map[string]interface{}{
+							"path": "true",
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "values reference to non existing secret",
 			references: []v2.ValuesReference{
 				{
