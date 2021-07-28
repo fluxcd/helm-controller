@@ -638,21 +638,21 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmR
 
 	// Delete the HelmChart that belongs to this resource.
 	if err := r.deleteHelmChart(ctx, &hr); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	// Only uninstall the Helm Release if the resource is not suspended.
 	if !hr.Spec.Suspend {
 		getter, err := r.getRESTClientGetter(ctx, hr)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 		run, err := runner.NewRunner(getter, hr.GetStorageNamespace(), logr.FromContext(ctx))
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 		if err := run.Uninstall(hr); err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 		logr.FromContext(ctx).Info("uninstalled Helm release for deleted resource")
 
@@ -663,7 +663,7 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmR
 	// Remove our finalizer from the list and update it.
 	controllerutil.RemoveFinalizer(&hr, v2.HelmReleaseFinalizer)
 	if err := r.Update(ctx, &hr); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	return ctrl.Result{}, nil
