@@ -710,7 +710,7 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(o client.Object) []re
 	ctx := context.Background()
 	var list v2.HelmReleaseList
 	if err := r.List(ctx, &list, client.MatchingFields{
-		v2.SourceIndexKey: util.ObjectKey(hc).String(),
+		v2.SourceIndexKey: client.ObjectKeyFromObject(hc).String(),
 	}); err != nil {
 		return nil
 	}
@@ -722,7 +722,7 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(o client.Object) []re
 		if hc.GetArtifact().Revision == i.Status.LastAttemptedRevision {
 			continue
 		}
-		reqs = append(reqs, reconcile.Request{NamespacedName: util.ObjectKey(&i)})
+		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&i)})
 	}
 	return reqs
 }
