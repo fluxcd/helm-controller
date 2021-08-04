@@ -470,8 +470,16 @@ func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.H
 	if err := r.Get(ctx, secretName, &secret); err != nil {
 		return nil, fmt.Errorf("could not find KubeConfig secret '%s': %w", secretName, err)
 	}
-	kubeConfig, ok := secret.Data["value"]
-	if !ok {
+
+	var kubeConfig []byte
+	for k, _ := range secret.Data {
+		if k == "value" || k == "value.yaml" {
+			kubeConfig = secret.Data[k]
+			break
+		}
+	}
+
+	if len(kubeConfig) == 0 {
 		return nil, fmt.Errorf("KubeConfig secret '%s' does not contain a 'value' key", secretName)
 	}
 	return kube.NewMemoryRESTClientGetter(kubeConfig, hr.GetReleaseNamespace()), nil

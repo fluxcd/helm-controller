@@ -1035,7 +1035,7 @@ in that KubeConfig instead of the local cluster that is responsible for the reco
 HelmRelease.
 
 The secret defined in the `spec.kubeConfig.secretRef` must exist in the same namespace as the
-HelmRelease. On every reconciliation, the KubeConfig bytes will be loaded from the `values` key
+HelmRelease. On every reconciliation, the KubeConfig bytes will be loaded from the `value`  or `value.yaml` key
 of the secret's data, and the secret can thus be regularly updated if cluster-access-tokens have
 to rotate due to expiration.
 
@@ -1114,7 +1114,7 @@ cluster where helm-controller is running e.g.:
 
 ```sh
 kubectl -n default create secret generic prod-kubeconfig \
-    --from-file=value=./kubeconfig
+    --from-file=value.yaml=./kubeconfig
 ```
 
 > **Note** that the KubeConfig should be self-contained and not rely on binaries, environment,
