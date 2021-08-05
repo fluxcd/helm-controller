@@ -447,6 +447,8 @@ spec:
             - interval
             type: object
           status:
+            default:
+              observedGeneration: -1
             description: HelmReleaseStatus defines the observed state of a HelmRelease.
             properties:
               conditions:
