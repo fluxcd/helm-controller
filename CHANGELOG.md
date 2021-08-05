@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.11.2
+
+**Release date:** 2021-08-05
+
+This prerelease comes with support for SOPS encrypted kubeconfig loaded from the
+value of the `value.yaml` key in the object, and ensures quoted values are treated
+as strings when a `targetPath` is set for a `valuesFrom` item.
+
+To enhance the experience of consumers observing the `HelmRelease` object using
+`kstatus`, a default of `-1` is now configured for the `observedGeneration` to
+ensure it does not report a false positive in the time the controller has not
+marked the resource with a `Ready` condition yet.
+
+In addition, it updates Helm to `v3.6.3` and aligns the Kubernetes dependencies
+with `v1.21.3`.
+
+Improvements:
+* Set default observedGeneration to -1 on HelmReleases
+  [#294](https://github.com/fluxcd/helm-controller/pull/294)
+* Treat quoted values as string when targetPath is set
+  [#298](https://github.com/fluxcd/helm-controller/pull/298)
+* Make the kubeconfig secrets compatible with SOPS
+  [#305](https://github.com/fluxcd/helm-controller/pull/306)
+* Update dependencies
+  [#307](https://github.com/fluxcd/helm-controller/pull/306)
+
+Fixes:
+* Remove old util ObjectKey
+  [#305](https://github.com/fluxcd/helm-controller/pull/305)
+
 ## 0.11.1
 
 **Release date:** 2021-06-18
