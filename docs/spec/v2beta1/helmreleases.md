@@ -1172,22 +1172,22 @@ spec:
                       operator: "Equal"
                       value: "cluster-services"
             effect: "NoSchedule"
-      # Array of inline JSON6902 patch definitions as YAML object.
-      # Note, this is a YAML object and not a string, to avoid syntax
-      # indention errors.
-      patchesJson6902:
-        - target:
-            version: v1
-            kind: Deployment
-            name: metrics-server
-          patch:
-            - op: add
-              path: /spec/template/priorityClassName
-              value: system-cluster-critical
-      images:
-        - name: docker.io/bitnami/metrics-server
-          newName: docker.io/bitnami/metrics-server
-          newTag: 0.4.1-debian-10-r54
+        # Array of inline JSON6902 patch definitions as YAML object.
+        # Note, this is a YAML object and not a string, to avoid syntax
+        # indention errors.
+        patchesJson6902:
+          - target:
+              version: v1
+              kind: Deployment
+              name: metrics-server
+            patch:
+              - op: add
+                path: /spec/template/priorityClassName
+                value: system-cluster-critical
+        images:
+          - name: docker.io/bitnami/metrics-server
+            newName: docker.io/bitnami/metrics-server
+            newTag: 0.4.1-debian-10-r54
 ```
 
 ## CRDs
