@@ -180,11 +180,13 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Record ready status
 	r.recordReadiness(ctx, hr)
 
+	duration := time.Now().Sub(start)
 	// Log reconciliation duration
-	durationMsg := fmt.Sprintf("reconcilation finished in %s", time.Now().Sub(start).String())
+	durationMsg := fmt.Sprintf("reconcilation finished in %s", duration.String())
 	if result.RequeueAfter > 0 {
 		durationMsg = fmt.Sprintf("%s, next run in %s", durationMsg, result.RequeueAfter.String())
 	}
+	log.WithValues("durationSeconds", duration.Seconds())
 	log.Info(durationMsg)
 
 	return result, err
