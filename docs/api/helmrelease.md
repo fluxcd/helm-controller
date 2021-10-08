@@ -518,6 +518,21 @@ Kubernetes meta/v1.Duration
 </tr>
 <tr>
 <td>
+<code>reconcileStrategy</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Determines what enables the creation of a new artifact. Valid values are
+(&lsquo;ChartVersion&rsquo;, &lsquo;Revision&rsquo;).
+See the documentation of the values for an explanation on their behavior.
+Defaults to ChartVersion when omitted.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>valuesFiles</code><br>
 <em>
 []string
@@ -621,6 +636,21 @@ Kubernetes meta/v1.Duration
 <em>(Optional)</em>
 <p>Interval at which to check the v1beta1.Source for updates. Defaults to
 &lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>reconcileStrategy</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Determines what enables the creation of a new artifact. Valid values are
+(&lsquo;ChartVersion&rsquo;, &lsquo;Revision&rsquo;).
+See the documentation of the values for an explanation on their behavior.
+Defaults to ChartVersion when omitted.</p>
 </td>
 </tr>
 <tr>

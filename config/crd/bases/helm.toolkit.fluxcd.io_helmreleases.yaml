@@ -56,6 +56,13 @@ spec:
                       interval:
                         description: Interval at which to check the v1beta1.Source for updates. Defaults to 'HelmReleaseSpec.Interval'.
                         type: string
+                      reconcileStrategy:
+                        default: ChartVersion
+                        description: Determines what enables the creation of a new artifact. Valid values are ('ChartVersion', 'Revision'). See the documentation of the values for an explanation on their behavior. Defaults to ChartVersion when omitted.
+                        enum:
+                        - ChartVersion
+                        - Revision
+                        type: string
                       sourceRef:
                         description: The name and namespace of the v1beta1.Source the chart is available at.
                         properties:
