@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.12.0
+
+**Release date:** 2021-10-08
+
+This prerelease updates Helm to `v3.7.0`, this Helm version should include
+improvements to the locking mechanism of releases, which should result in
+a reduction of deadlocked releases that have been reported in the past.
+
+In addition, it is now possible to define a `ReconcileStrategy` in the
+`HelmChartTemplateSpec`. By setting the value of this field to `Revision`,
+a new artifact will be made available for charts from `Bucket` and
+`GitRepository` sources whenever a new revision is available.
+The default value of the field is `ChartVersion`, which looks for version
+changes in the `Chart.yaml` file.
+
+Improvements:
+
+* Update fluxcd/source-controller to v0.16.0
+  [#329](https://github.com/fluxcd/helm-controller/pull/329)
+* Introduce ReconcileStrategy in HelmChartTemplateSpec
+  [#329](https://github.com/fluxcd/helm-controller/pull/329)
+* Update sigs.k8s.io/kustomize/api to v0.10.0
+  [#330](https://github.com/fluxcd/helm-controller/pull/330)
+* Update Helm to v3.7.0
+  [#330](https://github.com/fluxcd/helm-controller/pull/330)
+
+Fixes:
+* Fix indentation for PostRenderers example
+  [#314](https://github.com/fluxcd/helm-controller/pull/314)
+
 ## 0.11.2
 
 **Release date:** 2021-08-05
