@@ -5,6 +5,9 @@ go 1.16
 replace github.com/fluxcd/helm-controller/api => ./api
 
 require (
+	github.com/Microsoft/go-winio v0.5.0 // indirect
+	github.com/Microsoft/hcsshim v0.9.0 // indirect
+	github.com/containerd/continuity v0.2.0 // indirect
 	github.com/fluxcd/helm-controller/api v0.11.2
 	github.com/fluxcd/pkg/apis/kustomize v0.1.0
 	github.com/fluxcd/pkg/apis/meta v0.10.0
@@ -29,6 +32,9 @@ require (
 
 // required by https://github.com/helm/helm/blob/v3.6.3/go.mod
 replace github.com/docker/distribution => github.com/docker/distribution v0.0.0-20191216044856-a8371794149d
+
+// fix CVE-2021-41103
+replace github.com/containerd/containerd => github.com/containerd/containerd v1.4.11
 
 // fix CVE-2021-30465
 replace github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.0-rc95
