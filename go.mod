@@ -16,12 +16,12 @@ require (
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.14.0
 	github.com/spf13/pflag v1.0.5
-	helm.sh/helm/v3 v3.6.3
-	k8s.io/api v0.21.3
-	k8s.io/apiextensions-apiserver v0.21.3
-	k8s.io/apimachinery v0.21.3
-	k8s.io/cli-runtime v0.21.0
-	k8s.io/client-go v0.21.3
+	helm.sh/helm/v3 v3.7.0
+	k8s.io/api v0.22.1
+	k8s.io/apiextensions-apiserver v0.22.1
+	k8s.io/apimachinery v0.22.1
+	k8s.io/cli-runtime v0.22.1
+	k8s.io/client-go v0.22.1
 	sigs.k8s.io/controller-runtime v0.9.5
 	sigs.k8s.io/kustomize/api v0.10.0
 	sigs.k8s.io/yaml v1.2.0
