@@ -200,6 +200,8 @@ func helmChartRequiresUpdate(hr *v2.HelmRelease, chart *sourcev1.HelmChart) bool
 		return true
 	case template.GetInterval(hr.Spec.Interval) != chart.Spec.Interval:
 		return true
+	case template.Spec.ReconcileStrategy != chart.Spec.ReconcileStrategy:
+		return true
 	case !reflect.DeepEqual(template.Spec.ValuesFiles, chart.Spec.ValuesFiles):
 		return true
 	case template.Spec.ValuesFile != chart.Spec.ValuesFile:
