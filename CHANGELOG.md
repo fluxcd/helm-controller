@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.12.1
+
+**Release date:** 2021-10-14
+
+This prerelease updates Helm to `v3.7.1`, and ensures `ReconcileStrategy`
+changes are applied to the underlying `HelmChart` of a `HelmRelease`.
+
+Improvements:
+* Update Helm to v3.7.1
+  [#336](https://github.com/fluxcd/helm-controller/pull/336)
+* Nit: update tests to use non-deprecated ValuesFiles
+  [#334](https://github.com/fluxcd/helm-controller/pull/334)
+
+Fixes:
+* Update the release if ReconcileStrategy changes
+  [#333](https://github.com/fluxcd/helm-controller/pull/333)
+
 ## 0.12.0
 
 **Release date:** 2021-10-08
@@ -16,7 +33,6 @@ The default value of the field is `ChartVersion`, which looks for version
 changes in the `Chart.yaml` file.
 
 Improvements:
-
 * Update fluxcd/source-controller to v0.16.0
   [#329](https://github.com/fluxcd/helm-controller/pull/329)
 * Introduce ReconcileStrategy in HelmChartTemplateSpec
