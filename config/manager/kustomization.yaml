@@ -5,4 +5,4 @@ resources:
 images:
   - name: fluxcd/helm-controller
     newName: fluxcd/helm-controller
-    newTag: v0.12.0
+    newTag: v0.12.1
