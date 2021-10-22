@@ -37,7 +37,7 @@ to join the conversation (this will also add an invitation to your
 Google calendar for our [Flux
 meeting](https://docs.google.com/document/d/1l_M0om0qUEN_NNiGgpqJ2tvsF2iioHkaARDeh6b70B0/edit#)).
 
-### How to run the test suite
+## How to run the test suite
 
 Prerequisites:
 * go >= 1.13
@@ -50,7 +50,7 @@ You can run the unit tests by simply doing
 make test
 ```
 
-### How to run the controller locally
+## How to run the controller locally
 
 Install flux on your test cluster:
 
