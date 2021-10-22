@@ -1171,7 +1171,7 @@ spec:
                     - key: "workload-type"
                       operator: "Equal"
                       value: "cluster-services"
-            effect: "NoSchedule"
+                      effect: "NoSchedule"
         # Array of inline JSON6902 patch definitions as YAML object.
         # Note, this is a YAML object and not a string, to avoid syntax
         # indention errors.
