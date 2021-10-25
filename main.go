@@ -22,6 +22,7 @@ import (
 	"time"
 
 	flag "github.com/spf13/pflag"
+	"helm.sh/helm/v3/pkg/kube"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -104,6 +105,9 @@ func main() {
 	if !watchAllNamespaces {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
 	}
+
+	// set the managedFields owner for resources reconciled from Helm charts
+	kube.ManagedFieldsManager = controllerName
 
 	restConfig := client.GetConfigOrDie(clientOptions)
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
