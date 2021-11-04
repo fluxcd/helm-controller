@@ -25,3 +25,6 @@ require (
 	sigs.k8s.io/kustomize/api v0.10.0
 	sigs.k8s.io/yaml v1.2.0
 )
+
+// replace kube-openapi due to OOM issues https://github.com/fluxcd/helm-controller/issues/345
+replace k8s.io/kube-openapi/pkg/validation/spec => github.com/go-openapi/spec v0.19.5
