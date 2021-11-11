@@ -26,11 +26,15 @@ require (
 	sigs.k8s.io/yaml v1.2.0
 )
 
-// freeze Helm due to OOM issues https://github.com/fluxcd/helm-controller/issues/345
+// Freeze Helm due to OOM issues https://github.com/fluxcd/helm-controller/issues/345
 replace helm.sh/helm/v3 => helm.sh/helm/v3 v3.6.3
 
-// required by https://github.com/helm/helm/blob/v3.6.3/go.mod
+// Required by https://github.com/helm/helm/blob/v3.6.3/go.mod
 replace github.com/docker/distribution => github.com/docker/distribution v0.0.0-20191216044856-a8371794149d
 
-// fix CVE-2021-30465
+// Fix CVE-2021-30465
 replace github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.0-rc95
+
+// Fix CVE-2021-32760
+// Fix CVE-2021-41103
+replace github.com/containerd/containerd => github.com/containerd/containerd v1.4.11
