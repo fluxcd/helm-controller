@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.12.2
+
+**Release date:** 2021-11-11
+
+This prerelease downgrades Helm to `v3.6.3` due to high memory usage issues
+inherited from upstream dependency changes. For technical details about the
+issue, see [this comment](https://github.com/fluxcd/helm-controller/issues/345#issuecomment-959104091).
+
+As Helm `v3.7.0` did not introduce any new features from the perspective of
+the controller, we consider this to be a patch which reverts the unwanted
+behavior introduced in `v0.12.0`.
+
+Fixes:
+* Set the managed fields owner to helm-controller
+  [#346](https://github.com/fluxcd/helm-controller/pull/346)
+* Downgrade Helm to v3.6.3 due to OOM issues
+  [#352](https://github.com/fluxcd/helm-controller/pull/352)
+* Replace containerd with version that patches CVEs
+  [#356](https://github.com/fluxcd/helm-controller/pull/356)
+
 ## 0.12.1
 
 **Release date:** 2021-10-14
