@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.13.0
+
+**Release date:** 2021-11-12
+
+This prerelease comes with artifact integrity verification.
+During the acquisition of an artifact, helm-controller computes its checksum using SHA-2
+and verifies that it matches the checksum advertised in the `Status` of the Source.
+
+Improvements:
+* Verify artifacts integrity
+  [#358](https://github.com/fluxcd/helm-controller/pull/358)
+
 ## 0.12.2
 
 **Release date:** 2021-11-11
