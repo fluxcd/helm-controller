@@ -5,7 +5,7 @@ go 1.16
 replace github.com/fluxcd/helm-controller/api => ./api
 
 require (
-	github.com/fluxcd/helm-controller/api v0.12.2
+	github.com/fluxcd/helm-controller/api v0.13.0
 	github.com/fluxcd/pkg/apis/kustomize v0.1.0
 	github.com/fluxcd/pkg/apis/meta v0.10.0
 	github.com/fluxcd/pkg/runtime v0.12.0
