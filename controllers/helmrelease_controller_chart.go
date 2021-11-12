@@ -18,9 +18,10 @@ package controllers
 
 import (
 	"context"
+	"crypto/sha1"
+	"crypto/sha256"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -94,7 +95,7 @@ func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, hr *v2.HelmRel
 // loads it into a chart.Chart, and removes the downloaded artifact.
 // It returns the loaded chart.Chart on success, or an error.
 func (r *HelmReleaseReconciler) loadHelmChart(source *sourcev1.HelmChart) (*chart.Chart, error) {
-	f, err := ioutil.TempFile("", fmt.Sprintf("%s-%s-*.tgz", source.GetNamespace(), source.GetName()))
+	f, err := os.CreateTemp("", fmt.Sprintf("%s-%s-*.tgz", source.GetNamespace(), source.GetName()))
 	if err != nil {
 		return nil, err
 	}
@@ -126,11 +127,34 @@ func (r *HelmReleaseReconciler) loadHelmChart(source *sourcev1.HelmChart) (*char
 		return nil, fmt.Errorf("artifact '%s' download failed (status code: %s)", source.GetArtifact().URL, resp.Status)
 	}
 
-	if _, err = io.Copy(f, resp.Body); err != nil {
+	// verify checksum matches origin
+	if err := r.copyAndVerifyArtifact(source.GetArtifact(), resp.Body, f); err != nil {
 		return nil, err
 	}
 
 	return loader.Load(f.Name())
+}
+
+func (r *HelmReleaseReconciler) copyAndVerifyArtifact(artifact *sourcev1.Artifact, reader io.Reader, writer io.Writer) error {
+	hasher := sha256.New()
+
+	// for backwards compatibility with source-controller v0.17.2 and older
+	if len(artifact.Checksum) == 40 {
+		hasher = sha1.New()
+	}
+
+	// compute checksum
+	mw := io.MultiWriter(hasher, writer)
+	if _, err := io.Copy(mw, reader); err != nil {
+		return err
+	}
+
+	if checksum := fmt.Sprintf("%x", hasher.Sum(nil)); checksum != artifact.Checksum {
+		return fmt.Errorf("failed to verify artifact: computed checksum '%s' doesn't match advertised '%s'",
+			checksum, artifact.Checksum)
+	}
+
+	return nil
 }
 
 // deleteHelmChart deletes the v1beta1.HelmChart of the v2beta1.HelmRelease.
