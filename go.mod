@@ -46,6 +46,9 @@ replace helm.sh/helm/v3 => helm.sh/helm/v3 v3.6.3
 // but overwritten with a newer version due to CVE-2017-11468.
 replace github.com/docker/distribution => github.com/docker/distribution v2.7.0-rc.0+incompatible
 
+// Fix CVE-2021-41092
+replace github.com/docker/cli => github.com/docker/cli v20.10.9+incompatible
+
 // Fix CVE-2021-30465
 // Fix CVE-2021-41190
 replace github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.2
