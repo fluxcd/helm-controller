@@ -11,9 +11,9 @@ require (
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/fluxcd/helm-controller/api v0.13.0
-	github.com/fluxcd/pkg/apis/kustomize v0.1.0
-	github.com/fluxcd/pkg/apis/meta v0.10.0
-	github.com/fluxcd/pkg/runtime v0.12.0
+	github.com/fluxcd/pkg/apis/kustomize v0.2.0
+	github.com/fluxcd/pkg/apis/meta v0.10.1
+	github.com/fluxcd/pkg/runtime v0.12.2
 	github.com/fluxcd/source-controller/api v0.18.0
 	github.com/garyburd/redigo v1.6.3 // indirect
 	github.com/go-logr/logr v0.4.0
@@ -28,13 +28,13 @@ require (
 	github.com/yvasiyarov/gorelic v0.0.7 // indirect
 	github.com/yvasiyarov/newrelic_platform_go v0.0.0-20160601141957-9c099fbc30e9 // indirect
 	helm.sh/helm/v3 v3.7.1
-	k8s.io/api v0.22.1
-	k8s.io/apiextensions-apiserver v0.22.1
-	k8s.io/apimachinery v0.22.1
-	k8s.io/cli-runtime v0.22.1
-	k8s.io/client-go v0.22.1
+	k8s.io/api v0.22.2
+	k8s.io/apiextensions-apiserver v0.22.2
+	k8s.io/apimachinery v0.22.2
+	k8s.io/cli-runtime v0.22.2
+	k8s.io/client-go v0.22.2
 	rsc.io/letsencrypt v0.0.3 // indirect
-	sigs.k8s.io/controller-runtime v0.9.7
+	sigs.k8s.io/controller-runtime v0.10.2
 	sigs.k8s.io/kustomize/api v0.10.0
 	sigs.k8s.io/yaml v1.2.0
 )
