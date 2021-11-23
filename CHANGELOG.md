@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.14.0
+
+**Release date:** 2021-11-23
+
+This prerelease updates the dependency on the source-controller to `v0.19.0`, which
+includes **breaking behavioral changes**, including one beneficial to users making
+use of `ValuesFiles` references. Refer to the [changelog](https://github.com/fluxcd/source-controller/blob/v0.19.0/CHANGELOG.md#0190)
+for more information.
+
+In addition, it updates Alpine to `v3.14`, and several dependencies to their latest
+version. Solving an issue with `rest_client_request_latency_seconds_.*` high
+cardinality metrics.
+
+Improvements:
+- Update Alpine to v3.14
+  [#360](https://github.com/fluxcd/helm-controller/pull/360)
+- Update various dependencies to mitigate CVE warnings
+  [#361](https://github.com/fluxcd/helm-controller/pull/361)
+- Update opencontainers/image-spec to v1.0.2
+  [#362](https://github.com/fluxcd/helm-controller/pull/362)
+- Update controller-runtime to v0.10.2
+  [#363](https://github.com/fluxcd/helm-controller/pull/363)
+- Update source-controller to v0.19.0
+  [#364](https://github.com/fluxcd/helm-controller/pull/364)
+
 ## 0.13.0
 
 **Release date:** 2021-11-12

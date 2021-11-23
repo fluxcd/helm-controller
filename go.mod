@@ -10,7 +10,7 @@ require (
 	github.com/bugsnag/panicwrap v1.3.4 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
-	github.com/fluxcd/helm-controller/api v0.13.0
+	github.com/fluxcd/helm-controller/api v0.14.0
 	github.com/fluxcd/pkg/apis/kustomize v0.2.0
 	github.com/fluxcd/pkg/apis/meta v0.10.1
 	github.com/fluxcd/pkg/runtime v0.12.2
