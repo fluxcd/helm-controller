@@ -14,7 +14,7 @@ require (
 	github.com/fluxcd/pkg/apis/kustomize v0.2.0
 	github.com/fluxcd/pkg/apis/meta v0.10.1
 	github.com/fluxcd/pkg/runtime v0.12.2
-	github.com/fluxcd/source-controller/api v0.18.0
+	github.com/fluxcd/source-controller/api v0.19.0
 	github.com/garyburd/redigo v1.6.3 // indirect
 	github.com/go-logr/logr v0.4.0
 	github.com/gofrs/uuid v4.1.0+incompatible // indirect
