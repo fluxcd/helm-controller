@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"helm.sh/helm/v3/pkg/release"
 	"strings"
 	"time"
 
@@ -341,7 +342,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 
 	// Deploy the release.
 	var deployAction v2.DeploymentAction
-	if rel == nil {
+	if rel == nil || rel.Info.Status == release.StatusUninstalled {
 		r.event(ctx, hr, revision, events.EventSeverityInfo, "Helm install has started")
 		deployAction = hr.Spec.GetInstall()
 		rel, err = run.Install(hr, chart, values)
