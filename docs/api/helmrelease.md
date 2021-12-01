@@ -166,14 +166,14 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/runtime/dependency#CrossNamespaceDependencyReference">
-[]Runtime dependency.CrossNamespaceDependencyReference
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#NamespacedObjectReference">
+[]github.com/fluxcd/pkg/apis/meta.NamespacedObjectReference
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>DependsOn may contain a dependency.CrossNamespaceDependencyReference slice with
+<p>DependsOn may contain a meta.NamespacedObjectReference slice with
 references to HelmRelease resources that must be ready before this HelmRelease
 can be reconciled.</p>
 </td>
@@ -518,21 +518,6 @@ Kubernetes meta/v1.Duration
 </tr>
 <tr>
 <td>
-<code>reconcileStrategy</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Determines what enables the creation of a new artifact. Valid values are
-(&lsquo;ChartVersion&rsquo;, &lsquo;Revision&rsquo;).
-See the documentation of the values for an explanation on their behavior.
-Defaults to ChartVersion when omitted.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>valuesFiles</code><br>
 <em>
 []string
@@ -636,21 +621,6 @@ Kubernetes meta/v1.Duration
 <em>(Optional)</em>
 <p>Interval at which to check the v1beta1.Source for updates. Defaults to
 &lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>reconcileStrategy</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Determines what enables the creation of a new artifact. Valid values are
-(&lsquo;ChartVersion&rsquo;, &lsquo;Revision&rsquo;).
-See the documentation of the values for an explanation on their behavior.
-Defaults to ChartVersion when omitted.</p>
 </td>
 </tr>
 <tr>
@@ -802,14 +772,14 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/runtime/dependency#CrossNamespaceDependencyReference">
-[]Runtime dependency.CrossNamespaceDependencyReference
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#NamespacedObjectReference">
+[]github.com/fluxcd/pkg/apis/meta.NamespacedObjectReference
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>DependsOn may contain a dependency.CrossNamespaceDependencyReference slice with
+<p>DependsOn may contain a meta.NamespacedObjectReference slice with
 references to HelmRelease resources that must be ready before this HelmRelease
 can be reconciled.</p>
 </td>

@@ -27,7 +27,6 @@ import (
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/dependency"
 )
 
 const HelmReleaseKind = "HelmRelease"
@@ -102,11 +101,11 @@ type HelmReleaseSpec struct {
 	// +optional
 	StorageNamespace string `json:"storageNamespace,omitempty"`
 
-	// DependsOn may contain a dependency.CrossNamespaceDependencyReference slice with
+	// DependsOn may contain a meta.NamespacedObjectReference slice with
 	// references to HelmRelease resources that must be ready before this HelmRelease
 	// can be reconciled.
 	// +optional
-	DependsOn []dependency.CrossNamespaceDependencyReference `json:"dependsOn,omitempty"`
+	DependsOn []meta.NamespacedObjectReference `json:"dependsOn,omitempty"`
 
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm action. Defaults to '5m0s'.
@@ -246,15 +245,6 @@ type HelmChartTemplateSpec struct {
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
 
-	// Determines what enables the creation of a new artifact. Valid values are
-	// ('ChartVersion', 'Revision').
-	// See the documentation of the values for an explanation on their behavior.
-	// Defaults to ChartVersion when omitted.
-	// +kubebuilder:validation:Enum=ChartVersion;Revision
-	// +kubebuilder:default:=ChartVersion
-	// +optional
-	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
-
 	// Alternative list of values files to use as the chart values (values.yaml
 	// is not included by default), expected to be a relative path in the SourceRef.
 	// Values files are merged in the order of this list with the last file overriding
@@ -304,9 +294,9 @@ type Remediation interface {
 	MustIgnoreTestFailures(bool) bool
 	MustRemediateLastFailure() bool
 	GetStrategy() RemediationStrategy
-	GetFailureCount(hr HelmRelease) int64
+	GetFailureCount(hr *HelmRelease) int64
 	IncrementFailureCount(hr *HelmRelease)
-	RetriesExhausted(hr HelmRelease) bool
+	RetriesExhausted(hr *HelmRelease) bool
 }
 
 // Install holds the configuration for Helm install actions performed for this
@@ -456,7 +446,7 @@ func (in InstallRemediation) GetStrategy() RemediationStrategy {
 }
 
 // GetFailureCount gets the failure count.
-func (in InstallRemediation) GetFailureCount(hr HelmRelease) int64 {
+func (in InstallRemediation) GetFailureCount(hr *HelmRelease) int64 {
 	return hr.Status.InstallFailures
 }
 
@@ -466,7 +456,7 @@ func (in InstallRemediation) IncrementFailureCount(hr *HelmRelease) {
 }
 
 // RetriesExhausted returns true if there are no remaining retries.
-func (in InstallRemediation) RetriesExhausted(hr HelmRelease) bool {
+func (in InstallRemediation) RetriesExhausted(hr *HelmRelease) bool {
 	return in.Retries >= 0 && in.GetFailureCount(hr) > int64(in.Retries)
 }
 
@@ -635,7 +625,7 @@ func (in UpgradeRemediation) GetStrategy() RemediationStrategy {
 }
 
 // GetFailureCount gets the failure count.
-func (in UpgradeRemediation) GetFailureCount(hr HelmRelease) int64 {
+func (in UpgradeRemediation) GetFailureCount(hr *HelmRelease) int64 {
 	return hr.Status.UpgradeFailures
 }
 
@@ -645,7 +635,7 @@ func (in UpgradeRemediation) IncrementFailureCount(hr *HelmRelease) {
 }
 
 // RetriesExhausted returns true if there are no remaining retries.
-func (in UpgradeRemediation) RetriesExhausted(hr HelmRelease) bool {
+func (in UpgradeRemediation) RetriesExhausted(hr *HelmRelease) bool {
 	return in.Retries >= 0 && in.GetFailureCount(hr) > int64(in.Retries)
 }
 
@@ -824,36 +814,9 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 	return split[0], split[1]
 }
 
-// HelmReleaseProgressing resets any failures and registers progress toward
-// reconciling the given HelmRelease by setting the meta.ReadyCondition to
-// 'Unknown' for meta.ProgressingReason.
-func HelmReleaseProgressing(hr HelmRelease) HelmRelease {
-	hr.Status.Conditions = []metav1.Condition{}
-	meta.SetResourceCondition(&hr, meta.ReadyCondition, metav1.ConditionUnknown, meta.ProgressingReason,
-		"Reconciliation in progress")
-	resetFailureCounts(&hr)
-	return hr
-}
-
-// HelmReleaseNotReady registers a failed reconciliation of the given HelmRelease.
-func HelmReleaseNotReady(hr HelmRelease, reason, message string) HelmRelease {
-	meta.SetResourceCondition(&hr, meta.ReadyCondition, metav1.ConditionFalse, reason, message)
-	hr.Status.Failures++
-	return hr
-}
-
-// HelmReleaseReady registers a successful reconciliation of the given HelmRelease.
-func HelmReleaseReady(hr HelmRelease) HelmRelease {
-	meta.SetResourceCondition(&hr, meta.ReadyCondition, metav1.ConditionTrue, meta.ReconciliationSucceededReason,
-		"Release reconciliation succeeded")
-	hr.Status.LastAppliedRevision = hr.Status.LastAttemptedRevision
-	resetFailureCounts(&hr)
-	return hr
-}
-
 // HelmReleaseAttempted registers an attempt of the given HelmRelease with the given state.
 // and returns the modified HelmRelease and a boolean indicating a state change.
-func HelmReleaseAttempted(hr HelmRelease, revision string, releaseRevision int, valuesChecksum string) (HelmRelease, bool) {
+func HelmReleaseAttempted(hr *HelmRelease, revision string, releaseRevision int, valuesChecksum string) (*HelmRelease, bool) {
 	changed := hr.Status.LastAttemptedRevision != revision ||
 		hr.Status.LastReleaseRevision != releaseRevision ||
 		hr.Status.LastAttemptedValuesChecksum != valuesChecksum
@@ -862,12 +825,6 @@ func HelmReleaseAttempted(hr HelmRelease, revision string, releaseRevision int, 
 	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
 
 	return hr, changed
-}
-
-func resetFailureCounts(hr *HelmRelease) {
-	hr.Status.Failures = 0
-	hr.Status.InstallFailures = 0
-	hr.Status.UpgradeFailures = 0
 }
 
 const (
@@ -893,6 +850,18 @@ type HelmRelease struct {
 	Spec HelmReleaseSpec `json:"spec,omitempty"`
 	// +kubebuilder:default:={"observedGeneration":-1}
 	Status HelmReleaseStatus `json:"status,omitempty"`
+}
+
+// IncrementFailureCounter adds one to the failure counter.
+func (in *HelmRelease) IncrementFailureCounter() {
+	in.Status.Failures++
+}
+
+// ResetFailureCounter sets all failure counters back to zero.
+func (in *HelmRelease) ResetFailureCounter() {
+	in.Status.Failures = 0
+	in.Status.InstallFailures = 0
+	in.Status.UpgradeFailures = 0
 }
 
 // GetValues unmarshals the raw values to a map[string]interface{} and returns
@@ -958,7 +927,7 @@ func (in HelmRelease) GetMaxHistory() int {
 
 // GetDependsOn returns the types.NamespacedName of the HelmRelease, and a
 // dependency.CrossNamespaceDependencyReference slice it depends on.
-func (in HelmRelease) GetDependsOn() (types.NamespacedName, []dependency.CrossNamespaceDependencyReference) {
+func (in HelmRelease) GetDependsOn() (types.NamespacedName, []meta.NamespacedObjectReference) {
 	return types.NamespacedName{
 		Namespace: in.Namespace,
 		Name:      in.Namespace,
@@ -966,8 +935,19 @@ func (in HelmRelease) GetDependsOn() (types.NamespacedName, []dependency.CrossNa
 }
 
 // GetStatusConditions returns a pointer to the Status.Conditions slice
+// Deprecated: use GetConditions instead.
 func (in *HelmRelease) GetStatusConditions() *[]metav1.Condition {
 	return &in.Status.Conditions
+}
+
+// GetConditions returns the status conditions of the object.
+func (in *HelmRelease) GetConditions() []metav1.Condition {
+	return in.Status.Conditions
+}
+
+// SetConditions sets the status conditions on the object.
+func (in *HelmRelease) SetConditions(conditions []metav1.Condition) {
+	in.Status.Conditions = conditions
 }
 
 // +kubebuilder:object:root=true

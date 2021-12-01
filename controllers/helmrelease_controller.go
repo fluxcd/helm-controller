@@ -31,14 +31,11 @@ import (
 	"helm.sh/helm/v3/pkg/strvals"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
-	kuberecorder "k8s.io/client-go/tools/record"
-	"k8s.io/client-go/tools/reference"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -50,8 +47,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
+	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/events"
-	"github.com/fluxcd/pkg/runtime/metrics"
+	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	"github.com/fluxcd/pkg/runtime/transform"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
@@ -72,13 +71,18 @@ import (
 // HelmReleaseReconciler reconciles a HelmRelease object
 type HelmReleaseReconciler struct {
 	client.Client
-	httpClient            *retryablehttp.Client
-	Config                *rest.Config
-	Scheme                *runtime.Scheme
-	requeueDependency     time.Duration
-	EventRecorder         kuberecorder.EventRecorder
-	ExternalEventRecorder *events.Recorder
-	MetricsRecorder       *metrics.Recorder
+	helper.Events
+	helper.Metrics
+
+	Config            *rest.Config
+	httpClient        *retryablehttp.Client
+	requeueDependency time.Duration
+}
+
+type HelmReleaseReconcilerOptions struct {
+	MaxConcurrentReconciles   int
+	HTTPRetry                 int
+	DependencyRequeueInterval time.Duration
 }
 
 func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
@@ -128,170 +132,206 @@ func (c ConditionError) Error() string {
 	return c.Err.Error()
 }
 
-func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, retErr error) {
 	start := time.Now()
 	log := logr.FromContext(ctx)
 
-	var hr v2.HelmRelease
-	if err := r.Get(ctx, req.NamespacedName, &hr); err != nil {
+	obj := &v2.HelmRelease{}
+	if err := r.Get(ctx, req.NamespacedName, obj); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// record suspension metrics
-	defer r.recordSuspension(ctx, hr)
-
-	// Add our finalizer if it does not exist
-	if !controllerutil.ContainsFinalizer(&hr, v2.HelmReleaseFinalizer) {
-		controllerutil.AddFinalizer(&hr, v2.HelmReleaseFinalizer)
-		if err := r.Update(ctx, &hr); err != nil {
-			log.Error(err, "unable to register finalizer")
-			return ctrl.Result{}, err
-		}
-	}
-
-	// Examine if the object is under deletion
-	if !hr.ObjectMeta.DeletionTimestamp.IsZero() {
-		return r.reconcileDelete(ctx, hr)
-	}
+	r.RecordSuspend(ctx, obj, obj.Spec.Suspend)
 
 	// Return early if the HelmRelease is suspended.
-	if hr.Spec.Suspend {
+	if obj.Spec.Suspend {
 		log.Info("Reconciliation is suspended for this object")
 		return ctrl.Result{}, nil
 	}
 
-	hr, result, err := r.reconcile(ctx, hr)
-
-	// Update status after reconciliation.
-	if updateStatusErr := r.patchStatus(ctx, &hr); updateStatusErr != nil {
-		log.Error(updateStatusErr, "unable to update status after reconciliation")
-		return ctrl.Result{Requeue: true}, updateStatusErr
+	// Initialize the patch helper
+	patchHelper, err := patch.NewHelper(obj, r.Client)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
-	// Record ready status
-	r.recordReadiness(ctx, hr)
+	// Always attempt to patch the object and status after each reconciliation
+	defer func() {
+		// Record the value of the reconciliation request, if any
+		if v, ok := meta.ReconcileAnnotationValue(obj.GetAnnotations()); ok {
+			obj.Status.SetLastHandledReconcileRequest(v)
+		}
 
-	// Log reconciliation duration
-	durationMsg := fmt.Sprintf("reconcilation finished in %s", time.Now().Sub(start).String())
-	if result.RequeueAfter > 0 {
-		durationMsg = fmt.Sprintf("%s, next run in %s", durationMsg, result.RequeueAfter.String())
+		// Summarize Ready condition
+		conditions.SetSummary(obj,
+			meta.ReadyCondition,
+			conditions.WithConditions(
+				v2.ReleasedCondition,
+				v2.TestSuccessCondition,
+				v2.RemediatedCondition,
+			),
+			conditions.WithNegativePolarityConditions(
+				v2.RemediatedCondition,
+			),
+		)
+
+		// Patch the object, ignoring conflicts on the conditions owned by this controller
+		patchOpts := []patch.Option{
+			patch.WithOwnedConditions{
+				Conditions: []string{
+					v2.ReleasedCondition,
+					v2.TestSuccessCondition,
+					v2.RemediatedCondition,
+					meta.ReadyCondition,
+					meta.ReconcilingCondition,
+					meta.StalledCondition,
+				},
+			},
+		}
+
+		// Determine if the resource is still being reconciled, or if it has stalled, and record this observation
+		if retErr == nil && (result.IsZero() || !result.Requeue) {
+			// We are no longer reconciling
+			conditions.Delete(obj, meta.ReconcilingCondition)
+
+			// We have now observed this generation
+			patchOpts = append(patchOpts, patch.WithStatusObservedGeneration{})
+
+			readyCondition := conditions.Get(obj, meta.ReadyCondition)
+			switch readyCondition.Status {
+			case metav1.ConditionFalse:
+				// As we are no longer reconciling and the end-state
+				// is not ready, the reconciliation has stalled
+				conditions.MarkStalled(obj, readyCondition.Reason, readyCondition.Message)
+			case metav1.ConditionTrue:
+				// As we are no longer reconciling and the end-state
+				// is ready, the reconciliation is no longer stalled
+				conditions.Delete(obj, meta.StalledCondition)
+			}
+		}
+
+		// Finally, patch the resource
+		if err := patchHelper.Patch(ctx, obj, patchOpts...); err != nil {
+			retErr = kerrors.NewAggregate([]error{retErr, err})
+		}
+
+		// Always record readiness and duration metrics
+		r.Metrics.RecordReadiness(ctx, obj)
+		r.Metrics.RecordDuration(ctx, obj, start)
+	}()
+
+	// Add finalizer first if not exit to avoid the race condition
+	// between init and delete
+	if !controllerutil.ContainsFinalizer(obj, v2.HelmReleaseFinalizer) {
+		controllerutil.AddFinalizer(obj, v2.HelmReleaseFinalizer)
+		return ctrl.Result{Requeue: true}, nil
 	}
-	log.Info(durationMsg)
 
-	return result, err
+	// Examine if the object is under deletion
+	if !obj.ObjectMeta.DeletionTimestamp.IsZero() {
+		return r.reconcileDelete(ctx, obj)
+	}
+
+	// Reconcile actual object
+	return r.reconcile(ctx, obj)
 }
 
-func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease) (v2.HelmRelease, ctrl.Result, error) {
-	reconcileStart := time.Now()
+func (r *HelmReleaseReconciler) reconcile(ctx context.Context, obj *v2.HelmRelease) (ctrl.Result, error) {
 	log := logr.FromContext(ctx)
-	// Record the value of the reconciliation request, if any
-	if v, ok := meta.ReconcileAnnotationValue(hr.GetAnnotations()); ok {
-		hr.Status.SetLastHandledReconcileRequest(v)
-	}
 
-	// Observe HelmRelease generation.
-	if hr.Status.ObservedGeneration != hr.Generation {
-		hr.Status.ObservedGeneration = hr.Generation
-		hr = v2.HelmReleaseProgressing(hr)
-		if updateStatusErr := r.patchStatus(ctx, &hr); updateStatusErr != nil {
-			log.Error(updateStatusErr, "unable to update status after generation update")
-			return hr, ctrl.Result{Requeue: true}, updateStatusErr
-		}
-		// Record progressing status
-		r.recordReadiness(ctx, hr)
-	}
-
-	// Record reconciliation duration
-	if r.MetricsRecorder != nil {
-		objRef, err := reference.GetReference(r.Scheme, &hr)
-		if err != nil {
-			return hr, ctrl.Result{Requeue: true}, err
-		}
-		defer r.MetricsRecorder.RecordDuration(*objRef, reconcileStart)
-	}
+	// Mark the resource as under reconciliation
+	conditions.MarkReconciling(obj, meta.ProgressingReason, "")
 
 	// Reconcile chart based on the HelmChartTemplate
-	hc, reconcileErr := r.reconcileChart(ctx, &hr)
+	hc, reconcileErr := r.reconcileChart(ctx, obj)
 	if reconcileErr != nil {
-		msg := fmt.Sprintf("chart reconciliation failed: %s", reconcileErr.Error())
-		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, msg)
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{Requeue: true}, reconcileErr
+		obj.IncrementFailureCounter()
+		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "Chart reconcilliation failed: %s", reconcileErr.Error())
+		r.Eventf(ctx, obj, events.EventSeverityError, v2.ArtifactFailedReason, "Chart reconcilliation failed: %s", reconcileErr.Error())
+		return ctrl.Result{Requeue: true}, reconcileErr
 	}
 
-	// Check chart readiness
-	if hc.Generation != hc.Status.ObservedGeneration || !apimeta.IsStatusConditionTrue(hc.Status.Conditions, meta.ReadyCondition) {
+	if !conditions.IsReady(hc) {
 		msg := fmt.Sprintf("HelmChart '%s/%s' is not ready", hc.GetNamespace(), hc.GetName())
-		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityInfo, msg)
+		obj.IncrementFailureCounter()
+		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, msg)
+		r.Eventf(ctx, obj, events.EventSeverityError, v2.ArtifactFailedReason, msg)
 		log.Info(msg)
 		// Do not requeue immediately, when the artifact is created
 		// the watcher should trigger a reconciliation.
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{RequeueAfter: hc.Spec.Interval.Duration}, nil
+		return ctrl.Result{RequeueAfter: hc.Spec.Interval.Duration}, nil
 	}
 
 	// Check dependencies
-	if len(hr.Spec.DependsOn) > 0 {
-		if err := r.checkDependencies(hr); err != nil {
-			msg := fmt.Sprintf("dependencies do not meet ready condition (%s), retrying in %s",
-				err.Error(), r.requeueDependency.String())
-			r.event(ctx, hr, hc.GetArtifact().Revision, events.EventSeverityInfo, msg)
+	if len(obj.Spec.DependsOn) > 0 {
+		if err := r.checkDependencies(ctx, obj); err != nil {
+			msg := fmt.Sprintf("dependencies do not meet ready condition (%s), retrying in %s", err.Error(), r.requeueDependency.String())
+			obj.IncrementFailureCounter()
+			conditions.MarkFalse(obj, meta.ReadyCondition, v2.GetHelmChartFailedReason, msg)
+			r.Eventf(ctx, obj, events.EventSeverityError, v2.GetHelmChartFailedReason, msg)
 			log.Info(msg)
-
 			// Exponential backoff would cause execution to be prolonged too much,
 			// instead we requeue on a fixed interval.
-			return v2.HelmReleaseNotReady(hr,
-				meta.DependencyNotReadyReason, err.Error()), ctrl.Result{RequeueAfter: r.requeueDependency}, nil
+			return ctrl.Result{RequeueAfter: r.requeueDependency}, nil
 		}
 		log.Info("all dependencies are ready, proceeding with release")
 	}
 
 	// Compose values
-	values, err := r.composeValues(ctx, hr)
+	values, err := r.composeValues(ctx, obj)
 	if err != nil {
-		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, err.Error())
-		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error()), ctrl.Result{Requeue: true}, nil
+		obj.IncrementFailureCounter()
+		conditions.MarkFalse(obj, meta.ReadyCondition, v2.InitFailedReason, "could not get chart values: %s", err.Error())
+		r.Eventf(ctx, obj, events.EventSeverityError, v2.InitFailedReason, "could not get chart values: %s", err.Error())
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Load chart from artifact
 	chart, err := r.loadHelmChart(hc)
 	if err != nil {
-		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, err.Error())
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, err.Error()), ctrl.Result{Requeue: true}, nil
+		obj.IncrementFailureCounter()
+		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "could not get chart artifact: %s", err.Error())
+		r.Eventf(ctx, obj, events.EventSeverityError, v2.ArtifactFailedReason, "could not get chart artifact: %s", err.Error())
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Reconcile Helm release
-	reconciledHr, reconcileErr := r.reconcileRelease(ctx, *hr.DeepCopy(), chart, values)
-	if reconcileErr != nil {
-		r.event(ctx, hr, hc.GetArtifact().Revision, events.EventSeverityError,
-			fmt.Sprintf("reconciliation failed: %s", reconcileErr.Error()))
+	if result, err := r.reconcileRelease(ctx, obj, chart, values); reconcileErr != nil {
+		obj.IncrementFailureCounter()
+		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "could not get chart artifact: %s", err.Error())
+		r.Eventf(ctx, obj, events.EventSeverityError, v2.ArtifactFailedReason, "could not get chart artifact: %s", err.Error())
+		return result, err
 	}
-	return reconciledHr, ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, reconcileErr
+	return ctrl.Result{RequeueAfter: obj.Spec.Interval.Duration}, nil
 }
 
-type HelmReleaseReconcilerOptions struct {
-	MaxConcurrentReconciles   int
-	HTTPRetry                 int
-	DependencyRequeueInterval time.Duration
-}
-
-func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
-	hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (v2.HelmRelease, error) {
+func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, hr *v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (ctrl.Result, error) {
 	log := logr.FromContext(ctx)
 
 	// Initialize Helm action runner
 	getter, err := r.getRESTClientGetter(ctx, hr)
 	if err != nil {
-		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error()), err
+		hr.IncrementFailureCounter()
+		conditions.MarkFalse(hr, meta.ReadyCondition, v2.InitFailedReason, err.Error())
+		r.Eventf(ctx, hr, events.EventSeverityError, v2.InitFailedReason, err.Error())
+		return ctrl.Result{}, err
 	}
 	run, err := runner.NewRunner(getter, hr.GetStorageNamespace(), log)
 	if err != nil {
-		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to initialize Helm action runner"), err
+		hr.IncrementFailureCounter()
+		conditions.MarkFalse(hr, meta.ReadyCondition, v2.InitFailedReason, "failed to initialize Helm action runner: %s", err)
+		r.Eventf(ctx, hr, events.EventSeverityError, v2.InitFailedReason, "failed to initialize Helm action runner: %s", err)
+		return ctrl.Result{}, err
 	}
 
 	// Determine last release revision.
-	rel, observeLastReleaseErr := run.ObserveLastRelease(hr)
+	rel, observeLastReleaseErr := run.ObserveLastRelease(*hr)
 	if observeLastReleaseErr != nil {
+		hr.IncrementFailureCounter()
 		err = fmt.Errorf("failed to get last release revision: %w", observeLastReleaseErr)
-		return v2.HelmReleaseNotReady(hr, v2.GetLastReleaseFailedReason, "failed to get last release revision"), err
+		conditions.MarkFalse(hr, meta.ReadyCondition, v2.GetLastReleaseFailedReason, err.Error())
+		r.Eventf(ctx, hr, events.EventSeverityError, v2.GetLastReleaseFailedReason, err.Error())
+		return ctrl.Result{}, err
 	}
 
 	// Register the current release attempt.
@@ -300,58 +340,58 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	valuesChecksum := util.ValuesChecksum(values)
 	hr, hasNewState := v2.HelmReleaseAttempted(hr, revision, releaseRevision, valuesChecksum)
 	if hasNewState {
-		hr = v2.HelmReleaseProgressing(hr)
-		if updateStatusErr := r.patchStatus(ctx, &hr); updateStatusErr != nil {
-			log.Error(updateStatusErr, "unable to update status after state update")
-			return hr, updateStatusErr
-		}
-		// Record progressing status
-		r.recordReadiness(ctx, hr)
+		hr.ResetFailureCounter()
 	}
 
 	// Check status of any previous release attempt.
-	released := apimeta.FindStatusCondition(hr.Status.Conditions, v2.ReleasedCondition)
+	released := conditions.Get(hr, v2.ReleasedCondition)
 	if released != nil {
 		switch released.Status {
 		// Succeed if the previous release attempt succeeded.
 		case metav1.ConditionTrue:
-			return v2.HelmReleaseReady(hr), nil
+			return ctrl.Result{}, nil
 		case metav1.ConditionFalse:
 			// Fail if the previous release attempt remediation failed.
-			remediated := apimeta.FindStatusCondition(hr.Status.Conditions, v2.RemediatedCondition)
+			remediated := conditions.Get(hr, v2.RemediatedCondition)
 			if remediated != nil && remediated.Status == metav1.ConditionFalse {
 				err = fmt.Errorf("previous release attempt remediation failed")
-				return v2.HelmReleaseNotReady(hr, remediated.Reason, remediated.Message), err
+				return ctrl.Result{}, err
 			}
 		}
 
 		// Fail if install retries are exhausted.
 		if hr.Spec.GetInstall().GetRemediation().RetriesExhausted(hr) {
+			hr.IncrementFailureCounter()
 			err = fmt.Errorf("install retries exhausted")
-			return v2.HelmReleaseNotReady(hr, released.Reason, err.Error()), err
+			conditions.MarkFalse(hr, meta.ReadyCondition, released.Reason, err.Error())
+			r.Eventf(ctx, hr, events.EventSeverityError, released.Reason, err.Error())
+			return ctrl.Result{}, err
 		}
 
 		// Fail if there is a release and upgrade retries are exhausted.
 		// This avoids failing after an upgrade uninstall remediation strategy.
 		if rel != nil && hr.Spec.GetUpgrade().GetRemediation().RetriesExhausted(hr) {
+			hr.IncrementFailureCounter()
 			err = fmt.Errorf("upgrade retries exhausted")
-			return v2.HelmReleaseNotReady(hr, released.Reason, err.Error()), err
+			conditions.MarkFalse(hr, meta.ReadyCondition, released.Reason, err.Error())
+			r.Eventf(ctx, hr, events.EventSeverityError, released.Reason, err.Error())
+			return ctrl.Result{}, err
 		}
 	}
 
 	// Deploy the release.
 	var deployAction v2.DeploymentAction
 	if rel == nil {
-		r.event(ctx, hr, revision, events.EventSeverityInfo, "Helm install has started")
+		r.Event(ctx, hr, events.EventSeverityInfo, "Helm install has started", revision)
 		deployAction = hr.Spec.GetInstall()
-		rel, err = run.Install(hr, chart, values)
-		err = r.handleHelmActionResult(ctx, &hr, revision, err, deployAction.GetDescription(),
+		rel, err = run.Install(*hr, chart, values)
+		err = r.handleHelmActionResult(ctx, hr, revision, err, deployAction.GetDescription(),
 			v2.ReleasedCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
 	} else {
-		r.event(ctx, hr, revision, events.EventSeverityInfo, "Helm upgrade has started")
+		r.Event(ctx, hr, events.EventSeverityInfo, "Helm upgrade has started", revision)
 		deployAction = hr.Spec.GetUpgrade()
-		rel, err = run.Upgrade(hr, chart, values)
-		err = r.handleHelmActionResult(ctx, &hr, revision, err, deployAction.GetDescription(),
+		rel, err = run.Upgrade(*hr, chart, values)
+		err = r.handleHelmActionResult(ctx, hr, revision, err, deployAction.GetDescription(),
 			v2.ReleasedCondition, v2.UpgradeSucceededReason, v2.UpgradeFailedReason)
 	}
 	remediation := deployAction.GetRemediation()
@@ -359,40 +399,43 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	// If there is a new release revision...
 	if util.ReleaseRevision(rel) > releaseRevision {
 		// Ensure release is not marked remediated.
-		apimeta.RemoveStatusCondition(&hr.Status.Conditions, v2.RemediatedCondition)
+		conditions.Delete(hr, v2.RemediatedCondition)
 
 		// If new release revision is successful and tests are enabled, run them.
 		if err == nil && hr.Spec.GetTest().Enable {
-			_, testErr := run.Test(hr)
-			testErr = r.handleHelmActionResult(ctx, &hr, revision, testErr, "test",
+			_, testErr := run.Test(*hr)
+			testErr = r.handleHelmActionResult(ctx, hr, revision, testErr, "test",
 				v2.TestSuccessCondition, v2.TestSucceededReason, v2.TestFailedReason)
 
 			// Propagate any test error if not marked ignored.
 			if testErr != nil && !remediation.MustIgnoreTestFailures(hr.Spec.GetTest().IgnoreFailures) {
-				testsPassing := apimeta.FindStatusCondition(hr.Status.Conditions, v2.TestSuccessCondition)
-				meta.SetResourceCondition(&hr, v2.ReleasedCondition, metav1.ConditionFalse, testsPassing.Reason, testsPassing.Message)
-				err = testErr
+				testsPassing := conditions.Get(hr, v2.TestSuccessCondition)
+				if testsPassing != nil {
+					hr.IncrementFailureCounter()
+					conditions.MarkFalse(hr, v2.ReleasedCondition, testsPassing.Reason, testsPassing.Message)
+					err = testErr
+				}
 			}
 		}
 	}
 
 	if err != nil {
 		// Increment failure count for deployment action.
-		remediation.IncrementFailureCount(&hr)
+		remediation.IncrementFailureCount(hr)
 		// Remediate deployment failure if necessary.
 		if !remediation.RetriesExhausted(hr) || remediation.MustRemediateLastFailure() {
 			if util.ReleaseRevision(rel) <= releaseRevision {
-				log.Info(fmt.Sprintf("skipping remediation, no new release revision created"))
+				log.Info("skipping remediation, no new release revision created")
 			} else {
 				var remediationErr error
 				switch remediation.GetStrategy() {
 				case v2.RollbackRemediationStrategy:
-					rollbackErr := run.Rollback(hr)
-					remediationErr = r.handleHelmActionResult(ctx, &hr, revision, rollbackErr, "rollback",
+					rollbackErr := run.Rollback(*hr)
+					remediationErr = r.handleHelmActionResult(ctx, hr, revision, rollbackErr, "rollback",
 						v2.RemediatedCondition, v2.RollbackSucceededReason, v2.RollbackFailedReason)
 				case v2.UninstallRemediationStrategy:
-					uninstallErr := run.Uninstall(hr)
-					remediationErr = r.handleHelmActionResult(ctx, &hr, revision, uninstallErr, "uninstall",
+					uninstallErr := run.Uninstall(*hr)
+					remediationErr = r.handleHelmActionResult(ctx, hr, revision, uninstallErr, "uninstall",
 						v2.RemediatedCondition, v2.UninstallSucceededReason, v2.UninstallFailedReason)
 				}
 				if remediationErr != nil {
@@ -401,7 +444,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 			}
 
 			// Determine release after remediation.
-			rel, observeLastReleaseErr = run.ObserveLastRelease(hr)
+			rel, observeLastReleaseErr = run.ObserveLastRelease(*hr)
 			if observeLastReleaseErr != nil {
 				err = &ConditionError{
 					Reason: v2.GetLastReleaseFailedReason,
@@ -413,40 +456,44 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 
 	hr.Status.LastReleaseRevision = util.ReleaseRevision(rel)
 
+	// TODO: This should be replaced as part of issue #324
 	if err != nil {
-		reason := meta.ReconciliationFailedReason
+		// TODO: Is this the correct reason?
+		reason := v2.InstallFailedReason
 		if condErr := (*ConditionError)(nil); errors.As(err, &condErr) {
 			reason = condErr.Reason
 		}
-		return v2.HelmReleaseNotReady(hr, reason, err.Error()), err
+		hr.IncrementFailureCounter()
+		conditions.MarkFalse(hr, meta.ReadyCondition, reason, err.Error())
+		return ctrl.Result{}, err
 	}
-	return v2.HelmReleaseReady(hr), nil
+	hr.ResetFailureCounter()
+	conditions.MarkTrue(hr, meta.ReadyCondition, meta.SucceededReason, "Release reconciliation succeeded")
+	return ctrl.Result{}, nil
 }
 
-func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
+func (r *HelmReleaseReconciler) checkDependencies(ctx context.Context, hr *v2.HelmRelease) error {
 	for _, d := range hr.Spec.DependsOn {
 		if d.Namespace == "" {
 			d.Namespace = hr.GetNamespace()
 		}
-		dName := types.NamespacedName(d)
+		dName := types.NamespacedName{Namespace: d.Namespace, Name: d.Name}
 		var dHr v2.HelmRelease
-		err := r.Get(context.Background(), dName, &dHr)
+		err := r.Get(ctx, dName, &dHr)
 		if err != nil {
 			return fmt.Errorf("unable to get '%s' dependency: %w", dName, err)
 		}
-
 		if len(dHr.Status.Conditions) == 0 || dHr.Generation != dHr.Status.ObservedGeneration {
 			return fmt.Errorf("dependency '%s' is not ready", dName)
 		}
-
-		if !apimeta.IsStatusConditionTrue(dHr.Status.Conditions, meta.ReadyCondition) {
+		if !conditions.IsReady(&dHr) {
 			return fmt.Errorf("dependency '%s' is not ready", dName)
 		}
 	}
 	return nil
 }
 
-func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {
+func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr *v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {
 	if hr.Spec.KubeConfig == nil {
 		// impersonate service account if specified
 		if hr.Spec.ServiceAccountName != "" {
@@ -472,7 +519,7 @@ func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.H
 	}
 
 	var kubeConfig []byte
-	for k, _ := range secret.Data {
+	for k := range secret.Data {
 		if k == "value" || k == "value.yaml" {
 			kubeConfig = secret.Data[k]
 			break
@@ -485,7 +532,7 @@ func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.H
 	return kube.NewMemoryRESTClientGetter(kubeConfig, hr.GetReleaseNamespace()), nil
 }
 
-func (r *HelmReleaseReconciler) getServiceAccountToken(ctx context.Context, hr v2.HelmRelease) (string, error) {
+func (r *HelmReleaseReconciler) getServiceAccountToken(ctx context.Context, hr *v2.HelmRelease) (string, error) {
 	namespacedName := types.NamespacedName{
 		Namespace: hr.Namespace,
 		Name:      hr.Spec.ServiceAccountName,
@@ -528,7 +575,7 @@ func (r *HelmReleaseReconciler) getServiceAccountToken(ctx context.Context, hr v
 // composeValues attempts to resolve all v2beta1.ValuesReference resources
 // and merges them as defined. Referenced resources are only retrieved once
 // to ensure a single version is taken into account during the merge.
-func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRelease) (chartutil.Values, error) {
+func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr *v2.HelmRelease) (chartutil.Values, error) {
 	result := chartutil.Values{}
 
 	configMaps := make(map[string]*corev1.ConfigMap)
@@ -641,11 +688,9 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 
 // reconcileDelete deletes the v1beta1.HelmChart of the v2beta1.HelmRelease,
 // and uninstalls the Helm release if the resource has not been suspended.
-func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmRelease) (ctrl.Result, error) {
-	r.recordReadiness(ctx, hr)
-
+func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr *v2.HelmRelease) (ctrl.Result, error) {
 	// Delete the HelmChart that belongs to this resource.
-	if err := r.deleteHelmChart(ctx, &hr); err != nil {
+	if err := r.deleteHelmChart(ctx, hr); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -659,21 +704,16 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmR
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		if err := run.Uninstall(hr); err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
+		if err := run.Uninstall(*hr); err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
 			return ctrl.Result{}, err
 		}
 		logr.FromContext(ctx).Info("uninstalled Helm release for deleted resource")
-
 	} else {
 		logr.FromContext(ctx).Info("skipping Helm uninstall for suspended resource")
 	}
 
-	// Remove our finalizer from the list and update it.
-	controllerutil.RemoveFinalizer(&hr, v2.HelmReleaseFinalizer)
-	if err := r.Update(ctx, &hr); err != nil {
-		return ctrl.Result{}, err
-	}
-
+	// Remove our finalizer from the list
+	controllerutil.RemoveFinalizer(hr, v2.HelmReleaseFinalizer)
 	return ctrl.Result{}, nil
 }
 
@@ -685,24 +725,16 @@ func (r *HelmReleaseReconciler) handleHelmActionResult(ctx context.Context,
 		if actionErr := (*runner.ActionError)(nil); errors.As(err, &actionErr) {
 			msg = msg + "\n\nLast Helm logs:\n\n" + actionErr.CapturedLogs
 		}
-		meta.SetResourceCondition(hr, condition, metav1.ConditionFalse, failedReason, msg)
-		r.event(ctx, *hr, revision, events.EventSeverityError, msg)
+		hr.IncrementFailureCounter()
+		conditions.MarkFalse(hr, condition, failedReason, msg)
+		r.Eventf(ctx, hr, events.EventSeverityError, failedReason, msg)
 		return &ConditionError{Reason: failedReason, Err: err}
 	} else {
-		msg := fmt.Sprintf("Helm %s succeeded", action)
-		meta.SetResourceCondition(hr, condition, metav1.ConditionTrue, succeededReason, msg)
-		r.event(ctx, *hr, revision, events.EventSeverityInfo, msg)
+		hr.ResetFailureCounter()
+		conditions.MarkTrue(hr, condition, succeededReason, "Helm %s succeeded", action)
+		r.Eventf(ctx, hr, events.EventSeverityInfo, succeededReason, "Helm %s succeeded", action)
 		return nil
 	}
-}
-
-func (r *HelmReleaseReconciler) patchStatus(ctx context.Context, hr *v2.HelmRelease) error {
-	key := client.ObjectKeyFromObject(hr)
-	latest := &v2.HelmRelease{}
-	if err := r.Client.Get(ctx, key, latest); err != nil {
-		return err
-	}
-	return r.Client.Status().Patch(ctx, hr, client.MergeFrom(latest))
 }
 
 func (r *HelmReleaseReconciler) requestsForHelmChartChange(o client.Object) []reconcile.Request {
@@ -733,64 +765,4 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(o client.Object) []re
 		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&i)})
 	}
 	return reqs
-}
-
-// event emits a Kubernetes event and forwards the event to notification controller if configured.
-func (r *HelmReleaseReconciler) event(ctx context.Context, hr v2.HelmRelease, revision, severity, msg string) {
-	r.EventRecorder.Event(&hr, "Normal", severity, msg)
-	objRef, err := reference.GetReference(r.Scheme, &hr)
-	if err != nil {
-		logr.FromContext(ctx).Error(err, "unable to send event")
-		return
-	}
-
-	if r.ExternalEventRecorder != nil {
-		var meta map[string]string
-		if revision != "" {
-			meta = map[string]string{"revision": revision}
-		}
-		if err := r.ExternalEventRecorder.Eventf(*objRef, meta, severity, severity, msg); err != nil {
-			logr.FromContext(ctx).Error(err, "unable to send event")
-			return
-		}
-	}
-}
-
-func (r *HelmReleaseReconciler) recordSuspension(ctx context.Context, hr v2.HelmRelease) {
-	if r.MetricsRecorder == nil {
-		return
-	}
-	log := logr.FromContext(ctx)
-
-	objRef, err := reference.GetReference(r.Scheme, &hr)
-	if err != nil {
-		log.Error(err, "unable to record suspended metric")
-		return
-	}
-
-	if !hr.DeletionTimestamp.IsZero() {
-		r.MetricsRecorder.RecordSuspend(*objRef, false)
-	} else {
-		r.MetricsRecorder.RecordSuspend(*objRef, hr.Spec.Suspend)
-	}
-}
-
-func (r *HelmReleaseReconciler) recordReadiness(ctx context.Context, hr v2.HelmRelease) {
-	if r.MetricsRecorder == nil {
-		return
-	}
-
-	objRef, err := reference.GetReference(r.Scheme, &hr)
-	if err != nil {
-		logr.FromContext(ctx).Error(err, "unable to record readiness metric")
-		return
-	}
-	if rc := apimeta.FindStatusCondition(hr.Status.Conditions, meta.ReadyCondition); rc != nil {
-		r.MetricsRecorder.RecordCondition(*objRef, *rc, !hr.DeletionTimestamp.IsZero())
-	} else {
-		r.MetricsRecorder.RecordCondition(*objRef, metav1.Condition{
-			Type:   meta.ReadyCondition,
-			Status: metav1.ConditionUnknown,
-		}, !hr.DeletionTimestamp.IsZero())
-	}
 }

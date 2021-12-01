@@ -83,4 +83,8 @@ const (
 	// GetLastReleaseFailedReason represents the fact that observing the last
 	// release failed.
 	GetLastReleaseFailedReason string = "GetLastReleaseFailed"
+
+	// GetHelmChartFailedReason represents the fact that the Helm chart for
+	// the release could not be fetched.
+	GetHelmChartFailedReason string = "GetHelmChartFailed"
 )

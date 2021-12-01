@@ -421,13 +421,6 @@ func Test_helmChartRequiresUpdate(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "detects reconcile strategy change",
-			modify: func(hr *v2.HelmRelease, hc *sourcev1.HelmChart) {
-				hr.Spec.Chart.Spec.ReconcileStrategy = "Revision"
-			},
-			want: true,
-		},
-		{
 			name: "detects values files change",
 			modify: func(hr *v2.HelmRelease, hc *sourcev1.HelmChart) {
 				hr.Spec.Chart.Spec.ValuesFiles = []string{"values-prod.yaml"}

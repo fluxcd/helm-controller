@@ -78,18 +78,6 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	return &helmChart, nil
 }
 
-// getHelmChart retrieves the v1beta1.HelmChart for the given
-// v2beta1.HelmRelease using the name that is advertised in the status
-// object. It returns the v1beta1.HelmChart, or an error.
-func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, error) {
-	namespace, name := hr.Status.GetHelmChart()
-	hc := &sourcev1.HelmChart{}
-	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, hc); err != nil {
-		return nil, err
-	}
-	return hc, nil
-}
-
 // loadHelmChart attempts to download the artifact from the provided source,
 // loads it into a chart.Chart, and removes the downloaded artifact.
 // It returns the loaded chart.Chart on success, or an error.
@@ -174,10 +162,9 @@ func buildHelmChartFromTemplate(hr *v2.HelmRelease) *sourcev1.HelmChart {
 				Name: template.Spec.SourceRef.Name,
 				Kind: template.Spec.SourceRef.Kind,
 			},
-			Interval:          template.GetInterval(hr.Spec.Interval),
-			ReconcileStrategy: template.Spec.ReconcileStrategy,
-			ValuesFiles:       template.Spec.ValuesFiles,
-			ValuesFile:        template.Spec.ValuesFile,
+			Interval:    template.GetInterval(hr.Spec.Interval),
+			ValuesFiles: template.Spec.ValuesFiles,
+			ValuesFile:  template.Spec.ValuesFile,
 		},
 	}
 }
@@ -199,8 +186,6 @@ func helmChartRequiresUpdate(hr *v2.HelmRelease, chart *sourcev1.HelmChart) bool
 	case template.Spec.SourceRef.Kind != chart.Spec.SourceRef.Kind:
 		return true
 	case template.GetInterval(hr.Spec.Interval) != chart.Spec.Interval:
-		return true
-	case template.Spec.ReconcileStrategy != chart.Spec.ReconcileStrategy:
 		return true
 	case !reflect.DeepEqual(template.Spec.ValuesFiles, chart.Spec.ValuesFiles):
 		return true

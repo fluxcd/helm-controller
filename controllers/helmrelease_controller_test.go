@@ -261,7 +261,7 @@ invalid`,
 				v, _ := yaml.YAMLToJSON([]byte(tt.values))
 				values = &apiextensionsv1.JSON{Raw: v}
 			}
-			hr := v2.HelmRelease{
+			hr := &v2.HelmRelease{
 				Spec: v2.HelmReleaseSpec{
 					ValuesFrom: tt.references,
 					Values:     values,
