@@ -167,7 +167,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			meta.ReadyCondition,
 			conditions.WithConditions(
 				v2.ReleasedCondition,
-				v2.TestSuccessCondition,
+				//v2.TestSuccessCondition,
 				v2.RemediatedCondition,
 			),
 			conditions.WithNegativePolarityConditions(
