@@ -763,7 +763,7 @@ The reconciler can be told to reconcile the `HelmRelease` outside of the specifi
 by annotating the object with a `reconcile.fluxcd.io/requestedAt` annotation. For example:
 
 ```bash
-kubectl annotate --overwrite helmrelease/podinfo reconcile.fluxcd.io/requesteddAt="$(date +%s)"
+kubectl annotate --overwrite helmrelease/podinfo reconcile.fluxcd.io/requestedAt="$(date +%s)"
 ```
 
 Reconciliation can be suspended by setting `spec.suspend` to `true`.
