@@ -35,8 +35,14 @@ require (
 	k8s.io/client-go v0.22.2
 	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/controller-runtime v0.10.2
-	sigs.k8s.io/kustomize/api v0.10.0
+	sigs.k8s.io/kustomize/api v0.10.1
 	sigs.k8s.io/yaml v1.2.0
+)
+
+// pin kustomize to v4.4.1
+replace (
+	sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.10.1
+	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.13.0
 )
 
 // Freeze Helm due to OOM issues https://github.com/fluxcd/helm-controller/issues/345
