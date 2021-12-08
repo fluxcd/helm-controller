@@ -162,6 +162,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			obj.Status.SetLastHandledReconcileRequest(v)
 		}
 
+		// TODO: Handle test condition when tests are enabled
 		// Summarize Ready condition
 		conditions.SetSummary(obj,
 			meta.ReadyCondition,
@@ -169,9 +170,13 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 				v2.ReleasedCondition,
 				//v2.TestSuccessCondition,
 				v2.RemediatedCondition,
+				v2.InitFailedCondition,
+				v2.RetriesExhaustedCondition,
 			),
 			conditions.WithNegativePolarityConditions(
 				v2.RemediatedCondition,
+				v2.InitFailedCondition,
+				v2.RetriesExhaustedCondition,
 			),
 		)
 
@@ -182,6 +187,8 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 					v2.ReleasedCondition,
 					v2.TestSuccessCondition,
 					v2.RemediatedCondition,
+					v2.InitFailedCondition,
+					v2.RetriesExhaustedCondition,
 					meta.ReadyCondition,
 					meta.ReconcilingCondition,
 					meta.StalledCondition,
@@ -242,11 +249,14 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, obj *v2.HelmRelea
 	// Mark the resource as under reconciliation
 	conditions.MarkReconciling(obj, meta.ProgressingReason, "")
 
+	// Remove InitFailedCondition
+	conditions.Delete(obj, v2.InitFailedCondition)
+
 	// Reconcile chart based on the HelmChartTemplate
 	hc, reconcileErr := r.reconcileChart(ctx, obj)
 	if reconcileErr != nil {
 		obj.IncrementFailureCounter()
-		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "Chart reconcilliation failed: %s", reconcileErr.Error())
+		conditions.MarkTrue(obj, v2.InitFailedCondition, v2.ArtifactFailedReason, "Chart reconcilliation failed: %s", reconcileErr.Error())
 		r.Eventf(ctx, obj, events.EventSeverityError, v2.ArtifactFailedReason, "Chart reconcilliation failed: %s", reconcileErr.Error())
 		return ctrl.Result{Requeue: true}, reconcileErr
 	}
@@ -254,7 +264,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, obj *v2.HelmRelea
 	if !conditions.IsReady(hc) {
 		msg := fmt.Sprintf("HelmChart '%s/%s' is not ready", hc.GetNamespace(), hc.GetName())
 		obj.IncrementFailureCounter()
-		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, msg)
+		conditions.MarkTrue(obj, v2.InitFailedCondition, v2.ArtifactFailedReason, msg)
 		r.Eventf(ctx, obj, events.EventSeverityError, v2.ArtifactFailedReason, msg)
 		log.Info(msg)
 		// Do not requeue immediately, when the artifact is created
@@ -267,8 +277,8 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, obj *v2.HelmRelea
 		if err := r.checkDependencies(ctx, obj); err != nil {
 			msg := fmt.Sprintf("dependencies do not meet ready condition (%s), retrying in %s", err.Error(), r.requeueDependency.String())
 			obj.IncrementFailureCounter()
-			conditions.MarkFalse(obj, meta.ReadyCondition, v2.GetHelmChartFailedReason, msg)
-			r.Eventf(ctx, obj, events.EventSeverityError, v2.GetHelmChartFailedReason, msg)
+			conditions.MarkTrue(obj, v2.InitFailedCondition, v2.DependencyNotReadyReason, msg)
+			r.Eventf(ctx, obj, events.EventSeverityError, v2.DependencyNotReadyReason, msg)
 			log.Info(msg)
 			// Exponential backoff would cause execution to be prolonged too much,
 			// instead we requeue on a fixed interval.
@@ -281,7 +291,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, obj *v2.HelmRelea
 	values, err := r.composeValues(ctx, obj)
 	if err != nil {
 		obj.IncrementFailureCounter()
-		conditions.MarkFalse(obj, meta.ReadyCondition, v2.InitFailedReason, "could not get chart values: %s", err.Error())
+		conditions.MarkTrue(obj, v2.InitFailedCondition, v2.InitFailedReason, "could not get chart values: %s", err.Error())
 		r.Eventf(ctx, obj, events.EventSeverityError, v2.InitFailedReason, "could not get chart values: %s", err.Error())
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -290,16 +300,16 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, obj *v2.HelmRelea
 	chart, err := r.loadHelmChart(hc)
 	if err != nil {
 		obj.IncrementFailureCounter()
-		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "could not get chart artifact: %s", err.Error())
-		r.Eventf(ctx, obj, events.EventSeverityError, v2.ArtifactFailedReason, "could not get chart artifact: %s", err.Error())
+		conditions.MarkTrue(obj, v2.InitFailedCondition, v2.ArtifactFailedReason, "could not load chart: %s", err.Error())
+		r.Eventf(ctx, obj, events.EventSeverityError, v2.ArtifactFailedReason, "could not load chart: %s", err.Error())
 		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Reconcile Helm release
-	if result, err := r.reconcileRelease(ctx, obj, chart, values); reconcileErr != nil {
+	if result, err := r.reconcileRelease(ctx, obj, chart, values); err != nil {
 		obj.IncrementFailureCounter()
-		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "could not get chart artifact: %s", err.Error())
-		r.Eventf(ctx, obj, events.EventSeverityError, v2.ArtifactFailedReason, "could not get chart artifact: %s", err.Error())
+		// TODO: Set a better reason
+		r.Eventf(ctx, obj, events.EventSeverityError, v2.ArtifactFailedReason, "reconciliation failed: %s", err.Error())
 		return result, err
 	}
 	return ctrl.Result{RequeueAfter: obj.Spec.Interval.Duration}, nil
@@ -312,14 +322,14 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, hr *v2.Hel
 	getter, err := r.getRESTClientGetter(ctx, hr)
 	if err != nil {
 		hr.IncrementFailureCounter()
-		conditions.MarkFalse(hr, meta.ReadyCondition, v2.InitFailedReason, err.Error())
+		conditions.MarkTrue(hr, v2.InitFailedCondition, v2.InitFailedReason, err.Error())
 		r.Eventf(ctx, hr, events.EventSeverityError, v2.InitFailedReason, err.Error())
 		return ctrl.Result{}, err
 	}
 	run, err := runner.NewRunner(getter, hr.GetStorageNamespace(), log)
 	if err != nil {
 		hr.IncrementFailureCounter()
-		conditions.MarkFalse(hr, meta.ReadyCondition, v2.InitFailedReason, "failed to initialize Helm action runner: %s", err)
+		conditions.MarkTrue(hr, v2.InitFailedCondition, v2.InitFailedReason, "failed to initialize Helm action runner: %s", err)
 		r.Eventf(ctx, hr, events.EventSeverityError, v2.InitFailedReason, "failed to initialize Helm action runner: %s", err)
 		return ctrl.Result{}, err
 	}
@@ -329,7 +339,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, hr *v2.Hel
 	if observeLastReleaseErr != nil {
 		hr.IncrementFailureCounter()
 		err = fmt.Errorf("failed to get last release revision: %w", observeLastReleaseErr)
-		conditions.MarkFalse(hr, meta.ReadyCondition, v2.GetLastReleaseFailedReason, err.Error())
+		conditions.MarkTrue(hr, v2.InitFailedCondition, v2.GetLastReleaseFailedReason, err.Error())
 		r.Eventf(ctx, hr, events.EventSeverityError, v2.GetLastReleaseFailedReason, err.Error())
 		return ctrl.Result{}, err
 	}
@@ -340,6 +350,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, hr *v2.Hel
 	valuesChecksum := util.ValuesChecksum(values)
 	hr, hasNewState := v2.HelmReleaseAttempted(hr, revision, releaseRevision, valuesChecksum)
 	if hasNewState {
+		conditions.MarkUnknown(hr, v2.ReleasedCondition, meta.ProgressingReason, "Reconciliation in progress")
 		hr.ResetFailureCounter()
 	}
 
@@ -363,7 +374,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, hr *v2.Hel
 		if hr.Spec.GetInstall().GetRemediation().RetriesExhausted(hr) {
 			hr.IncrementFailureCounter()
 			err = fmt.Errorf("install retries exhausted")
-			conditions.MarkFalse(hr, meta.ReadyCondition, released.Reason, err.Error())
+			conditions.MarkTrue(hr, v2.RetriesExhaustedCondition, released.Reason, err.Error())
 			r.Eventf(ctx, hr, events.EventSeverityError, released.Reason, err.Error())
 			return ctrl.Result{}, err
 		}
@@ -373,11 +384,12 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, hr *v2.Hel
 		if rel != nil && hr.Spec.GetUpgrade().GetRemediation().RetriesExhausted(hr) {
 			hr.IncrementFailureCounter()
 			err = fmt.Errorf("upgrade retries exhausted")
-			conditions.MarkFalse(hr, meta.ReadyCondition, released.Reason, err.Error())
+			conditions.MarkTrue(hr, v2.RetriesExhaustedCondition, released.Reason, err.Error())
 			r.Eventf(ctx, hr, events.EventSeverityError, released.Reason, err.Error())
 			return ctrl.Result{}, err
 		}
 	}
+	conditions.Delete(hr, v2.RetriesExhaustedCondition)
 
 	// Deploy the release.
 	var deployAction v2.DeploymentAction
@@ -464,11 +476,11 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, hr *v2.Hel
 			reason = condErr.Reason
 		}
 		hr.IncrementFailureCounter()
-		conditions.MarkFalse(hr, meta.ReadyCondition, reason, err.Error())
+		conditions.MarkFalse(hr, v2.ReleasedCondition, reason, err.Error())
 		return ctrl.Result{}, err
 	}
+
 	hr.ResetFailureCounter()
-	conditions.MarkTrue(hr, meta.ReadyCondition, meta.SucceededReason, "Release reconciliation succeeded")
 	return ctrl.Result{}, nil
 }
 
@@ -730,7 +742,6 @@ func (r *HelmReleaseReconciler) handleHelmActionResult(ctx context.Context,
 		r.Eventf(ctx, hr, events.EventSeverityError, failedReason, msg)
 		return &ConditionError{Reason: failedReason, Err: err}
 	} else {
-		hr.ResetFailureCounter()
 		conditions.MarkTrue(hr, condition, succeededReason, "Helm %s succeeded", action)
 		r.Eventf(ctx, hr, events.EventSeverityInfo, succeededReason, "Helm %s succeeded", action)
 		return nil

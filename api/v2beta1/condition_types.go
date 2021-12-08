@@ -29,6 +29,13 @@ const (
 	// (uninstall/rollback) due to a failure of the last release attempt against the
 	// latest desired state.
 	RemediatedCondition string = "Remediated"
+
+	// InitFailedCondtion represents the failure of the initial setup steps of the helm release.
+	InitFailedCondition string = "InitFailed"
+
+	// RetriesExhaustedCondition represents the failues when the maximum number
+	// or retries has been reached.
+	RetriesExhaustedCondition string = "RetriesExhausted"
 )
 
 const (
@@ -87,4 +94,8 @@ const (
 	// GetHelmChartFailedReason represents the fact that the Helm chart for
 	// the release could not be fetched.
 	GetHelmChartFailedReason string = "GetHelmChartFailed"
+
+	// DependencyFailedReason represents the fact that resources the Helm release
+	// depends on are not ready.
+	DependencyNotReadyReason string = "DependencyNotReady"
 )
