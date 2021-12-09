@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.14.1
+
+**Release date:** 2021-12-09
+
+This prerelease updates the dependency on the source-controller to `v0.19.2`,
+which includes the fixes from source-controller `v0.19.1`, and changes the
+length of the SHA hex added to the SemVer metadata of a `HelmChart`. Refer to
+the source-controller [changelog](https://github.com/fluxcd/source-controller/blob/main/CHANGELOG.md#0191)
+for more information.
+
+:warning: There have been additional user reports about charts complaining
+about a `+` character in the label:
+
+```
+metadata.labels: Invalid value: "1.2.3+a4303ff0f6fb560ea032f9981c6bd7c7f146d083.1": a valid label must be an empty string or consist of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character (e.g. 'MyValue', or 'my_value', or '12345', regex used for validation is '(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?')
+```
+
+Given the [Helm chart best practices mention to replace this character with a
+`_`](https://helm.sh/docs/chart_best_practices/conventions/#version-numbers),
+we encourage you to patch this in your (upstream) chart.
+Pseudo example using [template functions](https://helm.sh/docs/chart_template_guide/function_list/):
+
+```yaml
+{{- replace "+" "_" .Chart.Version | trunc 63 }}
+```
+
+In addition, the dependency on `github.com/opencontainers/runc` is updated to
+`v1.0.3` to please static security analysers and fix any warnings for
+CVE-2021-43784.
+
+Improvements:
+- Update kustomize packages to Kustomize v4.4.1
+  [#374](https://github.com/fluxcd/helm-controller/pull/374)
+- Update dependencies (fix CVE-2021-43784)
+  [#376](https://github.com/fluxcd/helm-controller/pull/376)
+- Update source-controller to v0.19.2
+  [#377](https://github.com/fluxcd/helm-controller/pull/377)
+
+Fixes:
+- docs/spec: Fix reconcile annotation key in example
+  [#371](https://github.com/fluxcd/helm-controller/pull/371)
+
 ## 0.14.0
 
 **Release date:** 2021-11-23
