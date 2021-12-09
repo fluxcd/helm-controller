@@ -11,7 +11,7 @@ require (
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/fluxcd/helm-controller/api v0.14.0
-	github.com/fluxcd/pkg/apis/kustomize v0.2.0
+	github.com/fluxcd/pkg/apis/kustomize v0.3.0
 	github.com/fluxcd/pkg/apis/meta v0.10.1
 	github.com/fluxcd/pkg/runtime v0.12.2
 	github.com/fluxcd/source-controller/api v0.19.0
@@ -56,7 +56,10 @@ replace github.com/docker/distribution => github.com/docker/distribution v2.7.0-
 replace github.com/docker/cli => github.com/docker/cli v20.10.9+incompatible
 
 // Fix CVE-2021-30465
-replace github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.2
+// Fix CVE-2021-43784
+// Fix GO-2021-0085
+// Fix GO-2021-0087
+replace github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.3
 
 // Fix CVE-2021-32760
 // Fix CVE-2021-41103
