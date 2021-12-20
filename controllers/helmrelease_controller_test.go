@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
@@ -267,7 +266,7 @@ invalid`,
 					Values:     values,
 				},
 			}
-			got, err := r.composeValues(logr.NewContext(context.TODO(), log.NullLogger{}), hr)
+			got, err := r.composeValues(logr.NewContext(context.TODO(), logr.Discard()), hr)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("composeValues() error = %v, wantErr %v", err, tt.wantErr)
 				return
