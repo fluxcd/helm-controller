@@ -741,21 +741,23 @@ func (r *HelmReleaseReconciler) event(ctx context.Context, hr v2.HelmRelease, re
 		r.EventRecorder.Event(&hr, "Normal", severity, msg)
 	}
 
+	if r.ExternalEventRecorder == nil {
+		return
+	}
+
 	objRef, err := reference.GetReference(r.Scheme, &hr)
 	if err != nil {
 		logr.FromContext(ctx).Error(err, "unable to send event")
 		return
 	}
 
-	if r.ExternalEventRecorder != nil {
-		var meta map[string]string
-		if revision != "" {
-			meta = map[string]string{"revision": revision}
-		}
-		if err := r.ExternalEventRecorder.Eventf(*objRef, meta, severity, severity, msg); err != nil {
-			logr.FromContext(ctx).Error(err, "unable to send event")
-			return
-		}
+	var meta map[string]string
+	if revision != "" {
+		meta = map[string]string{"revision": revision}
+	}
+	if err := r.ExternalEventRecorder.Eventf(*objRef, meta, severity, severity, msg); err != nil {
+		logr.FromContext(ctx).Error(err, "unable to send event")
+		return
 	}
 }
 
