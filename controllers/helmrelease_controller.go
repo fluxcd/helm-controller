@@ -737,7 +737,10 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(o client.Object) []re
 
 // event emits a Kubernetes event and forwards the event to notification controller if configured.
 func (r *HelmReleaseReconciler) event(ctx context.Context, hr v2.HelmRelease, revision, severity, msg string) {
-	r.EventRecorder.Event(&hr, "Normal", severity, msg)
+	if r.EventRecorder != nil {
+		r.EventRecorder.Event(&hr, "Normal", severity, msg)
+	}
+
 	objRef, err := reference.GetReference(r.Scheme, &hr)
 	if err != nil {
 		logr.FromContext(ctx).Error(err, "unable to send event")
