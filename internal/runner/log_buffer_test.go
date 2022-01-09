@@ -19,7 +19,7 @@ package runner
 import (
 	"testing"
 
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	"github.com/go-logr/logr"
 )
 
 func TestLogBuffer_Log(t *testing.T) {
@@ -54,7 +54,7 @@ func TestLogBuffer_Log(t *testing.T) {
 
 func TestLogBuffer_Reset(t *testing.T) {
 	bufferSize := 10
-	l := NewLogBuffer(NewDebugLog(log.NullLogger{}).Log, bufferSize)
+	l := NewLogBuffer(NewDebugLog(logr.Discard()).Log, bufferSize)
 
 	if got := l.buffer.Len(); got != bufferSize {
 		t.Errorf("Len() = %v, want %v", got, bufferSize)
@@ -91,7 +91,7 @@ func TestLogBuffer_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := NewLogBuffer(NewDebugLog(log.NullLogger{}).Log, tt.size)
+			l := NewLogBuffer(NewDebugLog(logr.Discard()).Log, tt.size)
 			for _, v := range tt.fill {
 				l.Log("%s", v)
 			}

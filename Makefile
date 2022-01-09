@@ -105,7 +105,7 @@ docker-push:
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 .PHONY: controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.5.0)
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.7.0)
 
 # Find or download gen-crd-api-reference-docs
 gen-crd-api-reference-docs:

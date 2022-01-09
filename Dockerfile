@@ -1,9 +1,10 @@
-ARG XX_VERSION=1.0.0-rc.2
+ARG GO_VERSION=1.17
+ARG XX_VERSION=1.1.0
 
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 
 # Docker buildkit multi-arch build requires golang alpine
-FROM --platform=$BUILDPLATFORM golang:1.16-alpine as builder
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine as builder
 
 # Copy the build utilities.
 COPY --from=xx / /
@@ -31,7 +32,7 @@ COPY internal/ internal/
 ENV CGO_ENABLED=0
 RUN xx-go build -a -o helm-controller main.go
 
-FROM alpine:3.14
+FROM alpine:3.15
 
 # link repo to the GitHub Container Registry image
 LABEL org.opencontainers.image.source="https://github.com/fluxcd/helm-controller"

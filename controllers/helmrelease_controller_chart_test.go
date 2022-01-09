@@ -29,7 +29,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
@@ -160,7 +159,7 @@ func TestHelmReleaseReconciler_reconcileChart(t *testing.T) {
 				Client: c,
 			}
 
-			hc, err := r.reconcileChart(logr.NewContext(context.TODO(), log.NullLogger{}), tt.hr)
+			hc, err := r.reconcileChart(logr.NewContext(context.TODO(), logr.Discard()), tt.hr)
 			if tt.expectErr {
 				g.Expect(err).To(HaveOccurred())
 				g.Expect(hc).To(BeNil())
