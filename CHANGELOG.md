@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.15.0
+
+**Release date:** 2022-01-10
+
+This prerelease comes with an update to the Kubernetes and controller-runtime dependencies
+to align them with the Kubernetes 1.23 release, including an update of Helm to `v3.7.2`.
+
+In addition, the controller is now built with Go 1.17 and Alpine 3.15.
+
+Improvements:
+- Update Go to v1.17
+  [#348](https://github.com/fluxcd/helm-controller/pull/348)
+- Update Helm to v3.7.2
+  [#380](https://github.com/fluxcd/helm-controller/pull/380)
+
+Fixes:
+- Fix inconsistent code-style raised at security audit
+  [#386](https://github.com/fluxcd/helm-controller/pull/386)
+
 ## 0.14.1
 
 **Release date:** 2021-12-09
