@@ -68,7 +68,7 @@ manifests: controller-gen
 
 # Generate API reference documentation
 api-docs: gen-crd-api-reference-docs
-	$(API_REF_GEN) -api-dir=./api/v2beta1 -config=./hack/api-docs/config.json -template-dir=./hack/api-docs/template -out-file=./docs/api/helmrelease.md
+	$(GEN_CRD_API_REFERENCE_DOCS) -api-dir=./api/v2beta1 -config=./hack/api-docs/config.json -template-dir=./hack/api-docs/template -out-file=./docs/api/helmrelease.md
 
 # Run go mod tidy
 tidy:
@@ -108,20 +108,10 @@ controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.7.0)
 
 # Find or download gen-crd-api-reference-docs
+GEN_CRD_API_REFERENCE_DOCS = $(shell pwd)/bin/gen-crd-api-reference-docs
+.PHONY: gen-crd-api-reference-docs
 gen-crd-api-reference-docs:
-ifeq (, $(shell which gen-crd-api-reference-docs))
-	@{ \
-	set -e ;\
-	API_REF_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$API_REF_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go get github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0 ;\
-	rm -rf $$API_REF_GEN_TMP_DIR ;\
-	}
-API_REF_GEN=$(GOBIN)/gen-crd-api-reference-docs
-else
-API_REF_GEN=$(shell which gen-crd-api-reference-docs)
-endif
+	$(call go-install-tool,$(GEN_CRD_API_REFERENCE_DOCS),github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0)
 
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 ENVTEST_KUBERNETES_VERSION?=latest
