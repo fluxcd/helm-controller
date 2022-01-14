@@ -141,8 +141,9 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Add our finalizer if it does not exist
 	if !controllerutil.ContainsFinalizer(&hr, v2.HelmReleaseFinalizer) {
+		patch := client.MergeFrom(hr.DeepCopy())
 		controllerutil.AddFinalizer(&hr, v2.HelmReleaseFinalizer)
-		if err := r.Update(ctx, &hr); err != nil {
+		if err := r.Patch(ctx, &hr, patch); err != nil {
 			log.Error(err, "unable to register finalizer")
 			return ctrl.Result{}, err
 		}
