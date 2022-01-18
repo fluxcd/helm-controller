@@ -41,8 +41,6 @@ RUN apk add --no-cache ca-certificates tini
 
 COPY --from=builder /workspace/helm-controller /usr/local/bin/
 
-RUN addgroup -S controller -g 65532 && adduser -D -u 65532 -s /sbin/nologin -S controller -G controller
-
-USER controller
+USER 65534:65534
 
 ENTRYPOINT [ "/sbin/tini", "--", "helm-controller" ]
