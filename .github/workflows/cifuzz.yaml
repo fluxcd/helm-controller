@@ -1,0 +1,20 @@
+name: CIFuzz
+on:
+  pull_request:
+    branches:
+      - main
+jobs:
+  Fuzzing:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Restore Go cache
+      uses: actions/cache@v1
+      with:
+        path: /home/runner/work/_temp/_github_home/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    - name: Smoke test Fuzzers
+      run: make fuzz-smoketest

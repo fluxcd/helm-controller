@@ -820,8 +820,10 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 	if in.HelmChart == "" {
 		return "", ""
 	}
-	split := strings.Split(in.HelmChart, string(types.Separator))
-	return split[0], split[1]
+	if split := strings.Split(in.HelmChart, string(types.Separator)); len(split) > 1 {
+		return split[0], split[1]
+	}
+	return "", ""
 }
 
 // HelmReleaseProgressing resets any failures and registers progress toward
