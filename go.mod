@@ -19,6 +19,7 @@ require (
 	github.com/yvasiyarov/go-metrics v0.0.0-20150112132944-c25f46c4b940 // indirect
 	github.com/yvasiyarov/gorelic v0.0.7 // indirect
 	github.com/yvasiyarov/newrelic_platform_go v0.0.0-20160601141957-9c099fbc30e9 // indirect
+	golang.org/x/text v0.3.7 // indirect
 	helm.sh/helm/v3 v3.7.1
 	k8s.io/api v0.23.1
 	k8s.io/apiextensions-apiserver v0.23.1
