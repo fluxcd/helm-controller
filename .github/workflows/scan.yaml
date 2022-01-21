@@ -1,5 +1,4 @@
 name: Scan
-
 on:
   push:
     branches: [ main ]
@@ -7,6 +6,10 @@ on:
     branches: [ main ]
   schedule:
     - cron: '18 10 * * 3'
+
+permissions:
+  contents: read # for actions/checkout to fetch code
+  security-events: write # for codeQL to write security events
 
 jobs:
   fossa:

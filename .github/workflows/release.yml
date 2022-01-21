@@ -10,6 +10,11 @@ on:
         default: 'rc'
         required: true
 
+permissions:
+  contents: write # needed to write releases
+  id-token: write # needed for keyless signing
+  packages: write # needed for ghcr access
+
 env:
   CONTROLLER: ${{ github.event.repository.name }}
 
@@ -31,13 +36,9 @@ jobs:
           echo ::set-output name=VERSION::${VERSION}
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v1
-        with:
-          platforms: all
       - name: Setup Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v1
-        with:
-          buildkitd-flags: "--debug"
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
         with:
@@ -49,7 +50,16 @@ jobs:
         with:
           username: fluxcdbot
           password: ${{ secrets.DOCKER_FLUXCD_PASSWORD }}
-      - name: Publish multi-arch container image
+      - name: Generate images meta
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: |
+            fluxcd/${{ env.CONTROLLER }}
+            ghcr.io/fluxcd/${{ env.CONTROLLER }}
+          tags: |
+            type=raw,value=${{ steps.prep.outputs.VERSION }}
+      - name: Publish images
         uses: docker/build-push-action@v2
         with:
           push: true
@@ -57,35 +67,34 @@ jobs:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm/v7,linux/arm64
-          tags: |
-            ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
-            docker.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
-          labels: |
-            org.opencontainers.image.title=${{ github.event.repository.name }}
-            org.opencontainers.image.description=${{ github.event.repository.description }}
-            org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.prep.outputs.VERSION }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.BUILD_DATE }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
       - name: Check images
         run: |
           docker buildx imagetools inspect docker.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
           docker buildx imagetools inspect ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
           docker pull docker.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
           docker pull ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
-      - name: Generate release manifests
+      - uses: sigstore/cosign-installer@main
+      - name: Sign images
+        env:
+          COSIGN_EXPERIMENTAL: 1
+        run: |
+          cosign sign fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+          cosign sign ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+      - name: Generate release artifacts
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -p config/release
           kustomize build ./config/crd > ./config/release/${{ env.CONTROLLER }}.crds.yaml
           kustomize build ./config/manager > ./config/release/${{ env.CONTROLLER }}.deployment.yaml
-      - name: Create release
+          echo '[CHANGELOG](https://github.com/fluxcd/${{ env.CONTROLLER }}/blob/main/CHANGELOG.md)' > ./config/release/notes.md
+      - uses: anchore/sbom-action/download-syft@v0
+      - name: Create release and SBOM
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: ncipollo/release-action@v1
+        uses: goreleaser/goreleaser-action@v2
         with:
-          prerelease: true
-          artifacts: "config/release/*.yaml"
-          artifactContentType: "text/plain"
-          body: |
-            [CHANGELOG](https://github.com/fluxcd/${{ env.CONTROLLER }}/blob/main/CHANGELOG.md)
-          token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          args: release --release-notes=config/release/notes.md --rm-dist --skip-validate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

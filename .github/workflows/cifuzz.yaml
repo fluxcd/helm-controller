@@ -3,6 +3,10 @@ on:
   pull_request:
     branches:
       - main
+
+permissions:
+  contents: read # for actions/checkout to fetch code
+
 jobs:
   Fuzzing:
     runs-on: ubuntu-latest
