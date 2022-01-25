@@ -33,6 +33,7 @@ spec:
         ports:
           - containerPort: 8080
             name: http-prom
+            protocol: TCP
           - containerPort: 9440
             name: healthz
             protocol: TCP
