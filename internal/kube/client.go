@@ -32,31 +32,48 @@ func NewInClusterRESTClientGetter(cfg *rest.Config, namespace string) genericcli
 	flags.BearerToken = &cfg.BearerToken
 	flags.CAFile = &cfg.CAFile
 	flags.Namespace = &namespace
+	if sa := cfg.Impersonate.UserName; sa != "" {
+		flags.Impersonate = &sa
+	}
+
 	return flags
 }
 
 // MemoryRESTClientGetter is an implementation of the genericclioptions.RESTClientGetter,
 // capable of working with an in-memory kubeconfig file.
 type MemoryRESTClientGetter struct {
-	kubeConfig []byte
-	namespace  string
+	kubeConfig         []byte
+	namespace          string
+	impersonateAccount string
 }
 
-func NewMemoryRESTClientGetter(kubeConfig []byte, namespace string) genericclioptions.RESTClientGetter {
+func NewMemoryRESTClientGetter(kubeConfig []byte, namespace string, impersonateAccount string) genericclioptions.RESTClientGetter {
 	return &MemoryRESTClientGetter{
-		kubeConfig: kubeConfig,
-		namespace:  namespace,
+		kubeConfig:         kubeConfig,
+		namespace:          namespace,
+		impersonateAccount: impersonateAccount,
 	}
 }
 
 func (c *MemoryRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
-	return clientcmd.RESTConfigFromKubeConfig(c.kubeConfig)
+	cfg, err := clientcmd.RESTConfigFromKubeConfig(c.kubeConfig)
+	if err != nil {
+		return nil, err
+	}
+	if c.impersonateAccount != "" {
+		cfg.Impersonate = rest.ImpersonationConfig{UserName: c.impersonateAccount}
+	}
+	return cfg, nil
 }
 
 func (c *MemoryRESTClientGetter) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
 	config, err := c.ToRESTConfig()
 	if err != nil {
 		return nil, err
+	}
+
+	if c.impersonateAccount != "" {
+		config.Impersonate = rest.ImpersonationConfig{UserName: c.impersonateAccount}
 	}
 
 	// The more groups you have, the more discovery requests you need to make.
@@ -87,6 +104,10 @@ func (c *MemoryRESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig 
 
 	overrides := &clientcmd.ConfigOverrides{ClusterDefaults: clientcmd.ClusterDefaults}
 	overrides.Context.Namespace = c.namespace
+
+	if c.impersonateAccount != "" {
+		overrides.AuthInfo.Impersonate = c.impersonateAccount
+	}
 
 	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides)
 }

@@ -80,6 +80,7 @@ type HelmReleaseReconciler struct {
 	EventRecorder         kuberecorder.EventRecorder
 	ExternalEventRecorder *events.Recorder
 	MetricsRecorder       *metrics.Recorder
+	DefaultServiceAccount string
 	NoCrossNamespaceRef   bool
 }
 
@@ -456,83 +457,53 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 	return nil
 }
 
-func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {
-	if hr.Spec.KubeConfig == nil {
-		// impersonate service account if specified
-		if hr.Spec.ServiceAccountName != "" {
-			token, err := r.getServiceAccountToken(ctx, hr)
-			if err != nil {
-				return nil, fmt.Errorf("could not impersonate ServiceAccount '%s': %w", hr.Spec.ServiceAccountName, err)
-			}
-
-			config := *r.Config
-			config.BearerToken = token
-			return kube.NewInClusterRESTClientGetter(&config, hr.GetReleaseNamespace()), nil
-		}
-
-		return kube.NewInClusterRESTClientGetter(r.Config, hr.GetReleaseNamespace()), nil
+func (r *HelmReleaseReconciler) setImpersonationConfig(restConfig *rest.Config, hr v2.HelmRelease) string {
+	name := r.DefaultServiceAccount
+	if sa := hr.Spec.ServiceAccountName; sa != "" {
+		name = sa
 	}
-	secretName := types.NamespacedName{
-		Namespace: hr.GetNamespace(),
-		Name:      hr.Spec.KubeConfig.SecretRef.Name,
+	if name != "" {
+		username := fmt.Sprintf("system:serviceaccount:%s:%s", hr.GetNamespace(), name)
+		restConfig.Impersonate = rest.ImpersonationConfig{UserName: username}
+		return username
 	}
-	var secret corev1.Secret
-	if err := r.Get(ctx, secretName, &secret); err != nil {
-		return nil, fmt.Errorf("could not find KubeConfig secret '%s': %w", secretName, err)
-	}
-
-	var kubeConfig []byte
-	for k, _ := range secret.Data {
-		if k == "value" || k == "value.yaml" {
-			kubeConfig = secret.Data[k]
-			break
-		}
-	}
-
-	if len(kubeConfig) == 0 {
-		return nil, fmt.Errorf("KubeConfig secret '%s' does not contain a 'value' key", secretName)
-	}
-	return kube.NewMemoryRESTClientGetter(kubeConfig, hr.GetReleaseNamespace()), nil
+	return ""
 }
 
-func (r *HelmReleaseReconciler) getServiceAccountToken(ctx context.Context, hr v2.HelmRelease) (string, error) {
-	namespacedName := types.NamespacedName{
-		Namespace: hr.Namespace,
-		Name:      hr.Spec.ServiceAccountName,
-	}
+func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {
+	config := *r.Config
+	impersonateAccount := r.setImpersonationConfig(&config, hr)
 
-	var serviceAccount corev1.ServiceAccount
-	err := r.Client.Get(ctx, namespacedName, &serviceAccount)
-	if err != nil {
-		return "", err
-	}
-
-	secretName := types.NamespacedName{
-		Namespace: hr.Namespace,
-		Name:      hr.Spec.ServiceAccountName,
-	}
-
-	for _, secret := range serviceAccount.Secrets {
-		if strings.HasPrefix(secret.Name, fmt.Sprintf("%s-token", serviceAccount.Name)) {
-			secretName.Name = secret.Name
-			break
+	if hr.Spec.KubeConfig != nil {
+		secretName := types.NamespacedName{
+			Namespace: hr.GetNamespace(),
+			Name:      hr.Spec.KubeConfig.SecretRef.Name,
 		}
+		var secret corev1.Secret
+		if err := r.Get(ctx, secretName, &secret); err != nil {
+			return nil, fmt.Errorf("could not find KubeConfig secret '%s': %w", secretName, err)
+		}
+
+		var kubeConfig []byte
+		for k, _ := range secret.Data {
+			if k == "value" || k == "value.yaml" {
+				kubeConfig = secret.Data[k]
+				break
+			}
+		}
+
+		if len(kubeConfig) == 0 {
+			return nil, fmt.Errorf("KubeConfig secret '%s' does not contain a 'value' key", secretName)
+		}
+		return kube.NewMemoryRESTClientGetter(kubeConfig, hr.GetReleaseNamespace(), impersonateAccount), nil
 	}
 
-	var secret corev1.Secret
-	err = r.Client.Get(ctx, secretName, &secret)
-	if err != nil {
-		return "", err
+	if r.DefaultServiceAccount != "" || hr.Spec.ServiceAccountName != "" {
+		return kube.NewInClusterRESTClientGetter(&config, hr.GetReleaseNamespace()), nil
 	}
 
-	var token string
-	if data, ok := secret.Data["token"]; ok {
-		token = string(data)
-	} else {
-		return "", fmt.Errorf("the service account secret '%s' does not containt a token", secretName.String())
-	}
+	return kube.NewInClusterRESTClientGetter(r.Config, hr.GetReleaseNamespace()), nil
 
-	return token, nil
 }
 
 // composeValues attempts to resolve all v2beta1.ValuesReference resources
