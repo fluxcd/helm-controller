@@ -41,6 +41,7 @@ func TestHelmReleaseReconciler_reconcileChart(t *testing.T) {
 		expectHelmChartStatus string
 		expectGC              bool
 		expectErr             bool
+		noCrossNamspaceRef    bool
 	}{
 		{
 			name: "new HelmChart",
@@ -140,6 +141,33 @@ func TestHelmReleaseReconciler_reconcileChart(t *testing.T) {
 			expectHelmChartStatus: "cross/default-test-release",
 			expectGC:              true,
 		},
+		{
+			name: "block cross namespace access when flag is set",
+			hr: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-release",
+					Namespace: "default",
+				},
+				Spec: v2.HelmReleaseSpec{
+					Interval: metav1.Duration{Duration: time.Minute},
+					Chart: v2.HelmChartTemplate{
+						Spec: v2.HelmChartTemplateSpec{
+							Chart: "chart",
+							SourceRef: v2.CrossNamespaceObjectReference{
+								Name:      "test-repository",
+								Kind:      "HelmRepository",
+								Namespace: "cross",
+							},
+						},
+					},
+				},
+				Status: v2.HelmReleaseStatus{
+					HelmChart: "",
+				},
+			},
+			noCrossNamspaceRef: true,
+			expectErr:          true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -156,7 +184,8 @@ func TestHelmReleaseReconciler_reconcileChart(t *testing.T) {
 			}
 
 			r := &HelmReleaseReconciler{
-				Client: c,
+				Client:              c,
+				NoCrossNamespaceRef: tt.noCrossNamspaceRef,
 			}
 
 			hc, err := r.reconcileChart(logr.NewContext(context.TODO(), logr.Discard()), tt.hr)
