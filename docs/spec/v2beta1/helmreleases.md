@@ -1032,6 +1032,15 @@ When the controller reconciles the `podinfo` release, it will impersonate the `w
 account. If the chart contains cluster level objects like CRDs, the reconciliation will fail since
 the account it runs under has no permissions to alter objects outside of the `webapp` namespace.
 
+### Enforce impersonation
+
+On multi-tenant clusters, platform admins can enforce impersonation with the
+`--default-service-account` flag.
+
+When the flag is set, all HelmReleases which don't have `spec.serviceAccountName` specified
+will use the service account name provided by `--default-service-account=<SA Name>`
+in the namespace of the object.
+
 ## Remote Clusters / Cluster-API
 
 If the `spec.kubeConfig` field is set, Helm actions will run against the default cluster specified
@@ -1125,6 +1134,9 @@ kubectl -n default create secret generic prod-kubeconfig \
 > or credential files from the helm-controller Pod. This matches the constraints of KubeConfigs
 > from current Cluster API providers. KubeConfigs with cmd-path in them likely won't work without
 > a custom, per-provider installation of helm-controller.
+
+When both `spec.kubeConfig` and `spec.ServiceAccountName` are specified,
+the controller will impersonate the service account on the target cluster.
 
 ## Post Renderers
 
