@@ -30,6 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
+	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
@@ -70,6 +71,7 @@ func main() {
 		httpRetry             int
 		clientOptions         client.Options
 		logOptions            logger.Options
+		aclOptions            acl.Options
 		leaderElectionOptions leaderelection.Options
 	)
 
@@ -83,6 +85,7 @@ func main() {
 	flag.IntVar(&httpRetry, "http-retry", 9, "The maximum number of retries when failing to fetch artifacts over HTTP.")
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
+	aclOptions.BindFlags(flag.CommandLine)
 	leaderElectionOptions.BindFlags(flag.CommandLine)
 	flag.Parse()
 
@@ -139,6 +142,7 @@ func main() {
 		EventRecorder:         mgr.GetEventRecorderFor(controllerName),
 		ExternalEventRecorder: eventRecorder,
 		MetricsRecorder:       metricsRecorder,
+		NoCrossNamespaceRef:   aclOptions.NoCrossNamespaceRefs,
 	}).SetupWithManager(mgr, controllers.HelmReleaseReconcilerOptions{
 		MaxConcurrentReconciles:   concurrent,
 		DependencyRequeueInterval: requeueDependency,

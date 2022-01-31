@@ -48,7 +48,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	apiacl "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
@@ -78,6 +80,7 @@ type HelmReleaseReconciler struct {
 	EventRecorder         kuberecorder.EventRecorder
 	ExternalEventRecorder *events.Recorder
 	MetricsRecorder       *metrics.Recorder
+	NoCrossNamespaceRef   bool
 }
 
 func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
@@ -213,6 +216,13 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 	// Reconcile chart based on the HelmChartTemplate
 	hc, reconcileErr := r.reconcileChart(ctx, &hr)
 	if reconcileErr != nil {
+		if acl.IsAccessDenied(reconcileErr) {
+			log.Error(reconcileErr, "access denied to cross-namespace source")
+			r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, reconcileErr.Error())
+			return v2.HelmReleaseNotReady(hr, apiacl.AccessDeniedReason, reconcileErr.Error()),
+				ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
+		}
+
 		msg := fmt.Sprintf("chart reconciliation failed: %s", reconcileErr.Error())
 		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, msg)
 		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{Requeue: true}, reconcileErr

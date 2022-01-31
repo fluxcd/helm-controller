@@ -28,6 +28,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/hashicorp/go-retryablehttp"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -45,6 +46,14 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	chartName := types.NamespacedName{
 		Namespace: hr.Spec.Chart.GetNamespace(hr.Namespace),
 		Name:      hr.GetHelmChartName(),
+	}
+
+	if r.NoCrossNamespaceRef && chartName.Namespace != hr.Namespace {
+		return nil, acl.AccessDeniedError(fmt.Sprintf("can't access '%s/%s', cross-namespace references have been blocked",
+			hr.Spec.Chart.Spec.SourceRef.Kind, types.NamespacedName{
+				Namespace: hr.Spec.Chart.Spec.SourceRef.Namespace,
+				Name:      hr.Spec.Chart.Spec.SourceRef.Name,
+			}))
 	}
 
 	// Garbage collect the previous HelmChart if the namespace named changed.

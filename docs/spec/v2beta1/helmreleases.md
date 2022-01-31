@@ -687,6 +687,10 @@ Supported source types:
 The `HelmChart` is created in the same namespace as the `sourceRef`,
 with a name matching the `HelmRelease` `<metadata.namespace>-<metadata.name>`.
 
+> **Note** that on multi-tenant clusters,  platform admins can disable cross-namespace references
+> with the `--no-cross-namespace-refs=true` flag. When this flag is set, the helmrelease can only
+> refer to sources in the same  namespace as the helmrelease object.
+
 The `chart.spec.chart` can either contain:
 
 - The name of the chart as made available by the `HelmRepository`
