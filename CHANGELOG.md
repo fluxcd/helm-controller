@@ -1,5 +1,67 @@
 # Changelog
 
+## 0.16.0
+
+**Release date:** 2022-02-01
+
+This prerelease comes with security improvements for multi-tenant clusters:
+- Platform admins can enforce impersonation across the cluster using the `--default-service-account` flag.
+  When the flag is set, all `HelmReleases`, which don't have `spec.serviceAccountName` specified,
+  use the service account name provided by `--default-service-account=<SA Name>` in the namespace of the object.
+- Platform admins can disable cross-namespace references with the `--no-cross-namespace-refs=true` flag.
+  When this flag is set, `HelmReleases` can only refer to sources (`HelmRepositories`, `GitRepositories` and `Buckets`)
+  in the same namespace as the `HelmRelease` object, preventing tenants from accessing another tenant's repositories.
+
+In addition, the controller comes with a temporary fork of Helm v3.8.0 with a patch applied from
+[helm/pull/10486](https://github.com/helm/helm/pull/10486) to solve a memory leak.
+
+The controller container images are signed with
+[Cosign and GitHub OIDC](https://github.com/sigstore/cosign/blob/22007e56aee419ae361c9f021869a30e9ae7be03/KEYLESS.md),
+and a Software Bill of Materials in [SPDX format](https://spdx.dev) has been published on the release page.
+
+Starting with this version, the controller deployment conforms to the
+Kubernetes [restricted pod security standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted):
+- all Linux capabilities were dropped
+- the root filesystem was set to read-only
+- the seccomp profile was set to the runtime default
+- run as non-root was enabled
+- the user and group ID was set to 65534
+
+**Breaking changes**:
+- The use of new seccomp API requires Kubernetes 1.19.
+- The controller container is now executed under 65534:65534 (userid:groupid).
+  This change may break deployments that hard-coded the user ID of 'controller' in their PodSecurityPolicy.
+- When both `spec.kubeConfig` and `spec.ServiceAccountName` are specified, the controller will impersonate
+  the service account on the target cluster, previously the controller ignored the service account.
+
+Features:
+- Allow setting a default service account for impersonation
+  [#406](https://github.com/fluxcd/helm-controller/pull/406)
+- Allow disabling cross-namespace references
+  [#408](https://github.com/fluxcd/helm-controller/pull/408)
+
+Improvements:
+- Update Helm to patched 3.8.0
+  [#409](https://github.com/fluxcd/helm-controller/pull/409)
+- Publish SBOM and sign release artifacts
+  [#401](https://github.com/fluxcd/helm-controller/pull/401)
+- Drop capabilities, set userid and enable seccomp
+  [#385](https://github.com/fluxcd/helm-controller/pull/385)
+- Update development documentation
+  [#397](https://github.com/fluxcd/helm-controller/pull/397)
+- Refactor Fuzz implementation
+  [#396](https://github.com/fluxcd/helm-controller/pull/396)
+
+Fixes:
+- Use patch instead of update when adding finalizers
+  [#395](https://github.com/fluxcd/helm-controller/pull/395)
+- Fix the missing protocol for the first port in manager config
+  [#405](https://github.com/fluxcd/helm-controller/pull/405)
+- Use go-install-tool for gen-crd-api-reference-docs
+  [#392](https://github.com/fluxcd/helm-controller/pull/392)
+- Use go install instead of go get in Makefile
+  [#391](https://github.com/fluxcd/helm-controller/pull/391)
+
 ## 0.15.0
 
 **Release date:** 2022-01-10
