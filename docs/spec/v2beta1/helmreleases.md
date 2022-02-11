@@ -1222,10 +1222,11 @@ Chart as suggested by the
 [offical Helm documentation](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#method-2-separate-charts).
 
 However, if you have to integrate and use many existing (upstream) Helm Charts, not being able to
-upgrade the CRDs via FluxCD `HelmRelease` objects might become a cumbersome limitation within your GitOps
-workflow. Therefore, FluxCD allows you to opt-in to upgrading CRDs by setting the `crds` policy on
+upgrade the CRDs via Flux's `HelmRelease` objects might become a cumbersome limitation within your GitOps
+workflow. Therefore, Flux allows you to opt-in to upgrading CRDs by setting the `crds` policy on
 the `HelmRelease.spec.install` and `HelmRelease.spec.upgrade` objects.
-The following UpgradeCRDs policies are supported:
+
+The following CRD upgrade policies are supported:
 
 - `Skip` Skip CRDs do neither install nor replace (update) any CRDs.
 - `Create` Only create new CRDs which do not yet exist, neither update nor delete any existing CRDs.
