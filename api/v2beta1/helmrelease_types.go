@@ -754,6 +754,11 @@ type Uninstall struct {
 	// release as deleted, but retain the release history.
 	// +optional
 	KeepHistory bool `json:"keepHistory,omitempty"`
+
+	// DisableWait disables waiting for all the resources to be deleted after
+	// a Helm uninstall is performed.
+	// +optional
+	DisableWait bool `json:"disableWait,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm uninstall action, or
