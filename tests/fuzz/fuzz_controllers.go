@@ -34,15 +34,15 @@ import (
 )
 
 var (
-	doOnce sync.Once
-	scheme = runtime.NewScheme()
+	doOnce     sync.Once
+	fuzzScheme = runtime.NewScheme()
 )
 
 // An init function that is invoked by way of sync.Do
 func initFunc() {
-	_ = corev1.AddToScheme(scheme)
-	_ = v2.AddToScheme(scheme)
-	_ = sourcev1.AddToScheme(scheme)
+	_ = corev1.AddToScheme(fuzzScheme)
+	_ = v2.AddToScheme(fuzzScheme)
+	_ = sourcev1.AddToScheme(fuzzScheme)
 }
 
 // FuzzHelmreleaseComposeValues implements a fuzzer
@@ -57,7 +57,7 @@ func FuzzHelmreleaseComposeValues(data []byte) int {
 		return 0
 	}
 
-	c := fake.NewFakeClientWithScheme(scheme, resources...)
+	c := fake.NewFakeClientWithScheme(fuzzScheme, resources...)
 	r := &HelmReleaseReconciler{Client: c}
 
 	hr := v2.HelmRelease{}
@@ -99,7 +99,7 @@ func FuzzHelmreleaseReconcile(data []byte) int {
 	hc.ObjectMeta.Namespace = hr.Spec.Chart.GetNamespace(hr.Namespace)
 	resources = append(resources, &hc)
 
-	c := fake.NewFakeClientWithScheme(scheme, resources...)
+	c := fake.NewFakeClientWithScheme(fuzzScheme, resources...)
 	r := &HelmReleaseReconciler{Client: c}
 
 	_, _, _ = r.reconcile(logr.NewContext(context.TODO(), logr.Discard()), hr)
