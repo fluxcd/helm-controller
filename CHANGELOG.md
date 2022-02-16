@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.17.0
+
+**Release date:** 2022-02-16
+
+This prerelease introduces a breaking change to the Helm uninstall behavior, as
+the `--wait` flag is now enabled by default. Resulting in Helm to wait for
+resources to be deleted while uninstalling a release. Disabling this behavior
+is possible by declaring `spec.uninstall.disableWait: true` in a `HelmRelease`.
+
+Improvements:
+- Add uninstall disableWait flag
+  [#416](https://github.com/fluxcd/helm-controller/pull/416)
+
 ## 0.16.0
 
 **Release date:** 2022-02-01
