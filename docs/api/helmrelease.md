@@ -1755,6 +1755,19 @@ bool
 release as deleted, but retain the release history.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>disableWait</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableWait disables waiting for all the resources to be deleted after
+a Helm uninstall is performed.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>

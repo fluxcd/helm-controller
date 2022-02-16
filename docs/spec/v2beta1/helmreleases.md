@@ -433,6 +433,11 @@ type Uninstall struct {
 	// release as deleted, but retain the release history.
 	// +optional
 	KeepHistory bool `json:"keepHistory,omitempty"`
+
+	// DisableWait disables waiting for all the resources to be deleted after
+	// a Helm uninstall is performed.
+	// +optional
+	DisableWait bool `json:"disableWait,omitempty"`
 }
 
 // Kustomize Helm PostRenderer specification.
@@ -786,8 +791,8 @@ kubectl get all --all-namespaces \
 
 ### Disabling resource waiting
 
-For install, upgrade, and rollback actions resource waiting is enabled by default,
-but can be disabled by setting `spec.<action>.disableWait`.
+For install, upgrade, rollback, and uninstall actions resource waiting is
+enabled by default, but can be disabled by setting `spec.<action>.disableWait`.
 
 Waiting for jobs to complete is enabled by default, 
 but can be disabled by setting `spec.<action>.disableWaitForJobs`.

@@ -497,6 +497,10 @@ spec:
                     description: DisableHooks prevents hooks from running during the
                       Helm rollback action.
                     type: boolean
+                  disableWait:
+                    description: DisableWait disables waiting for all the resources
+                      to be deleted after a Helm uninstall is performed.
+                    type: boolean
                   keepHistory:
                     description: KeepHistory tells Helm to remove all associated resources
                       and mark the release as deleted, but retain the release history.
