@@ -78,7 +78,7 @@ HelmChartTemplate
 </em>
 </td>
 <td>
-<p>Chart defines the template of the v1beta1.HelmChart that should be created
+<p>Chart defines the template of the v1beta2.HelmChart that should be created
 for this HelmRelease.</p>
 </td>
 </tr>
@@ -166,14 +166,14 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/runtime/dependency#CrossNamespaceDependencyReference">
-[]Runtime dependency.CrossNamespaceDependencyReference
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#NamespacedObjectReference">
+[]github.com/fluxcd/pkg/apis/meta.NamespacedObjectReference
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>DependsOn may contain a dependency.CrossNamespaceDependencyReference slice with
+<p>DependsOn may contain a meta.NamespacedObjectReference slice with
 references to HelmRelease resources that must be ready before this HelmRelease
 can be reconciled.</p>
 </td>
@@ -438,8 +438,8 @@ string
 <a href="#helm.toolkit.fluxcd.io/v2beta1.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
 <p>HelmChartTemplate defines the template from which the controller will
-generate a v1beta1.HelmChart object in the same namespace as the referenced
-v1beta1.Source.</p>
+generate a v1beta2.HelmChart object in the same namespace as the referenced
+v1beta2.Source.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -460,7 +460,7 @@ HelmChartTemplateSpec
 </em>
 </td>
 <td>
-<p>Spec holds the template for the v1beta1.HelmChartSpec for this HelmRelease.</p>
+<p>Spec holds the template for the v1beta2.HelmChartSpec for this HelmRelease.</p>
 <br/>
 <br/>
 <table>
@@ -484,8 +484,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Version semver expression, ignored for charts from v1beta1.GitRepository and
-v1beta1.Bucket sources. Defaults to latest when omitted.</p>
+<p>Version semver expression, ignored for charts from v1beta2.GitRepository and
+v1beta2.Bucket sources. Defaults to latest when omitted.</p>
 </td>
 </tr>
 <tr>
@@ -498,7 +498,7 @@ CrossNamespaceObjectReference
 </em>
 </td>
 <td>
-<p>The name and namespace of the v1beta1.Source the chart is available at.</p>
+<p>The name and namespace of the v1beta2.Source the chart is available at.</p>
 </td>
 </tr>
 <tr>
@@ -512,7 +512,7 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>Interval at which to check the v1beta1.Source for updates. Defaults to
+<p>Interval at which to check the v1beta2.Source for updates. Defaults to
 &lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
 </td>
 </tr>
@@ -575,7 +575,7 @@ ValuesFiles items. Ignored when omitted.</p>
 <a href="#helm.toolkit.fluxcd.io/v2beta1.HelmChartTemplate">HelmChartTemplate</a>)
 </p>
 <p>HelmChartTemplateSpec defines the template from which the controller will
-generate a v1beta1.HelmChartSpec object.</p>
+generate a v1beta2.HelmChartSpec object.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -606,8 +606,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Version semver expression, ignored for charts from v1beta1.GitRepository and
-v1beta1.Bucket sources. Defaults to latest when omitted.</p>
+<p>Version semver expression, ignored for charts from v1beta2.GitRepository and
+v1beta2.Bucket sources. Defaults to latest when omitted.</p>
 </td>
 </tr>
 <tr>
@@ -620,7 +620,7 @@ CrossNamespaceObjectReference
 </em>
 </td>
 <td>
-<p>The name and namespace of the v1beta1.Source the chart is available at.</p>
+<p>The name and namespace of the v1beta2.Source the chart is available at.</p>
 </td>
 </tr>
 <tr>
@@ -634,7 +634,7 @@ Kubernetes meta/v1.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>Interval at which to check the v1beta1.Source for updates. Defaults to
+<p>Interval at which to check the v1beta2.Source for updates. Defaults to
 &lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
 </td>
 </tr>
@@ -714,7 +714,7 @@ HelmChartTemplate
 </em>
 </td>
 <td>
-<p>Chart defines the template of the v1beta1.HelmChart that should be created
+<p>Chart defines the template of the v1beta2.HelmChart that should be created
 for this HelmRelease.</p>
 </td>
 </tr>
@@ -802,14 +802,14 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/runtime/dependency#CrossNamespaceDependencyReference">
-[]Runtime dependency.CrossNamespaceDependencyReference
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#NamespacedObjectReference">
+[]github.com/fluxcd/pkg/apis/meta.NamespacedObjectReference
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>DependsOn may contain a dependency.CrossNamespaceDependencyReference slice with
+<p>DependsOn may contain a meta.NamespacedObjectReference slice with
 references to HelmRelease resources that must be ready before this HelmRelease
 can be reconciled.</p>
 </td>

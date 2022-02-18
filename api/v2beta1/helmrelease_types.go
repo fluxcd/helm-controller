@@ -22,12 +22,12 @@ import (
 	"time"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/dependency"
 )
 
 const HelmReleaseKind = "HelmRelease"
@@ -64,7 +64,7 @@ type PostRenderer struct {
 
 // HelmReleaseSpec defines the desired state of a Helm release.
 type HelmReleaseSpec struct {
-	// Chart defines the template of the v1beta1.HelmChart that should be created
+	// Chart defines the template of the v1beta2.HelmChart that should be created
 	// for this HelmRelease.
 	// +required
 	Chart HelmChartTemplate `json:"chart"`
@@ -107,11 +107,11 @@ type HelmReleaseSpec struct {
 	// +optional
 	StorageNamespace string `json:"storageNamespace,omitempty"`
 
-	// DependsOn may contain a dependency.CrossNamespaceDependencyReference slice with
+	// DependsOn may contain a meta.NamespacedObjectReference slice with
 	// references to HelmRelease resources that must be ready before this HelmRelease
 	// can be reconciled.
 	// +optional
-	DependsOn []dependency.CrossNamespaceDependencyReference `json:"dependsOn,omitempty"`
+	DependsOn []meta.NamespacedObjectReference `json:"dependsOn,omitempty"`
 
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm action. Defaults to '5m0s'.
@@ -221,32 +221,32 @@ type KubeConfig struct {
 }
 
 // HelmChartTemplate defines the template from which the controller will
-// generate a v1beta1.HelmChart object in the same namespace as the referenced
-// v1beta1.Source.
+// generate a v1beta2.HelmChart object in the same namespace as the referenced
+// v1beta2.Source.
 type HelmChartTemplate struct {
-	// Spec holds the template for the v1beta1.HelmChartSpec for this HelmRelease.
+	// Spec holds the template for the v1beta2.HelmChartSpec for this HelmRelease.
 	// +required
 	Spec HelmChartTemplateSpec `json:"spec"`
 }
 
 // HelmChartTemplateSpec defines the template from which the controller will
-// generate a v1beta1.HelmChartSpec object.
+// generate a v1beta2.HelmChartSpec object.
 type HelmChartTemplateSpec struct {
 	// The name or path the Helm chart is available at in the SourceRef.
 	// +required
 	Chart string `json:"chart"`
 
-	// Version semver expression, ignored for charts from v1beta1.GitRepository and
-	// v1beta1.Bucket sources. Defaults to latest when omitted.
+	// Version semver expression, ignored for charts from v1beta2.GitRepository and
+	// v1beta2.Bucket sources. Defaults to latest when omitted.
 	// +kubebuilder:default:=*
 	// +optional
 	Version string `json:"version,omitempty"`
 
-	// The name and namespace of the v1beta1.Source the chart is available at.
+	// The name and namespace of the v1beta2.Source the chart is available at.
 	// +required
 	SourceRef CrossNamespaceObjectReference `json:"sourceRef"`
 
-	// Interval at which to check the v1beta1.Source for updates. Defaults to
+	// Interval at which to check the v1beta2.Source for updates. Defaults to
 	// 'HelmReleaseSpec.Interval'.
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
@@ -276,7 +276,7 @@ type HelmChartTemplateSpec struct {
 	ValuesFile string `json:"valuesFile,omitempty"`
 }
 
-// GetInterval returns the configured interval for the v1beta1.HelmChart,
+// GetInterval returns the configured interval for the v1beta2.HelmChart,
 // or the given default.
 func (in HelmChartTemplate) GetInterval(defaultInterval metav1.Duration) metav1.Duration {
 	if in.Spec.Interval == nil {
@@ -286,7 +286,7 @@ func (in HelmChartTemplate) GetInterval(defaultInterval metav1.Duration) metav1.
 }
 
 // GetNamespace returns the namespace targeted namespace for the
-// v1beta1.HelmChart, or the given default.
+// v1beta2.HelmChart, or the given default.
 func (in HelmChartTemplate) GetNamespace(defaultNamespace string) string {
 	if in.Spec.SourceRef.Namespace == "" {
 		return defaultNamespace
@@ -841,23 +841,39 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 // 'Unknown' for meta.ProgressingReason.
 func HelmReleaseProgressing(hr HelmRelease) HelmRelease {
 	hr.Status.Conditions = []metav1.Condition{}
-	meta.SetResourceCondition(&hr, meta.ReadyCondition, metav1.ConditionUnknown, meta.ProgressingReason,
-		"Reconciliation in progress")
+	newCondition := metav1.Condition{
+		Type:    meta.ReadyCondition,
+		Status:  metav1.ConditionUnknown,
+		Reason:  meta.ProgressingReason,
+		Message: "Reconciliation in progress",
+	}
+	apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
 	resetFailureCounts(&hr)
 	return hr
 }
 
 // HelmReleaseNotReady registers a failed reconciliation of the given HelmRelease.
 func HelmReleaseNotReady(hr HelmRelease, reason, message string) HelmRelease {
-	meta.SetResourceCondition(&hr, meta.ReadyCondition, metav1.ConditionFalse, reason, message)
+	newCondition := metav1.Condition{
+		Type:    meta.ReadyCondition,
+		Status:  metav1.ConditionFalse,
+		Reason:  reason,
+		Message: message,
+	}
+	apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
 	hr.Status.Failures++
 	return hr
 }
 
 // HelmReleaseReady registers a successful reconciliation of the given HelmRelease.
 func HelmReleaseReady(hr HelmRelease) HelmRelease {
-	meta.SetResourceCondition(&hr, meta.ReadyCondition, metav1.ConditionTrue, meta.ReconciliationSucceededReason,
-		"Release reconciliation succeeded")
+	newCondition := metav1.Condition{
+		Type:    meta.ReadyCondition,
+		Status:  metav1.ConditionTrue,
+		Reason:  ReconciliationSucceededReason,
+		Message: "Release reconciliation succeeded",
+	}
+	apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
 	hr.Status.LastAppliedRevision = hr.Status.LastAttemptedRevision
 	resetFailureCounts(&hr)
 	return hr
@@ -968,13 +984,9 @@ func (in HelmRelease) GetMaxHistory() int {
 	return *in.Spec.MaxHistory
 }
 
-// GetDependsOn returns the types.NamespacedName of the HelmRelease, and a
-// dependency.CrossNamespaceDependencyReference slice it depends on.
-func (in HelmRelease) GetDependsOn() (types.NamespacedName, []dependency.CrossNamespaceDependencyReference) {
-	return types.NamespacedName{
-		Namespace: in.Namespace,
-		Name:      in.Namespace,
-	}, in.Spec.DependsOn
+// GetDependsOn returns the list of dependencies across-namespaces.
+func (in HelmRelease) GetDependsOn() []meta.NamespacedObjectReference {
+	return in.Spec.DependsOn
 }
 
 // GetStatusConditions returns a pointer to the Status.Conditions slice
