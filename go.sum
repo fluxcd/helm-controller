@@ -319,9 +319,8 @@ github.com/fluxcd/pkg/apis/kustomize v0.3.1 h1:wmb5D9e1+Rr3/5O3235ERuj+h2VKUArVf
 github.com/fluxcd/pkg/apis/kustomize v0.3.1/go.mod h1:k2HSRd68UwgNmOYBPOd6WbX6a2MH2X/Jeh7e3s3PFPc=
 github.com/fluxcd/pkg/apis/meta v0.10.2 h1:pnDBBEvfs4HaKiVAYgz+e/AQ8dLvcgmVfSeBroZ/KKI=
 github.com/fluxcd/pkg/apis/meta v0.10.2/go.mod h1:KQ2er9xa6koy7uoPMZjIjNudB5p4tXs+w0GO6fRcy7I=
-github.com/fluxcd/pkg/runtime v0.12.3/go.mod h1:imJ2xYy/d4PbSinX2IefmZk+iS2c1P5fY0js8mCE4SM=
-github.com/fluxcd/pkg/runtime v0.12.4 h1:gA27RG/+adN2/7Qe03PB46Iwmye/MusPCpuS4zQ2fW0=
-github.com/fluxcd/pkg/runtime v0.12.4/go.mod h1:gspNvhAqodZgSmK1ZhMtvARBf/NGAlxmaZaIOHkJYsc=
+github.com/fluxcd/pkg/runtime v0.12.5 h1:/8+0UBnSHbO9DVG9IFTjc37lwofsixGbs5WpHso8n5s=
+github.com/fluxcd/pkg/runtime v0.12.5/go.mod h1:gspNvhAqodZgSmK1ZhMtvARBf/NGAlxmaZaIOHkJYsc=
 github.com/fluxcd/source-controller/api v0.21.1 h1:7X39YQHmB1vmIBrHxU+YAqxwtdC9Zh+tdtMKREW3xiQ=
 github.com/fluxcd/source-controller/api v0.21.1/go.mod h1:Ab2qDmAUz6ZCp8UaHYLYzxyFrC1FQqEqjxiROb/Rdiw=
 github.com/form3tech-oss/jwt-go v3.2.2+incompatible/go.mod h1:pbq4aXjuKjdthFRnoDwaVPLA+WlJuPGy+QneDUgJi2k=
