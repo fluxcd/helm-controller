@@ -495,7 +495,7 @@ func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.H
 		if len(kubeConfig) == 0 {
 			return nil, fmt.Errorf("KubeConfig secret '%s' does not contain a 'value' key", secretName)
 		}
-		return kube.NewMemoryRESTClientGetter(kubeConfig, hr.GetReleaseNamespace(), impersonateAccount), nil
+		return kube.NewMemoryRESTClientGetter(kubeConfig, hr.GetReleaseNamespace(), impersonateAccount, r.Config.QPS, r.Config.Burst), nil
 	}
 
 	if r.DefaultServiceAccount != "" || hr.Spec.ServiceAccountName != "" {

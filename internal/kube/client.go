@@ -32,6 +32,8 @@ func NewInClusterRESTClientGetter(cfg *rest.Config, namespace string) genericcli
 	flags.BearerToken = &cfg.BearerToken
 	flags.CAFile = &cfg.CAFile
 	flags.Namespace = &namespace
+	flags.WithDiscoveryBurst(cfg.Burst)
+	flags.WithDiscoveryQPS(cfg.QPS)
 	if sa := cfg.Impersonate.UserName; sa != "" {
 		flags.Impersonate = &sa
 	}
@@ -45,13 +47,17 @@ type MemoryRESTClientGetter struct {
 	kubeConfig         []byte
 	namespace          string
 	impersonateAccount string
+	qps                float32
+	burst              int
 }
 
-func NewMemoryRESTClientGetter(kubeConfig []byte, namespace string, impersonateAccount string) genericclioptions.RESTClientGetter {
+func NewMemoryRESTClientGetter(kubeConfig []byte, namespace string, impersonateAccount string, qps float32, burst int) genericclioptions.RESTClientGetter {
 	return &MemoryRESTClientGetter{
 		kubeConfig:         kubeConfig,
 		namespace:          namespace,
 		impersonateAccount: impersonateAccount,
+		qps:                qps,
+		burst:              burst,
 	}
 }
 
@@ -76,10 +82,8 @@ func (c *MemoryRESTClientGetter) ToDiscoveryClient() (discovery.CachedDiscoveryI
 		config.Impersonate = rest.ImpersonationConfig{UserName: c.impersonateAccount}
 	}
 
-	// The more groups you have, the more discovery requests you need to make.
-	// given 25 groups (our groups + a few custom resources) with one-ish version each, discovery needs to make 50 requests
-	// double it just so we don't end up here again for a while.  This config is only used for discovery.
-	config.Burst = 100
+	config.QPS = c.qps
+	config.Burst = c.burst
 
 	discoveryClient, _ := discovery.NewDiscoveryClientForConfig(config)
 	return memory.NewMemCacheClient(discoveryClient), nil
