@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.17.1
+
+**Release date:** 2022-02-22
+
+This prerelease ensures the QPS and Burst configuration is properly propagated
+to the Kubernetes client used by Helm actions, and updates multiple
+dependencies to pull in CVE fixes.
+
+Improvements:
+- Update dependencies
+  [#420](https://github.com/fluxcd/helm-controller/pull/420)
+- Set QPS and Burst when impersonating service account
+  [#422](https://github.com/fluxcd/helm-controller/pull/422)
+
 ## 0.17.0
 
 **Release date:** 2022-02-16
