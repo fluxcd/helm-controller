@@ -1145,13 +1145,13 @@ the controller will impersonate the service account on the target cluster.
 
 ## Post Renderers
 
-HelmRelease resources has a built-in [Kustomize](https://kubectl.docs.kubernetes.io/references/kustomize/)
+HelmRelease resources has a built-in [Kustomize](https://kubectl.docs.kubernetes.io/references/kustomize/builtins/)
 compatible [Post Renderer](https://helm.sh/docs/topics/advanced/#post-rendering), which provides
 the following Kustomize directives:
 
-- [patchesStrategicMerge](https://kubectl.docs.kubernetes.io/references/kustomize/patchesstrategicmerge/)
-- [patchesJson6902](https://kubectl.docs.kubernetes.io/references/kustomize/patchesjson6902/)
-- [images](https://kubectl.docs.kubernetes.io/references/kustomize/images/)
+- [patchesStrategicMerge](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/patchesstrategicmerge/)
+- [patchesJson6902](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/patchesjson6902/)
+- [images](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/images/)
 
 The following example uses the built-in `kustomize` _Post Renderer_ to apply a strategic merge patch,
 which adds a [toleration](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
