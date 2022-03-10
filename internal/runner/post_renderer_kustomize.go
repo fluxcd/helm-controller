@@ -105,6 +105,14 @@ func (k *postRendererKustomize) Run(renderedManifests *bytes.Buffer) (modifiedMa
 		return nil, err
 	}
 
+	// Add patches.
+	for _, m := range k.spec.Patches {
+		cfg.Patches = append(cfg.Patches, kustypes.Patch{
+			Patch:  m.Patch,
+			Target: adaptSelector(&m.Target),
+		})
+	}
+
 	// Add strategic merge patches.
 	for _, m := range k.spec.PatchesStrategicMerge {
 		cfg.PatchesStrategicMerge = append(cfg.PatchesStrategicMerge, kustypes.PatchStrategicMerge(m.Raw))
