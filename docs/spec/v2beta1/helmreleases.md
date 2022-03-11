@@ -1149,6 +1149,7 @@ HelmRelease resources has a built-in [Kustomize](https://kubectl.docs.kubernetes
 compatible [Post Renderer](https://helm.sh/docs/topics/advanced/#post-rendering), which provides
 the following Kustomize directives:
 
+- [patches](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/patches/)
 - [patchesStrategicMerge](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/patchesstrategicmerge/)
 - [patchesJson6902](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/patchesjson6902/)
 - [images](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/images/)

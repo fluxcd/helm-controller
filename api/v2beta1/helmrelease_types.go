@@ -35,6 +35,11 @@ const HelmReleaseFinalizer = "finalizers.fluxcd.io"
 
 // Kustomize Helm PostRenderer specification.
 type Kustomize struct {
+	// Strategic merge and JSON patches, defined as inline YAML objects,
+	// capable of targeting objects based on kind, label and annotation selectors.
+	// +optional
+	Patches []kustomize.Patch `json:"patches,omitempty"`
+
 	// Strategic merge patches, defined as inline YAML objects.
 	// +optional
 	PatchesStrategicMerge []apiextensionsv1.JSON `json:"patchesStrategicMerge,omitempty"`
