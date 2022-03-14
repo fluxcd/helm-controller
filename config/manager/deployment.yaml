@@ -18,6 +18,10 @@ spec:
         prometheus.io/port: "8080"
     spec:
       terminationGracePeriodSeconds: 600
+      securityContext:
+        # Required for AWS IAM Role bindings
+        # https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts-technical-overview.html
+        fsGroup: 1337
       containers:
       - name: manager
         image: fluxcd/helm-controller
