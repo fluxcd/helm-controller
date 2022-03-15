@@ -23,14 +23,14 @@ require (
 	k8s.io/cli-runtime v0.23.4
 	k8s.io/client-go v0.23.4
 	sigs.k8s.io/controller-runtime v0.11.0
-	sigs.k8s.io/kustomize/api v0.10.1
+	sigs.k8s.io/kustomize/api v0.11.2
 	sigs.k8s.io/yaml v1.3.0
 )
 
-// Pin kustomize to v4.4.1
+// Pin kustomize to v4.5.2
 replace (
-	sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.10.1
-	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.13.0
+	sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.11.2
+	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.13.3
 )
 
 // Fix CVE-2021-30465
@@ -168,6 +168,6 @@ require (
 	k8s.io/utils v0.0.0-20211208161948-7d6a63dca704 // indirect
 	oras.land/oras-go v1.1.0 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
-	sigs.k8s.io/kustomize/kyaml v0.13.0 // indirect
+	sigs.k8s.io/kustomize/kyaml v0.13.3 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 )
