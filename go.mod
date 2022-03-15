@@ -44,11 +44,6 @@ replace github.com/docker/cli => github.com/docker/cli v20.10.9+incompatible
 // Fix GO-2021-0087
 replace github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.3
 
-// Fix CVE-2021-41190
-// Due to https://github.com/oras-project/oras-go/blob/v0.4.0/go.mod#L21,
-// pulled in by Helm.
-replace github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2
-
 // Fix CVE-2021-43816
 // Fix CVE-2022-23648
 replace github.com/containerd/containerd => github.com/containerd/containerd v1.5.10
