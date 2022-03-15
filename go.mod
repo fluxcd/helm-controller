@@ -33,11 +33,6 @@ replace (
 	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.13.0
 )
 
-// Fix CVE-2021-41092
-// Due to https://github.com/oras-project/oras-go/blob/v0.4.0/go.mod#L14
-// pulled in by Helm.
-replace github.com/docker/cli => github.com/docker/cli v20.10.9+incompatible
-
 // Fix CVE-2021-30465
 // Fix CVE-2021-43784
 // Fix GO-2021-0085
