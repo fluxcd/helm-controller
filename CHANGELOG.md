@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.17.2
+
+**Release date:** 2022-03-15
+
+This prerelease comes with an update for `github.com/containerd/containerd` to
+`v1.5.10` to please static security analysers and fix any warnings for
+CVE-2022-23648.
+
+In addition, it updates Helm from a forked and patched `v3.8.0`, to the
+official `v3.8.1` release, and updates minor dependencies.
+
+The Deployment manifest contains a patch to set the
+`.spec.securityContext.fsGroup`, which may be required for some EKS setups
+as reported in https://github.com/fluxcd/flux2/issues/2537.
+
+Improvements:
+- Update Helm to v3.8.1
+  [#434](https://github.com/fluxcd/helm-controller/pull/434)
+- add fsgroup for securityContext
+  [#435](https://github.com/fluxcd/helm-controller/pull/435)
+- Update containerd to v1.5.10 and tidy go.mod
+  [#436](https://github.com/fluxcd/helm-controller/pull/436)
+
 ## 0.17.1
 
 **Release date:** 2022-02-22
