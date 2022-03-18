@@ -37,7 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
@@ -88,9 +88,9 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	return &helmChart, nil
 }
 
-// getHelmChart retrieves the v1beta1.HelmChart for the given
+// getHelmChart retrieves the v1beta2.HelmChart for the given
 // v2beta1.HelmRelease using the name that is advertised in the status
-// object. It returns the v1beta1.HelmChart, or an error.
+// object. It returns the v1beta2.HelmChart, or an error.
 func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, error) {
 	namespace, name := hr.Status.GetHelmChart()
 	hc := &sourcev1.HelmChart{}
@@ -166,7 +166,7 @@ func (r *HelmReleaseReconciler) copyAndVerifyArtifact(artifact *sourcev1.Artifac
 	return nil
 }
 
-// deleteHelmChart deletes the v1beta1.HelmChart of the v2beta1.HelmRelease.
+// deleteHelmChart deletes the v1beta2.HelmChart of the v2beta1.HelmRelease.
 func (r *HelmReleaseReconciler) deleteHelmChart(ctx context.Context, hr *v2.HelmRelease) error {
 	if hr.Status.HelmChart == "" {
 		return nil
@@ -191,7 +191,7 @@ func (r *HelmReleaseReconciler) deleteHelmChart(ctx context.Context, hr *v2.Helm
 	return nil
 }
 
-// buildHelmChartFromTemplate builds a v1beta1.HelmChart from the
+// buildHelmChartFromTemplate builds a v1beta2.HelmChart from the
 // v2beta1.HelmChartTemplate of the given v2beta1.HelmRelease.
 func buildHelmChartFromTemplate(hr *v2.HelmRelease) *sourcev1.HelmChart {
 	template := hr.Spec.Chart
@@ -216,7 +216,7 @@ func buildHelmChartFromTemplate(hr *v2.HelmRelease) *sourcev1.HelmChart {
 }
 
 // helmChartRequiresUpdate compares the v2beta1.HelmChartTemplate of the
-// v2beta1.HelmRelease to the given v1beta1.HelmChart to determine if an
+// v2beta1.HelmRelease to the given v1beta2.HelmChart to determine if an
 // update is required.
 func helmChartRequiresUpdate(hr *v2.HelmRelease, chart *sourcev1.HelmChart) bool {
 	template := hr.Spec.Chart

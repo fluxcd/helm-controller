@@ -55,7 +55,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	"github.com/fluxcd/pkg/runtime/transform"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	"github.com/fluxcd/helm-controller/internal/kube"
@@ -78,7 +78,6 @@ type HelmReleaseReconciler struct {
 	Scheme                *runtime.Scheme
 	requeueDependency     time.Duration
 	EventRecorder         kuberecorder.EventRecorder
-	ExternalEventRecorder *events.Recorder
 	MetricsRecorder       *metrics.Recorder
 	DefaultServiceAccount string
 	NoCrossNamespaceRef   bool
@@ -250,7 +249,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 			// Exponential backoff would cause execution to be prolonged too much,
 			// instead we requeue on a fixed interval.
 			return v2.HelmReleaseNotReady(hr,
-				meta.DependencyNotReadyReason, err.Error()), ctrl.Result{RequeueAfter: r.requeueDependency}, nil
+				v2.DependencyNotReadyReason, err.Error()), ctrl.Result{RequeueAfter: r.requeueDependency}, nil
 		}
 		log.Info("all dependencies are ready, proceeding with release")
 	}
@@ -381,7 +380,13 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 			// Propagate any test error if not marked ignored.
 			if testErr != nil && !remediation.MustIgnoreTestFailures(hr.Spec.GetTest().IgnoreFailures) {
 				testsPassing := apimeta.FindStatusCondition(hr.Status.Conditions, v2.TestSuccessCondition)
-				meta.SetResourceCondition(&hr, v2.ReleasedCondition, metav1.ConditionFalse, testsPassing.Reason, testsPassing.Message)
+				newCondition := metav1.Condition{
+					Type:    v2.ReleasedCondition,
+					Status:  metav1.ConditionFalse,
+					Reason:  testsPassing.Reason,
+					Message: testsPassing.Message,
+				}
+				apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
 				err = testErr
 			}
 		}
@@ -425,7 +430,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	hr.Status.LastReleaseRevision = util.ReleaseRevision(rel)
 
 	if err != nil {
-		reason := meta.ReconciliationFailedReason
+		reason := v2.ReconciliationFailedReason
 		if condErr := (*ConditionError)(nil); errors.As(err, &condErr) {
 			reason = condErr.Reason
 		}
@@ -439,7 +444,10 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 		if d.Namespace == "" {
 			d.Namespace = hr.GetNamespace()
 		}
-		dName := types.NamespacedName(d)
+		dName := types.NamespacedName{
+			Namespace: d.Namespace,
+			Name:      d.Name,
+		}
 		var dHr v2.HelmRelease
 		err := r.Get(context.Background(), dName, &dHr)
 		if err != nil {
@@ -620,7 +628,7 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 	return transform.MergeMaps(result, hr.GetValues()), nil
 }
 
-// reconcileDelete deletes the v1beta1.HelmChart of the v2beta1.HelmRelease,
+// reconcileDelete deletes the v1beta2.HelmChart of the v2beta1.HelmRelease,
 // and uninstalls the Helm release if the resource has not been suspended.
 func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmRelease) (ctrl.Result, error) {
 	r.recordReadiness(ctx, hr)
@@ -666,12 +674,24 @@ func (r *HelmReleaseReconciler) handleHelmActionResult(ctx context.Context,
 		if actionErr := (*runner.ActionError)(nil); errors.As(err, &actionErr) {
 			msg = msg + "\n\nLast Helm logs:\n\n" + actionErr.CapturedLogs
 		}
-		meta.SetResourceCondition(hr, condition, metav1.ConditionFalse, failedReason, msg)
+		newCondition := metav1.Condition{
+			Type:    condition,
+			Status:  metav1.ConditionFalse,
+			Reason:  failedReason,
+			Message: msg,
+		}
+		apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
 		r.event(ctx, *hr, revision, events.EventSeverityError, msg)
 		return &ConditionError{Reason: failedReason, Err: err}
 	} else {
 		msg := fmt.Sprintf("Helm %s succeeded", action)
-		meta.SetResourceCondition(hr, condition, metav1.ConditionTrue, succeededReason, msg)
+		newCondition := metav1.Condition{
+			Type:    condition,
+			Status:  metav1.ConditionTrue,
+			Reason:  succeededReason,
+			Message: msg,
+		}
+		apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
 		r.event(ctx, *hr, revision, events.EventSeverityInfo, msg)
 		return nil
 	}
@@ -718,28 +738,15 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(o client.Object) []re
 
 // event emits a Kubernetes event and forwards the event to notification controller if configured.
 func (r *HelmReleaseReconciler) event(ctx context.Context, hr v2.HelmRelease, revision, severity, msg string) {
-	if r.EventRecorder != nil {
-		r.EventRecorder.Event(&hr, "Normal", severity, msg)
-	}
-
-	if r.ExternalEventRecorder == nil {
-		return
-	}
-
-	objRef, err := reference.GetReference(r.Scheme, &hr)
-	if err != nil {
-		ctrl.LoggerFrom(ctx).Error(err, "unable to send event")
-		return
-	}
-
 	var meta map[string]string
 	if revision != "" {
 		meta = map[string]string{"revision": revision}
 	}
-	if err := r.ExternalEventRecorder.Eventf(*objRef, meta, severity, severity, msg); err != nil {
-		ctrl.LoggerFrom(ctx).Error(err, "unable to send event")
-		return
+	eventtype := "Normal"
+	if severity == events.EventSeverityError {
+		eventtype = "Warning"
 	}
+	r.EventRecorder.AnnotatedEventf(&hr, meta, eventtype, severity, msg)
 }
 
 func (r *HelmReleaseReconciler) recordSuspension(ctx context.Context, hr v2.HelmRelease) {
