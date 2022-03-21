@@ -22,7 +22,7 @@ all: manager
 
 # Run tests
 KUBEBUILDER_ASSETS?="$(shell $(ENVTEST) --arch=$(ENVTEST_ARCH) use -i $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p path)"
-test: generate fmt vet manifests api-docs install-envtest
+test: tidy generate fmt vet manifests api-docs install-envtest
 	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) go test ./... -coverprofile cover.out
 	cd api; go test ./... -coverprofile cover.out
 
