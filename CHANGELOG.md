@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.18.0
+
+**Release date:** 2022-03-21
+
+This prerelease adds support to the Helm post renderer for Kustomize patches
+capable of targeting objects based on kind, label and annotation selectors
+using `.spec.postRenderers[].kustomize.patches`.
+
+In addition, various dependencies where updated to their latest versions, and
+the code base was refactored to align with the `fluxcd/pkg/runtime` v0.13
+release.
+
+Improvements:
+- Update `pkg/runtime` and `apis/meta`
+  [#421](https://github.com/fluxcd/helm-controller/pull/421)
+- api: Move Status in CRD printcolumn to the end
+  [#425](https://github.com/fluxcd/helm-controller/pull/425)
+- Support targeted Patches in the PostRenderer specification
+  [#432](https://github.com/fluxcd/helm-controller/pull/432)
+- Update dependencies
+  [#440](https://github.com/fluxcd/helm-controller/pull/440)
+  [#441](https://github.com/fluxcd/helm-controller/pull/441)
+
 ## 0.17.2
 
 **Release date:** 2022-03-15
