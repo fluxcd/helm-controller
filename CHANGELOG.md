@@ -12,6 +12,9 @@ In addition, various dependencies where updated to their latest versions, and
 the code base was refactored to align with the `fluxcd/pkg/runtime` v0.13
 release.
 
+The source-controller dependency was updated to version `v0.22` which 
+introduces API `v1beta2` and deprecates `v1beta1`.
+
 Improvements:
 - Update `pkg/runtime` and `apis/meta`
   [#421](https://github.com/fluxcd/helm-controller/pull/421)
