@@ -923,6 +923,12 @@ type HelmRelease struct {
 	Status HelmReleaseStatus `json:"status,omitempty"`
 }
 
+// GetRequeueAfter returns the duration after which the HelmRelease
+// must be reconciled again.
+func (in HelmRelease) GetRequeueAfter() time.Duration {
+	return in.Spec.Interval.Duration
+}
+
 // GetValues unmarshals the raw values to a map[string]interface{} and returns
 // the result.
 func (in HelmRelease) GetValues() map[string]interface{} {
@@ -989,7 +995,18 @@ func (in HelmRelease) GetDependsOn() []meta.NamespacedObjectReference {
 	return in.Spec.DependsOn
 }
 
-// GetStatusConditions returns a pointer to the Status.Conditions slice
+// GetConditions returns the status conditions of the object.
+func (in HelmRelease) GetConditions() []metav1.Condition {
+	return in.Status.Conditions
+}
+
+// SetConditions sets the status conditions on the object.
+func (in *HelmRelease) SetConditions(conditions []metav1.Condition) {
+	in.Status.Conditions = conditions
+}
+
+// GetStatusConditions returns a pointer to the Status.Conditions slice.
+// Deprecated: use GetConditions instead.
 func (in *HelmRelease) GetStatusConditions() *[]metav1.Condition {
 	return &in.Status.Conditions
 }
