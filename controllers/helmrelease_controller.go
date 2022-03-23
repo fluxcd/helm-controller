@@ -737,10 +737,10 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(o client.Object) []re
 }
 
 // event emits a Kubernetes event and forwards the event to notification controller if configured.
-func (r *HelmReleaseReconciler) event(ctx context.Context, hr v2.HelmRelease, revision, severity, msg string) {
+func (r *HelmReleaseReconciler) event(_ context.Context, hr v2.HelmRelease, revision, severity, msg string) {
 	var meta map[string]string
 	if revision != "" {
-		meta = map[string]string{"revision": revision}
+		meta = map[string]string{v2.GroupVersion.Group + "/revision": revision}
 	}
 	eventtype := "Normal"
 	if severity == events.EventSeverityError {
