@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.18.1
+
+**Release date:** 2022-03-23
+
+This prerelease ensures the API objects fully adhere to newly introduced
+interfaces, allowing them to work in combination with e.g. the
+[`conditions`](https://pkg.go.dev/github.com/fluxcd/pkg/runtime@v0.13.2/conditions)
+package.
+
+In addition, it ensures (Kubernetes) Event annotations are prefixed with the
+FQDN of the Helm API Group. For example, `revision` is now
+`helm.toolkit.fluxcd.io/revision`.
+
+This to facilitate improvements to the notification-controller, where
+annotations prefixed with the FQDN of the Group of the Involved Object will be
+transformed into "fields".
+
+Improvements:
+- Implement `meta.ObjectWithConditions` interfaces
+  [#444](https://github.com/fluxcd/helm-controller/pull/444)
+- Update source-controller API to v0.22.1
+  [#445](https://github.com/fluxcd/helm-controller/pull/445)
+
+Fixes:
+- Prefix revision annotation with API Group FQDN
+  [#447](https://github.com/fluxcd/helm-controller/pull/447)
+
 ## 0.18.0
 
 **Release date:** 2022-03-21
