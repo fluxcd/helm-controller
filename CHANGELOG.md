@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.18.2
+
+**Release date:** 2022-03-25
+
+This prerelease updates the source-controller and Kustomize dependencies to
+their latest versions.
+
+Improvements:
+- Update Kustomize to v4.5.3
+  [#449](https://github.com/fluxcd/helm-controller/pull/449)
+- Update source-controller API to v0.22.3
+  [#450](https://github.com/fluxcd/helm-controller/pull/450)
+
 ## 0.18.1
 
 **Release date:** 2022-03-23
