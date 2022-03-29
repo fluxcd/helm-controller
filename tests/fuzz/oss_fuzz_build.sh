@@ -22,7 +22,7 @@ PROJECT_PATH="github.com/fluxcd/helm-controller"
 
 cd "${GO_SRC}"
 
-# Move fuzzer to their respective directories. 
+# Move fuzzer to their respective directories.
 # This removes dependency noises from the modules' go.mod and go.sum files.
 cp "${PROJECT_PATH}/tests/fuzz/fuzz_controllers.go" "${PROJECT_PATH}/controllers/"
 
@@ -30,7 +30,7 @@ cp "${PROJECT_PATH}/tests/fuzz/fuzz_controllers.go" "${PROJECT_PATH}/controllers
 # compile fuzz tests for the runtime module
 pushd "${PROJECT_PATH}"
 
-go mod tidy
+go get -d github.com/AdaLogics/go-fuzz-headers
 compile_go_fuzzer "${PROJECT_PATH}/controllers/" FuzzHelmreleaseComposeValues fuzz_helmrelease_composevalues
 compile_go_fuzzer "${PROJECT_PATH}/controllers/" FuzzHelmreleaseReconcile fuzz_helmrelease_reconcile
 
