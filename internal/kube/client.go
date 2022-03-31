@@ -24,6 +24,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/fluxcd/pkg/runtime/client"
 )
 
 func NewInClusterRESTClientGetter(cfg *rest.Config, namespace string) genericclioptions.RESTClientGetter {
@@ -49,15 +51,23 @@ type MemoryRESTClientGetter struct {
 	impersonateAccount string
 	qps                float32
 	burst              int
+	kubeConfigOpts     client.KubeConfigOptions
 }
 
-func NewMemoryRESTClientGetter(kubeConfig []byte, namespace string, impersonateAccount string, qps float32, burst int) genericclioptions.RESTClientGetter {
+func NewMemoryRESTClientGetter(
+	kubeConfig []byte,
+	namespace string,
+	impersonateAccount string,
+	qps float32,
+	burst int,
+	kubeConfigOpts client.KubeConfigOptions) genericclioptions.RESTClientGetter {
 	return &MemoryRESTClientGetter{
 		kubeConfig:         kubeConfig,
 		namespace:          namespace,
 		impersonateAccount: impersonateAccount,
 		qps:                qps,
 		burst:              burst,
+		kubeConfigOpts:     kubeConfigOpts,
 	}
 }
 
@@ -66,6 +76,7 @@ func (c *MemoryRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	cfg = client.KubeConfig(cfg, c.kubeConfigOpts)
 	if c.impersonateAccount != "" {
 		cfg.Impersonate = rest.ImpersonationConfig{UserName: c.impersonateAccount}
 	}
