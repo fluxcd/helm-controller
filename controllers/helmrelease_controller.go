@@ -51,6 +51,7 @@ import (
 	apiacl "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/acl"
+	fluxClient "github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
@@ -81,6 +82,7 @@ type HelmReleaseReconciler struct {
 	MetricsRecorder       *metrics.Recorder
 	DefaultServiceAccount string
 	NoCrossNamespaceRef   bool
+	KubeConfigOpts        fluxClient.KubeConfigOptions
 }
 
 func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
@@ -503,7 +505,7 @@ func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.H
 		if len(kubeConfig) == 0 {
 			return nil, fmt.Errorf("KubeConfig secret '%s' does not contain a 'value' key", secretName)
 		}
-		return kube.NewMemoryRESTClientGetter(kubeConfig, hr.GetReleaseNamespace(), impersonateAccount, r.Config.QPS, r.Config.Burst), nil
+		return kube.NewMemoryRESTClientGetter(kubeConfig, hr.GetReleaseNamespace(), impersonateAccount, r.Config.QPS, r.Config.Burst, r.KubeConfigOpts), nil
 	}
 
 	if r.DefaultServiceAccount != "" || hr.Spec.ServiceAccountName != "" {

@@ -70,6 +70,7 @@ func main() {
 		watchAllNamespaces    bool
 		httpRetry             int
 		clientOptions         client.Options
+		kubeConfigOpts        client.KubeConfigOptions
 		logOptions            logger.Options
 		aclOptions            acl.Options
 		leaderElectionOptions leaderelection.Options
@@ -89,6 +90,7 @@ func main() {
 	logOptions.BindFlags(flag.CommandLine)
 	aclOptions.BindFlags(flag.CommandLine)
 	leaderElectionOptions.BindFlags(flag.CommandLine)
+	kubeConfigOpts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	ctrl.SetLogger(logger.NewLogger(logOptions))
@@ -141,6 +143,7 @@ func main() {
 		MetricsRecorder:       metricsRecorder,
 		NoCrossNamespaceRef:   aclOptions.NoCrossNamespaceRefs,
 		DefaultServiceAccount: defaultServiceAccount,
+		KubeConfigOpts:        kubeConfigOpts,
 	}).SetupWithManager(mgr, controllers.HelmReleaseReconcilerOptions{
 		MaxConcurrentReconciles:   concurrent,
 		DependencyRequeueInterval: requeueDependency,
