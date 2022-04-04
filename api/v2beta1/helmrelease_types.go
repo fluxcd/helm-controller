@@ -74,7 +74,12 @@ type HelmReleaseSpec struct {
 	Interval metav1.Duration `json:"interval"`
 
 	// KubeConfig for reconciling the HelmRelease on a remote cluster.
-	// When specified, KubeConfig takes precedence over ServiceAccountName.
+	// When used in combination with HelmReleaseSpec.ServiceAccountName,
+	// forces the controller to act on behalf of that Service Account at the
+	// target cluster.
+	// If the --default-service-account flag is set, its value will be used as
+	// a controller level fallback for when HelmReleaseSpec.ServiceAccountName
+	// is empty.
 	// +optional
 	KubeConfig *KubeConfig `json:"kubeConfig,omitempty"`
 
