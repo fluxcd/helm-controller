@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.19.0
+
+**Release date:** 2022-04-05
+
+This prerelease adds some breaking changes around the use and handling of kubeconfigs 
+files for remote reconciliations. It updates documentation and progress other 
+housekeeping tasks.
+
+**Breaking changes**:
+
+- Use of file-based KubeConfig options are now permanently disabled (e.g. 
+`TLSClientConfig.CAFile`, `TLSClientConfig.KeyFile`, `TLSClientConfig.CertFile`
+and `BearerTokenFile`). The drive behind the change was to discourage
+insecure practices of mounting Kubernetes tokens inside the controller's container file system.
+- Use of `TLSClientConfig.Insecure` in KubeConfig file is disabled by default,
+but can enabled at controller level with the flag `--insecure-kubeconfig-tls`.
+- Use of `ExecProvider` in KubeConfig file is now disabled by default,
+but can enabled at controller level with the flag `--insecure-kubeconfig-exec`.
+
+Improvements:
+- Update KubeConfig documentation
+  [#457](https://github.com/fluxcd/helm-controller/pull/457)
+- Update docs links to toolkit.fluxcd.io
+  [#456](https://github.com/fluxcd/helm-controller/pull/456)
+- Add kubeconfig flags
+  [#455](https://github.com/fluxcd/helm-controller/pull/455)
+- Align version of dependencies when Fuzzing
+  [#452](https://github.com/fluxcd/helm-controller/pull/452)
+
 ## 0.18.2
 
 **Release date:** 2022-03-25
