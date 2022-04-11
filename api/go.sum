@@ -122,8 +122,8 @@ github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5Kwzbycv
 github.com/felixge/httpsnoop v1.0.1/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fluxcd/pkg/apis/kustomize v0.3.3 h1:bPN29SdVzWl0yhgivuf/83IAe2R6vUuDVcB3LzyVU8E=
 github.com/fluxcd/pkg/apis/kustomize v0.3.3/go.mod h1:5HTOFZfQFVMMqR2rvuxpbZhpb+sQpcTT6RCQZOhjFzA=
-github.com/fluxcd/pkg/apis/meta v0.12.2 h1:AiKAZxLyPtV150y63WC+mL1Qm4x5qWQmW6r4mLy1i8c=
-github.com/fluxcd/pkg/apis/meta v0.12.2/go.mod h1:Z26X5uTU5LxAyWETGueRQY7TvdPaGfKU7Wye9bdUlho=
+github.com/fluxcd/pkg/apis/meta v0.13.0 h1:0QuNKEExSjk+Rv0I6a85p2H3xOlWhdxZRsh10waEL/c=
+github.com/fluxcd/pkg/apis/meta v0.13.0/go.mod h1:Z26X5uTU5LxAyWETGueRQY7TvdPaGfKU7Wye9bdUlho=
 github.com/form3tech-oss/jwt-go v3.2.2+incompatible/go.mod h1:pbq4aXjuKjdthFRnoDwaVPLA+WlJuPGy+QneDUgJi2k=
 github.com/form3tech-oss/jwt-go v3.2.3+incompatible/go.mod h1:pbq4aXjuKjdthFRnoDwaVPLA+WlJuPGy+QneDUgJi2k=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
