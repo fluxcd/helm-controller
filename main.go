@@ -32,6 +32,7 @@ import (
 
 	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/client"
+	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
 	"github.com/fluxcd/pkg/runtime/logger"
@@ -74,6 +75,7 @@ func main() {
 		logOptions            logger.Options
 		aclOptions            acl.Options
 		leaderElectionOptions leaderelection.Options
+		rateLimiterOptions    helper.RateLimiterOptions
 		defaultServiceAccount string
 	)
 
@@ -90,6 +92,7 @@ func main() {
 	logOptions.BindFlags(flag.CommandLine)
 	aclOptions.BindFlags(flag.CommandLine)
 	leaderElectionOptions.BindFlags(flag.CommandLine)
+	rateLimiterOptions.BindFlags(flag.CommandLine)
 	kubeConfigOpts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
@@ -148,6 +151,7 @@ func main() {
 		MaxConcurrentReconciles:   concurrent,
 		DependencyRequeueInterval: requeueDependency,
 		HTTPRetry:                 httpRetry,
+		RateLimiter:               helper.GetRateLimiter(rateLimiterOptions),
 	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", v2.HelmReleaseKind)
 		os.Exit(1)
