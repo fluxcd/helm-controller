@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.20.0
+
+**Release date:** 2022-04-19
+
+This prerelease adds support for configuring the exponential back-off retry
+using newly introduced flags: `--min-retry-delay` (default: `750ms`) and
+`--max-retry-delay` (default: `15min`). Previously the defaults were set to
+`5ms` and `1000s`.
+
+In addition, all dependencies have been updated to their latest versions,
+including an update of Helm to `v3.8.2`.
+
+Improvements:
+- Add flags for exponential back-off retry
+  [#465](https://github.com/fluxcd/helm-controller/pull/465)
+- Update Helm to v3.8.2
+  [#466](https://github.com/fluxcd/helm-controller/pull/466)
+- Update dependencies
+  [#467](https://github.com/fluxcd/helm-controller/pull/467)
+
 ## 0.19.0
 
 **Release date:** 2022-04-05
