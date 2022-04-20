@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.20.1
+
+**Release date:** 2022-04-20
+
+This prerelease equals to [`v0.20.0`](#0200), but is tagged at the right
+revision.
+
 ## 0.20.0
 
 **Release date:** 2022-04-19
