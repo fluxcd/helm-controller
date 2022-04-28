@@ -500,16 +500,17 @@ func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.H
 		}
 
 		var kubeConfig []byte
-		for k, _ := range secret.Data {
-			if k == "value" || k == "value.yaml" {
-				kubeConfig = secret.Data[k]
-				break
-			}
-		}
-
-		if len(kubeConfig) == 0 {
+		if key := hr.Spec.KubeConfig.SecretRef.Key; key != "" {
+			kubeConfig = secret.Data[key]
+		} else if val, ok := secret.Data["value"]; ok {
+			kubeConfig = val
+		} else if val, ok := secret.Data["value.yaml"]; ok {
+			kubeConfig = val
+		} else {
+			// User did not specify a key, and the 'value' key was not defined.
 			return nil, fmt.Errorf("KubeConfig secret '%s' does not contain a 'value' key", secretName)
 		}
+
 		return kube.NewMemoryRESTClientGetter(kubeConfig, hr.GetReleaseNamespace(), impersonateAccount, r.Config.QPS, r.Config.Burst, r.KubeConfigOpts), nil
 	}
 
