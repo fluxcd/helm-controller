@@ -28,7 +28,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
-	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/client"
@@ -36,7 +35,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
 	"github.com/fluxcd/pkg/runtime/logger"
-	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
@@ -98,9 +96,6 @@ func main() {
 
 	ctrl.SetLogger(logger.NewLogger(logOptions))
 
-	metricsRecorder := metrics.NewRecorder()
-	crtlmetrics.Registry.MustRegister(metricsRecorder.Collectors()...)
-
 	watchNamespace := ""
 	if !watchAllNamespaces {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
@@ -129,12 +124,29 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Register debugging related handlers first.
 	probes.SetupChecks(mgr, setupLog)
 	pprof.SetupHandlers(mgr, setupLog)
+
+	metricsH := helper.MustMakeMetrics(mgr)
 
 	var eventRecorder *events.Recorder
 	if eventRecorder, err = events.NewRecorder(mgr, ctrl.Log, eventsAddr, controllerName); err != nil {
 		setupLog.Error(err, "unable to create event recorder")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.HelmReleaseChartReconciler{
+		Client:              mgr.GetClient(),
+		EventRecorder:       eventRecorder,
+		Metrics:             metricsH,
+		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
+		ControllerName:      "helm-controller",
+	}).SetupWithManagerAndOptions(mgr, controllers.HelmReleaseChartReconcilerOptions{
+		MaxConcurrentReconciles: concurrent,
+		RateLimiter:             helper.GetRateLimiter(rateLimiterOptions),
+	}); err != nil {
+		setupLog.Error(err, "unable to create reconciler", "controller", v2.HelmReleaseKind, "reconciler", "chart")
 		os.Exit(1)
 	}
 
@@ -143,7 +155,7 @@ func main() {
 		Config:                mgr.GetConfig(),
 		Scheme:                mgr.GetScheme(),
 		EventRecorder:         eventRecorder,
-		MetricsRecorder:       metricsRecorder,
+		MetricsRecorder:       metricsH.MetricsRecorder,
 		NoCrossNamespaceRef:   aclOptions.NoCrossNamespaceRefs,
 		DefaultServiceAccount: defaultServiceAccount,
 		KubeConfigOpts:        kubeConfigOpts,

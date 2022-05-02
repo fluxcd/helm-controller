@@ -219,19 +219,19 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 		defer r.MetricsRecorder.RecordDuration(*objRef, reconcileStart)
 	}
 
-	// Reconcile chart based on the HelmChartTemplate
-	hc, reconcileErr := r.reconcileChart(ctx, &hr)
-	if reconcileErr != nil {
-		if acl.IsAccessDenied(reconcileErr) {
-			log.Error(reconcileErr, "access denied to cross-namespace source")
-			r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, reconcileErr.Error())
-			return v2.HelmReleaseNotReady(hr, apiacl.AccessDeniedReason, reconcileErr.Error()),
+	// Get HelmChart object for release
+	hc, err := r.getHelmChart(ctx, &hr)
+	if err != nil {
+		if acl.IsAccessDenied(err) {
+			log.Error(err, "access denied to cross-namespace source")
+			r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, err.Error())
+			return v2.HelmReleaseNotReady(hr, apiacl.AccessDeniedReason, err.Error()),
 				ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
 		}
 
-		msg := fmt.Sprintf("chart reconciliation failed: %s", reconcileErr.Error())
+		msg := fmt.Sprintf("chart reconciliation failed: %s", err.Error())
 		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, msg)
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{Requeue: true}, reconcileErr
+		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{Requeue: true}, err
 	}
 
 	// Check chart readiness
@@ -645,11 +645,6 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 // and uninstalls the Helm release if the resource has not been suspended.
 func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmRelease) (ctrl.Result, error) {
 	r.recordReadiness(ctx, hr)
-
-	// Delete the HelmChart that belongs to this resource.
-	if err := r.deleteHelmChart(ctx, &hr); err != nil {
-		return ctrl.Result{}, err
-	}
 
 	// Only uninstall the Helm Release if the resource is not suspended.
 	if !hr.Spec.Suspend {
