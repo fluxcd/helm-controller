@@ -26,6 +26,7 @@ require (
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/go-retryablehttp v0.7.4
+	github.com/mitchellh/copystructure v1.2.0
 	github.com/onsi/gomega v1.27.10
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20230815154656-802ce17c4f59
@@ -113,7 +114,6 @@ require (
 	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
-	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/locker v1.0.1 // indirect
