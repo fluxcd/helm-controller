@@ -22,42 +22,62 @@ import (
 	"path/filepath"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	"github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/fluxcd/pkg/runtime/testenv"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+
+	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	// +kubebuilder:scaffold:imports
 )
 
-var cfg *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
+var (
+	testScheme = runtime.NewScheme()
+
+	testEnv *testenv.Environment
+
+	testClient client.Client
+
+	testCtx = ctrl.SetupSignalHandler()
+)
 
 func TestMain(m *testing.M) {
-	testEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "config", "crd", "bases")},
-	}
+	utilruntime.Must(scheme.AddToScheme(testScheme))
+	utilruntime.Must(sourcev1.AddToScheme(testScheme))
+	utilruntime.Must(v2.AddToScheme(testScheme))
 
+	testEnv = testenv.New(
+		testenv.WithCRDPath(
+			filepath.Join("..", "..", "build", "config", "crd", "bases"),
+			filepath.Join("..", "..", "config", "crd", "bases"),
+		),
+		testenv.WithScheme(testScheme),
+	)
+
+	go func() {
+		fmt.Println("Starting the test environment")
+		if err := testEnv.Start(testCtx); err != nil {
+			panic(fmt.Sprintf("Failed to start the test environment manager: %v", err))
+		}
+	}()
+	<-testEnv.Manager.Elected()
+
+	// Client with caching disabled.
 	var err error
-	cfg, err = testEnv.Start()
+	testClient, err = client.New(testEnv.Config, client.Options{Scheme: testScheme})
 	if err != nil {
-		panic(fmt.Errorf("failed to start testenv: %v", err))
-	}
-
-	utilruntime.Must(v2beta1.AddToScheme(scheme.Scheme))
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	if err != nil {
-		panic(fmt.Errorf("failed to create k8s client: %v", err))
+		panic(fmt.Sprintf("Failed to create cacheless Kubernetes client: %v", err))
 	}
 
 	code := m.Run()
 
-	err = testEnv.Stop()
-	if err != nil {
-		panic(fmt.Errorf("failed to stop testenv: %v", err))
+	fmt.Println("Stopping the test environment")
+	if err := testEnv.Stop(); err != nil {
+		panic(fmt.Sprintf("Failed to stop the test environment: %v", err))
 	}
 
 	os.Exit(code)

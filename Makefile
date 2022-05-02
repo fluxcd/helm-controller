@@ -27,6 +27,17 @@ BUILD_PLATFORMS ?= linux/amd64
 # Architecture to use envtest with
 ENVTEST_ARCH ?= amd64
 
+# Paths to download the CRD dependency to.
+CRD_DEP_ROOT ?= $(BUILD_DIR)/config/crd/bases
+
+# Keep a record of the version of the downloaded source CRDs. It is used to
+# detect and download new CRDs when the SOURCE_VER changes.
+SOURCE_VER ?= $(shell go list -m all | grep github.com/fluxcd/source-controller/api | awk '{print $$2}')
+SOURCE_CRD_VER = $(CRD_DEP_ROOT)/.src-crd-$(SOURCE_VER)
+
+# HelmChart source CRD.
+HELMCHART_SOURCE_CRD ?= $(CRD_DEP_ROOT)/source.toolkit.fluxcd.io_helmcharts.yaml
+
 # API (doc) generation utilities
 CONTROLLER_GEN_VERSION ?= v0.12.0
 GEN_API_REF_DOCS_VERSION ?= e327d0730470cbd61b06300f81c5fcf91c23c113
@@ -35,7 +46,7 @@ all: manager
 
 # Run tests
 KUBEBUILDER_ASSETS?="$(shell $(ENVTEST) --arch=$(ENVTEST_ARCH) use -i $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p path)"
-test: tidy generate fmt vet manifests api-docs install-envtest
+test: tidy generate fmt vet manifests api-docs install-envtest download-crd-deps
 	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) go test ./... -coverprofile cover.out
 	cd api; go test ./... -coverprofile cover.out
 
@@ -112,6 +123,24 @@ docker-build:
 # Push the docker image
 docker-push:
 	docker push ${IMG}
+
+# Delete previously downloaded CRDs and record the new version of the source
+# CRDs.
+$(SOURCE_CRD_VER):
+	rm -f $(CRD_DEP_ROOT)/.src-crd*
+	mkdir -p $(CRD_DEP_ROOT)
+	$(MAKE) cleanup-crd-deps
+	touch $(SOURCE_CRD_VER)
+
+$(HELMCHART_SOURCE_CRD):
+	curl -s https://raw.githubusercontent.com/fluxcd/source-controller/${SOURCE_VER}/config/crd/bases/source.toolkit.fluxcd.io_helmcharts.yaml > $(HELMCHART_SOURCE_CRD)
+
+# Download the CRDs the controller depends on
+download-crd-deps: $(SOURCE_CRD_VER) $(HELMCHART_SOURCE_CRD)
+
+# Delete the downloaded CRD dependencies.
+cleanup-crd-deps:
+	rm -f $(HELMCHART_SOURCE_CRD)
 
 # Find or download controller-gen
 CONTROLLER_GEN = $(GOBIN)/controller-gen

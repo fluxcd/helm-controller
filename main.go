@@ -34,7 +34,6 @@ import (
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlcfg "sigs.k8s.io/controller-runtime/pkg/config"
-	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/client"
@@ -43,7 +42,6 @@ import (
 	feathelper "github.com/fluxcd/pkg/runtime/features"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
 	"github.com/fluxcd/pkg/runtime/logger"
-	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
@@ -140,9 +138,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	metricsRecorder := metrics.NewRecorder()
-	crtlmetrics.Registry.MustRegister(metricsRecorder.Collectors()...)
-
 	watchNamespace := ""
 	if !watchOptions.AllNamespaces {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
@@ -209,6 +204,8 @@ func main() {
 	probes.SetupChecks(mgr, setupLog)
 	pprof.SetupHandlers(mgr, setupLog)
 
+	metricsH := helper.MustMakeMetrics(mgr)
+
 	var eventRecorder *events.Recorder
 	if eventRecorder, err = events.NewRecorder(mgr, ctrl.Log, eventsAddr, controllerName); err != nil {
 		setupLog.Error(err, "unable to create event recorder")
@@ -233,17 +230,33 @@ func main() {
 	}
 
 	pollingOpts := polling.Options{}
+	statusPoller := polling.NewStatusPoller(mgr.GetClient(), mgr.GetRESTMapper(), pollingOpts)
+
+	if err = (&controller.HelmReleaseChartReconciler{
+		Client:              mgr.GetClient(),
+		EventRecorder:       eventRecorder,
+		Metrics:             metricsH,
+		StatusPoller:        statusPoller,
+		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
+		FieldManager:        controllerName,
+	}).SetupWithManagerAndOptions(mgr, controller.HelmReleaseChartReconcilerOptions{
+		RateLimiter: helper.GetRateLimiter(rateLimiterOptions),
+	}); err != nil {
+		setupLog.Error(err, "unable to create reconciler", "controller", v2.HelmReleaseKind, "reconciler", "chart")
+		os.Exit(1)
+	}
+
 	if err = (&controller.HelmReleaseReconciler{
 		Client:              mgr.GetClient(),
 		Config:              mgr.GetConfig(),
 		Scheme:              mgr.GetScheme(),
 		EventRecorder:       eventRecorder,
-		MetricsRecorder:     metricsRecorder,
+		MetricsRecorder:     metricsH.MetricsRecorder,
 		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
 		ClientOpts:          clientOptions,
 		KubeConfigOpts:      kubeConfigOpts,
 		PollingOpts:         pollingOpts,
-		StatusPoller:        polling.NewStatusPoller(mgr.GetClient(), mgr.GetRESTMapper(), pollingOpts),
+		StatusPoller:        statusPoller,
 		ControllerName:      controllerName,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		DependencyRequeueInterval: requeueDependency,
