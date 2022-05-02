@@ -437,7 +437,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 				},
 			}
 
-			err := k8sClient.Create(context.TODO(), &hr, client.DryRunAll)
+			err := testEnv.Create(context.TODO(), &hr, client.DryRunAll)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("composeValues() error = %v, wantErr %v", err, tt.wantErr)
 				return

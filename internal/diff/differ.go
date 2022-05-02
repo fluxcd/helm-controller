@@ -21,25 +21,22 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fluxcd/pkg/runtime/client"
-	"github.com/fluxcd/pkg/ssa"
-	"github.com/google/go-cmp/cmp"
 	"helm.sh/helm/v3/pkg/release"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/logger"
+	"github.com/fluxcd/pkg/ssa"
 
-	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
-	intcmp "github.com/fluxcd/helm-controller/internal/cmp"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	"github.com/fluxcd/helm-controller/internal/util"
 )
 
 var (
 	// MetadataKey is the label or annotation key used to disable the diffing
 	// of an object.
-	MetadataKey = helmv1.GroupVersion.Group + "/driftDetection"
+	MetadataKey = v2.GroupVersion.Group + "/driftDetection"
 	// MetadataDisabledValue is the value used to disable the diffing of an
 	// object using MetadataKey.
 	MetadataDisabledValue = "disabled"
@@ -132,12 +129,8 @@ func (d *Differ) Diff(ctx context.Context, rel *release.Release) (*ssa.ChangeSet
 			if entry.Action == ssa.ConfiguredAction {
 				// TODO: remove this once we have a better way to log the diff
 				//       for example using a custom dyff reporter, or a flux CLI command
-				r := intcmp.SimpleUnstructuredReporter{}
-				if diff := cmp.Diff(
-					unstructuredWithoutStatus(releaseObject).UnstructuredContent(),
-					unstructuredWithoutStatus(clusterObject).UnstructuredContent(),
-					cmp.Reporter(&r)); diff != "" {
-					ctrl.LoggerFrom(ctx).V(logger.DebugLevel).Info(entry.Subject + " diff:\n" + r.String())
+				if d, equal := Unstructured(releaseObject, clusterObject, WithoutStatus()); !equal {
+					ctrl.LoggerFrom(ctx).V(logger.DebugLevel).Info(entry.Subject + " diff:\n" + d)
 				}
 			}
 		case ssa.SkippedAction:
@@ -150,10 +143,4 @@ func (d *Differ) Diff(ctx context.Context, rel *release.Release) (*ssa.ChangeSet
 		return nil, diff, err
 	}
 	return changeSet, diff, err
-}
-
-func unstructuredWithoutStatus(obj *unstructured.Unstructured) *unstructured.Unstructured {
-	obj = obj.DeepCopy()
-	delete(obj.Object, "status")
-	return obj
 }

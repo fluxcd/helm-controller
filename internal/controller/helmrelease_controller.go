@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/hashicorp/go-retryablehttp"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
@@ -54,6 +53,7 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/acl"
 	runtimeClient "github.com/fluxcd/pkg/runtime/client"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/jitter"
 	"github.com/fluxcd/pkg/runtime/predicates"
@@ -215,19 +215,19 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 		}
 	}
 
-	// Reconcile chart based on the HelmChartTemplate
-	hc, reconcileErr := r.reconcileChart(ctx, &hr)
-	if reconcileErr != nil {
-		if acl.IsAccessDenied(reconcileErr) {
-			log.Error(reconcileErr, "access denied to cross-namespace source")
-			r.event(ctx, hr, hr.Status.LastAttemptedRevision, eventv1.EventSeverityError, reconcileErr.Error())
-			return v2.HelmReleaseNotReady(hr, apiacl.AccessDeniedReason, reconcileErr.Error()),
+	// Get HelmChart object for release
+	hc, err := r.getHelmChart(ctx, &hr)
+	if err != nil {
+		if acl.IsAccessDenied(err) {
+			log.Error(err, "access denied to cross-namespace source")
+			r.event(ctx, hr, hr.Status.LastAttemptedRevision, eventv1.EventSeverityError, err.Error())
+			return v2.HelmReleaseNotReady(hr, apiacl.AccessDeniedReason, err.Error()),
 				jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: hr.GetRequeueAfter()}), nil
 		}
 
-		msg := fmt.Sprintf("chart reconciliation failed: %s", reconcileErr.Error())
+		msg := fmt.Sprintf("chart reconciliation failed: %s", err.Error())
 		r.event(ctx, hr, hr.Status.LastAttemptedRevision, eventv1.EventSeverityError, msg)
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{Requeue: true}, reconcileErr
+		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{Requeue: true}, err
 	}
 
 	// Check chart readiness
@@ -658,11 +658,6 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 // exists.
 func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr *v2.HelmRelease) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
-
-	// Delete the HelmChart that belongs to this resource.
-	if err := r.deleteHelmChart(ctx, hr); err != nil {
-		return ctrl.Result{}, err
-	}
 
 	// Only uninstall the Helm Release if the resource is not suspended.
 	if !hr.Spec.Suspend {

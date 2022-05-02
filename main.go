@@ -238,6 +238,22 @@ func main() {
 	}
 
 	pollingOpts := polling.Options{}
+	statusPoller := polling.NewStatusPoller(mgr.GetClient(), mgr.GetRESTMapper(), pollingOpts)
+
+	if err = (&controller.HelmReleaseChartReconciler{
+		Client:              mgr.GetClient(),
+		EventRecorder:       eventRecorder,
+		Metrics:             metricsH,
+		StatusPoller:        statusPoller,
+		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
+		FieldManager:        controllerName,
+	}).SetupWithManagerAndOptions(mgr, controller.HelmReleaseChartReconcilerOptions{
+		RateLimiter: helper.GetRateLimiter(rateLimiterOptions),
+	}); err != nil {
+		setupLog.Error(err, "unable to create reconciler", "controller", v2.HelmReleaseKind, "reconciler", "chart")
+		os.Exit(1)
+	}
+
 	if err = (&controller.HelmReleaseReconciler{
 		Client:              mgr.GetClient(),
 		Config:              mgr.GetConfig(),
@@ -248,7 +264,7 @@ func main() {
 		ClientOpts:          clientOptions,
 		KubeConfigOpts:      kubeConfigOpts,
 		PollingOpts:         pollingOpts,
-		StatusPoller:        polling.NewStatusPoller(mgr.GetClient(), mgr.GetRESTMapper(), pollingOpts),
+		StatusPoller:        statusPoller,
 		ControllerName:      controllerName,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		DependencyRequeueInterval: requeueDependency,
