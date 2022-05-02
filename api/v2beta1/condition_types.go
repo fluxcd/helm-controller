@@ -16,6 +16,10 @@ limitations under the License.
 
 package v2beta1
 
+// ChartFinalizer is set on a HelmRelease when a HelmChart object is created
+// for it, and removed when this object has been deleted.
+const ChartFinalizer = "chart.finalizers.fluxcd.io"
+
 const (
 	// ReleasedCondition represents the status of the last release attempt
 	// (install/upgrade/test) against the latest desired state.
