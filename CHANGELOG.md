@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.21.0
+
+**Release date:** 2022-05-03
+
+This prerelease introduces support for defining a KubeConfig Secret data key in
+the `.spec.kubeConfig.SecretRef.key` (default: `value` or `value.yaml`).
+
+In addition, dependencies have been updated.
+
+Improvements:
+- Support defining a KubeConfig Secret data key
+  [#461](https://github.com/fluxcd/helm-controller/pull/461)
+  [#472](https://github.com/fluxcd/helm-controller/pull/472)
+  [#474](https://github.com/fluxcd/helm-controller/pull/474)
+- Update dependencies
+  [#470](https://github.com/fluxcd/helm-controller/pull/470)
+  [#473](https://github.com/fluxcd/helm-controller/pull/473)
+
 ## 0.20.1
 
 **Release date:** 2022-04-20
