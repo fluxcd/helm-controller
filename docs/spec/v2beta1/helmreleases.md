@@ -95,7 +95,12 @@ type HelmReleaseSpec struct {
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
 
 	// KubeConfig for reconciling the HelmRelease on a remote cluster.
-	// When specified, KubeConfig takes precedence over ServiceAccountName.
+	// When used in combination with HelmReleaseSpec.ServiceAccountName,
+	// forces the controller to act on behalf of that Service Account at the
+	// target cluster.
+	// If the --default-service-account flag is set, its value will be used as
+	// a controller level fallback for when HelmReleaseSpec.ServiceAccountName
+	// is empty.
 	// +optional
 	KubeConfig *KubeConfig `json:"kubeConfig,omitempty"`
 
@@ -112,8 +117,9 @@ type HelmReleaseSpec struct {
 
 // KubeConfig references a Kubernetes secret that contains a kubeconfig file.
 type KubeConfig struct {
-	// SecretRef holds the name to a secret that contains a 'value' key with
-	// the kubeconfig file as the value. It must be in the same namespace as
+	// SecretRef holds the name to a secret that contains a key with
+	// the kubeconfig file as the value. If no key is specified the key will
+	// default to 'value'. The secret must be in the same namespace as
 	// the HelmRelease.
 	// It is recommended that the kubeconfig is self-contained, and the secret
 	// is regularly updated if credentials such as a cloud-access-token expire.
@@ -121,7 +127,7 @@ type KubeConfig struct {
 	// binaries and credentials to the Pod that is responsible for reconciling
 	// the HelmRelease.
 	// +required
-	SecretRef corev1.LocalObjectReference `json:"secretRef,omitempty"`
+	SecretRef meta.SecretKeyReference `json:"secretRef,omitempty"`
 }
 
 // HelmChartTemplate defines the template from which the controller will
@@ -1053,9 +1059,9 @@ in that KubeConfig instead of the local cluster that is responsible for the reco
 HelmRelease.
 
 The secret defined in the `spec.kubeConfig.secretRef` must exist in the same namespace as the
-HelmRelease. On every reconciliation, the KubeConfig bytes will be loaded from the `value`  or `value.yaml` key
-of the secret's data, and the secret can thus be regularly updated if cluster-access-tokens have
-to rotate due to expiration.
+HelmRelease. On every reconciliation, the KubeConfig bytes will be loaded from the `.secretRef.key`
+key (default: `value` or `value.yaml`) of the Secret's data , and the Secret can thus be regularly
+updated if cluster-access-tokens have to rotate due to expiration.
 
 The Helm storage is stored on the remote cluster in a namespace that equals to the namespace of
 the HelmRelease, or the configured `spec.storageNamespace`. The release itself is made in a
