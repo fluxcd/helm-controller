@@ -18,276 +18,114 @@ package controllers
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
-	"github.com/go-logr/logr"
-	"helm.sh/helm/v3/pkg/chartutil"
-	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/yaml"
-
-	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
 
-func TestHelmReleaseReconciler_composeValues(t *testing.T) {
+func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
+	g := NewWithT(t)
+
 	scheme := runtime.NewScheme()
-	_ = corev1.AddToScheme(scheme)
-	_ = v2.AddToScheme(scheme)
+	g.Expect(v2.AddToScheme(scheme)).To(Succeed())
+	g.Expect(sourcev1.AddToScheme(scheme)).To(Succeed())
+
+	chart := &sourcev1.HelmChart{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "some-namespace",
+			Name:      "some-chart-name",
+		},
+	}
 
 	tests := []struct {
-		name       string
-		resources  []runtime.Object
-		references []v2.ValuesReference
-		values     string
-		want       chartutil.Values
-		wantErr    bool
+		name            string
+		rel             *v2.HelmRelease
+		chart           *sourcev1.HelmChart
+		expectChart     bool
+		wantErr         bool
+		disallowCrossNS bool
 	}{
 		{
-			name: "merges",
-			resources: []runtime.Object{
-				valuesConfigMap("values", map[string]string{
-					"values.yaml": `flat: value
-nested:
-  configuration: value
-`,
-				}),
-				valuesSecret("values", map[string][]byte{
-					"values.yaml": []byte(`flat:
-  nested: value
-nested: value
-`),
-				}),
-			},
-			references: []v2.ValuesReference{
-				{
-					Kind: "ConfigMap",
-					Name: "values",
-				},
-				{
-					Kind: "Secret",
-					Name: "values",
+			name: "retrieves HelmChart object from Status",
+			rel: &v2.HelmRelease{
+				Status: v2.HelmReleaseStatus{
+					HelmChart: "some-namespace/some-chart-name",
 				},
 			},
-			values: `
-other: values
-`,
-			want: chartutil.Values{
-				"flat": map[string]interface{}{
-					"nested": "value",
-				},
-				"nested": "value",
-				"other":  "values",
-			},
+			chart:       chart,
+			expectChart: true,
 		},
 		{
-			name: "target path",
-			resources: []runtime.Object{
-				valuesSecret("values", map[string][]byte{"single": []byte("value")}),
-			},
-			references: []v2.ValuesReference{
-				{
-					Kind:       "Secret",
-					Name:       "values",
-					ValuesKey:  "single",
-					TargetPath: "merge.at.specific.path",
+			name: "no HelmChart found",
+			rel: &v2.HelmRelease{
+				Status: v2.HelmReleaseStatus{
+					HelmChart: "some-namespace/some-chart-name",
 				},
 			},
-			want: chartutil.Values{
-				"merge": map[string]interface{}{
-					"at": map[string]interface{}{
-						"specific": map[string]interface{}{
-							"path": "value",
-						},
-					},
-				},
-			},
+			chart:       nil,
+			expectChart: false,
+			wantErr:     true,
 		},
 		{
-			name: "target path with boolean value",
-			resources: []runtime.Object{
-				valuesSecret("values", map[string][]byte{"single": []byte("true")}),
-			},
-			references: []v2.ValuesReference{
-				{
-					Kind:       "Secret",
-					Name:       "values",
-					ValuesKey:  "single",
-					TargetPath: "merge.at.specific.path",
+			name: "no HelmChart in Status",
+			rel: &v2.HelmRelease{
+				Status: v2.HelmReleaseStatus{
+					HelmChart: "",
 				},
 			},
-			want: chartutil.Values{
-				"merge": map[string]interface{}{
-					"at": map[string]interface{}{
-						"specific": map[string]interface{}{
-							"path": true,
-						},
-					},
-				},
-			},
+			chart:       chart,
+			expectChart: false,
+			wantErr:     true,
 		},
 		{
-			name: "target path with set-string behavior",
-			resources: []runtime.Object{
-				valuesSecret("values", map[string][]byte{"single": []byte("\"true\"")}),
-			},
-			references: []v2.ValuesReference{
-				{
-					Kind:       "Secret",
-					Name:       "values",
-					ValuesKey:  "single",
-					TargetPath: "merge.at.specific.path",
+			name: "ACL disallows cross namespace",
+			rel: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Status: v2.HelmReleaseStatus{
+					HelmChart: "some-namespace/some-chart-name",
 				},
 			},
-			want: chartutil.Values{
-				"merge": map[string]interface{}{
-					"at": map[string]interface{}{
-						"specific": map[string]interface{}{
-							"path": "true",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "values reference to non existing secret",
-			references: []v2.ValuesReference{
-				{
-					Kind: "Secret",
-					Name: "missing",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "optional values reference to non existing secret",
-			references: []v2.ValuesReference{
-				{
-					Kind:     "Secret",
-					Name:     "missing",
-					Optional: true,
-				},
-			},
-			want:    chartutil.Values{},
-			wantErr: false,
-		},
-		{
-			name: "values reference to non existing config map",
-			references: []v2.ValuesReference{
-				{
-					Kind: "ConfigMap",
-					Name: "missing",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "optional values reference to non existing config map",
-			references: []v2.ValuesReference{
-				{
-					Kind:     "ConfigMap",
-					Name:     "missing",
-					Optional: true,
-				},
-			},
-			want:    chartutil.Values{},
-			wantErr: false,
-		},
-		{
-			name: "missing secret key",
-			resources: []runtime.Object{
-				valuesSecret("values", nil),
-			},
-			references: []v2.ValuesReference{
-				{
-					Kind:      "Secret",
-					Name:      "values",
-					ValuesKey: "nonexisting",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "missing config map key",
-			resources: []runtime.Object{
-				valuesConfigMap("values", nil),
-			},
-			references: []v2.ValuesReference{
-				{
-					Kind:      "ConfigMap",
-					Name:      "values",
-					ValuesKey: "nonexisting",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "unsupported values reference kind",
-			references: []v2.ValuesReference{
-				{
-					Kind: "Unsupported",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid values",
-			resources: []runtime.Object{
-				valuesConfigMap("values", map[string]string{
-					"values.yaml": `
-invalid`,
-				}),
-			},
-			references: []v2.ValuesReference{
-				{
-					Kind: "ConfigMap",
-					Name: "values",
-				},
-			},
-			wantErr: true,
+			chart:           chart,
+			expectChart:     false,
+			wantErr:         true,
+			disallowCrossNS: true,
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := fake.NewFakeClientWithScheme(scheme, tt.resources...)
-			r := &HelmReleaseReconciler{Client: c}
-			var values *apiextensionsv1.JSON
-			if tt.values != "" {
-				v, _ := yaml.YAMLToJSON([]byte(tt.values))
-				values = &apiextensionsv1.JSON{Raw: v}
+			builder := fake.NewClientBuilder()
+			builder.WithScheme(scheme)
+			if tt.chart != nil {
+				builder.WithObjects(tt.chart)
 			}
-			hr := v2.HelmRelease{
-				Spec: v2.HelmReleaseSpec{
-					ValuesFrom: tt.references,
-					Values:     values,
-				},
+
+			r := &HelmReleaseReconciler{
+				Client:              builder.Build(),
+				EventRecorder:       record.NewFakeRecorder(32),
+				NoCrossNamespaceRef: tt.disallowCrossNS,
 			}
-			got, err := r.composeValues(logr.NewContext(context.TODO(), logr.Discard()), hr)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("composeValues() error = %v, wantErr %v", err, tt.wantErr)
+
+			got, err := r.getHelmChart(context.TODO(), tt.rel)
+			if tt.wantErr {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(got).To(BeNil())
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("composeValues() got = %v, want %v", got, tt.want)
+			g.Expect(err).ToNot(HaveOccurred())
+			expect := g.Expect(got.ObjectMeta)
+			if tt.expectChart {
+				expect.To(BeEquivalentTo(tt.chart.ObjectMeta))
+			} else {
+				expect.To(BeNil())
 			}
 		})
-	}
-}
-
-func valuesSecret(name string, data map[string][]byte) *corev1.Secret {
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Data:       data,
-	}
-}
-
-func valuesConfigMap(name string, data map[string]string) *corev1.ConfigMap {
-	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Data:       data,
 	}
 }
