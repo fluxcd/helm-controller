@@ -24,53 +24,69 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/utils/pointer"
 
 	"github.com/fluxcd/pkg/runtime/client"
 )
 
+// NewInClusterRESTClientGetter creates a new genericclioptions.RESTClientGetter
+// using genericclioptions.NewConfigFlags, and configures it with the server,
+// authentication, impersonation, and burst and QPS settings, and the provided
+// namespace.
 func NewInClusterRESTClientGetter(cfg *rest.Config, namespace string) genericclioptions.RESTClientGetter {
 	flags := genericclioptions.NewConfigFlags(false)
-	flags.APIServer = &cfg.Host
-	flags.BearerToken = &cfg.BearerToken
-	flags.CAFile = &cfg.CAFile
-	flags.Namespace = &namespace
+	flags.APIServer = pointer.String(cfg.Host)
+	flags.BearerToken = pointer.String(cfg.BearerToken)
+	flags.CAFile = pointer.String(cfg.CAFile)
+	flags.Namespace = pointer.String(namespace)
 	flags.WithDiscoveryBurst(cfg.Burst)
 	flags.WithDiscoveryQPS(cfg.QPS)
 	if sa := cfg.Impersonate.UserName; sa != "" {
-		flags.Impersonate = &sa
+		flags.Impersonate = pointer.String(sa)
 	}
-
 	return flags
 }
 
 // MemoryRESTClientGetter is an implementation of the genericclioptions.RESTClientGetter,
 // capable of working with an in-memory kubeconfig file.
 type MemoryRESTClientGetter struct {
-	kubeConfig         []byte
-	namespace          string
+	// kubeConfig used to load a rest.Config, after being sanitized.
+	kubeConfig []byte
+	// kubeConfigOpts control the sanitization of the kubeConfig.
+	kubeConfigOpts client.KubeConfigOptions
+	// namespace specifies the namespace the client is configured to.
+	namespace string
+	// impersonateAccount configures the rest.ImpersonationConfig account name.
 	impersonateAccount string
-	qps                float32
-	burst              int
-	kubeConfigOpts     client.KubeConfigOptions
+	// qps configures the QPS on the discovery.DiscoveryClient.
+	qps float32
+	// burst configures the burst on the discovery.DiscoveryClient.
+	burst int
 }
 
+// NewMemoryRESTClientGetter returns a MemoryRESTClientGetter configured with
+// the provided values and client.KubeConfigOptions. The provided KubeConfig is
+// sanitized, configure the settings for this using client.KubeConfigOptions.
 func NewMemoryRESTClientGetter(
 	kubeConfig []byte,
 	namespace string,
-	impersonateAccount string,
+	impersonate string,
 	qps float32,
 	burst int,
 	kubeConfigOpts client.KubeConfigOptions) genericclioptions.RESTClientGetter {
 	return &MemoryRESTClientGetter{
 		kubeConfig:         kubeConfig,
 		namespace:          namespace,
-		impersonateAccount: impersonateAccount,
+		impersonateAccount: impersonate,
 		qps:                qps,
 		burst:              burst,
 		kubeConfigOpts:     kubeConfigOpts,
 	}
 }
 
+// ToRESTConfig creates a rest.Config with the rest.ImpersonationConfig configured
+// with to the impersonation account. It loads the config the KubeConfig bytes and
+// sanitizes it using the client.KubeConfigOptions.
 func (c *MemoryRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
 	cfg, err := clientcmd.RESTConfigFromKubeConfig(c.kubeConfig)
 	if err != nil {
@@ -83,23 +99,25 @@ func (c *MemoryRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
 	return cfg, nil
 }
 
+// ToDiscoveryClient returns a discovery.CachedDiscoveryInterface configured
+// with ToRESTConfig, and the QPS and Burst settings.
 func (c *MemoryRESTClientGetter) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
 	config, err := c.ToRESTConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	if c.impersonateAccount != "" {
-		config.Impersonate = rest.ImpersonationConfig{UserName: c.impersonateAccount}
-	}
-
 	config.QPS = c.qps
 	config.Burst = c.burst
 
-	discoveryClient, _ := discovery.NewDiscoveryClientForConfig(config)
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	return memory.NewMemCacheClient(discoveryClient), nil
 }
 
+// ToRESTMapper returns a RESTMapper constructed from ToDiscoveryClient.
 func (c *MemoryRESTClientGetter) ToRESTMapper() (meta.RESTMapper, error) {
 	discoveryClient, err := c.ToDiscoveryClient()
 	if err != nil {
@@ -111,6 +129,9 @@ func (c *MemoryRESTClientGetter) ToRESTMapper() (meta.RESTMapper, error) {
 	return expander, nil
 }
 
+// ToRawKubeConfigLoader returns a clientcmd.ClientConfig using
+// clientcmd.DefaultClientConfig. With clientcmd.ClusterDefaults, namespace, and
+// impersonate configured as overwrites.
 func (c *MemoryRESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	// use the standard defaults for this client command

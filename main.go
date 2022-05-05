@@ -21,6 +21,7 @@ import (
 	"os"
 	"time"
 
+	intkube "github.com/fluxcd/helm-controller/internal/kube"
 	flag "github.com/spf13/pflag"
 	"helm.sh/helm/v3/pkg/kube"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -74,7 +75,6 @@ func main() {
 		aclOptions            acl.Options
 		leaderElectionOptions leaderelection.Options
 		rateLimiterOptions    helper.RateLimiterOptions
-		defaultServiceAccount string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -85,7 +85,7 @@ func main() {
 	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
 		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
 	flag.IntVar(&httpRetry, "http-retry", 9, "The maximum number of retries when failing to fetch artifacts over HTTP.")
-	flag.StringVar(&defaultServiceAccount, "default-service-account", "", "Default service account used for impersonation.")
+	flag.StringVar(&intkube.DefaultServiceAccountName, "default-service-account", "", "Default service account used for impersonation.")
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
 	aclOptions.BindFlags(flag.CommandLine)
@@ -151,14 +151,13 @@ func main() {
 	}
 
 	if err = (&controllers.HelmReleaseReconciler{
-		Client:                mgr.GetClient(),
-		Config:                mgr.GetConfig(),
-		Scheme:                mgr.GetScheme(),
-		EventRecorder:         eventRecorder,
-		MetricsRecorder:       metricsH.MetricsRecorder,
-		NoCrossNamespaceRef:   aclOptions.NoCrossNamespaceRefs,
-		DefaultServiceAccount: defaultServiceAccount,
-		KubeConfigOpts:        kubeConfigOpts,
+		Client:              mgr.GetClient(),
+		Config:              mgr.GetConfig(),
+		Scheme:              mgr.GetScheme(),
+		EventRecorder:       eventRecorder,
+		MetricsRecorder:     metricsH.MetricsRecorder,
+		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
+		KubeConfigOpts:      kubeConfigOpts,
 	}).SetupWithManager(mgr, controllers.HelmReleaseReconcilerOptions{
 		MaxConcurrentReconciles:   concurrent,
 		DependencyRequeueInterval: requeueDependency,
