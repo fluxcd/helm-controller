@@ -27,9 +27,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	"helm.sh/helm/v3/pkg/strvals"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -57,13 +55,14 @@ import (
 	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/jitter"
 	"github.com/fluxcd/pkg/runtime/predicates"
-	"github.com/fluxcd/pkg/runtime/transform"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	intchartutil "github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/diff"
 	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/kube"
+	"github.com/fluxcd/helm-controller/internal/loader"
 	"github.com/fluxcd/helm-controller/internal/runner"
 	"github.com/fluxcd/helm-controller/internal/util"
 )
@@ -92,6 +91,12 @@ type HelmReleaseReconciler struct {
 
 	httpClient        *retryablehttp.Client
 	requeueDependency time.Duration
+}
+
+type HelmReleaseReconcilerOptions struct {
+	HTTPRetry                 int
+	DependencyRequeueInterval time.Duration
+	RateLimiter               ratelimiter.RateLimiter
 }
 
 func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
@@ -257,32 +262,26 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 	}
 
 	// Compose values
-	values, err := r.composeValues(ctx, hr)
+	values, err := intchartutil.ChartValuesFromReferences(ctx, r.Client, hr.Namespace, hr.GetValues(), hr.Spec.ValuesFrom...)
 	if err != nil {
 		r.event(ctx, hr, hr.Status.LastAttemptedRevision, eventv1.EventSeverityError, err.Error())
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error()), ctrl.Result{Requeue: true}, nil
 	}
 
 	// Load chart from artifact
-	chart, err := r.loadHelmChart(hc)
+	loadedChart, err := loader.SecureLoadChartFromURL(r.httpClient, hc.GetArtifact().URL, hc.GetArtifact().Digest)
 	if err != nil {
 		r.event(ctx, hr, hr.Status.LastAttemptedRevision, eventv1.EventSeverityError, err.Error())
 		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, err.Error()), ctrl.Result{Requeue: true}, nil
 	}
 
 	// Reconcile Helm release
-	reconciledHr, reconcileErr := r.reconcileRelease(ctx, *hr.DeepCopy(), chart, values)
+	reconciledHr, reconcileErr := r.reconcileRelease(ctx, *hr.DeepCopy(), loadedChart, values)
 	if reconcileErr != nil {
 		r.event(ctx, hr, hc.GetArtifact().Revision, eventv1.EventSeverityError,
 			fmt.Sprintf("reconciliation failed: %s", reconcileErr.Error()))
 	}
 	return reconciledHr, jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: hr.GetRequeueAfter()}), reconcileErr
-}
-
-type HelmReleaseReconcilerOptions struct {
-	HTTPRetry                 int
-	DependencyRequeueInterval time.Duration
-	RateLimiter               ratelimiter.RateLimiter
 }
 
 func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
@@ -538,118 +537,24 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, hr v2
 	return kube.NewInClusterMemoryRESTClientGetter(opts...)
 }
 
-// composeValues attempts to resolve all v2beta1.ValuesReference resources
-// and merges them as defined. Referenced resources are only retrieved once
-// to ensure a single version is taken into account during the merge.
-func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRelease) (chartutil.Values, error) {
-	result := chartutil.Values{}
-
-	configMaps := make(map[string]*corev1.ConfigMap)
-	secrets := make(map[string]*corev1.Secret)
-
-	for _, v := range hr.Spec.ValuesFrom {
-		namespacedName := types.NamespacedName{Namespace: hr.Namespace, Name: v.Name}
-		var valuesData []byte
-
-		switch v.Kind {
-		case "ConfigMap":
-			resource, ok := configMaps[namespacedName.String()]
-			if !ok {
-				// The resource may not exist, but we want to act on a single version
-				// of the resource in case the values reference is marked as optional.
-				configMaps[namespacedName.String()] = nil
-
-				resource = &corev1.ConfigMap{}
-				if err := r.Get(ctx, namespacedName, resource); err != nil {
-					if apierrors.IsNotFound(err) {
-						if v.Optional {
-							(ctrl.LoggerFrom(ctx)).
-								Info(fmt.Sprintf("could not find optional %s '%s'", v.Kind, namespacedName))
-							continue
-						}
-						return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
-					}
-					return nil, err
-				}
-				configMaps[namespacedName.String()] = resource
-			}
-			if resource == nil {
-				if v.Optional {
-					(ctrl.LoggerFrom(ctx)).Info(fmt.Sprintf("could not find optional %s '%s'", v.Kind, namespacedName))
-					continue
-				}
-				return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
-			}
-			if data, ok := resource.Data[v.GetValuesKey()]; !ok {
-				return nil, fmt.Errorf("missing key '%s' in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName)
-			} else {
-				valuesData = []byte(data)
-			}
-		case "Secret":
-			resource, ok := secrets[namespacedName.String()]
-			if !ok {
-				// The resource may not exist, but we want to act on a single version
-				// of the resource in case the values reference is marked as optional.
-				secrets[namespacedName.String()] = nil
-
-				resource = &corev1.Secret{}
-				if err := r.Get(ctx, namespacedName, resource); err != nil {
-					if apierrors.IsNotFound(err) {
-						if v.Optional {
-							(ctrl.LoggerFrom(ctx)).
-								Info(fmt.Sprintf("could not find optional %s '%s'", v.Kind, namespacedName))
-							continue
-						}
-						return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
-					}
-					return nil, err
-				}
-				secrets[namespacedName.String()] = resource
-			}
-			if resource == nil {
-				if v.Optional {
-					(ctrl.LoggerFrom(ctx)).Info(fmt.Sprintf("could not find optional %s '%s'", v.Kind, namespacedName))
-					continue
-				}
-				return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
-			}
-			if data, ok := resource.Data[v.GetValuesKey()]; !ok {
-				return nil, fmt.Errorf("missing key '%s' in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName)
-			} else {
-				valuesData = data
-			}
-		default:
-			return nil, fmt.Errorf("unsupported ValuesReference kind '%s'", v.Kind)
-		}
-		switch v.TargetPath {
-		case "":
-			values, err := chartutil.ReadValues(valuesData)
-			if err != nil {
-				return nil, fmt.Errorf("unable to read values from key '%s' in %s '%s': %w", v.GetValuesKey(), v.Kind, namespacedName, err)
-			}
-			result = transform.MergeMaps(result, values)
-		default:
-			// TODO(hidde): this is a bit of hack, as it mimics the way the option string is passed
-			// 	to Helm from a CLI perspective. Given the parser is however not publicly accessible
-			// 	while it contains all logic around parsing the target path, it is a fair trade-off.
-			stringValuesData := string(valuesData)
-			const singleQuote = "'"
-			const doubleQuote = "\""
-			var err error
-			if (strings.HasPrefix(stringValuesData, singleQuote) && strings.HasSuffix(stringValuesData, singleQuote)) || (strings.HasPrefix(stringValuesData, doubleQuote) && strings.HasSuffix(stringValuesData, doubleQuote)) {
-				stringValuesData = strings.Trim(stringValuesData, singleQuote+doubleQuote)
-				singleValue := v.TargetPath + "=" + stringValuesData
-				err = strvals.ParseIntoString(singleValue, result)
-			} else {
-				singleValue := v.TargetPath + "=" + stringValuesData
-				err = strvals.ParseInto(singleValue, result)
-			}
-			if err != nil {
-				return nil, fmt.Errorf("unable to merge value from key '%s' in %s '%s' into target path '%s': %w", v.GetValuesKey(), v.Kind, namespacedName, v.TargetPath, err)
-			}
-		}
+// getHelmChart retrieves the v1beta2.HelmChart for the given
+// v2beta1.HelmRelease using the name that is advertised in the status
+// object. It returns the v1beta2.HelmChart, or an error.
+func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, error) {
+	namespace, name := hr.Status.GetHelmChart()
+	chartName := types.NamespacedName{Namespace: namespace, Name: name}
+	if r.NoCrossNamespaceRef && chartName.Namespace != hr.Namespace {
+		return nil, acl.AccessDeniedError(fmt.Sprintf("can't access '%s/%s', cross-namespace references have been blocked",
+			hr.Spec.Chart.Spec.SourceRef.Kind, types.NamespacedName{
+				Namespace: hr.Spec.Chart.Spec.SourceRef.Namespace,
+				Name:      hr.Spec.Chart.Spec.SourceRef.Name,
+			}))
 	}
-	return transform.MergeMaps(result, hr.GetValues()), nil
+	hc := sourcev1.HelmChart{}
+	if err := r.Client.Get(ctx, chartName, &hc); err != nil {
+		return nil, err
+	}
+	return &hc, nil
 }
 
 // reconcileDelete deletes the v1beta2.HelmChart of the v2beta1.HelmRelease,
