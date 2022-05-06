@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package runner
+package postrender
 
 import (
 	"bytes"
 	"encoding/json"
-	"reflect"
 	"testing"
 
+	. "github.com/onsi/gomega"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/yaml"
 
@@ -253,22 +253,23 @@ spec:
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
 			spec, err := mockKustomize(tt.patches, tt.patchesStrategicMerge, tt.patchesJson6902, tt.images)
-			if err != nil {
-				t.Errorf("Run() mockKustomize returned %v", err)
-				return
-			}
-			k := &postRendererKustomize{
+			g.Expect(err).ToNot(HaveOccurred())
+
+			k := &Kustomize{
 				spec: spec,
 			}
 			gotModifiedManifests, err := k.Run(bytes.NewBufferString(tt.renderedManifests))
-			if (err != nil) != tt.expectErr {
-				t.Errorf("Run() error = %v, expectErr %v", err, tt.expectErr)
+			if tt.expectErr {
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(gotModifiedManifests.String()).To(BeEmpty())
 				return
 			}
-			if !reflect.DeepEqual(gotModifiedManifests, bytes.NewBufferString(tt.expectManifests)) {
-				t.Errorf("Run() gotModifiedManifests = %v, want %v", gotModifiedManifests, tt.expectManifests)
-			}
+
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(gotModifiedManifests).To(Equal(bytes.NewBufferString(tt.expectManifests)))
 		})
 	}
 }

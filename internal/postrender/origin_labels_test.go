@@ -14,12 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package runner
+package postrender
 
 import (
 	"bytes"
-	"reflect"
 	"testing"
+
+	. "github.com/onsi/gomega"
 )
 
 const mixedResourceMock = `apiVersion: v1
@@ -35,7 +36,7 @@ metadata:
     existing: label
 `
 
-func Test_postRendererOriginLabels_Run(t *testing.T) {
+func Test_OriginLabels_Run(t *testing.T) {
 	tests := []struct {
 		name              string
 		renderedManifests string
@@ -66,18 +67,17 @@ metadata:
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			k := &postRendererOriginLabels{
-				name:      "name",
-				namespace: "namespace",
-			}
+			g := NewWithT(t)
+
+			k := NewOriginLabels("helm.toolkit.fluxcd.io", "namespace", "name")
 			gotModifiedManifests, err := k.Run(bytes.NewBufferString(tt.renderedManifests))
-			if (err != nil) != tt.expectErr {
-				t.Errorf("Run() error = %v, expectErr %v", err, tt.expectErr)
+			if tt.expectErr {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(gotModifiedManifests.String()).To(BeEmpty())
 				return
 			}
-			if !reflect.DeepEqual(gotModifiedManifests, bytes.NewBufferString(tt.expectManifests)) {
-				t.Errorf("Run() gotModifiedManifests = %v, want %v", gotModifiedManifests, tt.expectManifests)
-			}
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(gotModifiedManifests).To(Equal(bytes.NewBufferString(tt.expectManifests)))
 		})
 	}
 }
