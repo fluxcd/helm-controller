@@ -20,13 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fluxcd/helm-controller/api/v2beta1"
-	intcmp "github.com/fluxcd/helm-controller/internal/cmp"
-	"github.com/fluxcd/pkg/runtime/acl"
-	"github.com/fluxcd/pkg/runtime/events"
-	"github.com/fluxcd/pkg/runtime/patch"
-	"github.com/fluxcd/pkg/runtime/predicates"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/google/go-cmp/cmp"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,7 +33,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 
+	"github.com/fluxcd/pkg/runtime/acl"
 	helper "github.com/fluxcd/pkg/runtime/controller"
+	"github.com/fluxcd/pkg/runtime/events"
+	"github.com/fluxcd/pkg/runtime/patch"
+	"github.com/fluxcd/pkg/runtime/predicates"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+
+	"github.com/fluxcd/helm-controller/api/v2beta1"
+	intcmp "github.com/fluxcd/helm-controller/internal/cmp"
+	intpredicates "github.com/fluxcd/helm-controller/internal/predicates"
 )
 
 type HelmReleaseChartReconciler struct {
@@ -64,7 +66,7 @@ func (r *HelmReleaseChartReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *HelmReleaseChartReconciler) SetupWithManagerAndOptions(mgr ctrl.Manager, opts HelmReleaseChartReconcilerOptions) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v2beta1.HelmRelease{}).
-		WithEventFilter(predicate.Or(ChartTemplateChangePredicate{}, predicates.ReconcileRequestedPredicate{})).
+		WithEventFilter(predicate.Or(intpredicates.ChartTemplateChangePredicate{}, predicates.ReconcileRequestedPredicate{})).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: opts.MaxConcurrentReconciles,
 			RateLimiter:             opts.RateLimiter,

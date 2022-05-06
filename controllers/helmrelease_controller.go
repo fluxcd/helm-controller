@@ -59,6 +59,7 @@ import (
 	intchartutil "github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/loader"
+	intpredicates "github.com/fluxcd/helm-controller/internal/predicates"
 	"github.com/fluxcd/helm-controller/internal/runner"
 	"github.com/fluxcd/helm-controller/internal/util"
 )
@@ -121,7 +122,7 @@ func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmRele
 		Watches(
 			&source.Kind{Type: &sourcev1.HelmChart{}},
 			handler.EnqueueRequestsFromMapFunc(r.requestsForHelmChartChange),
-			builder.WithPredicates(SourceRevisionChangePredicate{}),
+			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: opts.MaxConcurrentReconciles,

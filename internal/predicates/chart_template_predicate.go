@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package predicates
 
 import (
 	"github.com/fluxcd/helm-controller/api/v2beta1"
