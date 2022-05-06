@@ -46,6 +46,7 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	"github.com/fluxcd/helm-controller/internal/features"
+	intpostrender "github.com/fluxcd/helm-controller/internal/postrender"
 )
 
 var accessor = meta.NewAccessor()
@@ -100,17 +101,17 @@ func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace strin
 // Create post renderer instances from HelmRelease and combine them into
 // a single combined post renderer.
 func postRenderers(hr v2.HelmRelease) (postrender.PostRenderer, error) {
-	var combinedRenderer = newCombinedPostRenderer()
+	renderers := make([]postrender.PostRenderer, 0)
 	for _, r := range hr.Spec.PostRenderers {
 		if r.Kustomize != nil {
-			combinedRenderer.addRenderer(newPostRendererKustomize(r.Kustomize))
+			renderers = append(renderers, intpostrender.NewKustomize(r.Kustomize))
 		}
 	}
-	combinedRenderer.addRenderer(newPostRendererOriginLabels(&hr))
-	if len(combinedRenderer.renderers) == 0 {
+	renderers = append(renderers, intpostrender.NewOriginLabels(v2.GroupVersion.Group, hr.Namespace, hr.Name))
+	if len(renderers) == 0 {
 		return nil, nil
 	}
-	return &combinedRenderer, nil
+	return intpostrender.NewCombined(renderers...), nil
 }
 
 // Install runs a Helm install action for the given v2beta1.HelmRelease.
@@ -457,6 +458,13 @@ func mergeLabels(obj runtime.Object, labels map[string]string) error {
 		return err
 	}
 	return accessor.SetLabels(obj, mergeStrStrMaps(current, labels))
+}
+
+func originLabels(name, namespace string) map[string]string {
+	return map[string]string{
+		fmt.Sprintf("%s/name", v2.GroupVersion.Group):      name,
+		fmt.Sprintf("%s/namespace", v2.GroupVersion.Group): namespace,
+	}
 }
 
 func resourceString(info *resource.Info) string {

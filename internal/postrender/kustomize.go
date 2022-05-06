@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package runner
+package postrender
 
 import (
 	"bytes"
@@ -31,71 +31,17 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
 
-type postRendererKustomize struct {
+type Kustomize struct {
 	spec *v2.Kustomize
 }
 
-func newPostRendererKustomize(spec *v2.Kustomize) *postRendererKustomize {
-	return &postRendererKustomize{
+func NewKustomize(spec *v2.Kustomize) *Kustomize {
+	return &Kustomize{
 		spec: spec,
 	}
 }
 
-func writeToFile(fs filesys.FileSystem, path string, content []byte) error {
-	helmOutput, err := fs.Create(path)
-	if err != nil {
-		return err
-	}
-	if _, err = helmOutput.Write(content); err != nil {
-		return err
-	}
-	if err = helmOutput.Close(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func writeFile(fs filesys.FileSystem, path string, content *bytes.Buffer) error {
-	helmOutput, err := fs.Create(path)
-	if err != nil {
-		return err
-	}
-	if _, err = content.WriteTo(helmOutput); err != nil {
-		return err
-	}
-	if err = helmOutput.Close(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func adaptImages(images []kustomize.Image) (output []kustypes.Image) {
-	for _, image := range images {
-		output = append(output, kustypes.Image{
-			Name:    image.Name,
-			NewName: image.NewName,
-			NewTag:  image.NewTag,
-			Digest:  image.Digest,
-		})
-	}
-	return
-}
-
-func adaptSelector(selector *kustomize.Selector) (output *kustypes.Selector) {
-	if selector != nil {
-		output = &kustypes.Selector{}
-		output.Gvk.Group = selector.Group
-		output.Gvk.Kind = selector.Kind
-		output.Gvk.Version = selector.Version
-		output.Name = selector.Name
-		output.Namespace = selector.Namespace
-		output.LabelSelector = selector.LabelSelector
-		output.AnnotationSelector = selector.AnnotationSelector
-	}
-	return
-}
-
-func (k *postRendererKustomize) Run(renderedManifests *bytes.Buffer) (modifiedManifests *bytes.Buffer, err error) {
+func (k *Kustomize) Run(renderedManifests *bytes.Buffer) (modifiedManifests *bytes.Buffer, err error) {
 	fs := filesys.MakeFsInMemory()
 	cfg := kustypes.Kustomization{}
 	cfg.APIVersion = kustypes.KustomizationVersion
@@ -151,6 +97,60 @@ func (k *postRendererKustomize) Run(renderedManifests *bytes.Buffer) (modifiedMa
 		return nil, err
 	}
 	return bytes.NewBuffer(yaml), nil
+}
+
+func writeToFile(fs filesys.FileSystem, path string, content []byte) error {
+	helmOutput, err := fs.Create(path)
+	if err != nil {
+		return err
+	}
+	if _, err = helmOutput.Write(content); err != nil {
+		return err
+	}
+	if err = helmOutput.Close(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeFile(fs filesys.FileSystem, path string, content *bytes.Buffer) error {
+	helmOutput, err := fs.Create(path)
+	if err != nil {
+		return err
+	}
+	if _, err = content.WriteTo(helmOutput); err != nil {
+		return err
+	}
+	if err = helmOutput.Close(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func adaptImages(images []kustomize.Image) (output []kustypes.Image) {
+	for _, image := range images {
+		output = append(output, kustypes.Image{
+			Name:    image.Name,
+			NewName: image.NewName,
+			NewTag:  image.NewTag,
+			Digest:  image.Digest,
+		})
+	}
+	return
+}
+
+func adaptSelector(selector *kustomize.Selector) (output *kustypes.Selector) {
+	if selector != nil {
+		output = &kustypes.Selector{}
+		output.Gvk.Group = selector.Group
+		output.Gvk.Kind = selector.Kind
+		output.Gvk.Version = selector.Version
+		output.Name = selector.Name
+		output.Namespace = selector.Namespace
+		output.LabelSelector = selector.LabelSelector
+		output.AnnotationSelector = selector.AnnotationSelector
+	}
+	return
 }
 
 // TODO: remove mutex when kustomize fixes the concurrent map read/write panic

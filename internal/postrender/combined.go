@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package runner
+package postrender
 
 import (
 	"bytes"
@@ -22,24 +22,22 @@ import (
 	"helm.sh/helm/v3/pkg/postrender"
 )
 
-// combinedPostRenderer, a collection of Helm PostRenders which are
+// Combined is a collection of Helm PostRenders which are
 // invoked in the order of insertion.
-type combinedPostRenderer struct {
+type Combined struct {
 	renderers []postrender.PostRenderer
 }
 
-func newCombinedPostRenderer() combinedPostRenderer {
-	return combinedPostRenderer{
-		renderers: make([]postrender.PostRenderer, 0),
+func NewCombined(renderer ...postrender.PostRenderer) *Combined {
+	pr := make([]postrender.PostRenderer, 0)
+	pr = append(pr, renderer...)
+	return &Combined{
+		renderers: pr,
 	}
 }
 
-func (c *combinedPostRenderer) addRenderer(renderer postrender.PostRenderer) {
-	c.renderers = append(c.renderers, renderer)
-}
-
-func (c *combinedPostRenderer) Run(renderedManifests *bytes.Buffer) (modifiedManifests *bytes.Buffer, err error) {
-	var result *bytes.Buffer = renderedManifests
+func (c *Combined) Run(renderedManifests *bytes.Buffer) (modifiedManifests *bytes.Buffer, err error) {
+	var result = renderedManifests
 	for _, renderer := range c.renderers {
 		result, err = renderer.Run(result)
 		if err != nil {
