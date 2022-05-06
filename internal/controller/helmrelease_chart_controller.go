@@ -47,6 +47,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	intpredicates "github.com/fluxcd/helm-controller/internal/predicates"
 )
 
 type HelmReleaseChartReconciler struct {
@@ -70,7 +71,7 @@ func (r *HelmReleaseChartReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *HelmReleaseChartReconciler) SetupWithManagerAndOptions(mgr ctrl.Manager, opts HelmReleaseChartReconcilerOptions) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v2.HelmRelease{}).
-		WithEventFilter(predicate.Or(ChartTemplateChangePredicate{}, predicates.ReconcileRequestedPredicate{})).
+		WithEventFilter(predicate.Or(intpredicates.ChartTemplateChangePredicate{}, predicates.ReconcileRequestedPredicate{})).
 		WithOptions(controller.Options{
 			RateLimiter: opts.RateLimiter,
 		}).

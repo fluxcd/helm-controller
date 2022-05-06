@@ -63,6 +63,7 @@ import (
 	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/loader"
+	intpredicates "github.com/fluxcd/helm-controller/internal/predicates"
 	"github.com/fluxcd/helm-controller/internal/runner"
 	"github.com/fluxcd/helm-controller/internal/util"
 )
@@ -130,7 +131,7 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 		Watches(
 			&sourcev1.HelmChart{},
 			handler.EnqueueRequestsFromMapFunc(r.requestsForHelmChartChange),
-			builder.WithPredicates(SourceRevisionChangePredicate{}),
+			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
 		WithOptions(controller.Options{
 			RateLimiter: opts.RateLimiter,
