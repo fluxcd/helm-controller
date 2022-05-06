@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package predicates
 
 import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -23,6 +23,8 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 )
 
+// SourceRevisionChangePredicate detects revision changes to the v1beta2.Artifact
+// of a v1beta2.Source object.
 type SourceRevisionChangePredicate struct {
 	predicate.Funcs
 }
@@ -42,16 +44,18 @@ func (SourceRevisionChangePredicate) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	if oldSource.GetArtifact() == nil && newSource.GetArtifact() != nil {
+	oldHasArtifact := oldSource.GetArtifact() != nil
+	newHasArtifact := newSource.GetArtifact() != nil
+
+	if !newHasArtifact {
+		return false
+	}
+
+	if !oldHasArtifact {
 		return true
 	}
 
-	if oldSource.GetArtifact() != nil && newSource.GetArtifact() != nil &&
-		oldSource.GetArtifact().Revision != newSource.GetArtifact().Revision {
-		return true
-	}
-
-	return false
+	return oldSource.GetArtifact().Revision != newSource.GetArtifact().Revision
 }
 
 func (SourceRevisionChangePredicate) Create(e event.CreateEvent) bool {
