@@ -32,6 +32,7 @@ import (
 	"helm.sh/helm/v3/pkg/postrender"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
+	"k8s.io/api/autoscaling/v2beta1"
 	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
@@ -42,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	intpostrender "github.com/fluxcd/helm-controller/internal/postrender"
 )
 
 type ActionError struct {
@@ -82,17 +84,17 @@ func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace strin
 // Create post renderer instances from HelmRelease and combine them into
 // a single combined post renderer.
 func postRenderers(hr v2.HelmRelease) (postrender.PostRenderer, error) {
-	var combinedRenderer = newCombinedPostRenderer()
+	renderers := make([]postrender.PostRenderer, 0)
 	for _, r := range hr.Spec.PostRenderers {
 		if r.Kustomize != nil {
-			combinedRenderer.addRenderer(newPostRendererKustomize(r.Kustomize))
+			renderers = append(renderers, intpostrender.NewKustomize(r.Kustomize))
 		}
 	}
-	combinedRenderer.addRenderer(newPostRendererOriginLabels(&hr))
-	if len(combinedRenderer.renderers) == 0 {
+	renderers = append(renderers, intpostrender.NewOriginLabels(v2beta1.SchemeGroupVersion.Group, hr.Namespace, hr.Name))
+	if len(renderers) == 0 {
 		return nil, nil
 	}
-	return &combinedRenderer, nil
+	return intpostrender.NewCombined(renderers...), nil
 }
 
 // Install runs an Helm install action for the given v2beta1.HelmRelease.

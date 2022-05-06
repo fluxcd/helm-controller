@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package runner
+package postrender
 
 import (
 	"bytes"
@@ -24,23 +24,23 @@ import (
 	"sigs.k8s.io/kustomize/api/provider"
 	"sigs.k8s.io/kustomize/api/resmap"
 	kustypes "sigs.k8s.io/kustomize/api/types"
-
-	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
 
-func newPostRendererOriginLabels(release *v2.HelmRelease) *postRendererOriginLabels {
-	return &postRendererOriginLabels{
-		name:      release.ObjectMeta.Name,
-		namespace: release.ObjectMeta.Namespace,
+func NewOriginLabels(group, namespace, name string) *OriginLabels {
+	return &OriginLabels{
+		group:     group,
+		name:      name,
+		namespace: namespace,
 	}
 }
 
-type postRendererOriginLabels struct {
+type OriginLabels struct {
+	group     string
 	name      string
 	namespace string
 }
 
-func (k *postRendererOriginLabels) Run(renderedManifests *bytes.Buffer) (modifiedManifests *bytes.Buffer, err error) {
+func (k *OriginLabels) Run(renderedManifests *bytes.Buffer) (modifiedManifests *bytes.Buffer, err error) {
 	resFactory := provider.NewDefaultDepProvider().GetResourceFactory()
 	resMapFactory := resmap.NewFactory(resFactory)
 
@@ -50,7 +50,7 @@ func (k *postRendererOriginLabels) Run(renderedManifests *bytes.Buffer) (modifie
 	}
 
 	labelTransformer := builtins.LabelTransformerPlugin{
-		Labels: originLabels(k.name, k.namespace),
+		Labels: originLabels(k.group, k.namespace, k.name),
 		FieldSpecs: []kustypes.FieldSpec{
 			{Path: "metadata/labels", CreateIfNotPresent: true},
 		},
@@ -67,9 +67,9 @@ func (k *postRendererOriginLabels) Run(renderedManifests *bytes.Buffer) (modifie
 	return bytes.NewBuffer(yaml), nil
 }
 
-func originLabels(name, namespace string) map[string]string {
+func originLabels(group, namespace, name string) map[string]string {
 	return map[string]string{
-		fmt.Sprintf("%s/name", v2.GroupVersion.Group):      name,
-		fmt.Sprintf("%s/namespace", v2.GroupVersion.Group): namespace,
+		fmt.Sprintf("%s/name", group):      name,
+		fmt.Sprintf("%s/namespace", group): namespace,
 	}
 }
