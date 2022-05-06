@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package predicates
 
 import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -23,6 +23,8 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 )
 
+// SourceRevisionChangePredicate detects revision changes to the v1beta2.Artifact
+// of a v1beta2.Source object.
 type SourceRevisionChangePredicate struct {
 	predicate.Funcs
 }
