@@ -44,6 +44,9 @@ func NewInClusterRESTClientGetter(cfg *rest.Config, namespace string) genericcli
 	if sa := cfg.Impersonate.UserName; sa != "" {
 		flags.Impersonate = pointer.String(sa)
 	}
+	// In a container, we are not expected to be able to write to the
+	// home dir default. However, explicitly disabling this is better.
+	flags.CacheDir = nil
 	return flags
 }
 

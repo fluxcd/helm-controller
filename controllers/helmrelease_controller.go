@@ -493,7 +493,6 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, hr v2
 		opts = append(opts, kube.WithKubeConfig(kubeConfig, r.Config.QPS, r.Config.Burst, r.KubeConfigOpts))
 	}
 	return kube.BuildClientGetter(r.Config, hr.GetReleaseNamespace(), opts...), nil
-
 }
 
 // composeValues attempts to resolve all v2beta1.ValuesReference resources
