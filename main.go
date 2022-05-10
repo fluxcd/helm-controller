@@ -145,6 +145,7 @@ func main() {
 		EventRecorder:       eventRecorder,
 		MetricsRecorder:     metricsRecorder,
 		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
+		ClientOpts:          clientOptions,
 		KubeConfigOpts:      kubeConfigOpts,
 	}).SetupWithManager(mgr, controllers.HelmReleaseReconcilerOptions{
 		MaxConcurrentReconciles:   concurrent,

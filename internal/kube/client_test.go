@@ -17,12 +17,14 @@ limitations under the License.
 package kube
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/fluxcd/pkg/runtime/client"
 	. "github.com/onsi/gomega"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var cfg = []byte(`current-context: federal-context
@@ -45,7 +47,7 @@ users:
     token: foo`)
 
 func TestNewInClusterRESTClientGetter(t *testing.T) {
-	t.Run("api server config", func(t *testing.T) {
+	t.Run("discover config", func(t *testing.T) {
 		g := NewWithT(t)
 
 		cfg := &rest.Config{
@@ -55,8 +57,11 @@ func TestNewInClusterRESTClientGetter(t *testing.T) {
 				CAFile: "afile",
 			},
 		}
-
-		got := NewInClusterRESTClientGetter(cfg, "")
+		ctrl.GetConfig = func() (*rest.Config, error) {
+			return cfg, nil
+		}
+		got, err := NewInClusterRESTClientGetter("", "", nil)
+		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(got).To(BeAssignableToTypeOf(&genericclioptions.ConfigFlags{}))
 
 		flags := got.(*genericclioptions.ConfigFlags)
@@ -72,40 +77,52 @@ func TestNewInClusterRESTClientGetter(t *testing.T) {
 		}
 	})
 
+	t.Run("config retrieval error", func(t *testing.T) {
+		g := NewWithT(t)
+
+		ctrl.GetConfig = func() (*rest.Config, error) {
+			return nil, fmt.Errorf("error")
+		}
+		got, err := NewInClusterRESTClientGetter("", "", nil)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("failed to get config for in-cluster REST client"))
+		g.Expect(got).To(BeNil())
+	})
+
 	t.Run("namespace", func(t *testing.T) {
 		g := NewWithT(t)
 
-		got := NewInClusterRESTClientGetter(&rest.Config{}, "a-space")
+		ctrl.GetConfig = mockGetConfig
+		namespace := "a-space"
+		got, err := NewInClusterRESTClientGetter(namespace, "", nil)
+		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(got).To(BeAssignableToTypeOf(&genericclioptions.ConfigFlags{}))
 
 		flags := got.(*genericclioptions.ConfigFlags)
 		g.Expect(flags.Namespace).ToNot(BeNil())
-		g.Expect(*flags.Namespace).To(Equal("a-space"))
+		g.Expect(*flags.Namespace).To(Equal(namespace))
 	})
 
 	t.Run("impersonation", func(t *testing.T) {
 		g := NewWithT(t)
 
-		cfg := &rest.Config{
-			Impersonate: rest.ImpersonationConfig{
-				UserName: "system:serviceaccount:namespace:foo",
-			},
-		}
-
-		got := NewInClusterRESTClientGetter(cfg, "")
+		ctrl.GetConfig = mockGetConfig
+		ns := "a-namespace"
+		accountName := "foo"
+		got, err := NewInClusterRESTClientGetter(ns, accountName, nil)
+		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(got).To(BeAssignableToTypeOf(&genericclioptions.ConfigFlags{}))
 
 		flags := got.(*genericclioptions.ConfigFlags)
 		g.Expect(flags.Impersonate).ToNot(BeNil())
-		g.Expect(*flags.Impersonate).To(Equal(cfg.Impersonate.UserName))
+		g.Expect(*flags.Impersonate).To(Equal(fmt.Sprintf("system:serviceaccount:%s:%s", ns, accountName)))
 	})
 }
 
 func TestMemoryRESTClientGetter_ToRESTConfig(t *testing.T) {
 	t.Run("loads REST config from KubeConfig", func(t *testing.T) {
 		g := NewWithT(t)
-		getter := NewMemoryRESTClientGetter(cfg, "", "", 0, 0, client.KubeConfigOptions{})
-
+		getter := NewMemoryRESTClientGetter(cfg, "", "", client.Options{}, client.KubeConfigOptions{})
 		got, err := getter.ToRESTConfig()
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(got.Host).To(Equal("http://cow.org:8080"))
@@ -114,7 +131,7 @@ func TestMemoryRESTClientGetter_ToRESTConfig(t *testing.T) {
 
 	t.Run("sets ImpersonationConfig", func(t *testing.T) {
 		g := NewWithT(t)
-		getter := NewMemoryRESTClientGetter(cfg, "", "someone", 0, 0, client.KubeConfigOptions{})
+		getter := NewMemoryRESTClientGetter(cfg, "", "someone", client.Options{}, client.KubeConfigOptions{})
 
 		got, err := getter.ToRESTConfig()
 		g.Expect(err).ToNot(HaveOccurred())
@@ -126,7 +143,7 @@ func TestMemoryRESTClientGetter_ToRESTConfig(t *testing.T) {
 
 		agent := "a static string forever," +
 			"but static strings can have dreams and hope too"
-		getter := NewMemoryRESTClientGetter(cfg, "", "someone", 0, 0, client.KubeConfigOptions{
+		getter := NewMemoryRESTClientGetter(cfg, "", "someone", client.Options{QPS: 400, Burst: 800}, client.KubeConfigOptions{
 			UserAgent: agent,
 		})
 
@@ -138,7 +155,7 @@ func TestMemoryRESTClientGetter_ToRESTConfig(t *testing.T) {
 	t.Run("invalid config", func(t *testing.T) {
 		g := NewWithT(t)
 
-		getter := NewMemoryRESTClientGetter([]byte(`invalid`), "", "", 0, 0, client.KubeConfigOptions{})
+		getter := NewMemoryRESTClientGetter([]byte("invalid"), "", "", client.Options{QPS: 400, Burst: 800}, client.KubeConfigOptions{})
 		got, err := getter.ToRESTConfig()
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(got).To(BeNil())
@@ -148,7 +165,7 @@ func TestMemoryRESTClientGetter_ToRESTConfig(t *testing.T) {
 func TestMemoryRESTClientGetter_ToDiscoveryClient(t *testing.T) {
 	g := NewWithT(t)
 
-	getter := NewMemoryRESTClientGetter(cfg, "", "", 400, 800, client.KubeConfigOptions{})
+	getter := NewMemoryRESTClientGetter(cfg, "", "", client.Options{QPS: 400, Burst: 800}, client.KubeConfigOptions{})
 	got, err := getter.ToDiscoveryClient()
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(got).ToNot(BeNil())
@@ -157,7 +174,7 @@ func TestMemoryRESTClientGetter_ToDiscoveryClient(t *testing.T) {
 func TestMemoryRESTClientGetter_ToRESTMapper(t *testing.T) {
 	g := NewWithT(t)
 
-	getter := NewMemoryRESTClientGetter(cfg, "", "", 400, 800, client.KubeConfigOptions{})
+	getter := NewMemoryRESTClientGetter(cfg, "", "", client.Options{QPS: 400, Burst: 800}, client.KubeConfigOptions{})
 	got, err := getter.ToRESTMapper()
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(got).ToNot(BeNil())
@@ -166,7 +183,7 @@ func TestMemoryRESTClientGetter_ToRESTMapper(t *testing.T) {
 func TestMemoryRESTClientGetter_ToRawKubeConfigLoader(t *testing.T) {
 	g := NewWithT(t)
 
-	getter := NewMemoryRESTClientGetter(cfg, "a-namespace", "impersonate", 0, 0, client.KubeConfigOptions{})
+	getter := NewMemoryRESTClientGetter(cfg, "a-namespace", "impersonate", client.Options{QPS: 400, Burst: 800}, client.KubeConfigOptions{})
 	got := getter.ToRawKubeConfigLoader()
 	g.Expect(got).ToNot(BeNil())
 

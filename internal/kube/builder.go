@@ -17,10 +17,8 @@ limitations under the License.
 package kube
 
 import (
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/rest"
-
 	"github.com/fluxcd/pkg/runtime/client"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 const (
@@ -35,12 +33,10 @@ const (
 
 // clientGetterOptions used to BuildClientGetter.
 type clientGetterOptions struct {
-	config             *rest.Config
 	namespace          string
 	kubeConfig         []byte
-	burst              int
-	qps                float32
 	impersonateAccount string
+	clientOptions      client.Options
 	kubeConfigOptions  client.KubeConfigOptions
 }
 
@@ -49,12 +45,18 @@ type ClientGetterOption func(o *clientGetterOptions)
 
 // WithKubeConfig creates a MemoryRESTClientGetter configured with the provided
 // KubeConfig and other values.
-func WithKubeConfig(kubeConfig []byte, qps float32, burst int, opts client.KubeConfigOptions) func(o *clientGetterOptions) {
+func WithKubeConfig(kubeConfig []byte, opts client.KubeConfigOptions) func(o *clientGetterOptions) {
 	return func(o *clientGetterOptions) {
 		o.kubeConfig = kubeConfig
-		o.qps = qps
-		o.burst = burst
 		o.kubeConfigOptions = opts
+	}
+}
+
+// WithClientOptions configures the genericclioptions.RESTClientGetter with
+// provided options.
+func WithClientOptions(opts client.Options) func(o *clientGetterOptions) {
+	return func(o *clientGetterOptions) {
+		o.clientOptions = opts
 	}
 }
 
@@ -67,20 +69,18 @@ func WithImpersonate(accountName string) func(o *clientGetterOptions) {
 }
 
 // BuildClientGetter builds a genericclioptions.RESTClientGetter based on the
-// provided options and returns the result. config and namespace are mandatory,
-// and not expected to be nil or empty.
-func BuildClientGetter(config *rest.Config, namespace string, opts ...ClientGetterOption) genericclioptions.RESTClientGetter {
+// provided options and returns the result. Namespace is not expected to be
+// empty. In case it fails to construct using NewInClusterRESTClientGetter, it
+// returns an error.
+func BuildClientGetter(namespace string, opts ...ClientGetterOption) (genericclioptions.RESTClientGetter, error) {
 	o := &clientGetterOptions{
-		config:    config,
 		namespace: namespace,
 	}
 	for _, opt := range opts {
 		opt(o)
 	}
 	if len(o.kubeConfig) > 0 {
-		return NewMemoryRESTClientGetter(o.kubeConfig, namespace, o.impersonateAccount, o.qps, o.burst, o.kubeConfigOptions)
+		return NewMemoryRESTClientGetter(o.kubeConfig, namespace, o.impersonateAccount, o.clientOptions, o.kubeConfigOptions), nil
 	}
-	cfg := *config
-	SetImpersonationConfig(&cfg, namespace, o.impersonateAccount)
-	return NewInClusterRESTClientGetter(&cfg, namespace)
+	return NewInClusterRESTClientGetter(namespace, o.impersonateAccount, &o.clientOptions)
 }
