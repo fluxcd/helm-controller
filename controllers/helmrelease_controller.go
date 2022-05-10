@@ -295,7 +295,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	log := ctrl.LoggerFrom(ctx)
 
 	// Initialize Helm action runner
-	getter, err := r.getRESTClientGetter(ctx, hr)
+	getter, err := r.buildRESTClientGetter(ctx, hr)
 	if err != nil {
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error()), err
 	}
@@ -472,23 +472,11 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 	return nil
 }
 
-func (r *HelmReleaseReconciler) setImpersonationConfig(restConfig *rest.Config, hr v2.HelmRelease) string {
-	name := r.DefaultServiceAccount
-	if sa := hr.Spec.ServiceAccountName; sa != "" {
-		name = sa
+func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, hr v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {
+	var opts []kube.ClientGetterOption
+	if hr.Spec.ServiceAccountName != "" {
+		opts = append(opts, kube.WithImpersonate(hr.Spec.ServiceAccountName))
 	}
-	if name != "" {
-		username := fmt.Sprintf("system:serviceaccount:%s:%s", hr.GetNamespace(), name)
-		restConfig.Impersonate = rest.ImpersonationConfig{UserName: username}
-		return username
-	}
-	return ""
-}
-
-func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {
-	config := *r.Config
-	impersonateAccount := r.setImpersonationConfig(&config, hr)
-
 	if hr.Spec.KubeConfig != nil {
 		secretName := types.NamespacedName{
 			Namespace: hr.GetNamespace(),
@@ -498,32 +486,13 @@ func (r *HelmReleaseReconciler) getRESTClientGetter(ctx context.Context, hr v2.H
 		if err := r.Get(ctx, secretName, &secret); err != nil {
 			return nil, fmt.Errorf("could not find KubeConfig secret '%s': %w", secretName, err)
 		}
-
-		var kubeConfig []byte
-		switch {
-		case hr.Spec.KubeConfig.SecretRef.Key != "":
-			key := hr.Spec.KubeConfig.SecretRef.Key
-			kubeConfig = secret.Data[key]
-			if kubeConfig == nil {
-				return nil, fmt.Errorf("KubeConfig secret '%s' does not contain a '%s' key with a kubeconfig", secretName, key)
-			}
-		case secret.Data["value"] != nil:
-			kubeConfig = secret.Data["value"]
-		case secret.Data["value.yaml"] != nil:
-			kubeConfig = secret.Data["value.yaml"]
-		default:
-			// User did not specify a key, and the 'value' key was not defined.
-			return nil, fmt.Errorf("KubeConfig secret '%s' does not contain a 'value' key with a kubeconfig", secretName)
+		kubeConfig, err := kube.ConfigFromSecret(&secret, hr.Spec.KubeConfig.SecretRef.Key)
+		if err != nil {
+			return nil, err
 		}
-
-		return kube.NewMemoryRESTClientGetter(kubeConfig, hr.GetReleaseNamespace(), impersonateAccount, r.Config.QPS, r.Config.Burst, r.KubeConfigOpts), nil
+		opts = append(opts, kube.WithKubeConfig(kubeConfig, r.Config.QPS, r.Config.Burst, r.KubeConfigOpts))
 	}
-
-	if r.DefaultServiceAccount != "" || hr.Spec.ServiceAccountName != "" {
-		return kube.NewInClusterRESTClientGetter(&config, hr.GetReleaseNamespace()), nil
-	}
-
-	return kube.NewInClusterRESTClientGetter(r.Config, hr.GetReleaseNamespace()), nil
+	return kube.BuildClientGetter(r.Config, hr.GetReleaseNamespace(), opts...), nil
 
 }
 
@@ -653,7 +622,7 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmR
 
 	// Only uninstall the Helm Release if the resource is not suspended.
 	if !hr.Spec.Suspend {
-		getter, err := r.getRESTClientGetter(ctx, hr)
+		getter, err := r.buildRESTClientGetter(ctx, hr)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
