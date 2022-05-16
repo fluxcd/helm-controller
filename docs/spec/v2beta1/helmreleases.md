@@ -940,7 +940,7 @@ One can also opt-in to remediation of the last failure (when no retries remain) 
 to true if at least one retry is configured.
 
 ```yaml
-apiVersion: helm.fluxcd.io/v2beta1
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: podinfo
@@ -1023,7 +1023,7 @@ subjects:
 Create a `HelmRelease` that prevents altering the cluster state outside of the `webapp` namespace:
 
 ```yaml
-apiVersion: helm.fluxcd.io/v2beta1
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
   name: podinfo
