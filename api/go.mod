@@ -3,12 +3,15 @@ module github.com/fluxcd/helm-controller/api
 go 1.17
 
 require (
-	github.com/fluxcd/pkg/apis/kustomize v0.4.0
-	github.com/fluxcd/pkg/apis/meta v0.14.0
+	github.com/fluxcd/pkg/apis/kustomize v0.4.1
+	github.com/fluxcd/pkg/apis/meta v0.14.1
 	k8s.io/apiextensions-apiserver v0.24.0
 	k8s.io/apimachinery v0.24.0
 	sigs.k8s.io/controller-runtime v0.11.2
 )
+
+// Fix CVE-2022-28948
+replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.0
 
 require (
 	github.com/go-logr/logr v1.2.2 // indirect

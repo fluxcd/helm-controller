@@ -7,9 +7,9 @@ replace github.com/fluxcd/helm-controller/api => ./api
 require (
 	github.com/fluxcd/helm-controller/api v0.21.0
 	github.com/fluxcd/pkg/apis/acl v0.0.3
-	github.com/fluxcd/pkg/apis/kustomize v0.4.0
-	github.com/fluxcd/pkg/apis/meta v0.14.0
-	github.com/fluxcd/pkg/runtime v0.16.0
+	github.com/fluxcd/pkg/apis/kustomize v0.4.1
+	github.com/fluxcd/pkg/apis/meta v0.14.1
+	github.com/fluxcd/pkg/runtime v0.16.1
 	github.com/fluxcd/source-controller/api v0.24.4
 	github.com/go-logr/logr v1.2.3
 	github.com/hashicorp/go-retryablehttp v0.7.1
@@ -34,15 +34,8 @@ replace (
 	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.13.7
 )
 
-// Fix CVE-2021-30465
-// Fix CVE-2021-43784
-// Fix GO-2021-0085
-// Fix GO-2021-0087
-replace github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.3
-
-// Fix CVE-2021-43816
-// Fix CVE-2022-23648
-replace github.com/containerd/containerd => github.com/containerd/containerd v1.5.10
+// Fix CVE-2022-28948
+replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.0
 
 require (
 	cloud.google.com/go v0.99.0 // indirect
