@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.22.0
+
+**Release date:** 2022-06-01
+
+This prerelease fixes an issue where the token used for Helm operations would
+go stale if it was provided using a Bound Service Account Token Volume.
+
+Starting with this version, the controller conforms to the Kubernetes
+[API Priority and Fairness](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/).
+The controller detects if the server-side throttling is enabled and uses the
+advertised rate limits. When server-side throttling is enabled, the controller
+ignores the `--kube-api-qps` and `--kube-api-burst` flags.
+
+Fixes:
+- kube: load KubeConfig (token) from FS on every reconcile
+  [#480](https://github.com/fluxcd/helm-controller/pull/480)
+- Updating API group name to helm.toolkit.fluxcd.io in docs
+  [#484](https://github.com/fluxcd/helm-controller/pull/484)
+
+Improvements:
+- Update dependencies
+  [#482](https://github.com/fluxcd/helm-controller/pull/482)
+- Update source-controller to v0.25.0
+  [#490](https://github.com/fluxcd/helm-controller/pull/490)
+
 ## 0.21.0
 
 **Release date:** 2022-05-03
