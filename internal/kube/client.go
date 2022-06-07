@@ -35,12 +35,12 @@ import (
 // using genericclioptions.NewConfigFlags, and configures it with the server,
 // authentication, impersonation, client options, and the provided namespace.
 // It returns an error if it fails to retrieve a rest.Config.
-func NewInClusterRESTClientGetter(namespace, impersonateAccount string, opts *client.Options) (genericclioptions.RESTClientGetter, error) {
+func NewInClusterRESTClientGetter(namespace, impersonateAccount, impersonateNamespace string, opts *client.Options) (genericclioptions.RESTClientGetter, error) {
 	cfg, err := controllerruntime.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config for in-cluster REST client: %w", err)
 	}
-	SetImpersonationConfig(cfg, namespace, impersonateAccount)
+	SetImpersonationConfig(cfg, impersonateNamespace, impersonateAccount)
 
 	flags := genericclioptions.NewConfigFlags(false)
 	flags.APIServer = pointer.String(cfg.Host)
@@ -73,6 +73,8 @@ type MemoryRESTClientGetter struct {
 	namespace string
 	// impersonateAccount configures the rest.ImpersonationConfig account name.
 	impersonateAccount string
+	// impersonateAccount configures the rest.ImpersonationConfig account namespace.
+	impersonateNamespace string
 }
 
 // NewMemoryRESTClientGetter returns a MemoryRESTClientGetter configured with
@@ -81,15 +83,17 @@ type MemoryRESTClientGetter struct {
 func NewMemoryRESTClientGetter(
 	kubeConfig []byte,
 	namespace string,
-	impersonate string,
+	impersonateAccount string,
+	impersonateNamespace string,
 	clientOpts client.Options,
 	kubeConfigOpts client.KubeConfigOptions) genericclioptions.RESTClientGetter {
 	return &MemoryRESTClientGetter{
-		kubeConfig:         kubeConfig,
-		namespace:          namespace,
-		impersonateAccount: impersonate,
-		clientOpts:         clientOpts,
-		kubeConfigOpts:     kubeConfigOpts,
+		kubeConfig:           kubeConfig,
+		namespace:            namespace,
+		impersonateAccount:   impersonateAccount,
+		impersonateNamespace: impersonateNamespace,
+		clientOpts:           clientOpts,
+		kubeConfigOpts:       kubeConfigOpts,
 	}
 }
 
@@ -102,9 +106,7 @@ func (c *MemoryRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
 		return nil, err
 	}
 	cfg = client.KubeConfig(cfg, c.kubeConfigOpts)
-	if c.impersonateAccount != "" {
-		cfg.Impersonate = rest.ImpersonationConfig{UserName: c.impersonateAccount}
-	}
+	SetImpersonationConfig(cfg, c.impersonateNamespace, c.impersonateAccount)
 	return cfg, nil
 }
 

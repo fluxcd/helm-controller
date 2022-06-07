@@ -67,7 +67,7 @@ users:`)
 		cfgOpts := client.KubeConfigOptions{InsecureTLS: true}
 		impersonate := "jane"
 
-		getter, err := BuildClientGetter(namespace, WithClientOptions(clientOpts), WithKubeConfig(cfg, cfgOpts), WithImpersonate(impersonate))
+		getter, err := BuildClientGetter(namespace, WithClientOptions(clientOpts), WithKubeConfig(cfg, cfgOpts), WithImpersonate(impersonate, ""))
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(getter).To(BeAssignableToTypeOf(&MemoryRESTClientGetter{}))
 
@@ -85,7 +85,8 @@ users:`)
 
 		namespace := "a-namespace"
 		impersonate := "frank"
-		getter, err := BuildClientGetter(namespace, WithImpersonate(impersonate))
+		impersonateNS := "other-namespace"
+		getter, err := BuildClientGetter(namespace, WithImpersonate(impersonate, impersonateNS))
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(getter).To(BeAssignableToTypeOf(&genericclioptions.ConfigFlags{}))
 
@@ -93,16 +94,17 @@ users:`)
 		g.Expect(flags.Namespace).ToNot(BeNil())
 		g.Expect(*flags.Namespace).To(Equal(namespace))
 		g.Expect(flags.Impersonate).ToNot(BeNil())
-		g.Expect(*flags.Impersonate).To(Equal("system:serviceaccount:a-namespace:frank"))
+		g.Expect(*flags.Impersonate).To(Equal("system:serviceaccount:other-namespace:frank"))
 	})
 
-	t.Run("with DefaultServiceAccount", func(t *testing.T) {
+	t.Run("with impersonate DefaultServiceAccount", func(t *testing.T) {
 		g := NewWithT(t)
 		ctrl.GetConfig = mockGetConfig
 
 		namespace := "a-namespace"
 		DefaultServiceAccountName = "frank"
-		getter, err := BuildClientGetter(namespace)
+		impersonateNS := "other-namespace"
+		getter, err := BuildClientGetter(namespace, WithImpersonate("", impersonateNS))
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(getter).To(BeAssignableToTypeOf(&genericclioptions.ConfigFlags{}))
 
@@ -110,7 +112,7 @@ users:`)
 		g.Expect(flags.Namespace).ToNot(BeNil())
 		g.Expect(*flags.Namespace).To(Equal(namespace))
 		g.Expect(flags.Impersonate).ToNot(BeNil())
-		g.Expect(*flags.Impersonate).To(Equal("system:serviceaccount:a-namespace:frank"))
+		g.Expect(*flags.Impersonate).To(Equal("system:serviceaccount:other-namespace:frank"))
 	})
 }
 

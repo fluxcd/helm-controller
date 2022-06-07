@@ -33,11 +33,12 @@ const (
 
 // clientGetterOptions used to BuildClientGetter.
 type clientGetterOptions struct {
-	namespace          string
-	kubeConfig         []byte
-	impersonateAccount string
-	clientOptions      client.Options
-	kubeConfigOptions  client.KubeConfigOptions
+	namespace            string
+	kubeConfig           []byte
+	impersonateAccount   string
+	impersonateNamespace string
+	clientOptions        client.Options
+	kubeConfigOptions    client.KubeConfigOptions
 }
 
 // ClientGetterOption configures a genericclioptions.RESTClientGetter.
@@ -61,10 +62,12 @@ func WithClientOptions(opts client.Options) func(o *clientGetterOptions) {
 }
 
 // WithImpersonate configures the genericclioptions.RESTClientGetter to
-// impersonate the provided account name.
-func WithImpersonate(accountName string) func(o *clientGetterOptions) {
+// impersonate with the given account name in the provided namespace.
+// If the account name is empty, DefaultServiceAccountName is assumed.
+func WithImpersonate(accountName, namespace string) func(o *clientGetterOptions) {
 	return func(o *clientGetterOptions) {
 		o.impersonateAccount = accountName
+		o.impersonateNamespace = namespace
 	}
 }
 
@@ -80,7 +83,7 @@ func BuildClientGetter(namespace string, opts ...ClientGetterOption) (genericcli
 		opt(o)
 	}
 	if len(o.kubeConfig) > 0 {
-		return NewMemoryRESTClientGetter(o.kubeConfig, namespace, o.impersonateAccount, o.clientOptions, o.kubeConfigOptions), nil
+		return NewMemoryRESTClientGetter(o.kubeConfig, namespace, o.impersonateAccount, o.impersonateNamespace, o.clientOptions, o.kubeConfigOptions), nil
 	}
-	return NewInClusterRESTClientGetter(namespace, o.impersonateAccount, &o.clientOptions)
+	return NewInClusterRESTClientGetter(namespace, o.impersonateAccount, o.impersonateNamespace, &o.clientOptions)
 }
