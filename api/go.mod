@@ -5,8 +5,8 @@ go 1.17
 require (
 	github.com/fluxcd/pkg/apis/kustomize v0.4.1
 	github.com/fluxcd/pkg/apis/meta v0.14.1
-	k8s.io/apiextensions-apiserver v0.24.0
-	k8s.io/apimachinery v0.24.0
+	k8s.io/apiextensions-apiserver v0.24.1
+	k8s.io/apimachinery v0.24.1
 	sigs.k8s.io/controller-runtime v0.11.2
 )
 
