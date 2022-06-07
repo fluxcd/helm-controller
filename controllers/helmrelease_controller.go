@@ -474,10 +474,13 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 }
 
 func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, hr v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {
-	opts := []kube.ClientGetterOption{kube.WithClientOptions(r.ClientOpts)}
-	if hr.Spec.ServiceAccountName != "" {
-		opts = append(opts, kube.WithImpersonate(hr.Spec.ServiceAccountName))
+	opts := []kube.ClientGetterOption{
+		kube.WithClientOptions(r.ClientOpts),
+		// When ServiceAccountName is empty, it will fall back to the configured default.
+		// If this is not configured either, this option will result in a no-op.
+		kube.WithImpersonate(hr.Spec.ServiceAccountName, hr.GetNamespace()),
 	}
+	opts = append(opts)
 	if hr.Spec.KubeConfig != nil {
 		secretName := types.NamespacedName{
 			Namespace: hr.GetNamespace(),
