@@ -480,7 +480,6 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, hr v2
 		// If this is not configured either, this option will result in a no-op.
 		kube.WithImpersonate(hr.Spec.ServiceAccountName, hr.GetNamespace()),
 	}
-	opts = append(opts)
 	if hr.Spec.KubeConfig != nil {
 		secretName := types.NamespacedName{
 			Namespace: hr.GetNamespace(),
