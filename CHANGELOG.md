@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.22.1
+
+**Release date:** 2022-06-07
+
+This prerelease fixes a regression bug introduced in [#480](https://github.com/fluxcd/helm-controller/pull/480)
+which would cause the impersonation config to pick the incorrect
+`TargetNamespace` for the account name if it was set.
+
+In addition, Kubernetes dependencies have been updated to `v0.24.1`, and
+`github.com/containerd/containerd` was updated to `v1.6.6` to mitigate
+CVE-2022-31030.
+
+Fixes:
+- kube: configure proper account impersonation NS
+  [#492](https://github.com/fluxcd/helm-controller/pull/492)
+  [#494](https://github.com/fluxcd/helm-controller/pull/494)
+
+Improvements:
+- Update dependencies
+  [#493](https://github.com/fluxcd/helm-controller/pull/493)
+
 ## 0.22.0
 
 **Release date:** 2022-06-01
