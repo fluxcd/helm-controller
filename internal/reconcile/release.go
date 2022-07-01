@@ -21,7 +21,7 @@ import (
 
 	helmrelease "helm.sh/helm/v3/pkg/release"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
 )
@@ -44,7 +44,7 @@ var (
 // and Status.Previous fields of the HelmRelease object. It can be used to
 // record Helm install and upgrade actions as - and while - they are written to
 // the Helm storage.
-func observeRelease(obj *helmv2.HelmRelease) storage.ObserveFunc {
+func observeRelease(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rls *helmrelease.Release) {
 		cur := obj.Status.Current.DeepCopy()
 		obs := release.ObserveRelease(rls)

@@ -24,7 +24,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/logger"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
 )
 
@@ -43,7 +43,7 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	rls, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values)
 	if err != nil {
 		// Mark failure on object.
-		conditions.MarkFalse(req.Object, helmv2.ReleasedCondition, helmv2.UpgradeFailedReason, err.Error())
+		conditions.MarkFalse(req.Object, v2.ReleasedCondition, v2.UpgradeFailedReason, err.Error())
 		req.Object.Status.Failures++
 
 		// Return error if we did not store a release, as this does not
@@ -63,7 +63,7 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	}
 
 	// Mark success on object.
-	conditions.MarkTrue(req.Object, helmv2.ReleasedCondition, helmv2.UpgradeSucceededReason, rls.Info.Description)
+	conditions.MarkTrue(req.Object, v2.ReleasedCondition, v2.UpgradeSucceededReason, rls.Info.Description)
 	return nil
 }
 

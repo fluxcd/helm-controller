@@ -26,7 +26,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/logger"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
@@ -59,7 +59,7 @@ func (r *Rollback) Reconcile(ctx context.Context, req *Request) error {
 	if err := action.Rollback(r.configFactory.Build(logBuf.Log, observeRollback(req.Object)), req.Object); err != nil {
 		// Mark failure on object.
 		req.Object.Status.Failures++
-		conditions.MarkFalse(req.Object, helmv2.RemediatedCondition, helmv2.RollbackFailedReason, err.Error())
+		conditions.MarkFalse(req.Object, v2.RemediatedCondition, v2.RollbackFailedReason, err.Error())
 
 		// Return error if we did not store a release, as this does not
 		// affect state and the caller should e.g. retry.
@@ -74,7 +74,7 @@ func (r *Rollback) Reconcile(ctx context.Context, req *Request) error {
 	if prev := req.Object.Status.Previous; prev != nil {
 		condMsg = fmt.Sprintf("Rolled back to version %d", prev.Version)
 	}
-	conditions.MarkTrue(req.Object, helmv2.RemediatedCondition, helmv2.RollbackSucceededReason, condMsg)
+	conditions.MarkTrue(req.Object, v2.RemediatedCondition, v2.RollbackSucceededReason, condMsg)
 	return nil
 }
 
@@ -82,7 +82,7 @@ func (r *Rollback) Reconcile(ctx context.Context, req *Request) error {
 // and record the result of a rollback action in the status of the given release.
 // It updates the Status.Current field of the release if it equals the target
 // of the rollback action, and version >= Current.Version.
-func observeRollback(obj *helmv2.HelmRelease) storage.ObserveFunc {
+func observeRollback(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rls *helmrelease.Release) {
 		cur := obj.Status.Current.DeepCopy()
 		obs := release.ObserveRelease(rls)

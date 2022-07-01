@@ -26,7 +26,7 @@ import (
 
 	"github.com/fluxcd/pkg/runtime/conditions"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
@@ -61,7 +61,7 @@ func (r *Test) Reconcile(ctx context.Context, req *Request) error {
 	// Something went wrong.
 	if err != nil {
 		req.Object.Status.Failures++
-		conditions.MarkFalse(req.Object, helmv2.TestSuccessCondition, helmv2.TestFailedReason, err.Error())
+		conditions.MarkFalse(req.Object, v2.TestSuccessCondition, v2.TestFailedReason, err.Error())
 		// If we failed to observe anything happened at all, we want to retry
 		// and return the error to indicate this.
 		if req.Object.Status.Current == cur {
@@ -75,7 +75,7 @@ func (r *Test) Reconcile(ctx context.Context, req *Request) error {
 	if hookLen := len(req.Object.Status.Current.TestHooks); hookLen > 0 {
 		condMsg = fmt.Sprintf("%d test hook(s) completed successfully.", hookLen)
 	}
-	conditions.MarkTrue(req.Object, helmv2.TestSuccessCondition, helmv2.TestSucceededReason, condMsg)
+	conditions.MarkTrue(req.Object, v2.TestSuccessCondition, v2.TestSucceededReason, condMsg)
 	return nil
 }
 
@@ -87,7 +87,7 @@ func (r *Test) Type() ReconcilerType {
 	return ReconcilerTypeTest
 }
 
-func observeTest(obj *helmv2.HelmRelease) storage.ObserveFunc {
+func observeTest(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rls *helmrelease.Release) {
 		if cur := obj.Status.Current; cur != nil {
 			obs := release.ObserveRelease(rls)

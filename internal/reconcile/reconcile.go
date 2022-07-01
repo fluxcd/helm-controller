@@ -22,7 +22,7 @@ import (
 	helmchart "helm.sh/helm/v3/pkg/chart"
 	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 )
 
 const (
@@ -50,7 +50,7 @@ type ReconcilerType string
 type Request struct {
 	// Object is the Helm release to be reconciled, and describes the desired
 	// state to the ActionReconciler.
-	Object *helmv2.HelmRelease
+	Object *v2.HelmRelease
 	// Chart is the Helm chart to be installed or upgraded.
 	Chart *helmchart.Chart
 	// Values is the Helm chart values to be used for the installation or

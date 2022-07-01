@@ -22,7 +22,7 @@ import (
 	. "github.com/onsi/gomega"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/release"
 )
 
@@ -40,7 +40,7 @@ func Test_observeRelease(t *testing.T) {
 	t.Run("release", func(t *testing.T) {
 		g := NewWithT(t)
 
-		obj := &helmv2.HelmRelease{}
+		obj := &v2.HelmRelease{}
 		mock := helmrelease.Mock(&helmrelease.MockReleaseOptions{
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
@@ -59,13 +59,13 @@ func Test_observeRelease(t *testing.T) {
 	t.Run("release with current", func(t *testing.T) {
 		g := NewWithT(t)
 
-		current := &helmv2.HelmReleaseInfo{
+		current := &v2.HelmReleaseInfo{
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   1,
 		}
-		obj := &helmv2.HelmRelease{
-			Status: helmv2.HelmReleaseStatus{
+		obj := &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
 				Current: current,
 			},
 		}
@@ -87,13 +87,13 @@ func Test_observeRelease(t *testing.T) {
 	t.Run("release with current with different name", func(t *testing.T) {
 		g := NewWithT(t)
 
-		current := &helmv2.HelmReleaseInfo{
+		current := &v2.HelmReleaseInfo{
 			Name:      otherReleaseName,
 			Namespace: otherReleaseNamespace,
 			Version:   3,
 		}
-		obj := &helmv2.HelmRelease{
-			Status: helmv2.HelmReleaseStatus{
+		obj := &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
 				Current: current,
 			},
 		}
@@ -114,20 +114,20 @@ func Test_observeRelease(t *testing.T) {
 	t.Run("release with update to previous", func(t *testing.T) {
 		g := NewWithT(t)
 
-		previous := &helmv2.HelmReleaseInfo{
+		previous := &v2.HelmReleaseInfo{
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   1,
 			Status:    helmrelease.StatusDeployed.String(),
 		}
-		current := &helmv2.HelmReleaseInfo{
+		current := &v2.HelmReleaseInfo{
 			Name:      previous.Name,
 			Namespace: previous.Namespace,
 			Version:   previous.Version + 1,
 			Status:    helmrelease.StatusPendingInstall.String(),
 		}
-		obj := &helmv2.HelmRelease{
-			Status: helmv2.HelmReleaseStatus{
+		obj := &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
 				Current:  current,
 				Previous: previous,
 			},

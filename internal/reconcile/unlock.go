@@ -25,7 +25,7 @@ import (
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
@@ -66,11 +66,11 @@ func (r *Unlock) Reconcile(_ context.Context, req *Request) error {
 				status.String()))
 			if err = cfg.Releases.Update(rls); err != nil {
 				req.Object.Status.Failures++
-				conditions.MarkFalse(req.Object, helmv2.ReleasedCondition, "StalePending",
+				conditions.MarkFalse(req.Object, v2.ReleasedCondition, "StalePending",
 					"Failed to unlock release from stale '%s' state: %s", status.String(), err.Error())
 				return err
 			}
-			conditions.MarkFalse(req.Object, helmv2.ReleasedCondition, "StalePending", rls.Info.Description)
+			conditions.MarkFalse(req.Object, v2.ReleasedCondition, "StalePending", rls.Info.Description)
 		}
 	}
 	return nil
@@ -88,7 +88,7 @@ func (r *Unlock) Type() ReconcilerType {
 // record the result of an unlock action in the status of the given release.
 // It updates the Status.Current field of the release if it equals the target
 // of the unlock action.
-func observeUnlock(obj *helmv2.HelmRelease) storage.ObserveFunc {
+func observeUnlock(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rls *helmrelease.Release) {
 		if cur := obj.Status.Current; cur != nil {
 			obs := release.ObserveRelease(rls)

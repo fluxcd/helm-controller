@@ -26,7 +26,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/logger"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
@@ -69,7 +69,7 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	// Handle any error.
 	if err != nil {
 		req.Object.Status.Failures++
-		conditions.MarkFalse(req.Object, helmv2.RemediatedCondition, helmv2.UninstallFailedReason, err.Error())
+		conditions.MarkFalse(req.Object, v2.RemediatedCondition, v2.UninstallFailedReason, err.Error())
 		if req.Object.Status.Current == cur {
 			return err
 		}
@@ -77,7 +77,7 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	}
 
 	// Mark success.
-	conditions.MarkTrue(req.Object, helmv2.RemediatedCondition, helmv2.UninstallSucceededReason,
+	conditions.MarkTrue(req.Object, v2.RemediatedCondition, v2.UninstallSucceededReason,
 		res.Release.Info.Description)
 	return nil
 }
@@ -94,7 +94,7 @@ func (r *Uninstall) Type() ReconcilerType {
 // and record the result of an uninstall action in the status of the given
 // release. It updates the Status.Current field of the release if it equals the
 // uninstallation target, and version = Current.Version.
-func observeUninstall(obj *helmv2.HelmRelease) storage.ObserveFunc {
+func observeUninstall(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rls *helmrelease.Release) {
 		if cur := obj.Status.Current; cur != nil {
 			if obs := release.ObserveRelease(rls); obs.Targets(cur.Name, cur.Namespace, cur.Version) {
