@@ -4,4 +4,8 @@ resources:
 - group: helm
   kind: HelmRelease
   version: v2beta1
+- group: helm
+  kind: HelmRelease
+  version: v2beta2
+storageVersion: v2beta1
 version: "2"
