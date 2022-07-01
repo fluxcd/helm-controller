@@ -7,10 +7,10 @@ replace github.com/fluxcd/helm-controller/api => ./api
 require (
 	github.com/fluxcd/helm-controller/api v0.22.1
 	github.com/fluxcd/pkg/apis/acl v0.0.3
-	github.com/fluxcd/pkg/apis/kustomize v0.4.1
-	github.com/fluxcd/pkg/apis/meta v0.14.1
-	github.com/fluxcd/pkg/runtime v0.16.1
-	github.com/fluxcd/source-controller/api v0.25.3
+	github.com/fluxcd/pkg/apis/kustomize v0.4.2
+	github.com/fluxcd/pkg/apis/meta v0.14.2
+	github.com/fluxcd/pkg/runtime v0.16.2
+	github.com/fluxcd/source-controller/api v0.25.9
 	github.com/go-logr/logr v1.2.3
 	github.com/hashicorp/go-retryablehttp v0.7.1
 	github.com/onsi/ginkgo v1.16.5
@@ -35,7 +35,7 @@ replace (
 )
 
 // Fix CVE-2022-28948
-replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.0
+replace gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
 
 // Fix CVE-2022-31030
 replace github.com/containerd/containerd => github.com/containerd/containerd v1.6.6
@@ -163,7 +163,7 @@ require (
 	k8s.io/kube-openapi v0.0.0-20220401212409-b28bf2818661 // indirect
 	k8s.io/kubectl v0.24.0 // indirect
 	oras.land/oras-go v1.1.1 // indirect
-	sigs.k8s.io/cli-utils v0.30.0 // indirect
+	sigs.k8s.io/cli-utils v0.31.2 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.7 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
