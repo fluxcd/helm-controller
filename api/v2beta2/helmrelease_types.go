@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Flux authors
+Copyright 2022 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v2beta1
+package v2beta2
 
 import (
 	"encoding/json"
@@ -22,7 +22,6 @@ import (
 	"time"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -30,8 +29,13 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 )
 
-const HelmReleaseKind = "HelmRelease"
-const HelmReleaseFinalizer = "finalizers.fluxcd.io"
+const (
+	// HelmReleaseKind is the kind in string format.
+	HelmReleaseKind = "HelmRelease"
+	// HelmReleaseFinalizer is set on a HelmRelease when it is first handled by
+	// the controller, and removed when this object is deleted.
+	HelmReleaseFinalizer = "finalizers.fluxcd.io"
+)
 
 // Kustomize Helm PostRenderer specification.
 type Kustomize struct {
@@ -70,8 +74,6 @@ type HelmReleaseSpec struct {
 	Chart HelmChartTemplate `json:"chart"`
 
 	// Interval at which to reconcile the Helm release.
-	// This interval is approximate and may be subject to jitter to ensure
-	// efficient use of resources.
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +required
@@ -234,7 +236,7 @@ func (in HelmReleaseSpec) GetUninstall() Uninstall {
 
 // HelmChartTemplate defines the template from which the controller will
 // generate a v1beta2.HelmChart object in the same namespace as the referenced
-// v1beta2.Source.
+// v1.Source.
 type HelmChartTemplate struct {
 	// ObjectMeta holds the template for metadata like labels and annotations.
 	// +optional
@@ -275,11 +277,11 @@ type HelmChartTemplateSpec struct {
 	// +optional
 	Version string `json:"version,omitempty"`
 
-	// The name and namespace of the v1beta2.Source the chart is available at.
+	// The name and namespace of the v1.Source the chart is available at.
 	// +required
 	SourceRef CrossNamespaceObjectReference `json:"sourceRef"`
 
-	// Interval at which to check the v1beta2.Source for updates. Defaults to
+	// Interval at which to check the v1.Source for updates. Defaults to
 	// 'HelmReleaseSpec.Interval'.
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
@@ -314,7 +316,8 @@ type HelmChartTemplateSpec struct {
 	// used to verify the signature and specifies which provider to use to check
 	// whether OCI image is authentic.
 	// This field is only supported for OCI sources.
-	// Chart dependencies, which are not bundled in the umbrella chart artifact, are not verified.
+	// Chart dependencies, which are not bundled in the umbrella chart artifact,
+	// are not verified.
 	// +optional
 	Verify *HelmChartTemplateVerification `json:"verify,omitempty"`
 }
@@ -432,7 +435,7 @@ type Install struct {
 	// but not deleted.
 	//
 	// By default, CRDs are applied (installed) during Helm install action.
-	// With this option users can opt-in to CRD replace existing CRDs on Helm
+	// With this option users can opt in to CRD replace existing CRDs on Helm
 	// install actions, which is not (yet) natively supported by Helm.
 	// https://helm.sh/docs/chart_best_practices/custom_resource_definitions.
 	//
@@ -830,13 +833,6 @@ type Uninstall struct {
 	// a Helm uninstall is performed.
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
-
-	// DeletionPropagation specifies the deletion propagation policy when
-	// a Helm uninstall is performed.
-	// +kubebuilder:default=background
-	// +kubebuilder:validation:Enum=background;foreground;orphan
-	// +optional
-	DeletionPropagation *string `json:"deletionPropagation,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm uninstall action, or
@@ -848,13 +844,64 @@ func (in Uninstall) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	return *in.Timeout
 }
 
-// GetDeletionPropagation returns the configured deletion propagation policy
-// for the Helm uninstall action, or 'background'.
-func (in Uninstall) GetDeletionPropagation() string {
-	if in.DeletionPropagation == nil {
-		return "background"
-	}
-	return *in.DeletionPropagation
+// HelmReleaseInfo holds the status information for a Helm release as performed
+// by the controller.
+type HelmReleaseInfo struct {
+	// Digest is the checksum of the release object in storage.
+	// It has the format of `<algo>:<checksum>`.
+	// +required
+	Digest string `json:"digest"`
+	// Name is the name of the release.
+	// +required
+	Name string `json:"name"`
+	// Namespace is the namespace the release is deployed to.
+	// +required
+	Namespace string `json:"namespace"`
+	// Version is the version of the release object in storage.
+	// +required
+	Version int `json:"version"`
+	// Status is the current state of the release.
+	// +required
+	Status string `json:"status"`
+	// ChartName is the chart name of the release object in storage.
+	// +required
+	ChartName string `json:"chartName"`
+	// ChartVersion is the chart version of the release object in
+	// storage.
+	// +required
+	ChartVersion string `json:"chartVersion"`
+	// ConfigDigest is the checksum of the config (better known as
+	// "values") of the release object in storage.
+	// It has the format of `<algo>:<checksum>`.
+	// +required
+	ConfigDigest string `json:"configDigest"`
+	// FirstDeployed is when the release was first deployed.
+	// +required
+	FirstDeployed metav1.Time `json:"firstDeployed"`
+	// LastDeployed is when the release was last deployed.
+	// +required
+	LastDeployed metav1.Time `json:"lastDeployed"`
+	// Deleted is when the release was deleted.
+	// +optional
+	Deleted metav1.Time `json:"deleted,omitempty"`
+	// TestHooks is the list of test hooks for the release as observed to be
+	// run by the controller.
+	// +optional
+	TestHooks map[string]*HelmReleaseTestHook `json:"testHooks,omitempty"`
+}
+
+// HelmReleaseTestHook holds the status information for a test hook as observed
+// to be run by the controller.
+type HelmReleaseTestHook struct {
+	// LastStarted is the time the test hook was last started.
+	// +optional
+	LastStarted metav1.Time `json:"lastStarted,omitempty"`
+	// LastCompleted is the time the test hook last completed.
+	// +optional
+	LastCompleted metav1.Time `json:"lastCompleted,omitempty"`
+	// Phase the test hook was observed to be in.
+	// +optional
+	Phase string `json:"phase,omitempty"`
 }
 
 // HelmReleaseStatus defines the observed state of a HelmRelease.
@@ -863,33 +910,24 @@ type HelmReleaseStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
-	meta.ReconcileRequestStatus `json:",inline"`
-
 	// Conditions holds the conditions for the HelmRelease.
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
-
-	// LastAppliedRevision is the revision of the last successfully applied source.
-	// +optional
-	LastAppliedRevision string `json:"lastAppliedRevision,omitempty"`
-
-	// LastAttemptedRevision is the revision of the last reconciliation attempt.
-	// +optional
-	LastAttemptedRevision string `json:"lastAttemptedRevision,omitempty"`
-
-	// LastAttemptedValuesChecksum is the SHA1 checksum of the values of the last
-	// reconciliation attempt.
-	// +optional
-	LastAttemptedValuesChecksum string `json:"lastAttemptedValuesChecksum,omitempty"`
-
-	// LastReleaseRevision is the revision of the last successful Helm release.
-	// +optional
-	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`
 
 	// HelmChart is the namespaced name of the HelmChart resource created by
 	// the controller for the HelmRelease.
 	// +optional
 	HelmChart string `json:"helmChart,omitempty"`
+
+	// Current holds the latest observed HelmReleaseInfo for the current
+	// release.
+	// +optional
+	Current *HelmReleaseInfo `json:"current,omitempty"`
+
+	// Previous holds the latest observed HelmReleaseInfo for the previous
+	// release.
+	// +optional
+	Previous *HelmReleaseInfo `json:"previous,omitempty"`
 
 	// Failures is the reconciliation failure count against the latest desired
 	// state. It is reset after a successful reconciliation.
@@ -905,6 +943,18 @@ type HelmReleaseStatus struct {
 	// state. It is reset after a successful reconciliation.
 	// +optional
 	UpgradeFailures int64 `json:"upgradeFailures,omitempty"`
+
+	// LastAttemptedRevision is the Source revision of the last reconciliation
+	// attempt.
+	// +optional
+	LastAttemptedRevision string `json:"lastAttemptedRevision,omitempty"`
+
+	// LastAttemptedValuesChecksum is the SHA1 checksum of the values of the last
+	// reconciliation attempt.
+	// +optional
+	LastAttemptedValuesChecksum string `json:"lastAttemptedValuesChecksum,omitempty"`
+
+	meta.ReconcileRequestStatus `json:",inline"`
 }
 
 // GetHelmChart returns the namespace and name of the HelmChart.
@@ -918,95 +968,6 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 	return "", ""
 }
 
-// HelmReleaseProgressing resets any failures and registers progress toward
-// reconciling the given HelmRelease by setting the meta.ReadyCondition to
-// 'Unknown' for meta.ProgressingReason.
-func HelmReleaseProgressing(hr HelmRelease) HelmRelease {
-	hr.Status.Conditions = []metav1.Condition{}
-	newCondition := metav1.Condition{
-		Type:    meta.ReadyCondition,
-		Status:  metav1.ConditionUnknown,
-		Reason:  meta.ProgressingReason,
-		Message: "Reconciliation in progress",
-	}
-	apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
-	resetFailureCounts(&hr)
-	return hr
-}
-
-// HelmReleaseNotReady registers a failed reconciliation of the given HelmRelease.
-func HelmReleaseNotReady(hr HelmRelease, reason, message string) HelmRelease {
-	newCondition := metav1.Condition{
-		Type:    meta.ReadyCondition,
-		Status:  metav1.ConditionFalse,
-		Reason:  reason,
-		Message: message,
-	}
-	apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
-	hr.Status.Failures++
-	return hr
-}
-
-// HelmReleaseReady registers a successful reconciliation of the given HelmRelease.
-func HelmReleaseReady(hr HelmRelease) HelmRelease {
-	newCondition := metav1.Condition{
-		Type:    meta.ReadyCondition,
-		Status:  metav1.ConditionTrue,
-		Reason:  ReconciliationSucceededReason,
-		Message: "Release reconciliation succeeded",
-	}
-	apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
-	hr.Status.LastAppliedRevision = hr.Status.LastAttemptedRevision
-	resetFailureCounts(&hr)
-	return hr
-}
-
-// HelmReleaseAttempted registers an attempt of the given HelmRelease with the given state.
-// and returns the modified HelmRelease and a boolean indicating a state change.
-//
-// Deprecated: in favor of HelmReleaseChanged and HelmReleaseRecordAttempt.
-func HelmReleaseAttempted(hr HelmRelease, revision string, releaseRevision int, valuesChecksum string) (HelmRelease, bool) {
-	changed := hr.Status.LastAttemptedRevision != revision ||
-		hr.Status.LastReleaseRevision != releaseRevision ||
-		hr.Status.LastAttemptedValuesChecksum != valuesChecksum
-	hr.Status.LastAttemptedRevision = revision
-	hr.Status.LastReleaseRevision = releaseRevision
-	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
-
-	return hr, changed
-}
-
-// HelmReleaseChanged returns if the HelmRelease has changed compared to the
-// provided values.
-func HelmReleaseChanged(hr HelmRelease, revision string, releaseRevision int, valuesChecksums ...string) bool {
-	return hr.Status.LastAttemptedRevision != revision ||
-		hr.Status.LastReleaseRevision != releaseRevision ||
-		!inStringSlice(hr.Status.LastAttemptedValuesChecksum, valuesChecksums)
-}
-
-// HelmReleaseRecordAttempt returns an attempt of the given HelmRelease with the
-// given state in the Status of the provided object.
-func HelmReleaseRecordAttempt(hr *HelmRelease, revision string, releaseRevision int, valuesChecksum string) {
-	hr.Status.LastAttemptedRevision = revision
-	hr.Status.LastReleaseRevision = releaseRevision
-	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
-}
-
-func inStringSlice(str string, s []string) bool {
-	for _, v := range s {
-		if str == v {
-			return true
-		}
-	}
-	return false
-}
-
-func resetFailureCounts(hr *HelmRelease) {
-	hr.Status.Failures = 0
-	hr.Status.InstallFailures = 0
-	hr.Status.UpgradeFailures = 0
-}
-
 const (
 	// SourceIndexKey is the key used for indexing HelmReleases based on
 	// their sources.
@@ -1017,7 +978,6 @@ const (
 // +genclient:Namespaced
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=hr
-// +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
@@ -1098,15 +1058,6 @@ func (in HelmRelease) GetMaxHistory() int {
 		return 10
 	}
 	return *in.Spec.MaxHistory
-}
-
-// UsePersistentClient returns the configured PersistentClient, or the default
-// of true.
-func (in HelmRelease) UsePersistentClient() bool {
-	if in.Spec.PersistentClient == nil {
-		return true
-	}
-	return *in.Spec.PersistentClient
 }
 
 // GetDependsOn returns the list of dependencies across-namespaces.
