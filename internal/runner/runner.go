@@ -104,7 +104,12 @@ func postRenderers(hr v2.HelmRelease) (postrender.PostRenderer, error) {
 	renderers := make([]postrender.PostRenderer, 0)
 	for _, r := range hr.Spec.PostRenderers {
 		if r.Kustomize != nil {
-			renderers = append(renderers, intpostrender.NewKustomize(r.Kustomize))
+			renderers = append(renderers, &intpostrender.Kustomize{
+				Patches:               r.Kustomize.Patches,
+				PatchesStrategicMerge: r.Kustomize.PatchesStrategicMerge,
+				PatchesJSON6902:       r.Kustomize.PatchesJSON6902,
+				Images:                r.Kustomize.Images,
+			})
 		}
 	}
 	renderers = append(renderers, intpostrender.NewOriginLabels(v2.GroupVersion.Group, hr.Namespace, hr.Name))

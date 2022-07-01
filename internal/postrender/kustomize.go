@@ -21,24 +21,27 @@ import (
 	"encoding/json"
 	"sync"
 
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/resmap"
 	kustypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 
 	"github.com/fluxcd/pkg/apis/kustomize"
-
-	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
 
+// Kustomize is a Helm post-render plugin that runs Kustomize.
 type Kustomize struct {
-	spec *v2.Kustomize
-}
-
-func NewKustomize(spec *v2.Kustomize) *Kustomize {
-	return &Kustomize{
-		spec: spec,
-	}
+	// Patches is a list of patches to apply to the rendered manifests.
+	Patches []kustomize.Patch
+	// PatchesStrategicMerge is a list of strategic merge patches to apply to
+	// the rendered manifests.
+	PatchesStrategicMerge []apiextensionsv1.JSON
+	// PatchesJSON6902 is a list of JSON patches to apply to the rendered
+	// manifests.
+	PatchesJSON6902 []kustomize.JSON6902Patch
+	// Images is a list of images to replace in the rendered manifests.
+	Images []kustomize.Image
 }
 
 func (k *Kustomize) Run(renderedManifests *bytes.Buffer) (modifiedManifests *bytes.Buffer, err error) {
@@ -46,7 +49,7 @@ func (k *Kustomize) Run(renderedManifests *bytes.Buffer) (modifiedManifests *byt
 	cfg := kustypes.Kustomization{}
 	cfg.APIVersion = kustypes.KustomizationVersion
 	cfg.Kind = kustypes.KustomizationKind
-	cfg.Images = adaptImages(k.spec.Images)
+	cfg.Images = adaptImages(k.Images)
 
 	// Add rendered Helm output as input resource to the Kustomization.
 	const input = "helm-output.yaml"
@@ -56,7 +59,7 @@ func (k *Kustomize) Run(renderedManifests *bytes.Buffer) (modifiedManifests *byt
 	}
 
 	// Add patches.
-	for _, m := range k.spec.Patches {
+	for _, m := range k.Patches {
 		cfg.Patches = append(cfg.Patches, kustypes.Patch{
 			Patch:  m.Patch,
 			Target: adaptSelector(m.Target),
@@ -64,19 +67,19 @@ func (k *Kustomize) Run(renderedManifests *bytes.Buffer) (modifiedManifests *byt
 	}
 
 	// Add strategic merge patches.
-	for _, m := range k.spec.PatchesStrategicMerge {
+	for _, m := range k.PatchesStrategicMerge {
 		cfg.PatchesStrategicMerge = append(cfg.PatchesStrategicMerge, kustypes.PatchStrategicMerge(m.Raw))
 	}
 
 	// Add JSON 6902 patches.
-	for i, m := range k.spec.PatchesJSON6902 {
+	for i, m := range k.PatchesJSON6902 {
 		patch, err := json.Marshal(m.Patch)
 		if err != nil {
 			return nil, err
 		}
 		cfg.PatchesJson6902 = append(cfg.PatchesJson6902, kustypes.Patch{
 			Patch:  string(patch),
-			Target: adaptSelector(&k.spec.PatchesJSON6902[i].Target),
+			Target: adaptSelector(&k.PatchesJSON6902[i].Target),
 		})
 	}
 
