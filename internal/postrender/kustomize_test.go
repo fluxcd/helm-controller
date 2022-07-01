@@ -27,7 +27,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 )
 
 const replaceImageMock = `apiVersion: v1
@@ -259,7 +259,10 @@ spec:
 			g.Expect(err).ToNot(HaveOccurred())
 
 			k := &Kustomize{
-				spec: spec,
+				Patches:               spec.Patches,
+				PatchesStrategicMerge: spec.PatchesStrategicMerge,
+				PatchesJSON6902:       spec.PatchesJSON6902,
+				Images:                spec.Images,
 			}
 			gotModifiedManifests, err := k.Run(bytes.NewBufferString(tt.renderedManifests))
 			if tt.expectErr {
