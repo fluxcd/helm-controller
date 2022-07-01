@@ -27,7 +27,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
 )
 
 const replaceImageMock = `apiVersion: v1
@@ -259,7 +259,10 @@ spec:
 			g.Expect(err).ToNot(HaveOccurred())
 
 			k := &Kustomize{
-				spec: spec,
+				Patches:               spec.Patches,
+				PatchesStrategicMerge: spec.PatchesStrategicMerge,
+				PatchesJSON6902:       spec.PatchesJSON6902,
+				Images:                spec.Images,
 			}
 			gotModifiedManifests, err := k.Run(bytes.NewBufferString(tt.renderedManifests))
 			if tt.expectErr {
@@ -274,7 +277,7 @@ spec:
 	}
 }
 
-func mockKustomize(patches, patchesStrategicMerge, patchesJson6902, images string) (*v2.Kustomize, error) {
+func mockKustomize(patches, patchesStrategicMerge, patchesJson6902, images string) (*helmv2.Kustomize, error) {
 	var targeted []kustomize.Patch
 	if err := yaml.Unmarshal([]byte(patches), &targeted); err != nil {
 		return nil, err
@@ -295,7 +298,7 @@ func mockKustomize(patches, patchesStrategicMerge, patchesJson6902, images strin
 	if err := yaml.Unmarshal([]byte(images), &imgs); err != nil {
 		return nil, err
 	}
-	return &v2.Kustomize{
+	return &helmv2.Kustomize{
 		Patches:               targeted,
 		PatchesStrategicMerge: strategicMerge,
 		PatchesJSON6902:       json6902,
