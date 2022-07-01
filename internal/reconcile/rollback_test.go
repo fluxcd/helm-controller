@@ -32,7 +32,7 @@ import (
 
 	"github.com/fluxcd/pkg/runtime/conditions"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/testutil"
@@ -47,9 +47,9 @@ func TestRollback_Reconcile(t *testing.T) {
 		// before rollback.
 		releases func(namespace string) []*helmrelease.Release
 		// spec modifies the HelmRelease object's spec before rollback.
-		spec func(spec *helmv2.HelmReleaseSpec)
+		spec func(spec *v2.HelmReleaseSpec)
 		// status to configure on the HelmRelease before rollback.
-		status func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus
+		status func(releases []*helmrelease.Release) v2.HelmReleaseStatus
 		// wantErr is the error that is expected to be returned.
 		wantErr error
 		// expectedConditions are the conditions that are expected to be set on
@@ -57,10 +57,10 @@ func TestRollback_Reconcile(t *testing.T) {
 		expectConditions []metav1.Condition
 		// expectCurrent is the expected Current release information on the
 		// HelmRelease after rolling back.
-		expectCurrent func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo
+		expectCurrent func(releases []*helmrelease.Release) *v2.HelmReleaseInfo
 		// expectPrevious returns the expected Previous release information of
 		// the HelmRelease after rolling back.
-		expectPrevious func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo
+		expectPrevious func(releases []*helmrelease.Release) *v2.HelmReleaseInfo
 		// expectFailures is the expected Failures count on the HelmRelease.
 		expectFailures int64
 		// expectInstallFailures is the expected InstallFailures count on the
@@ -90,20 +90,20 @@ func TestRollback_Reconcile(t *testing.T) {
 					}),
 				}
 			},
-			status: func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus {
-				return helmv2.HelmReleaseStatus{
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
 					Current:  release.ObservedToInfo(release.ObserveRelease(releases[1])),
 					Previous: release.ObservedToInfo(release.ObserveRelease(releases[0])),
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.TrueCondition(helmv2.RemediatedCondition, helmv2.RollbackSucceededReason,
+				*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason,
 					"Rolled back to version 1"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[2]))
 			},
-			expectPrevious: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectPrevious: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
 			},
 		},
@@ -127,13 +127,13 @@ func TestRollback_Reconcile(t *testing.T) {
 					}),
 				}
 			},
-			status: func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus {
-				return helmv2.HelmReleaseStatus{
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
 					Current: release.ObservedToInfo(release.ObserveRelease(releases[1])),
 				}
 			},
 			wantErr: ErrNoPrevious,
-			expectCurrent: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[1]))
 			},
 		},
@@ -157,20 +157,20 @@ func TestRollback_Reconcile(t *testing.T) {
 					}),
 				}
 			},
-			status: func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus {
-				return helmv2.HelmReleaseStatus{
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
 					Current:  release.ObservedToInfo(release.ObserveRelease(releases[1])),
 					Previous: release.ObservedToInfo(release.ObserveRelease(releases[0])),
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.FalseCondition(helmv2.RemediatedCondition, helmv2.RollbackFailedReason,
+				*conditions.FalseCondition(v2.RemediatedCondition, v2.RollbackFailedReason,
 					"timed out waiting for the condition"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[2]))
 			},
-			expectPrevious: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectPrevious: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
 			},
 			expectFailures: 1,
@@ -193,8 +193,8 @@ func TestRollback_Reconcile(t *testing.T) {
 				helmreleaseutil.SortByRevision(releases)
 			}
 
-			obj := &helmv2.HelmRelease{
-				Spec: helmv2.HelmReleaseSpec{
+			obj := &v2.HelmRelease{
+				Spec: v2.HelmReleaseSpec{
 					ReleaseName:      mockReleaseName,
 					TargetNamespace:  releaseNamespace,
 					StorageNamespace: releaseNamespace,
@@ -260,7 +260,7 @@ func Test_observeRollback(t *testing.T) {
 	t.Run("rollback", func(t *testing.T) {
 		g := NewWithT(t)
 
-		obj := &helmv2.HelmRelease{}
+		obj := &v2.HelmRelease{}
 		rls := helmrelease.Mock(&helmrelease.MockReleaseOptions{
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
@@ -277,14 +277,14 @@ func Test_observeRollback(t *testing.T) {
 	t.Run("rollback with current", func(t *testing.T) {
 		g := NewWithT(t)
 
-		current := &helmv2.HelmReleaseInfo{
+		current := &v2.HelmReleaseInfo{
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   2,
 			Status:    helmrelease.StatusFailed.String(),
 		}
-		obj := &helmv2.HelmRelease{
-			Status: helmv2.HelmReleaseStatus{
+		obj := &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
 				Current: current,
 			},
 		}
@@ -305,14 +305,14 @@ func Test_observeRollback(t *testing.T) {
 	t.Run("rollback with current with higher version", func(t *testing.T) {
 		g := NewWithT(t)
 
-		current := &helmv2.HelmReleaseInfo{
+		current := &v2.HelmReleaseInfo{
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   2,
 			Status:    helmrelease.StatusPendingRollback.String(),
 		}
-		obj := &helmv2.HelmRelease{
-			Status: helmv2.HelmReleaseStatus{
+		obj := &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
 				Current: current,
 			},
 		}
@@ -331,14 +331,14 @@ func Test_observeRollback(t *testing.T) {
 	t.Run("rollback with current with different name", func(t *testing.T) {
 		g := NewWithT(t)
 
-		current := &helmv2.HelmReleaseInfo{
+		current := &v2.HelmReleaseInfo{
 			Name:      mockReleaseName + "-other",
 			Namespace: mockReleaseNamespace,
 			Version:   2,
 			Status:    helmrelease.StatusFailed.String(),
 		}
-		obj := &helmv2.HelmRelease{
-			Status: helmv2.HelmReleaseStatus{
+		obj := &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
 				Current: current,
 			},
 		}

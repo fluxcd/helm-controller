@@ -34,7 +34,7 @@ import (
 
 	"github.com/fluxcd/pkg/runtime/conditions"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
@@ -54,9 +54,9 @@ func TestInstall_Reconcile(t *testing.T) {
 		// values to use during install.
 		values chartutil.Values
 		// spec modifies the HelmRelease object spec before install.
-		spec func(spec *helmv2.HelmReleaseSpec)
+		spec func(spec *v2.HelmReleaseSpec)
 		// status to configure on the HelmRelease object before install.
-		status func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus
+		status func(releases []*helmrelease.Release) v2.HelmReleaseStatus
 		// wantErr is the error that is expected to be returned.
 		wantErr error
 		// expectedConditions are the conditions that are expected to be set on
@@ -64,10 +64,10 @@ func TestInstall_Reconcile(t *testing.T) {
 		expectConditions []metav1.Condition
 		// expectCurrent is the expected Current release information in the
 		// HelmRelease after install.
-		expectCurrent func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo
+		expectCurrent func(releases []*helmrelease.Release) *v2.HelmReleaseInfo
 		// expectPrevious returns the expected Previous release information of
 		// the HelmRelease after install.
-		expectPrevious func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo
+		expectPrevious func(releases []*helmrelease.Release) *v2.HelmReleaseInfo
 		// expectFailures is the expected Failures count of the HelmRelease.
 		expectFailures int64
 		// expectInstallFailures is the expected InstallFailures count of the
@@ -81,10 +81,10 @@ func TestInstall_Reconcile(t *testing.T) {
 			name:  "install success",
 			chart: testutil.BuildChart(),
 			expectConditions: []metav1.Condition{
-				*conditions.TrueCondition(helmv2.ReleasedCondition, helmv2.InstallSucceededReason,
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason,
 					"Install complete"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
 			},
 		},
@@ -92,10 +92,10 @@ func TestInstall_Reconcile(t *testing.T) {
 			name:  "install failure",
 			chart: testutil.BuildChart(testutil.ChartWithFailingHook()),
 			expectConditions: []metav1.Condition{
-				*conditions.FalseCondition(helmv2.ReleasedCondition, helmv2.InstallFailedReason,
+				*conditions.FalseCondition(v2.ReleasedCondition, v2.InstallFailedReason,
 					"failed post-install"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
 			},
 			expectFailures:        1,
@@ -112,7 +112,7 @@ func TestInstall_Reconcile(t *testing.T) {
 			chart:   testutil.BuildChart(),
 			wantErr: fmt.Errorf("storage create error"),
 			expectConditions: []metav1.Condition{
-				*conditions.FalseCondition(helmv2.ReleasedCondition, helmv2.InstallFailedReason,
+				*conditions.FalseCondition(v2.ReleasedCondition, v2.InstallFailedReason,
 					"storage create error"),
 			},
 			expectFailures:        1,
@@ -131,32 +131,32 @@ func TestInstall_Reconcile(t *testing.T) {
 					}),
 				}
 			},
-			spec: func(spec *helmv2.HelmReleaseSpec) {
-				spec.Install = &helmv2.Install{
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Install = &v2.Install{
 					Replace: true,
 				}
 			},
-			status: func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus {
-				return helmv2.HelmReleaseStatus{
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
 					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
 				}
 			},
 			chart: testutil.BuildChart(),
 			expectConditions: []metav1.Condition{
-				*conditions.TrueCondition(helmv2.ReleasedCondition, helmv2.InstallSucceededReason,
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason,
 					"Install complete"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[1]))
 			},
-			expectPrevious: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectPrevious: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
 			},
 		},
 		{
 			name: "install with stale current",
-			status: func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus {
-				return helmv2.HelmReleaseStatus{
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
 					Current: release.ObservedToInfo(release.ObserveRelease(testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: "other",
@@ -168,10 +168,10 @@ func TestInstall_Reconcile(t *testing.T) {
 			},
 			chart: testutil.BuildChart(),
 			expectConditions: []metav1.Condition{
-				*conditions.TrueCondition(helmv2.ReleasedCondition, helmv2.InstallSucceededReason,
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason,
 					"Install complete"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
 			},
 		},
@@ -193,8 +193,8 @@ func TestInstall_Reconcile(t *testing.T) {
 				releaseutil.SortByRevision(releases)
 			}
 
-			obj := &helmv2.HelmRelease{
-				Spec: helmv2.HelmReleaseSpec{
+			obj := &v2.HelmRelease{
+				Spec: v2.HelmReleaseSpec{
 					ReleaseName:      mockReleaseName,
 					TargetNamespace:  releaseNamespace,
 					StorageNamespace: releaseNamespace,

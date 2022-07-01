@@ -24,7 +24,7 @@ import (
 
 	"github.com/fluxcd/pkg/runtime/conditions"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
 )
 
@@ -44,7 +44,7 @@ func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 	if err != nil {
 		// Mark failure on object.
 		req.Object.Status.Failures++
-		conditions.MarkFalse(req.Object, helmv2.ReleasedCondition, helmv2.InstallFailedReason, err.Error())
+		conditions.MarkFalse(req.Object, v2.ReleasedCondition, v2.InstallFailedReason, err.Error())
 
 		// Return error if we did not store a release, as this does not
 		// require remediation and the caller should e.g. retry.
@@ -64,8 +64,8 @@ func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 
 	// Mark release success and delete any test success, as the current release
 	// isn't tested (yet).
-	conditions.MarkTrue(req.Object, helmv2.ReleasedCondition, helmv2.InstallSucceededReason, rls.Info.Description)
-	conditions.Delete(req.Object, helmv2.TestSuccessCondition)
+	conditions.MarkTrue(req.Object, v2.ReleasedCondition, v2.InstallSucceededReason, rls.Info.Description)
+	conditions.Delete(req.Object, v2.TestSuccessCondition)
 	return nil
 }
 

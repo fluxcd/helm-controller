@@ -30,3 +30,15 @@ func DigestValues(algo digest.Algorithm, values chartutil.Values) digest.Digest 
 	}
 	return digester.Digest()
 }
+
+// VerifyValues verifies the digest of the values against the provided digest.
+func VerifyValues(digest digest.Digest, values chartutil.Values) bool {
+	if digest.Validate() != nil {
+		return false
+	}
+	verifier := digest.Verifier()
+	if err := values.Encode(verifier); err != nil {
+		return false
+	}
+	return verifier.Verified()
+}

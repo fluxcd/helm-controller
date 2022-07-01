@@ -34,7 +34,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 )
 
 var (
@@ -43,7 +43,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	utilruntime.Must(helmv2.AddToScheme(scheme.Scheme))
+	utilruntime.Must(v2.AddToScheme(scheme.Scheme))
 
 	testEnv = testenv.New()
 

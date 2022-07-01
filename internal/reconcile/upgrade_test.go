@@ -33,7 +33,7 @@ import (
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
@@ -58,9 +58,9 @@ func Test_upgrade(t *testing.T) {
 		// values to use during upgrade.
 		values helmchartutil.Values
 		// spec modifies the HelmRelease object spec before upgrade.
-		spec func(spec *helmv2.HelmReleaseSpec)
+		spec func(spec *v2.HelmReleaseSpec)
 		// status to configure on the HelmRelease Object before upgrade.
-		status func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus
+		status func(releases []*helmrelease.Release) v2.HelmReleaseStatus
 		// wantErr is the error that is expected to be returned.
 		wantErr error
 		// expectedConditions are the conditions that are expected to be set on
@@ -68,10 +68,10 @@ func Test_upgrade(t *testing.T) {
 		expectConditions []metav1.Condition
 		// expectCurrent is the expected Current release information in the
 		// HelmRelease after upgrade.
-		expectCurrent func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo
+		expectCurrent func(releases []*helmrelease.Release) *v2.HelmReleaseInfo
 		// expectPrevious returns the expected Previous release information of
 		// the HelmRelease after upgrade.
-		expectPrevious func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo
+		expectPrevious func(releases []*helmrelease.Release) *v2.HelmReleaseInfo
 		// expectFailures is the expected Failures count of the HelmRelease.
 		expectFailures int64
 		// expectInstallFailures is the expected InstallFailures count of the
@@ -95,19 +95,19 @@ func Test_upgrade(t *testing.T) {
 				}
 			},
 			chart: testutil.BuildChart(),
-			status: func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus {
-				return helmv2.HelmReleaseStatus{
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
 					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.TrueCondition(helmv2.ReleasedCondition, helmv2.UpgradeSucceededReason,
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason,
 					"Upgrade complete"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[1]))
 			},
-			expectPrevious: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectPrevious: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
 			},
 		},
@@ -125,19 +125,19 @@ func Test_upgrade(t *testing.T) {
 				}
 			},
 			chart: testutil.BuildChart(testutil.ChartWithFailingHook()),
-			status: func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus {
-				return helmv2.HelmReleaseStatus{
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
 					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.FalseCondition(helmv2.ReleasedCondition, helmv2.UpgradeFailedReason,
+				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason,
 					"post-upgrade hooks failed: 1 error occurred:\n\t* timed out waiting for the condition\n\n"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[1]))
 			},
-			expectPrevious: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectPrevious: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
 			},
 			expectFailures:        1,
@@ -163,16 +163,16 @@ func Test_upgrade(t *testing.T) {
 				}
 			},
 			chart: testutil.BuildChart(),
-			status: func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus {
-				return helmv2.HelmReleaseStatus{
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
 					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.FalseCondition(helmv2.ReleasedCondition, helmv2.UpgradeFailedReason,
+				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason,
 					mockCreateErr.Error()),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
 			},
 			expectFailures:        1,
@@ -198,19 +198,19 @@ func Test_upgrade(t *testing.T) {
 				}
 			},
 			chart: testutil.BuildChart(),
-			status: func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus {
-				return helmv2.HelmReleaseStatus{
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
 					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.FalseCondition(helmv2.ReleasedCondition, helmv2.UpgradeFailedReason,
+				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason,
 					mockUpdateErr.Error()),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[1]))
 			},
-			expectPrevious: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectPrevious: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
 			},
 			expectFailures:        1,
@@ -230,16 +230,16 @@ func Test_upgrade(t *testing.T) {
 				}
 			},
 			chart: testutil.BuildChart(),
-			status: func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus {
-				return helmv2.HelmReleaseStatus{
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
 					Current: nil,
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.TrueCondition(helmv2.ReleasedCondition, helmv2.UpgradeSucceededReason,
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason,
 					"Upgrade complete"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[1]))
 			},
 		},
@@ -264,9 +264,9 @@ func Test_upgrade(t *testing.T) {
 				}
 			},
 			chart: testutil.BuildChart(),
-			status: func(releases []*helmrelease.Release) helmv2.HelmReleaseStatus {
-				return helmv2.HelmReleaseStatus{
-					Current: &helmv2.HelmReleaseInfo{
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					Current: &v2.HelmReleaseInfo{
 						Name:      mockReleaseName,
 						Namespace: releases[0].Namespace,
 						Version:   1,
@@ -275,14 +275,14 @@ func Test_upgrade(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.TrueCondition(helmv2.ReleasedCondition, helmv2.UpgradeSucceededReason,
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason,
 					"Upgrade complete"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[2]))
 			},
-			expectPrevious: func(releases []*helmrelease.Release) *helmv2.HelmReleaseInfo {
-				return &helmv2.HelmReleaseInfo{
+			expectPrevious: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
+				return &v2.HelmReleaseInfo{
 					Name:      mockReleaseName,
 					Namespace: releases[0].Namespace,
 					Version:   1,
@@ -308,8 +308,8 @@ func Test_upgrade(t *testing.T) {
 				helmreleaseutil.SortByRevision(releases)
 			}
 
-			obj := &helmv2.HelmRelease{
-				Spec: helmv2.HelmReleaseSpec{
+			obj := &v2.HelmRelease{
+				Spec: v2.HelmReleaseSpec{
 					ReleaseName:      mockReleaseName,
 					TargetNamespace:  releaseNamespace,
 					StorageNamespace: releaseNamespace,
