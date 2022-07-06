@@ -28,6 +28,11 @@ import (
 	"github.com/fluxcd/helm-controller/internal/postrender"
 )
 
+// UpgradeOption can be used to modify Helm's action.Upgrade after the instructions
+// from the v2beta2.HelmRelease have been applied. This is for example useful to
+// enable the dry-run setting as a CLI.
+type UpgradeOption func(upgrade *helmaction.Upgrade)
+
 // Upgrade runs the Helm upgrade action with the provided config, using the
 // v2beta2.HelmReleaseSpec of the given object to determine the target release
 // and upgrade configuration.
@@ -40,11 +45,8 @@ import (
 // action result. The caller is expected to listen on this using a
 // storage.ObserveFunc, which provides superior access to Helm storage writes.
 func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *helmv2.HelmRelease, chrt *helmchart.Chart,
-	vals helmchartutil.Values) (*helmrelease.Release, error) {
-	upgrade, err := newUpgrade(config, obj)
-	if err != nil {
-		return nil, err
-	}
+	vals helmchartutil.Values, opts ...UpgradeOption) (*helmrelease.Release, error) {
+	upgrade := newUpgrade(config, obj, opts)
 
 	if err := upgradeCRDs(config, obj, chrt); err != nil {
 		return nil, err
@@ -53,28 +55,28 @@ func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *helmv2.
 	return upgrade.RunWithContext(ctx, obj.GetReleaseName(), chrt, vals.AsMap())
 }
 
-func newUpgrade(config *helmaction.Configuration, rel *helmv2.HelmRelease) (*helmaction.Upgrade, error) {
+func newUpgrade(config *helmaction.Configuration, obj *helmv2.HelmRelease, opts []UpgradeOption) *helmaction.Upgrade {
 	upgrade := helmaction.NewUpgrade(config)
 
-	upgrade.Namespace = rel.GetReleaseNamespace()
-	upgrade.ResetValues = !rel.Spec.GetUpgrade().PreserveValues
-	upgrade.ReuseValues = rel.Spec.GetUpgrade().PreserveValues
-	upgrade.MaxHistory = rel.GetMaxHistory()
-	upgrade.Timeout = rel.Spec.GetUpgrade().GetTimeout(rel.GetTimeout()).Duration
-	upgrade.Wait = !rel.Spec.GetUpgrade().DisableWait
-	upgrade.WaitForJobs = !rel.Spec.GetUpgrade().DisableWaitForJobs
-	upgrade.DisableHooks = rel.Spec.GetUpgrade().DisableHooks
-	upgrade.Force = rel.Spec.GetUpgrade().Force
-	upgrade.CleanupOnFail = rel.Spec.GetUpgrade().CleanupOnFail
+	upgrade.Namespace = obj.GetReleaseNamespace()
+	upgrade.ResetValues = !obj.Spec.GetUpgrade().PreserveValues
+	upgrade.ReuseValues = obj.Spec.GetUpgrade().PreserveValues
+	upgrade.MaxHistory = obj.GetMaxHistory()
+	upgrade.Timeout = obj.Spec.GetUpgrade().GetTimeout(obj.GetTimeout()).Duration
+	upgrade.Wait = !obj.Spec.GetUpgrade().DisableWait
+	upgrade.WaitForJobs = !obj.Spec.GetUpgrade().DisableWaitForJobs
+	upgrade.DisableHooks = obj.Spec.GetUpgrade().DisableHooks
+	upgrade.Force = obj.Spec.GetUpgrade().Force
+	upgrade.CleanupOnFail = obj.Spec.GetUpgrade().CleanupOnFail
 	upgrade.Devel = true
 
-	renderer, err := postrender.BuildPostRenderers(rel)
-	if err != nil {
-		return nil, err
-	}
-	upgrade.PostRenderer = renderer
+	upgrade.PostRenderer = postrender.BuildPostRenderers(obj)
 
-	return upgrade, err
+	for _, opt := range opts {
+		opt(upgrade)
+	}
+
+	return upgrade
 }
 
 func upgradeCRDs(config *helmaction.Configuration, obj *helmv2.HelmRelease, chrt *helmchart.Chart) error {

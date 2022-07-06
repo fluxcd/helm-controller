@@ -28,6 +28,11 @@ import (
 	"github.com/fluxcd/helm-controller/internal/postrender"
 )
 
+// InstallOption can be used to modify Helm's action.Install after the instructions
+// from the v2beta2.HelmRelease have been applied. This is for example useful to
+// enable the dry-run setting as a CLI.
+type InstallOption func(action *helmaction.Install)
+
 // Install runs the Helm install action with the provided config, using the
 // v2beta2.HelmReleaseSpec of the given object to determine the target release
 // and rollback configuration.
@@ -40,12 +45,8 @@ import (
 // action result. The caller is expected to listen on this using a
 // storage.ObserveFunc, which provides superior access to Helm storage writes.
 func Install(ctx context.Context, config *helmaction.Configuration, obj *helmv2.HelmRelease,
-	chrt *helmchart.Chart, vals helmchartutil.Values) (*helmrelease.Release, error) {
-
-	install, err := newInstall(config, obj)
-	if err != nil {
-		return nil, err
-	}
+	chrt *helmchart.Chart, vals helmchartutil.Values, opts ...InstallOption) (*helmrelease.Release, error) {
+	install := newInstall(config, obj, opts)
 
 	if err := installCRDs(config, obj, chrt, install); err != nil {
 		return nil, err
@@ -54,7 +55,7 @@ func Install(ctx context.Context, config *helmaction.Configuration, obj *helmv2.
 	return install.RunWithContext(ctx, chrt, vals.AsMap())
 }
 
-func newInstall(config *helmaction.Configuration, obj *helmv2.HelmRelease) (*helmaction.Install, error) {
+func newInstall(config *helmaction.Configuration, obj *helmv2.HelmRelease, opts []InstallOption) *helmaction.Install {
 	install := helmaction.NewInstall(config)
 
 	install.ReleaseName = obj.GetReleaseName()
@@ -71,13 +72,13 @@ func newInstall(config *helmaction.Configuration, obj *helmv2.HelmRelease) (*hel
 		install.CreateNamespace = obj.Spec.GetInstall().CreateNamespace
 	}
 
-	renderer, err := postrender.BuildPostRenderers(obj)
-	if err != nil {
-		return nil, err
-	}
-	install.PostRenderer = renderer
+	install.PostRenderer = postrender.BuildPostRenderers(obj)
 
-	return install, nil
+	for _, opt := range opts {
+		opt(install)
+	}
+
+	return install
 }
 
 func installCRDs(config *helmaction.Configuration, obj *helmv2.HelmRelease, chrt *helmchart.Chart, install *helmaction.Install) error {
