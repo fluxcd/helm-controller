@@ -24,9 +24,9 @@ import (
 
 // BuildPostRenderers creates the post-renderer instances from a HelmRelease
 // and combines them into a single Combined post renderer.
-func BuildPostRenderers(rel *v2.HelmRelease) (helmpostrender.PostRenderer, error) {
+func BuildPostRenderers(rel *v2.HelmRelease) helmpostrender.PostRenderer {
 	if rel == nil {
-		return nil, nil
+		return nil
 	}
 	renderers := make([]helmpostrender.PostRenderer, 0)
 	for _, r := range rel.Spec.PostRenderers {
@@ -41,7 +41,7 @@ func BuildPostRenderers(rel *v2.HelmRelease) (helmpostrender.PostRenderer, error
 	}
 	renderers = append(renderers, NewOriginLabels(v2.GroupVersion.Group, rel.Namespace, rel.Name))
 	if len(renderers) == 0 {
-		return nil, nil
+		return nil
 	}
-	return NewCombined(renderers...), nil
+	return NewCombined(renderers...)
 }

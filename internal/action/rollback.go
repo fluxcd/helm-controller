@@ -22,6 +22,11 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 )
 
+// RollbackOption can be used to modify Helm's action.Rollback after the
+// instructions from the v2beta2.HelmRelease have been applied. This is for
+// example useful to enable the dry-run setting as a CLI.
+type RollbackOption func(*helmaction.Rollback)
+
 // Rollback runs the Helm rollback action with the provided config, using the
 // v2beta2.HelmReleaseSpec of the given object to determine the target release
 // and rollback configuration.
@@ -30,24 +35,28 @@ import (
 // expected to be done by the caller. In addition, it does not take note of the
 // action result. The caller is expected to listen to this using a
 // storage.ObserveFunc, which provides superior access to Helm storage writes.
-func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease) error {
-	rollback := newRollback(config, obj)
+func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease, opts ...RollbackOption) error {
+	rollback := newRollback(config, obj, opts)
 	return rollback.Run(obj.GetReleaseName())
 }
 
-func newRollback(config *helmaction.Configuration, rel *v2.HelmRelease) *helmaction.Rollback {
+func newRollback(config *helmaction.Configuration, obj *v2.HelmRelease, opts []RollbackOption) *helmaction.Rollback {
 	rollback := helmaction.NewRollback(config)
 
-	rollback.Timeout = rel.Spec.GetRollback().GetTimeout(rel.GetTimeout()).Duration
-	rollback.Wait = !rel.Spec.GetRollback().DisableWait
-	rollback.WaitForJobs = !rel.Spec.GetRollback().DisableWaitForJobs
-	rollback.DisableHooks = rel.Spec.GetRollback().DisableHooks
-	rollback.Force = rel.Spec.GetRollback().Force
-	rollback.Recreate = rel.Spec.GetRollback().Recreate
-	rollback.CleanupOnFail = rel.Spec.GetRollback().CleanupOnFail
+	rollback.Timeout = obj.Spec.GetRollback().GetTimeout(obj.GetTimeout()).Duration
+	rollback.Wait = !obj.Spec.GetRollback().DisableWait
+	rollback.WaitForJobs = !obj.Spec.GetRollback().DisableWaitForJobs
+	rollback.DisableHooks = obj.Spec.GetRollback().DisableHooks
+	rollback.Force = obj.Spec.GetRollback().Force
+	rollback.Recreate = obj.Spec.GetRollback().Recreate
+	rollback.CleanupOnFail = obj.Spec.GetRollback().CleanupOnFail
 
-	if prev := rel.Status.Previous; prev != nil && prev.Name == rel.GetReleaseName() && prev.Namespace == rel.GetReleaseNamespace() {
+	if prev := obj.Status.Previous; prev != nil && prev.Name == obj.GetReleaseName() && prev.Namespace == obj.GetReleaseNamespace() {
 		rollback.Version = prev.Version
+	}
+
+	for _, opt := range opts {
+		opt(rollback)
 	}
 
 	return rollback
