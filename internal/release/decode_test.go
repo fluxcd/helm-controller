@@ -1,5 +1,5 @@
 /*
-Copyright The Helm Authors.
+Copyright 2022 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package storage
+package release
 
 import (
 	"bytes"
@@ -26,16 +26,18 @@ import (
 	rspb "helm.sh/helm/v3/pkg/release"
 )
 
-// Copied over from the Helm project to be able to decrypt encoded releases
-// as testdata.
-
-var b64 = base64.StdEncoding
-
-var magicGzip = []byte{0x1f, 0x8b, 0x08}
+var (
+	b64       = base64.StdEncoding
+	magicGzip = []byte{0x1f, 0x8b, 0x08}
+)
 
 // decodeRelease decodes the bytes of data into a release
 // type. Data must contain a base64 encoded gzipped string of a
 // valid release, otherwise an error is returned.
+//
+// It is copied over from the Helm project to be able to deal
+// with encoded releases.
+// Ref: https://github.com/helm/helm/blob/v3.9.0/pkg/storage/driver/util.go#L56
 func decodeRelease(data string) (*rspb.Release, error) {
 	// base64 decode string
 	b, err := b64.DecodeString(data)

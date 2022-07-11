@@ -13,3 +13,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+package testutil
+
+import (
+	"time"
+
+	helmtime "helm.sh/helm/v3/pkg/time"
+)
+
+func MustParseHelmTime(t string) helmtime.Time {
+	res, err := helmtime.Parse(time.RFC3339, t)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}

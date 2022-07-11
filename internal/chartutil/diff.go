@@ -13,3 +13,23 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+package chartutil
+
+import (
+	"github.com/google/go-cmp/cmp"
+	"helm.sh/helm/v3/pkg/chart"
+
+	intcmp "github.com/fluxcd/helm-controller/internal/cmp"
+)
+
+type reporter = intcmp.SimpleReporter
+
+// DiffMeta returns if the two chart.Metadata differ.
+func DiffMeta(x, y chart.Metadata) (diff string, eq bool) {
+	r := new(reporter)
+	if diff := cmp.Diff(x, y, cmp.Reporter(r)); diff != "" {
+		return r.String(), false
+	}
+	return "", true
+}
