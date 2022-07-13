@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.22.2
+
+**Release date:** 2022-07-13
+
+This prerelease updates dependencies to patch upstream CVEs.
+
+Improvements:
+- Fix github.com/emicklei/go-restful (CVE-2022-1996)
+  [#507](https://github.com/fluxcd/helm-controller/pull/507)
+- Update dependencies
+  [#501](https://github.com/fluxcd/helm-controller/pull/501)
+- Update gopkg.in/yaml.v3 to v3.0.1
+  [#502](https://github.com/fluxcd/helm-controller/pull/502)
+- build: Upgrade to Go 1.18
+  [#505](https://github.com/fluxcd/helm-controller/pull/505)
+
 ## 0.22.1
 
 **Release date:** 2022-06-07
