@@ -1,5 +1,7 @@
 /*
 Copyright 2020 The Flux authors
+Copyright 2022, DataRobot, Inc. Modified the original to include Helm chart
+annotations as event metadata.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -225,20 +227,20 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 	if reconcileErr != nil {
 		if acl.IsAccessDenied(reconcileErr) {
 			log.Error(reconcileErr, "access denied to cross-namespace source")
-			r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, reconcileErr.Error())
+			r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, reconcileErr.Error(), nil)
 			return v2.HelmReleaseNotReady(hr, apiacl.AccessDeniedReason, reconcileErr.Error()),
 				ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
 		}
 
 		msg := fmt.Sprintf("chart reconciliation failed: %s", reconcileErr.Error())
-		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, msg)
+		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, msg, nil)
 		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{Requeue: true}, reconcileErr
 	}
 
 	// Check chart readiness
 	if hc.Generation != hc.Status.ObservedGeneration || !apimeta.IsStatusConditionTrue(hc.Status.Conditions, meta.ReadyCondition) {
 		msg := fmt.Sprintf("HelmChart '%s/%s' is not ready", hc.GetNamespace(), hc.GetName())
-		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityInfo, msg)
+		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityInfo, msg, nil)
 		log.Info(msg)
 		// Do not requeue immediately, when the artifact is created
 		// the watcher should trigger a reconciliation.
@@ -250,7 +252,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 		if err := r.checkDependencies(hr); err != nil {
 			msg := fmt.Sprintf("dependencies do not meet ready condition (%s), retrying in %s",
 				err.Error(), r.requeueDependency.String())
-			r.event(ctx, hr, hc.GetArtifact().Revision, events.EventSeverityInfo, msg)
+			r.event(ctx, hr, hc.GetArtifact().Revision, events.EventSeverityInfo, msg, nil)
 			log.Info(msg)
 
 			// Exponential backoff would cause execution to be prolonged too much,
@@ -264,14 +266,14 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 	// Compose values
 	values, err := r.composeValues(ctx, hr)
 	if err != nil {
-		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, err.Error())
+		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, err.Error(), nil)
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error()), ctrl.Result{Requeue: true}, nil
 	}
 
 	// Load chart from artifact
 	chart, err := r.loadHelmChart(hc)
 	if err != nil {
-		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, err.Error())
+		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, err.Error(), nil)
 		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, err.Error()), ctrl.Result{Requeue: true}, nil
 	}
 
@@ -279,7 +281,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 	reconciledHr, reconcileErr := r.reconcileRelease(ctx, *hr.DeepCopy(), chart, values)
 	if reconcileErr != nil {
 		r.event(ctx, hr, hc.GetArtifact().Revision, events.EventSeverityError,
-			fmt.Sprintf("reconciliation failed: %s", reconcileErr.Error()))
+			fmt.Sprintf("reconciliation failed: %s", reconcileErr.Error()), nil)
 	}
 	return reconciledHr, ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, reconcileErr
 }
@@ -359,18 +361,19 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 
 	// Deploy the release.
 	var deployAction v2.DeploymentAction
+
 	if rel == nil {
-		r.event(ctx, hr, revision, events.EventSeverityInfo, "Helm install has started")
+		r.event(ctx, hr, revision, events.EventSeverityInfo, "Helm install has started", chart.Metadata)
 		deployAction = hr.Spec.GetInstall()
 		rel, err = run.Install(hr, chart, values)
 		err = r.handleHelmActionResult(ctx, &hr, revision, err, deployAction.GetDescription(),
-			v2.ReleasedCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
+			v2.ReleasedCondition, v2.InstallSucceededReason, v2.InstallFailedReason, chart.Metadata)
 	} else {
-		r.event(ctx, hr, revision, events.EventSeverityInfo, "Helm upgrade has started")
+		r.event(ctx, hr, revision, events.EventSeverityInfo, "Helm upgrade has started", chart.Metadata)
 		deployAction = hr.Spec.GetUpgrade()
 		rel, err = run.Upgrade(hr, chart, values)
 		err = r.handleHelmActionResult(ctx, &hr, revision, err, deployAction.GetDescription(),
-			v2.ReleasedCondition, v2.UpgradeSucceededReason, v2.UpgradeFailedReason)
+			v2.ReleasedCondition, v2.UpgradeSucceededReason, v2.UpgradeFailedReason, chart.Metadata)
 	}
 	remediation := deployAction.GetRemediation()
 
@@ -383,7 +386,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		if err == nil && hr.Spec.GetTest().Enable {
 			_, testErr := run.Test(hr)
 			testErr = r.handleHelmActionResult(ctx, &hr, revision, testErr, "test",
-				v2.TestSuccessCondition, v2.TestSucceededReason, v2.TestFailedReason)
+				v2.TestSuccessCondition, v2.TestSucceededReason, v2.TestFailedReason, chart.Metadata)
 
 			// Propagate any test error if not marked ignored.
 			if testErr != nil && !remediation.MustIgnoreTestFailures(hr.Spec.GetTest().IgnoreFailures) {
@@ -413,11 +416,11 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 				case v2.RollbackRemediationStrategy:
 					rollbackErr := run.Rollback(hr)
 					remediationErr = r.handleHelmActionResult(ctx, &hr, revision, rollbackErr, "rollback",
-						v2.RemediatedCondition, v2.RollbackSucceededReason, v2.RollbackFailedReason)
+						v2.RemediatedCondition, v2.RollbackSucceededReason, v2.RollbackFailedReason, chart.Metadata)
 				case v2.UninstallRemediationStrategy:
 					uninstallErr := run.Uninstall(hr)
 					remediationErr = r.handleHelmActionResult(ctx, &hr, revision, uninstallErr, "uninstall",
-						v2.RemediatedCondition, v2.UninstallSucceededReason, v2.UninstallFailedReason)
+						v2.RemediatedCondition, v2.UninstallSucceededReason, v2.UninstallFailedReason, chart.Metadata)
 				}
 				if remediationErr != nil {
 					err = remediationErr
@@ -651,7 +654,7 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmR
 }
 
 func (r *HelmReleaseReconciler) handleHelmActionResult(ctx context.Context,
-	hr *v2.HelmRelease, revision string, err error, action string, condition string, succeededReason string, failedReason string) error {
+	hr *v2.HelmRelease, revision string, err error, action string, condition string, succeededReason string, failedReason string, metadata *chart.Metadata) error {
 	if err != nil {
 		err = fmt.Errorf("Helm %s failed: %w", action, err)
 		msg := err.Error()
@@ -665,7 +668,7 @@ func (r *HelmReleaseReconciler) handleHelmActionResult(ctx context.Context,
 			Message: msg,
 		}
 		apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
-		r.event(ctx, *hr, revision, events.EventSeverityError, msg)
+		r.event(ctx, *hr, revision, events.EventSeverityError, msg, metadata)
 		return &ConditionError{Reason: failedReason, Err: err}
 	} else {
 		msg := fmt.Sprintf("Helm %s succeeded", action)
@@ -676,7 +679,7 @@ func (r *HelmReleaseReconciler) handleHelmActionResult(ctx context.Context,
 			Message: msg,
 		}
 		apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
-		r.event(ctx, *hr, revision, events.EventSeverityInfo, msg)
+		r.event(ctx, *hr, revision, events.EventSeverityInfo, msg, metadata)
 		return nil
 	}
 }
@@ -721,10 +724,18 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(o client.Object) []re
 }
 
 // event emits a Kubernetes event and forwards the event to notification controller if configured.
-func (r *HelmReleaseReconciler) event(_ context.Context, hr v2.HelmRelease, revision, severity, msg string) {
-	var meta map[string]string
+// If the chart contains an annotations section, it will be included in the event as part of the
+// metadata.
+func (r *HelmReleaseReconciler) event(_ context.Context, hr v2.HelmRelease, revision, severity, msg string, metadata *chart.Metadata) {
+	meta := make(map[string]string)
 	if revision != "" {
-		meta = map[string]string{v2.GroupVersion.Group + "/revision": revision}
+		meta[v2.GroupVersion.Group+"/revision"] = revision
+	}
+
+	if metadata != nil {
+		for key, value := range metadata.Annotations {
+			meta[v2.GroupVersion.Group+"/"+key] = value
+		}
 	}
 	eventtype := "Normal"
 	if severity == events.EventSeverityError {
