@@ -768,7 +768,7 @@ func (in Test) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 type Filter struct {
 	// Name is the name of the test.
 	Name string `json:"name"`
-	// Exclude is specifies wheter the named test should be excluded.
+	// Exclude is specifies whether the named test should be excluded.
 	// +optional
 	Exclude bool `json:"exclude,omitempty"`
 }
