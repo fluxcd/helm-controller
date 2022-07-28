@@ -604,24 +604,6 @@ spec:
                     description: Enable enables Helm test actions for this HelmRelease
                       after an Helm install or upgrade action has been performed.
                     type: boolean
-                  filters:
-                    description: Filters is a list of tests to run or exclude from
-                      running.
-                    items:
-                      description: Filters holds the configuration for individual
-                        Helm test filters.
-                      properties:
-                        exclude:
-                          description: Exclude is specifies wheter the named test
-                            should be excluded.
-                          type: boolean
-                        name:
-                          description: Name is the name of the test.
-                          type: string
-                      required:
-                      - name
-                      type: object
-                    type: array
                   ignoreFailures:
                     description: IgnoreFailures tells the controller to skip remediation
                       when the Helm tests are run but fail. Can be overwritten for
