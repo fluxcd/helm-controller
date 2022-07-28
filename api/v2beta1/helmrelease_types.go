@@ -747,6 +747,9 @@ type Test struct {
 	// actions in 'Install.IgnoreTestFailures' and 'Upgrade.IgnoreTestFailures'.
 	// +optional
 	IgnoreFailures bool `json:"ignoreFailures,omitempty"`
+
+	// Filters is a list of tests to run or exclude from running.
+	Filters *[]Filter `json:"filters,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm test action,
@@ -756,6 +759,24 @@ func (in Test) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 		return defaultTimeout
 	}
 	return *in.Timeout
+}
+
+// Filters holds the configuration for individual Helm test filters.
+type Filter struct {
+	// Name is the name of the test.
+	Name string `json:"name"`
+	// Exclude is specifies wheter the named test should be excluded.
+	// +optional
+	Exclude bool `json:"exclude,omitempty"`
+}
+
+// GetFilters returns the configured filters for the Helm test action/
+func (in Test) GetFilters() []Filter {
+	if in.Filters == nil {
+		var filters []Filter
+		return filters
+	}
+	return *in.Filters
 }
 
 // Rollback holds the configuration for Helm rollback actions for this

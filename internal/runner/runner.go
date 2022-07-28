@@ -381,6 +381,20 @@ func (r *Runner) Test(hr v2.HelmRelease) (*release.Release, error) {
 	test.Namespace = hr.GetReleaseNamespace()
 	test.Timeout = hr.Spec.GetTest().GetTimeout(hr.GetTimeout()).Duration
 
+	filters := make(map[string][]string)
+
+	for _, f := range hr.Spec.GetTest().GetFilters() {
+		name := "name"
+
+		if f.Exclude {
+			name = fmt.Sprintf("!%s", name)
+		}
+
+		filters[name] = append(filters[name], f.Name)
+	}
+
+	test.Filters = filters
+
 	rel, err := test.Run(hr.GetReleaseName())
 	return rel, wrapActionErr(r.logBuffer, err)
 }
