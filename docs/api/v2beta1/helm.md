@@ -458,46 +458,6 @@ string
 <h3 id="helm.toolkit.fluxcd.io/v2beta1.DeploymentAction">DeploymentAction
 </h3>
 <p>DeploymentAction defines a consistent interface for Install and Upgrade.</p>
-<h3 id="helm.toolkit.fluxcd.io/v2beta1.Filter">Filter
-</h3>
-<p>Filters holds the configuration for individual Helm test filters.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>name</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Name is the name of the test.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>exclude</code><br>
-<em>
-bool
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Exclude is specifies wheter the named test should be excluded.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
 <h3 id="helm.toolkit.fluxcd.io/v2beta1.HelmChartTemplate">HelmChartTemplate
 </h3>
 <p>
@@ -1906,19 +1866,6 @@ bool
 <p>IgnoreFailures tells the controller to skip remediation when the Helm tests
 are run but fail. Can be overwritten for tests run after install or upgrade
 actions in &lsquo;Install.IgnoreTestFailures&rsquo; and &lsquo;Upgrade.IgnoreTestFailures&rsquo;.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>filters</code><br>
-<em>
-<a href="#helm.toolkit.fluxcd.io/v2beta1.[]./api/v2beta1.Filter">
-[]./api/v2beta1.Filter
-</a>
-</em>
-</td>
-<td>
-<p>Filters is a list of tests to run or exclude from running.</p>
 </td>
 </tr>
 </tbody>

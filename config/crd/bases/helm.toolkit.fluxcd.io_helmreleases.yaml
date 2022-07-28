@@ -1516,7 +1516,7 @@ spec:
                         Helm test filters.
                       properties:
                         exclude:
-                          description: Exclude is specifies wheter the named test
+                          description: Exclude is specifies whether the named test
                             should be excluded.
                           type: boolean
                         name:

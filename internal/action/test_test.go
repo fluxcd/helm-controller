@@ -40,6 +40,15 @@ func Test_newTest(t *testing.T) {
 				Timeout: &metav1.Duration{Duration: time.Minute},
 				Test: &v2.Test{
 					Timeout: &metav1.Duration{Duration: 10 * time.Second},
+					Filters: &[]v2.Filter{
+						{
+							Name: "test",
+						},
+						{
+							Name:    "test2",
+							Exclude: true,
+						},
+					},
 				},
 			},
 		}
@@ -48,6 +57,9 @@ func Test_newTest(t *testing.T) {
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.Namespace).To(Equal(obj.Namespace))
 		g.Expect(got.Timeout).To(Equal(obj.Spec.Test.Timeout.Duration))
+		g.Expect(got.Filters).To(HaveLen(2))
+		g.Expect(got.Filters).To(HaveKeyWithValue(Equal("name"), ContainElement("test")))
+		g.Expect(got.Filters).To(HaveKeyWithValue(Equal("!name"), ContainElement("test2")))
 	})
 
 	t.Run("timeout fallback", func(t *testing.T) {
