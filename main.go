@@ -28,6 +28,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/fluxcd/pkg/runtime/acl"
@@ -40,10 +41,13 @@ import (
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	corev1 "k8s.io/api/core/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	"github.com/fluxcd/helm-controller/controllers"
+	"github.com/fluxcd/helm-controller/internal/features"
 	intkube "github.com/fluxcd/helm-controller/internal/kube"
+	feathelper "github.com/fluxcd/pkg/runtime/features"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -74,6 +78,7 @@ func main() {
 		httpRetry               int
 		clientOptions           client.Options
 		kubeConfigOpts          client.KubeConfigOptions
+		featureGates            feathelper.FeatureGates
 		logOptions              logger.Options
 		aclOptions              acl.Options
 		leaderElectionOptions   leaderelection.Options
@@ -96,9 +101,17 @@ func main() {
 	leaderElectionOptions.BindFlags(flag.CommandLine)
 	rateLimiterOptions.BindFlags(flag.CommandLine)
 	kubeConfigOpts.BindFlags(flag.CommandLine)
+	featureGates.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	ctrl.SetLogger(logger.NewLogger(logOptions))
+
+	err := featureGates.WithLogger(setupLog).
+		SupportedFeatures(features.FeatureGates())
+	if err != nil {
+		setupLog.Error(err, "unable to load feature gates")
+		os.Exit(1)
+	}
 
 	metricsRecorder := metrics.NewRecorder()
 	crtlmetrics.Registry.MustRegister(metricsRecorder.Collectors()...)
@@ -106,6 +119,16 @@ func main() {
 	watchNamespace := ""
 	if !watchAllNamespaces {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
+	}
+
+	disableCacheFor := []ctrlclient.Object{}
+	shouldCache, err := features.Enabled(features.CacheSecretsAndConfigMaps)
+	if err != nil {
+		setupLog.Error(err, "unable to check feature gate CacheSecretsAndConfigMaps")
+		os.Exit(1)
+	}
+	if !shouldCache {
+		disableCacheFor = append(disableCacheFor, &corev1.Secret{}, &corev1.ConfigMap{})
 	}
 
 	// set the managedFields owner for resources reconciled from Helm charts
@@ -126,6 +149,7 @@ func main() {
 		LeaderElectionID:              fmt.Sprintf("%s-leader-election", controllerName),
 		Namespace:                     watchNamespace,
 		Logger:                        ctrl.Log,
+		ClientDisableCacheFor:         disableCacheFor,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
