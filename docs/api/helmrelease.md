@@ -2092,7 +2092,9 @@ string
 <td>
 <em>(Optional)</em>
 <p>ValuesKey is the data key where the values.yaml or a specific value can be
-found at. Defaults to &lsquo;values.yaml&rsquo;.</p>
+found at. Defaults to &lsquo;values.yaml&rsquo;.
+When set, must be a valid Data Key, consisting of alphanumeric characters,
+&lsquo;-&rsquo;, &lsquo;_&rsquo; or &lsquo;.&rsquo;.</p>
 </td>
 </tr>
 <tr>
