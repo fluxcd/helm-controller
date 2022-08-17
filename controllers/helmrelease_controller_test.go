@@ -19,7 +19,9 @@ package controllers
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	"helm.sh/helm/v3/pkg/chartutil"
@@ -27,6 +29,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/yaml"
 
@@ -273,6 +276,171 @@ invalid`,
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("composeValues() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValuesReferenceValidation(t *testing.T) {
+	tests := []struct {
+		name       string
+		references []v2.ValuesReference
+		wantErr    bool
+	}{
+		{
+			name: "valid ValuesKey",
+			references: []v2.ValuesReference{
+				{
+					Kind:      "Secret",
+					Name:      "values",
+					ValuesKey: "any-key_na.me",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid ValuesKey: empty",
+			references: []v2.ValuesReference{
+				{
+					Kind:      "Secret",
+					Name:      "values",
+					ValuesKey: "",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid ValuesKey: long",
+			references: []v2.ValuesReference{
+				{
+					Kind:      "Secret",
+					Name:      "values",
+					ValuesKey: strings.Repeat("a", 253),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid ValuesKey",
+			references: []v2.ValuesReference{
+				{
+					Kind:      "Secret",
+					Name:      "values",
+					ValuesKey: "a($&^%b",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid ValuesKey: too long",
+			references: []v2.ValuesReference{
+				{
+					Kind:      "Secret",
+					Name:      "values",
+					ValuesKey: strings.Repeat("a", 254),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid target path: empty",
+			references: []v2.ValuesReference{
+				{
+					Kind:       "Secret",
+					Name:       "values",
+					TargetPath: "",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid target path",
+			references: []v2.ValuesReference{
+				{
+					Kind:       "Secret",
+					Name:       "values",
+					TargetPath: "list_with.nested-values.and.index[0]",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid target path: long",
+			references: []v2.ValuesReference{
+				{
+					Kind:       "Secret",
+					Name:       "values",
+					TargetPath: strings.Repeat("a", 250),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid target path: too long",
+			references: []v2.ValuesReference{
+				{
+					Kind:       "Secret",
+					Name:       "values",
+					TargetPath: strings.Repeat("a", 251),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid target path: opened index",
+			references: []v2.ValuesReference{
+				{
+					Kind:       "Secret",
+					Name:       "values",
+					ValuesKey:  "single",
+					TargetPath: "a[",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid target path: incorrect index syntax",
+			references: []v2.ValuesReference{
+				{
+					Kind:       "Secret",
+					Name:       "values",
+					ValuesKey:  "single",
+					TargetPath: "a]0[",
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var values *apiextensionsv1.JSON
+			v, _ := yaml.YAMLToJSON([]byte("values"))
+			values = &apiextensionsv1.JSON{Raw: v}
+
+			hr := v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+				},
+				Spec: v2.HelmReleaseSpec{
+					Interval: metav1.Duration{Duration: 5 * time.Minute},
+					Chart: v2.HelmChartTemplate{
+						Spec: v2.HelmChartTemplateSpec{
+							SourceRef: v2.CrossNamespaceObjectReference{
+								Name: "something",
+							},
+						},
+					},
+					ValuesFrom: tt.references,
+					Values:     values,
+				},
+			}
+
+			err := k8sClient.Create(context.TODO(), &hr, client.DryRunAll)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("composeValues() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
 		})
 	}

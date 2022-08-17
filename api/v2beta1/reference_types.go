@@ -59,12 +59,18 @@ type ValuesReference struct {
 
 	// ValuesKey is the data key where the values.yaml or a specific value can be
 	// found at. Defaults to 'values.yaml'.
+	// When set, must be a valid Data Key, consisting of alphanumeric characters,
+	// '-', '_' or '.'.
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=`^[\-._a-zA-Z0-9]+$`
 	// +optional
 	ValuesKey string `json:"valuesKey,omitempty"`
 
 	// TargetPath is the YAML dot notation path the value should be merged at. When
 	// set, the ValuesKey is expected to be a single flat value. Defaults to 'None',
 	// which results in the values getting merged at the root.
+	// +kubebuilder:validation:MaxLength=250
+	// +kubebuilder:validation:Pattern=`^([a-zA-Z0-9_\-.\\\/]|\[[0-9]{1,5}\])+$`
 	// +optional
 	TargetPath string `json:"targetPath,omitempty"`
 
