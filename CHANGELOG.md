@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.23.0
+
+**Release date:** 2022-08-19
+
+This prerelease comes with panic recovery, to protect the controller
+from crashing when reconciliations lead to a crash.
+
+The API now enforces validation to `Spec.ValuesFrom` subfields:
+`TargetPath` and `ValuesKey`.
+
+The new image contains updates to patch alpine CVEs.
+
+Improvements:
+- Enable RecoverPanic option on reconciler 
+  [#516](https://github.com/fluxcd/helm-controller/pull/516)
+- Add validation to TargetPath and ValuesKey 
+  [#520](https://github.com/fluxcd/helm-controller/pull/520)
+- Update dependencies 
+  [#521](https://github.com/fluxcd/helm-controller/pull/521)
+
 ## 0.22.2
 
 **Release date:** 2022-07-13
