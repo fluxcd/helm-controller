@@ -16,26 +16,21 @@
 
 set -euxo pipefail
 
-GOPATH="${GOPATH:-/root/go}"
-GO_SRC="${GOPATH}/src"
-PROJECT_PATH="github.com/fluxcd/helm-controller"
+# This script iterates through all go fuzzing targets, running each one
+# through the period of time established by FUZZ_TIME.
 
-cd "${GO_SRC}/${PROJECT_PATH}"
+FUZZ_TIME=${FUZZ_TIME:-"5s"}
 
-go install github.com/AdamKorcz/go-118-fuzz-build@latest
-go get github.com/AdamKorcz/go-118-fuzz-build/utils
-
-# Iterate through all Go Fuzz targets, compiling each into a fuzzer.
 test_files=$(grep -r --include='**_test.go' --files-with-matches 'func Fuzz' .)
+
 for file in ${test_files}
 do
 	targets=$(grep -oP 'func \K(Fuzz\w*)' "${file}")
 	for target_name in ${targets}
 	do
-        fuzzer_name=$(echo "${target_name}" | tr '[:upper:]' '[:lower:]')
-        target_dir=$(dirname "${file}")
+		echo "Running ${file}.${target_name} for ${FUZZ_TIME}."
+		file_dir=$(dirname "${file}")
 
-		echo "Building ${file}.${target_name} into ${fuzzer_name}"
-        compile_native_go_fuzzer "${target_dir}" "${target_name}" "${fuzzer_name}" fuzz
+		go test -fuzz="${target_name}" -fuzztime "${FUZZ_TIME}" "${file_dir}"
 	done
 done

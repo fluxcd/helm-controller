@@ -7,6 +7,10 @@ CRD_OPTIONS ?= crd:crdVersions=v1
 REPOSITORY_ROOT := $(shell git rev-parse --show-toplevel)
 BUILD_DIR := $(REPOSITORY_ROOT)/build
 
+# FUZZ_TIME defines the max amount of time, in Go Duration,
+# each fuzzer should run for.
+FUZZ_TIME ?= 1m
+
 # If gobin not set, create one on ./build and add to path.
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(BUILD_DIR)/gobin
@@ -142,7 +146,7 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
-# Build fuzzers
+# Build fuzzers used by oss-fuzz.
 fuzz-build:
 	rm -rf $(BUILD_DIR)/fuzz/
 	mkdir -p $(BUILD_DIR)/fuzz/out/
@@ -154,10 +158,16 @@ fuzz-build:
 		-v "$(BUILD_DIR)/fuzz/out":/out \
 		local-fuzzing:latest
 
-# Run each fuzzer once to ensure they are working
+# Run each fuzzer once to ensure they will work when executed by oss-fuzz.
 fuzz-smoketest: fuzz-build
 	docker run --rm \
 		-v "$(BUILD_DIR)/fuzz/out":/out \
 		-v "$(REPOSITORY_ROOT)/tests/fuzz/oss_fuzz_run.sh":/runner.sh \
 		local-fuzzing:latest \
 		bash -c "/runner.sh"
+
+# Run fuzz tests for the duration set in FUZZ_TIME.
+fuzz-native: 
+	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) \
+	FUZZ_TIME=$(FUZZ_TIME) \
+		./tests/fuzz/native_go_run.sh
