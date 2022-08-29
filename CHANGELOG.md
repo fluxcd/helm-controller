@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.23.1
+
+**Release date:** 2022-08-29
+
+This prerelease comes with updates to the controller dependencies
+including Kubernetes v1.25.0, Helm v3.9.4 and Kustomize v4.5.7.
+
+Improvements:
+- Update Kubernetes packages to v1.25.0
+  [#524](https://github.com/fluxcd/helm-controller/pull/524)
+
 ## 0.23.0
 
 **Release date:** 2022-08-19
