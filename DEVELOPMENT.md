@@ -1,6 +1,6 @@
 # Development
 
-> **Note:** Please take a look at <https://fluxcd.io/docs/contributing/flux/>
+> **Note:** Please take a look at <https://fluxcd.io/contributing/flux/>
 > to find out about how to contribute to Flux and how to interact with the
 > Flux Development team.
 
