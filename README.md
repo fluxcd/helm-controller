@@ -7,7 +7,7 @@
 [![release](https://img.shields.io/github/release/fluxcd/helm-controller/all.svg)](https://github.com/fluxcd/helm-controller/releases)
 
 The helm-controller is a Kubernetes operator, allowing one to declaratively
-manage Helm chart releases. It is part of a composable [GitOps toolkit](https://fluxcd.io/docs/components)
+manage Helm chart releases. It is part of a composable [GitOps toolkit](https://fluxcd.io/flux/components)
 and depends on [source-controller][] to acquire the Helm charts from Helm
 repositories.
 
@@ -41,9 +41,9 @@ operator.
 
 ## Guides
 
-* [Get started with GitOps Toolkit](https://fluxcd.io/docs/get-started/)
-* [Manage Helm Releases](https://fluxcd.io/docs/guides/helmreleases/)
-* [Setup Notifications](https://fluxcd.io/docs/guides/notifications/)
+* [Get started with GitOps Toolkit](https://fluxcd.io/flux/get-started/)
+* [Manage Helm Releases](https://fluxcd.io/flux/guides/helmreleases/)
+* [Setup Notifications](https://fluxcd.io/flux/guides/notifications/)
 
 ## Specifications
 
