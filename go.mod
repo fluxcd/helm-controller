@@ -5,15 +5,15 @@ go 1.18
 replace github.com/fluxcd/helm-controller/api => ./api
 
 require (
-	github.com/fluxcd/helm-controller/api v0.23.1
+	github.com/fluxcd/helm-controller/api v0.24.0
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/kustomize v0.5.0
 	github.com/fluxcd/pkg/apis/meta v0.15.0
 	github.com/fluxcd/pkg/runtime v0.18.0
-	github.com/fluxcd/source-controller/api v0.28.0
+	github.com/fluxcd/source-controller/api v0.29.0
 	github.com/go-logr/logr v1.2.3
 	github.com/hashicorp/go-retryablehttp v0.7.1
-	github.com/onsi/gomega v1.20.1
+	github.com/onsi/gomega v1.20.2
 	github.com/spf13/pflag v1.0.5
 	helm.sh/helm/v3 v3.9.4
 	k8s.io/api v0.25.0

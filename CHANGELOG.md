@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.24.0
+
+**Release date:** 2022-09-12
+
+This prerelease comes with improvements to fuzzing.
+In addition, the controller dependencies have been updated
+to Kubernetes controller-runtime v0.12.
+
+:warning: **Breaking change:** The controller logs have been aligned
+with the Kubernetes structured logging. For more details on the new logging
+structure please see: [fluxcd/flux2#3051](https://github.com/fluxcd/flux2/issues/3051).
+
+Improvements:
+- Align controller logs to Kubernetes structured logging
+  [#528](https://github.com/fluxcd/helm-controller/pull/528)
+- fuzz: Fix upstream build and optimise execution
+  [#529](https://github.com/fluxcd/helm-controller/pull/529)
+
 ## 0.23.1
 
 **Release date:** 2022-08-29
