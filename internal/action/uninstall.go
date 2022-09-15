@@ -46,10 +46,10 @@ func Uninstall(_ context.Context, config *helmaction.Configuration, obj *v2.Helm
 func newUninstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []UninstallOption) *helmaction.Uninstall {
 	uninstall := helmaction.NewUninstall(config)
 
-	uninstall.Timeout = obj.Spec.GetUninstall().GetTimeout(obj.GetTimeout()).Duration
-	uninstall.DisableHooks = obj.Spec.GetUninstall().DisableHooks
-	uninstall.KeepHistory = obj.Spec.GetUninstall().KeepHistory
-	uninstall.Wait = !obj.Spec.GetUninstall().DisableWait
+	uninstall.Timeout = obj.GetUninstall().GetTimeout(obj.GetTimeout()).Duration
+	uninstall.DisableHooks = obj.GetUninstall().DisableHooks
+	uninstall.KeepHistory = obj.GetUninstall().KeepHistory
+	uninstall.Wait = !obj.GetUninstall().DisableWait
 
 	for _, opt := range opts {
 		opt(uninstall)

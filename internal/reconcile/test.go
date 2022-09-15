@@ -72,7 +72,7 @@ func (r *Test) Reconcile(ctx context.Context, req *Request) error {
 
 	// Compose success condition message.
 	condMsg := "No test hooks."
-	if hookLen := len(req.Object.Status.Current.TestHooks); hookLen > 0 {
+	if hookLen := len(req.Object.Status.Current.GetTestHooks()); hookLen > 0 {
 		condMsg = fmt.Sprintf("%d test hook(s) completed successfully.", hookLen)
 	}
 	conditions.MarkTrue(req.Object, v2.TestSuccessCondition, v2.TestSucceededReason, condMsg)
@@ -93,9 +93,7 @@ func observeTest(obj *v2.HelmRelease) storage.ObserveFunc {
 			obs := release.ObserveRelease(rls)
 			if obs.Targets(cur.Name, cur.Namespace, cur.Version) {
 				obj.Status.Current = release.ObservedToInfo(obs)
-				if hooks := release.TestHooksFromRelease(rls); len(hooks) > 0 {
-					obj.Status.Current.TestHooks = hooks
-				}
+				obj.GetCurrent().SetTestHooks(release.TestHooksFromRelease(rls))
 			}
 		}
 	}

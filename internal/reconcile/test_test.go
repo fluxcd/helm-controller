@@ -129,7 +129,7 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				info := release.ObservedToInfo(release.ObserveRelease(releases[0]))
-				info.TestHooks = release.TestHooksFromRelease(releases[0])
+				info.SetTestHooks(release.TestHooksFromRelease(releases[0]))
 				return info
 			},
 		},
@@ -157,6 +157,7 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				info := release.ObservedToInfo(release.ObserveRelease(releases[0]))
+				info.SetTestHooks(release.TestHooksFromRelease(releases[0]))
 				return info
 			},
 		},
@@ -184,7 +185,7 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				info := release.ObservedToInfo(release.ObserveRelease(releases[0]))
-				info.TestHooks = release.TestHooksFromRelease(releases[0])
+				info.SetTestHooks(release.TestHooksFromRelease(releases[0]))
 				return info
 			},
 			expectFailures: 1,
@@ -343,7 +344,7 @@ func Test_observeTest(t *testing.T) {
 		}, testutil.ReleaseWithHooks(testHookFixtures))
 
 		expect := release.ObservedToInfo(release.ObserveRelease(rls))
-		expect.TestHooks = release.TestHooksFromRelease(rls)
+		expect.SetTestHooks(release.TestHooksFromRelease(rls))
 
 		observeTest(obj)(rls)
 		g.Expect(obj.Status.Current).To(Equal(expect))

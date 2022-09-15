@@ -50,7 +50,7 @@ func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 	vals helmchartutil.Values, opts ...UpgradeOption) (*helmrelease.Release, error) {
 	upgrade := newUpgrade(config, obj, opts)
 
-	policy, err := crdPolicyOrDefault(obj.Spec.GetInstall().CRDs)
+	policy, err := crdPolicyOrDefault(obj.GetInstall().CRDs)
 	if err != nil {
 		return nil, err
 	}
@@ -65,16 +65,16 @@ func newUpgrade(config *helmaction.Configuration, obj *v2.HelmRelease, opts []Up
 	upgrade := helmaction.NewUpgrade(config)
 
 	upgrade.Namespace = obj.GetReleaseNamespace()
-	upgrade.ResetValues = !obj.Spec.GetUpgrade().PreserveValues
-	upgrade.ReuseValues = obj.Spec.GetUpgrade().PreserveValues
+	upgrade.ResetValues = !obj.GetUpgrade().PreserveValues
+	upgrade.ReuseValues = obj.GetUpgrade().PreserveValues
 	upgrade.MaxHistory = obj.GetMaxHistory()
-	upgrade.Timeout = obj.Spec.GetUpgrade().GetTimeout(obj.GetTimeout()).Duration
-	upgrade.Wait = !obj.Spec.GetUpgrade().DisableWait
-	upgrade.WaitForJobs = !obj.Spec.GetUpgrade().DisableWaitForJobs
-	upgrade.DisableHooks = obj.Spec.GetUpgrade().DisableHooks
-	upgrade.DisableOpenAPIValidation = obj.Spec.GetUpgrade().DisableOpenAPIValidation
-	upgrade.Force = obj.Spec.GetUpgrade().Force
-	upgrade.CleanupOnFail = obj.Spec.GetUpgrade().CleanupOnFail
+	upgrade.Timeout = obj.GetUpgrade().GetTimeout(obj.GetTimeout()).Duration
+	upgrade.Wait = !obj.GetUpgrade().DisableWait
+	upgrade.WaitForJobs = !obj.GetUpgrade().DisableWaitForJobs
+	upgrade.DisableHooks = obj.GetUpgrade().DisableHooks
+	upgrade.DisableOpenAPIValidation = obj.GetUpgrade().DisableOpenAPIValidation
+	upgrade.Force = obj.GetUpgrade().Force
+	upgrade.CleanupOnFail = obj.GetUpgrade().CleanupOnFail
 	upgrade.Devel = true
 
 	// If the user opted-in to allow DNS lookups, enable it.
