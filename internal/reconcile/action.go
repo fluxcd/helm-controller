@@ -54,9 +54,9 @@ func NextAction(factory *action.ConfigFactory, req *Request) (ActionReconciler, 
 		return &Unlock{configFactory: factory}, nil
 	}
 
-	remediation := req.Object.Spec.GetInstall().GetRemediation()
+	remediation := req.Object.GetInstall().GetRemediation()
 	if req.Object.Status.Previous != nil {
-		remediation = req.Object.Spec.GetUpgrade().GetRemediation()
+		remediation = req.Object.GetUpgrade().GetRemediation()
 	}
 
 	// TODO(hidde): the logic below lacks some implementation details. E.g.
@@ -80,12 +80,12 @@ func NextAction(factory *action.ConfigFactory, req *Request) (ActionReconciler, 
 			}
 		}
 
-		if testSpec := req.Object.Spec.GetTest(); testSpec.Enable {
+		if testSpec := req.Object.GetTest(); testSpec.Enable {
 			if !release.HasBeenTested(rls) {
 				return &Test{configFactory: factory}, nil
 			}
 			if release.HasFailedTests(rls) {
-				if !remediation.MustIgnoreTestFailures(req.Object.Spec.GetTest().IgnoreFailures) {
+				if !remediation.MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures) {
 					return rollbackOrUninstall(factory, req)
 				}
 			}
@@ -95,15 +95,15 @@ func NextAction(factory *action.ConfigFactory, req *Request) (ActionReconciler, 
 }
 
 func rollbackOrUninstall(factory *action.ConfigFactory, req *Request) (ActionReconciler, error) {
-	remediation := req.Object.Spec.GetInstall().GetRemediation()
+	remediation := req.Object.GetInstall().GetRemediation()
 	if req.Object.Status.Previous != nil {
 		// TODO: determine if previous is still in storage and unmodified
-		remediation = req.Object.Spec.GetUpgrade().GetRemediation()
+		remediation = req.Object.GetUpgrade().GetRemediation()
 	}
 	// TODO: remove dependency on counter, as this shouldn't be used to determine
 	//  if it's enabled.
 	remediation.IncrementFailureCount(req.Object)
-	if !remediation.RetriesExhausted(*req.Object) || remediation.MustRemediateLastFailure() {
+	if !remediation.RetriesExhausted(req.Object) || remediation.MustRemediateLastFailure() {
 		switch remediation.GetStrategy() {
 		case v2.RollbackRemediationStrategy:
 			return &Rollback{configFactory: factory}, nil

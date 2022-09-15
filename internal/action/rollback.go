@@ -43,13 +43,13 @@ func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease, opts ...Rol
 func newRollback(config *helmaction.Configuration, obj *v2.HelmRelease, opts []RollbackOption) *helmaction.Rollback {
 	rollback := helmaction.NewRollback(config)
 
-	rollback.Timeout = obj.Spec.GetRollback().GetTimeout(obj.GetTimeout()).Duration
-	rollback.Wait = !obj.Spec.GetRollback().DisableWait
-	rollback.WaitForJobs = !obj.Spec.GetRollback().DisableWaitForJobs
-	rollback.DisableHooks = obj.Spec.GetRollback().DisableHooks
-	rollback.Force = obj.Spec.GetRollback().Force
-	rollback.Recreate = obj.Spec.GetRollback().Recreate
-	rollback.CleanupOnFail = obj.Spec.GetRollback().CleanupOnFail
+	rollback.Timeout = obj.GetRollback().GetTimeout(obj.GetTimeout()).Duration
+	rollback.Wait = !obj.GetRollback().DisableWait
+	rollback.WaitForJobs = !obj.GetRollback().DisableWaitForJobs
+	rollback.DisableHooks = obj.GetRollback().DisableHooks
+	rollback.Force = obj.GetRollback().Force
+	rollback.Recreate = obj.GetRollback().Recreate
+	rollback.CleanupOnFail = obj.GetRollback().CleanupOnFail
 
 	if prev := obj.Status.Previous; prev != nil && prev.Name == obj.GetReleaseName() && prev.Namespace == obj.GetReleaseNamespace() {
 		rollback.Version = prev.Version

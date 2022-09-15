@@ -47,11 +47,11 @@ func newTest(config *helmaction.Configuration, obj *v2.HelmRelease, opts []TestO
 	test := helmaction.NewReleaseTesting(config)
 
 	test.Namespace = obj.GetReleaseNamespace()
-	test.Timeout = obj.Spec.GetTest().GetTimeout(obj.GetTimeout()).Duration
+	test.Timeout = obj.GetTest().GetTimeout(obj.GetTimeout()).Duration
 
 	filters := make(map[string][]string)
 
-	for _, f := range obj.Spec.GetTest().GetFilters() {
+	for _, f := range obj.GetTest().GetFilters() {
 		name := "name"
 
 		if f.Exclude {

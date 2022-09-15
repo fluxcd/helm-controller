@@ -195,17 +195,21 @@ func (in *HelmReleaseInfo) DeepCopyInto(out *HelmReleaseInfo) {
 	in.Deleted.DeepCopyInto(&out.Deleted)
 	if in.TestHooks != nil {
 		in, out := &in.TestHooks, &out.TestHooks
-		*out = make(map[string]*HelmReleaseTestHook, len(*in))
-		for key, val := range *in {
-			var outVal *HelmReleaseTestHook
-			if val == nil {
-				(*out)[key] = nil
-			} else {
-				in, out := &val, &outVal
-				*out = new(HelmReleaseTestHook)
-				(*in).DeepCopyInto(*out)
+		*out = new(map[string]*HelmReleaseTestHook)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]*HelmReleaseTestHook, len(*in))
+			for key, val := range *in {
+				var outVal *HelmReleaseTestHook
+				if val == nil {
+					(*out)[key] = nil
+				} else {
+					in, out := &val, &outVal
+					*out = new(HelmReleaseTestHook)
+					(*in).DeepCopyInto(*out)
+				}
+				(*out)[key] = outVal
 			}
-			(*out)[key] = outVal
 		}
 	}
 }

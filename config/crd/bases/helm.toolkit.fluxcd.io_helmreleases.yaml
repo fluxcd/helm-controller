@@ -1512,8 +1512,8 @@ spec:
                     description: Filters is a list of tests to run or exclude from
                       running.
                     items:
-                      description: Filters holds the configuration for individual
-                        Helm test filters.
+                      description: Filter holds the configuration for individual Helm
+                        test filters.
                       properties:
                         exclude:
                           description: Exclude is specifies whether the named test
@@ -1974,6 +1974,10 @@ spec:
                 - status
                 - version
                 type: object
+              storageNamespace:
+                description: StorageNamespace is the namespace of the Helm release
+                  storage for the Current release.
+                type: string
               upgradeFailures:
                 description: UpgradeFailures is the upgrade failure count against
                   the latest desired state. It is reset after a successful reconciliation.
