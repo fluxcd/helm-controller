@@ -73,6 +73,22 @@ func (l *LogBuffer) Log(format string, v ...interface{}) {
 	l.log(format, v...)
 }
 
+// Len returns the count of non-empty values in the buffer.
+func (l *LogBuffer) Len() int {
+	var count int
+	l.mu.RLock()
+	l.buffer.Do(func(s interface{}) {
+		if s == nil {
+			return
+		}
+		if s.(string) != "" {
+			count++
+		}
+	})
+	l.mu.RUnlock()
+	return count
+}
+
 // Reset clears the buffer.
 func (l *LogBuffer) Reset() {
 	l.mu.Lock()
