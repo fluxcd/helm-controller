@@ -51,6 +51,30 @@ func TestLogBuffer_Log(t *testing.T) {
 	}
 }
 
+func TestLogBuffer_Len(t *testing.T) {
+	tests := []struct {
+		name string
+		size int
+		fill []string
+		want int
+	}{
+		{name: "empty buffer", fill: []string{}, want: 0},
+		{name: "filled buffer", size: 2, fill: []string{"a", "b"}, want: 2},
+		{name: "half full buffer", size: 4, fill: []string{"a", "b"}, want: 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := NewLogBuffer(NewDebugLog(logr.Discard()), tt.size)
+			for _, v := range tt.fill {
+				l.Log("%s", v)
+			}
+			if got := l.Len(); got != tt.want {
+				t.Errorf("String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestLogBuffer_Reset(t *testing.T) {
 	bufferSize := 10
 	l := NewLogBuffer(NewDebugLog(logr.Discard()), bufferSize)
