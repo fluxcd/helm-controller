@@ -28,7 +28,7 @@ import (
 // UninstallOption can be used to modify Helm's action.Uninstall after the
 // instructions from the v2beta2.HelmRelease have been applied. This is for
 // example useful to enable the dry-run setting as a CLI.
-type UninstallOption func(*helmaction.Uninstall)
+type UninstallOption func(cfg *helmaction.Uninstall)
 
 // Uninstall runs the Helm uninstall action with the provided config, using the
 // v2beta2.HelmReleaseSpec of the given object to determine the target release
@@ -38,9 +38,9 @@ type UninstallOption func(*helmaction.Uninstall)
 // expected to be done by the caller. In addition, it does not take note of the
 // action result. The caller is expected to listen to this using a
 // storage.ObserveFunc, which provides superior access to Helm storage writes.
-func Uninstall(_ context.Context, config *helmaction.Configuration, obj *v2.HelmRelease, opts ...UninstallOption) (*helmrelease.UninstallReleaseResponse, error) {
+func Uninstall(_ context.Context, config *helmaction.Configuration, obj *v2.HelmRelease, releaseName string, opts ...UninstallOption) (*helmrelease.UninstallReleaseResponse, error) {
 	uninstall := newUninstall(config, obj, opts)
-	return uninstall.Run(obj.GetReleaseName())
+	return uninstall.Run(releaseName)
 }
 
 func newUninstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []UninstallOption) *helmaction.Uninstall {

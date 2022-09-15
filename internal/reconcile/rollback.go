@@ -56,7 +56,7 @@ func (r *Rollback) Reconcile(ctx context.Context, req *Request) error {
 	}
 
 	// Run rollback action.
-	if err := action.Rollback(r.configFactory.Build(logBuf.Log, observeRollback(req.Object)), req.Object); err != nil {
+	if err := action.Rollback(r.configFactory.Build(logBuf.Log, observeRollback(req.Object)), req.Object, cur.Name); err != nil {
 		// Mark failure on object.
 		req.Object.Status.Failures++
 		conditions.MarkFalse(req.Object, v2.RemediatedCondition, v2.RollbackFailedReason, err.Error())
