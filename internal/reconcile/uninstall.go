@@ -49,7 +49,7 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	}
 
 	// Run the uninstall action.
-	res, err := action.Uninstall(ctx, cfg, req.Object)
+	res, err := action.Uninstall(ctx, cfg, req.Object, cur.Name)
 
 	// The Helm uninstall action does always target the latest release. Before
 	// accepting results, we need to confirm this is actually the release we

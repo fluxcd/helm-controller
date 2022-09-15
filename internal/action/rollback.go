@@ -35,9 +35,9 @@ type RollbackOption func(*helmaction.Rollback)
 // expected to be done by the caller. In addition, it does not take note of the
 // action result. The caller is expected to listen to this using a
 // storage.ObserveFunc, which provides superior access to Helm storage writes.
-func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease, opts ...RollbackOption) error {
+func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease, releaseName string, opts ...RollbackOption) error {
 	rollback := newRollback(config, obj, opts)
-	return rollback.Run(obj.GetReleaseName())
+	return rollback.Run(releaseName)
 }
 
 func newRollback(config *helmaction.Configuration, obj *v2.HelmRelease, opts []RollbackOption) *helmaction.Rollback {
