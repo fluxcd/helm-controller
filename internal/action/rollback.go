@@ -27,9 +27,24 @@ import (
 // example useful to enable the dry-run setting as a CLI.
 type RollbackOption func(*helmaction.Rollback)
 
-// Rollback runs the Helm rollback action with the provided config, using the
-// v2beta2.HelmReleaseSpec of the given object to determine the target release
-// and rollback configuration.
+// RollbackToVersion returns a RollbackOption which sets the version to
+// roll back to.
+func RollbackToVersion(version int) RollbackOption {
+	return func(rollback *helmaction.Rollback) {
+		rollback.Version = version
+	}
+}
+
+// RollbackDryRun returns a RollbackOption which enables the dry-run setting.
+func RollbackDryRun() RollbackOption {
+	return func(rollback *helmaction.Rollback) {
+		rollback.DryRun = true
+	}
+}
+
+// Rollback runs the Helm rollback action with the provided config. Targeting
+// a specific release or enabling dry-run is possible by providing
+// RollbackToVersion and/or RollbackDryRun as options.
 //
 // It does not determine if there is a desire to perform the action, this is
 // expected to be done by the caller. In addition, it does not take note of the
@@ -50,10 +65,6 @@ func newRollback(config *helmaction.Configuration, obj *v2.HelmRelease, opts []R
 	rollback.Force = obj.GetRollback().Force
 	rollback.Recreate = obj.GetRollback().Recreate
 	rollback.CleanupOnFail = obj.GetRollback().CleanupOnFail
-
-	if prev := obj.Status.Previous; prev != nil && prev.Name == obj.GetReleaseName() && prev.Namespace == obj.GetReleaseNamespace() {
-		rollback.Version = prev.Version
-	}
 
 	for _, opt := range opts {
 		opt(rollback)

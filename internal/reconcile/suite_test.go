@@ -21,18 +21,20 @@ import (
 	"os"
 	"testing"
 
-	"github.com/fluxcd/pkg/runtime/testenv"
+	"helm.sh/helm/v3/pkg/kube"
 	"k8s.io/apimachinery/pkg/api/meta"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
-	cached "k8s.io/client-go/discovery/cached"
+	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/fluxcd/pkg/runtime/testenv"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 )
@@ -54,6 +56,9 @@ func TestMain(m *testing.M) {
 		}
 	}()
 	<-testEnv.Manager.Elected()
+
+	// Globally configure field manager for all tests.
+	kube.ManagedFieldsManager = "reconciler-tests"
 
 	code := m.Run()
 
@@ -77,9 +82,8 @@ func RESTClientGetterFromManager(mgr manager.Manager, ns string) (genericcliopti
 	if err != nil {
 		return nil, err
 	}
-	cdc := cached.NewMemCacheClient(dc)
+	cdc := memory.NewMemCacheClient(dc)
 	rm := mgr.GetRESTMapper()
-
 	return &managerRESTClientGetter{
 		restConfig:      cfg,
 		discoveryClient: cdc,
