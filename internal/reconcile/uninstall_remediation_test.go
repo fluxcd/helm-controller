@@ -19,19 +19,19 @@ package reconcile
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
 	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmreleaseutil "helm.sh/helm/v3/pkg/releaseutil"
+	"helm.sh/helm/v3/pkg/releaseutil"
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 
-	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
@@ -41,10 +41,10 @@ import (
 	"github.com/fluxcd/helm-controller/internal/testutil"
 )
 
-func TestUnlock_Reconcile(t *testing.T) {
+func TestUninstallRemediation_Reconcile(t *testing.T) {
 	var (
-		mockQueryErr  = errors.New("storage query error")
-		mockUpdateErr = errors.New("storage update error")
+		mockUpdateErr = fmt.Errorf("storage update error")
+		mockDeleteErr = fmt.Errorf("storage delete error")
 	)
 
 	tests := []struct {
@@ -52,11 +52,11 @@ func TestUnlock_Reconcile(t *testing.T) {
 		// driver allows for modifying the Helm storage driver.
 		driver func(helmdriver.Driver) helmdriver.Driver
 		// releases is the list of releases that are stored in the driver
-		// before unlock.
+		// before uninstall.
 		releases func(namespace string) []*helmrelease.Release
-		// spec modifies the HelmRelease Object spec before unlock.
+		// spec modifies the HelmRelease Object spec before uninstall.
 		spec func(spec *v2.HelmReleaseSpec)
-		// status to configure on the HelmRelease object before unlock.
+		// status to configure on the HelmRelease Object before uninstall.
 		status func(releases []*helmrelease.Release) v2.HelmReleaseStatus
 		// wantErr is the error that is expected to be returned.
 		wantErr error
@@ -64,10 +64,10 @@ func TestUnlock_Reconcile(t *testing.T) {
 		// the HelmRelease after running rollback.
 		expectConditions []metav1.Condition
 		// expectCurrent is the expected Current release information in the
-		// HelmRelease after unlock.
+		// HelmRelease after uninstall.
 		expectCurrent func(releases []*helmrelease.Release) *v2.HelmReleaseInfo
 		// expectPrevious returns the expected Previous release information of
-		// the HelmRelease after unlock.
+		// the HelmRelease after uninstall.
 		expectPrevious func(releases []*helmrelease.Release) *v2.HelmReleaseInfo
 		// expectFailures is the expected Failures count of the HelmRelease.
 		expectFailures int64
@@ -79,16 +79,21 @@ func TestUnlock_Reconcile(t *testing.T) {
 		expectUpgradeFailures int64
 	}{
 		{
-			name: "unlock success",
+			name: "uninstall success",
 			releases: func(namespace string) []*helmrelease.Release {
 				return []*helmrelease.Release{
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
-						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusPendingInstall,
+						Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
+						Status:    helmrelease.StatusDeployed,
 					}),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Uninstall = &v2.Uninstall{
+					KeepHistory: true,
 				}
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
@@ -97,17 +102,54 @@ func TestUnlock_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "Unlocked release"),
-				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "Unlocked release"),
+				*conditions.TrueCondition(v2.RemediatedCondition, v2.UninstallSucceededReason,
+					"Uninstall remediation for release"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
 			},
 		},
 		{
-			name: "unlock failure",
+			name: "uninstall failure",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Status:    helmrelease.StatusDeployed,
+						Chart:     testutil.BuildChart(testutil.ChartWithFailingHook()),
+					}, testutil.ReleaseWithFailingHook()),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Uninstall = &v2.Uninstall{
+					KeepHistory: true,
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
+				}
+			},
+			expectConditions: []metav1.Condition{
+				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason,
+					"uninstallation completed with 1 error(s): 1 error occurred:\n\t* timed out waiting for the condition\n\n"),
+			},
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
+				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
+			},
+			expectFailures: 1,
+		},
+		{
+			name: "uninstall failure without storage update",
 			driver: func(driver helmdriver.Driver) helmdriver.Driver {
 				return &storage.Failing{
+					// Explicitly inherit the driver, as we want to rely on the
+					// Secret storage, as the memory storage does not detach
+					// objects from the release action. Causing writes post-persist
+					// to leak to the stored release object.
+					// xref: https://github.com/helm/helm/issues/11304
 					Driver:    driver,
 					UpdateErr: mockUpdateErr,
 				}
@@ -118,8 +160,52 @@ func TestUnlock_Reconcile(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
+						Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
+						Status:    helmrelease.StatusDeployed,
+					}),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Uninstall = &v2.Uninstall{
+					KeepHistory: true,
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
+				}
+			},
+			expectConditions: []metav1.Condition{
+				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason,
+					ErrNoStorageUpdate.Error()),
+			},
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
+				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
+			},
+			expectFailures: 1,
+			wantErr:        ErrNoStorageUpdate,
+		},
+		{
+			name: "uninstall failure without storage delete",
+			driver: func(driver helmdriver.Driver) helmdriver.Driver {
+				return &storage.Failing{
+					// Explicitly inherit the driver, as we want to rely on the
+					// Secret storage, as the memory storage does not detach
+					// objects from the release action. Causing writes post-persist
+					// to leak to the stored release object.
+					// xref: https://github.com/helm/helm/issues/11304
+					Driver:    driver,
+					DeleteErr: mockDeleteErr,
+				}
+			},
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Status:    helmrelease.StatusDeployed,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusPendingRollback,
 					}),
 				}
 			},
@@ -128,10 +214,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
 				}
 			},
-			wantErr: mockUpdateErr,
 			expectConditions: []metav1.Condition{
-				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "Unlock of release"),
-				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "Unlock of release"),
+				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason, mockDeleteErr.Error()),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
@@ -139,7 +223,7 @@ func TestUnlock_Reconcile(t *testing.T) {
 			expectFailures: 1,
 		},
 		{
-			name: "unlock without pending status",
+			name: "uninstall without current",
 			releases: func(namespace string) []*helmrelease.Release {
 				return []*helmrelease.Release{
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
@@ -147,42 +231,24 @@ func TestUnlock_Reconcile(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusFailed,
+						Status:    helmrelease.StatusDeployed,
 					}),
 				}
 			},
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				return v2.HelmReleaseStatus{
-					Current: &v2.HelmReleaseInfo{
-						Name:      mockReleaseName,
-						Namespace: releases[0].Namespace,
-						Version:   1,
-						Status:    helmrelease.StatusFailed.String(),
-					},
-				}
-			},
 			expectConditions: []metav1.Condition{},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				return &v2.HelmReleaseInfo{
-					Name:      mockReleaseName,
-					Namespace: releases[0].Namespace,
-					Version:   1,
-					Status:    helmrelease.StatusFailed.String(),
-				}
-			},
-		},
-		{
-			name: "unlock without current",
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				return v2.HelmReleaseStatus{}
-			},
 			wantErr:          ErrNoCurrent,
-			expectConditions: []metav1.Condition{},
 		},
 		{
-			name: "unlock with stale current",
+			name: "uninstall with stale current",
 			releases: func(namespace string) []*helmrelease.Release {
 				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
+						Status:    helmrelease.StatusSuperseded,
+					}, testutil.ReleaseWithTestHook()),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
@@ -192,82 +258,25 @@ func TestUnlock_Reconcile(t *testing.T) {
 					}),
 				}
 			},
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				return v2.HelmReleaseStatus{
-					Current: &v2.HelmReleaseInfo{
-						Name:      mockReleaseName,
-						Namespace: releases[0].Namespace,
-						Version:   releases[0].Version - 1,
-						Status:    helmrelease.StatusPendingInstall.String(),
-					},
-				}
-			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				return &v2.HelmReleaseInfo{
-					Name:      mockReleaseName,
-					Namespace: releases[0].Namespace,
-					Version:   releases[0].Version - 1,
-					Status:    helmrelease.StatusPendingInstall.String(),
-				}
-			},
-		},
-		{
-			name: "unlock without latest",
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				return v2.HelmReleaseStatus{
-					Current: &v2.HelmReleaseInfo{
-						Name:    mockReleaseName,
-						Version: 1,
-						Status:  helmrelease.StatusFailed.String(),
-					},
-				}
-			},
-			expectConditions: []metav1.Condition{},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				return &v2.HelmReleaseInfo{
-					Name:    mockReleaseName,
-					Version: 1,
-					Status:  helmrelease.StatusFailed.String(),
-				}
-			},
-		},
-		{
-			name: "unlock with storage query error",
-			driver: func(driver helmdriver.Driver) helmdriver.Driver {
-				return &storage.Failing{
-					Driver: driver,
-					GetErr: mockQueryErr,
-				}
-			},
-			releases: func(namespace string) []*helmrelease.Release {
-				return []*helmrelease.Release{
-					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
-						Name:      mockReleaseName,
-						Namespace: namespace,
-						Version:   1,
-						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusPendingInstall,
-					}),
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Uninstall = &v2.Uninstall{
+					KeepHistory: true,
 				}
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: &v2.HelmReleaseInfo{
-						Name:    mockReleaseName,
-						Version: 1,
-						Status:  helmrelease.StatusFailed.String(),
-					},
+					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
 				}
 			},
-			wantErr:          mockQueryErr,
-			expectConditions: []metav1.Condition{},
+			expectConditions: []metav1.Condition{
+				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason,
+					ErrReleaseMismatch.Error()),
+			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				return &v2.HelmReleaseInfo{
-					Name:    mockReleaseName,
-					Version: 1,
-					Status:  helmrelease.StatusFailed.String(),
-				}
+				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
 			},
+			expectFailures: 1,
+			wantErr:        ErrReleaseMismatch,
 		},
 	}
 	for _, tt := range tests {
@@ -284,7 +293,7 @@ func TestUnlock_Reconcile(t *testing.T) {
 			var releases []*helmrelease.Release
 			if tt.releases != nil {
 				releases = tt.releases(releaseNamespace)
-				helmreleaseutil.SortByRevision(releases)
+				releaseutil.SortByRevision(releases)
 			}
 
 			obj := &v2.HelmRelease{
@@ -321,7 +330,7 @@ func TestUnlock_Reconcile(t *testing.T) {
 			}
 
 			recorder := record.NewFakeRecorder(10)
-			got := NewUnlock(cfg, recorder).Reconcile(context.TODO(), &Request{
+			got := NewUninstallRemediation(cfg, recorder).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
 			if tt.wantErr != nil {
@@ -333,7 +342,7 @@ func TestUnlock_Reconcile(t *testing.T) {
 			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(tt.expectConditions))
 
 			releases, _ = store.History(mockReleaseName)
-			helmreleaseutil.SortByRevision(releases)
+			releaseutil.SortByRevision(releases)
 
 			if tt.expectCurrent != nil {
 				g.Expect(obj.GetCurrent()).To(testutil.Equal(tt.expectCurrent(releases)))
@@ -352,48 +361,4 @@ func TestUnlock_Reconcile(t *testing.T) {
 			g.Expect(obj.Status.UpgradeFailures).To(Equal(tt.expectUpgradeFailures))
 		})
 	}
-}
-
-func Test_observeUnlock(t *testing.T) {
-	t.Run("unlock", func(t *testing.T) {
-		g := NewWithT(t)
-
-		obj := &v2.HelmRelease{
-			Status: v2.HelmReleaseStatus{
-				Current: &v2.HelmReleaseInfo{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-					Version:   1,
-					Status:    helmrelease.StatusPendingRollback.String(),
-				},
-			},
-		}
-		rls := helmrelease.Mock(&helmrelease.MockReleaseOptions{
-			Name:      mockReleaseName,
-			Namespace: mockReleaseNamespace,
-			Version:   1,
-			Status:    helmrelease.StatusFailed,
-		})
-		expect := release.ObservedToInfo(release.ObserveRelease(rls))
-		observeUnlock(obj)(rls)
-
-		g.Expect(obj.GetPrevious()).To(BeNil())
-		g.Expect(obj.GetCurrent()).To(Equal(expect))
-	})
-
-	t.Run("unlock without current", func(t *testing.T) {
-		g := NewWithT(t)
-
-		obj := &v2.HelmRelease{}
-		rls := helmrelease.Mock(&helmrelease.MockReleaseOptions{
-			Name:      mockReleaseName,
-			Namespace: mockReleaseNamespace,
-			Version:   1,
-			Status:    helmrelease.StatusFailed,
-		})
-		observeUnlock(obj)(rls)
-
-		g.Expect(obj.GetPrevious()).To(BeNil())
-		g.Expect(obj.GetCurrent()).To(BeNil())
-	})
 }

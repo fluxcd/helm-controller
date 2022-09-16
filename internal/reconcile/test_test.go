@@ -29,7 +29,9 @@ import (
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/record"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
@@ -124,8 +126,10 @@ func TestTest_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{
+				*conditions.TrueCondition(meta.ReadyCondition, v2.TestSucceededReason,
+					"1 test hook completed successfully"),
 				*conditions.TrueCondition(v2.TestSuccessCondition, v2.TestSucceededReason,
-					"1 test hook(s) completed successfully."),
+					"1 test hook completed successfully"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				info := release.ObservedToInfo(release.ObserveRelease(releases[0]))
@@ -152,8 +156,10 @@ func TestTest_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{
+				*conditions.TrueCondition(meta.ReadyCondition, v2.TestSucceededReason,
+					"no test hooks"),
 				*conditions.TrueCondition(v2.TestSuccessCondition, v2.TestSucceededReason,
-					"No test hooks."),
+					"no test hooks"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				info := release.ObservedToInfo(release.ObserveRelease(releases[0]))
@@ -162,7 +168,7 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "test failure",
+			name: "test install failure",
 			releases: func(namespace string) []*helmrelease.Release {
 				return []*helmrelease.Release{
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
@@ -176,10 +182,13 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
+					Current:         release.ObservedToInfo(release.ObserveRelease(releases[0])),
+					InstallFailures: 0,
 				}
 			},
 			expectConditions: []metav1.Condition{
+				*conditions.FalseCondition(meta.ReadyCondition, v2.TestFailedReason,
+					"timed out waiting for the condition"),
 				*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestFailedReason,
 					"timed out waiting for the condition"),
 			},
@@ -188,7 +197,8 @@ func TestTest_Reconcile(t *testing.T) {
 				info.SetTestHooks(release.TestHooksFromRelease(releases[0]))
 				return info
 			},
-			expectFailures: 1,
+			expectFailures:        1,
+			expectInstallFailures: 1,
 		},
 		{
 			name: "test without current",
@@ -232,6 +242,8 @@ func TestTest_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{
+				*conditions.FalseCondition(meta.ReadyCondition, v2.TestFailedReason,
+					ErrReleaseMismatch.Error()),
 				*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestFailedReason,
 					ErrReleaseMismatch.Error()),
 			},
@@ -239,6 +251,7 @@ func TestTest_Reconcile(t *testing.T) {
 				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
 			},
 			expectFailures: 1,
+			wantErr:        ErrReleaseMismatch,
 		},
 	}
 	for _, tt := range tests {
@@ -264,6 +277,9 @@ func TestTest_Reconcile(t *testing.T) {
 					TargetNamespace:  releaseNamespace,
 					StorageNamespace: releaseNamespace,
 					Timeout:          &metav1.Duration{Duration: 100 * time.Millisecond},
+					Test: &v2.Test{
+						Enable: true,
+					},
 				},
 			}
 			if tt.spec != nil {
@@ -291,7 +307,8 @@ func TestTest_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			got := (&Test{configFactory: cfg}).Reconcile(context.TODO(), &Request{
+			recorder := record.NewFakeRecorder(10)
+			got := (NewTest(cfg, recorder)).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
 			if tt.wantErr != nil {
@@ -306,15 +323,15 @@ func TestTest_Reconcile(t *testing.T) {
 			helmreleaseutil.SortByRevision(releases)
 
 			if tt.expectCurrent != nil {
-				g.Expect(obj.Status.Current).To(testutil.Equal(tt.expectCurrent(releases)))
+				g.Expect(obj.GetCurrent()).To(testutil.Equal(tt.expectCurrent(releases)))
 			} else {
-				g.Expect(obj.Status.Current).To(BeNil(), "expected current to be nil")
+				g.Expect(obj.GetCurrent()).To(BeNil(), "expected current to be nil")
 			}
 
 			if tt.expectPrevious != nil {
-				g.Expect(obj.Status.Previous).To(testutil.Equal(tt.expectPrevious(releases)))
+				g.Expect(obj.GetPrevious()).To(testutil.Equal(tt.expectPrevious(releases)))
 			} else {
-				g.Expect(obj.Status.Previous).To(BeNil(), "expected previous to be nil")
+				g.Expect(obj.GetPrevious()).To(BeNil(), "expected previous to be nil")
 			}
 
 			g.Expect(obj.Status.Failures).To(Equal(tt.expectFailures))
@@ -347,8 +364,8 @@ func Test_observeTest(t *testing.T) {
 		expect.SetTestHooks(release.TestHooksFromRelease(rls))
 
 		observeTest(obj)(rls)
-		g.Expect(obj.Status.Current).To(Equal(expect))
-		g.Expect(obj.Status.Previous).To(BeNil())
+		g.Expect(obj.GetCurrent()).To(Equal(expect))
+		g.Expect(obj.GetPrevious()).To(BeNil())
 	})
 
 	t.Run("test with different current version", func(t *testing.T) {
@@ -371,8 +388,8 @@ func Test_observeTest(t *testing.T) {
 		}, testutil.ReleaseWithHooks(testHookFixtures))
 
 		observeTest(obj)(rls)
-		g.Expect(obj.Status.Current).To(Equal(current))
-		g.Expect(obj.Status.Previous).To(BeNil())
+		g.Expect(obj.GetCurrent()).To(Equal(current))
+		g.Expect(obj.GetPrevious()).To(BeNil())
 	})
 
 	t.Run("test without current", func(t *testing.T) {
@@ -387,7 +404,7 @@ func Test_observeTest(t *testing.T) {
 		}, testutil.ReleaseWithHooks(testHookFixtures))
 
 		observeTest(obj)(rls)
-		g.Expect(obj.Status.Current).To(BeNil())
-		g.Expect(obj.Status.Previous).To(BeNil())
+		g.Expect(obj.GetCurrent()).To(BeNil())
+		g.Expect(obj.GetPrevious()).To(BeNil())
 	})
 }

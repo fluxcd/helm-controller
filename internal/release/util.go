@@ -32,32 +32,6 @@ func GetTestHooks(rls *helmrelease.Release) map[string]*helmrelease.Hook {
 	return th
 }
 
-// HasBeenTested returns if any of the test hooks for the given release has
-// been started.
-func HasBeenTested(rls *helmrelease.Release) bool {
-	for _, h := range rls.Hooks {
-		if IsHookForEvent(h, helmrelease.HookTest) {
-			if !h.LastRun.StartedAt.IsZero() {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// HasFailedTests returns if any of the test hooks for the given release has
-// failed.
-func HasFailedTests(rls *helmrelease.Release) bool {
-	for _, h := range rls.Hooks {
-		if IsHookForEvent(h, helmrelease.HookTest) {
-			if h.LastRun.Phase == helmrelease.HookPhaseFailed {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // IsHookForEvent returns if the given hook fires on the provided event.
 func IsHookForEvent(hook *helmrelease.Hook, event helmrelease.HookEvent) bool {
 	if hook != nil {

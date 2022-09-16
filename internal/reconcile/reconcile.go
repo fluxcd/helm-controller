@@ -45,6 +45,30 @@ const (
 // in a single reconciliation.
 type ReconcilerType string
 
+// ReconcilerTypeSet is a set of ReconcilerType.
+type ReconcilerTypeSet []ReconcilerType
+
+// Contains returns true if the set contains the given type.
+func (s ReconcilerTypeSet) Contains(t ReconcilerType) bool {
+	for _, r := range s {
+		if r == t {
+			return true
+		}
+	}
+	return false
+}
+
+// Count returns the number of elements matching the given type.
+func (s ReconcilerTypeSet) Count(t ReconcilerType) int {
+	count := 0
+	for _, r := range s {
+		if r == t {
+			count++
+		}
+	}
+	return count
+}
+
 // Request is a request to be performed by an ActionReconciler. The reconciler
 // writes the result of the request to the Object's status.
 type Request struct {

@@ -33,57 +33,126 @@ import (
 )
 
 var (
-	ErrReleaseDisappeared = errors.New("observed release disappeared from storage")
+	ErrReleaseDisappeared = errors.New("release disappeared from storage")
 	ErrReleaseNotFound    = errors.New("no release found")
-	ErrReleaseNotObserved = errors.New("release not observed to be made by reconciler")
+	ErrReleaseNotObserved = errors.New("release not observed to be made for object")
 	ErrReleaseDigest      = errors.New("release digest verification error")
 	ErrChartChanged       = errors.New("release chart changed")
 	ErrConfigDigest       = errors.New("release config digest verification error")
 )
 
-// VerifyStorage verifies that the last release in the Helm storage matches the
-// Current state of the given HelmRelease. It returns the release, or an error
-// of type ErrReleaseDisappeared, ErrReleaseNotFound, ErrReleaseNotObserved, or
-// ErrReleaseDigest.
-func VerifyStorage(config *helmaction.Configuration, obj *v2.HelmRelease) (*helmrelease.Release, error) {
-	curRel := obj.Status.Current
-	rls, err := config.Releases.Last(obj.GetReleaseName())
+// ReleaseTargetChanged returns true if the given release and/or chart
+// name have been mutated in such a way that it no longer has the same release
+// target as the Status.Current. By comparing the (storage) namespace, and
+// release and chart names. This can be used to e.g. trigger a garbage
+// collection of the old release before installing the new one.
+func ReleaseTargetChanged(obj *v2.HelmRelease, chartName string) bool {
+	cur := obj.GetCurrent()
+	switch {
+	case obj.Status.StorageNamespace == "", cur == nil:
+		return false
+	case obj.GetStorageNamespace() != obj.Status.StorageNamespace:
+		return true
+	case obj.GetReleaseNamespace() != cur.Namespace:
+		return true
+	case release.ShortenName(obj.GetReleaseName()) != cur.Name:
+		return true
+	case chartName != cur.ChartName:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsInstalled returns true if there is any release in the Helm storage with the
+// given name. It returns any error other than driver.ErrReleaseNotFound.
+func IsInstalled(config *helmaction.Configuration, releaseName string) (bool, error) {
+	_, err := config.Releases.Last(release.ShortenName(releaseName))
 	if err != nil {
 		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
-			if curRel != nil && curRel.Name == obj.GetReleaseName() && curRel.Namespace == obj.GetReleaseNamespace() {
-				return nil, ErrReleaseDisappeared
-			}
-			return nil, ErrReleaseNotFound
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+// VerifyReleaseInfo verifies the data of the given v2beta2.HelmReleaseInfo
+// matches the release object in the Helm storage. It returns the verified
+// release, or an error of type ErrReleaseNotFound, ErrReleaseDisappeared,
+// ErrReleaseDigest or ErrReleaseNotObserved indicating the reason for the
+// verification failure.
+func VerifyReleaseInfo(config *helmaction.Configuration, info *v2.HelmReleaseInfo) (rls *helmrelease.Release, err error) {
+	if info == nil {
+		return nil, ErrReleaseNotFound
+	}
+
+	rls, err = config.Releases.Get(info.Name, info.Version)
+	if err != nil {
+		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
+			return nil, ErrReleaseDisappeared
 		}
 		return nil, err
 	}
-	if curRel == nil {
-		return rls, ErrReleaseNotObserved
+
+	if err = VerifyReleaseObject(info, rls); err != nil {
+		return nil, err
+	}
+	return rls, nil
+}
+
+// VerifyLastStorageItem verifies the data of the given v2beta2.HelmReleaseInfo
+// matches the last release object in the Helm storage. It returns the verified
+// release, or an error of type ErrReleaseNotFound, ErrReleaseDisappeared,
+// ErrReleaseDigest or ErrReleaseNotObserved indicating the reason for the
+// verification failure.
+func VerifyLastStorageItem(config *helmaction.Configuration, info *v2.HelmReleaseInfo) (rls *helmrelease.Release, err error) {
+	if info == nil {
+		return nil, ErrReleaseNotFound
 	}
 
-	relDig, err := digest.Parse(obj.Status.Current.Digest)
+	rls, err = config.Releases.Last(info.Name)
 	if err != nil {
-		return rls, ErrReleaseDigest
+		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
+			return nil, ErrReleaseDisappeared
+		}
+		return nil, err
+	}
+
+	if err = VerifyReleaseObject(info, rls); err != nil {
+		return nil, err
+	}
+	return rls, nil
+}
+
+// VerifyReleaseObject verifies the data of the given v2beta2.HelmReleaseInfo
+// matches the given Helm release object. It returns the verified
+// release, or an error of type ErrReleaseDigest or ErrReleaseNotObserved
+// indicating the reason for the verification failure.
+func VerifyReleaseObject(info *v2.HelmReleaseInfo, rls *helmrelease.Release) error {
+	relDig, err := digest.Parse(info.Digest)
+	if err != nil {
+		return ErrReleaseDigest
 	}
 	verifier := relDig.Verifier()
 
 	obs := release.ObserveRelease(rls)
-	if err := obs.Encode(verifier); err != nil {
+	if err = obs.Encode(verifier); err != nil {
 		// We are expected to be able to encode valid JSON, error out without a
 		// typed error assuming malfunction to signal to e.g. retry.
-		return nil, err
+		return err
 	}
 	if !verifier.Verified() {
-		return nil, ErrReleaseNotObserved
+		return ErrReleaseNotObserved
 	}
-	return rls, nil
+	return nil
 }
 
 // VerifyRelease verifies that the data of the given release matches the given
 // chart metadata, and the provided values match the Current.ConfigDigest.
 // It returns either an error of type ErrReleaseNotFound, ErrChartChanged or
 // ErrConfigDigest, or nil.
-func VerifyRelease(rls *helmrelease.Release, obj *v2.HelmRelease, chrt *helmchart.Metadata, vals helmchartutil.Values) error {
+func VerifyRelease(rls *helmrelease.Release, info *v2.HelmReleaseInfo, chrt *helmchart.Metadata, vals helmchartutil.Values) error {
 	if rls == nil {
 		return ErrReleaseNotFound
 	}
@@ -94,7 +163,7 @@ func VerifyRelease(rls *helmrelease.Release, obj *v2.HelmRelease, chrt *helmchar
 		}
 	}
 
-	if !chartutil.VerifyValues(digest.Digest(obj.Status.Current.ConfigDigest), vals) {
+	if info == nil || !chartutil.VerifyValues(digest.Digest(info.ConfigDigest), vals) {
 		return ErrConfigDigest
 	}
 	return nil

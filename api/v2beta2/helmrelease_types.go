@@ -1082,23 +1082,6 @@ func (in HelmRelease) HasPrevious() bool {
 	return in.Status.Previous != nil
 }
 
-// ReleaseTargetChanged returns true if the HelmReleaseSpec has been mutated in
-// such a way that it no longer targets the same release as the
-// HelmReleaseStatus.Current.
-func (in HelmRelease) ReleaseTargetChanged() bool {
-	switch {
-	case in.Status.StorageNamespace == "", in.Status.Current == nil:
-		return false
-	case in.GetStorageNamespace() != in.Status.StorageNamespace,
-		in.GetReleaseNamespace() != in.Status.Current.Namespace,
-		in.GetReleaseName() != in.Status.Current.Name,
-		in.GetHelmChartName() != in.Status.Current.ChartName:
-		return true
-	default:
-		return false
-	}
-}
-
 // GetActiveRemediation returns the active Remediation for the HelmRelease.
 func (in HelmRelease) GetActiveRemediation() Remediation {
 	if in.Status.Previous != nil {

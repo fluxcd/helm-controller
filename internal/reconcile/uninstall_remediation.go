@@ -21,8 +21,6 @@ import (
 	"errors"
 	"fmt"
 
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,18 +31,21 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/release"
-	"github.com/fluxcd/helm-controller/internal/storage"
 )
 
-// Uninstall is an ActionReconciler which attempts to uninstall a Helm release
-// based on the given Request data.
+var (
+	ErrNoStorageUpdate = errors.New("release not updated in Helm storage")
+)
+
+// UninstallRemediation is an ActionReconciler which attempts to remediate a
+// failed Helm release for the given Request data by uninstalling it.
 //
 // The writes to the Helm storage during the uninstallation are observed, and
 // update the Status.Current field.
 //
-// After a successful uninstall, the object is marked with Released=False and
+// After a successful uninstall, the object is marked with Remediated=True and
 // an event is emitted. When the uninstallation fails, the object is marked
-// with Released=False and a warning event is emitted.
+// with Remediated=False and a warning event is emitted.
 //
 // When the Request.Object does not have a Status.Current, it returns an
 // error of type ErrNoCurrent. If the uninstallation targeted a different
@@ -59,32 +60,29 @@ import (
 // At the end of the reconciliation, the Status.Conditions are summarized and
 // propagated to the Ready condition on the Request.Object.
 //
-// This reconciler is different from UninstallRemediation, in that it makes
-// observations to the Released condition type instead of Remediated. Use this
-// reconciler to uninstall a release, and UninstallRemediation to remediate a
-// release.
+// This reconciler is different from Uninstall, in that it makes observations
+// to the Remediated condition type instead of Released. Use this reconciler
+// to remediate a failed release, and Uninstall to uninstall a release.
 //
 // The caller is assumed to have verified the integrity of Request.Object using
 // e.g. action.VerifyReleaseInfo before calling Reconcile.
-type Uninstall struct {
+type UninstallRemediation struct {
 	configFactory *action.ConfigFactory
 	eventRecorder record.EventRecorder
 }
 
-// NewUninstall returns a new Uninstall reconciler configured with the provided
-// values.
-func NewUninstall(cfg *action.ConfigFactory, recorder record.EventRecorder) *Uninstall {
-	return &Uninstall{configFactory: cfg, eventRecorder: recorder}
+// NewUninstallRemediation returns a new UninstallRemediation reconciler
+// configured with the provided values.
+func NewUninstallRemediation(cfg *action.ConfigFactory, recorder record.EventRecorder) *UninstallRemediation {
+	return &UninstallRemediation{configFactory: cfg, eventRecorder: recorder}
 }
 
-func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
+func (r *UninstallRemediation) Reconcile(ctx context.Context, req *Request) error {
 	var (
 		cur    = req.Object.GetCurrent().DeepCopy()
 		logBuf = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.InfoLevel)), 10)
 		cfg    = r.configFactory.Build(logBuf.Log, observeUninstall(req.Object))
 	)
-
-	defer summarize(req)
 
 	// Require current to run uninstall.
 	if cur == nil {
@@ -93,9 +91,6 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 
 	// Run the Helm uninstall action.
 	res, err := action.Uninstall(ctx, cfg, req.Object, cur.Name)
-	if errors.Is(err, helmdriver.ErrReleaseNotFound) {
-		err = nil
-	}
 
 	// The Helm uninstall action does always target the latest release. Before
 	// accepting results, we need to confirm this is actually the release we
@@ -113,8 +108,8 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 
 	// Handle any error.
 	if err != nil {
-		r.failed(req, logBuf, err)
-		if req.Object.GetCurrent().Digest == cur.Digest {
+		r.failure(req, logBuf, err)
+		if cur.Digest == req.Object.GetCurrent().Digest {
 			return err
 		}
 		return nil
@@ -125,58 +120,44 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	return nil
 }
 
-func (r *Uninstall) Name() string {
+func (r *UninstallRemediation) Name() string {
 	return "uninstall"
 }
 
-func (r *Uninstall) Type() ReconcilerType {
-	return ReconcilerTypeRelease
+func (r *UninstallRemediation) Type() ReconcilerType {
+	return ReconcilerTypeRemediate
 }
 
-// failure records the failure of a Helm uninstall action in the status of the
-// given Request.Object by marking Released=False and emitting a warning
-// event.
-func (r *Uninstall) failed(req *Request, buffer *action.LogBuffer, err error) {
+// success records the success of a Helm uninstall remediation action in the
+// status of the given Request.Object by marking Remediated=False and emitting
+// a warning event.
+func (r *UninstallRemediation) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Compose success message.
 	cur := req.Object.GetCurrent()
-	msg := fmt.Sprintf("Uninstall of release %s with chart %s failed: %s",
+	msg := fmt.Sprintf("Uninstall remediation for release %s with chart %s failed: %s",
 		cur.FullReleaseName(), cur.VersionedChartName(), err.Error())
 
-	// Mark remediation failure on object.
+	// Mark uninstall failure on object.
 	req.Object.Status.Failures++
-	conditions.MarkFalse(req.Object, v2.ReleasedCondition, v2.UninstallFailedReason, msg)
+	conditions.MarkFalse(req.Object, v2.RemediatedCondition, v2.UninstallFailedReason, msg)
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
 	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(cur.ChartVersion), corev1.EventTypeWarning, v2.UninstallFailedReason, eventMessageWithLog(msg, buffer))
 }
 
-// success records the success of a Helm uninstall action in the status of
-// the given Request.Object by marking Released=False and emitting an
-// event.
-func (r *Uninstall) success(req *Request) {
+// success records the success of a Helm uninstall remediation action in the
+// status of the given Request.Object by marking Remediated=True and emitting
+// an event.
+func (r *UninstallRemediation) success(req *Request) {
 	// Compose success message.
 	cur := req.Object.GetCurrent()
-	msg := fmt.Sprintf("Uninstall of release %s with chart %s succeeded", cur.FullReleaseName(), cur.VersionedChartName())
+	msg := fmt.Sprintf("Uninstall remediation for release %s with chart %s succeeded",
+		cur.FullReleaseName(), cur.VersionedChartName())
 
 	// Mark remediation success on object.
-	conditions.MarkFalse(req.Object, v2.ReleasedCondition, v2.UninstallSucceededReason, msg)
+	conditions.MarkTrue(req.Object, v2.RemediatedCondition, v2.UninstallSucceededReason, msg)
 
-	// Record warning event, this message contains more data than the
-	// Condition summary.
+	// Record event.
 	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(cur.ChartVersion), corev1.EventTypeNormal, v2.UninstallSucceededReason, msg)
-}
-
-// observeUninstall returns a storage.ObserveFunc that can be used to observe
-// and record the result of an uninstall action in the status of the given
-// release. It updates the Status.Current field of the release if it equals the
-// uninstallation target, and version = Current.Version.
-func observeUninstall(obj *v2.HelmRelease) storage.ObserveFunc {
-	return func(rls *helmrelease.Release) {
-		if cur := obj.GetCurrent(); cur != nil {
-			if obs := release.ObserveRelease(rls); obs.Targets(cur.Name, cur.Namespace, cur.Version) {
-				obj.Status.Current = release.ObservedToInfo(obs)
-			}
-		}
-	}
 }
