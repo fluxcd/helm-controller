@@ -70,6 +70,8 @@ type HelmReleaseSpec struct {
 	Chart HelmChartTemplate `json:"chart"`
 
 	// Interval at which to reconcile the Helm release.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
@@ -120,6 +122,8 @@ type HelmReleaseSpec struct {
 
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm action. Defaults to '5m0s'.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -254,6 +258,8 @@ type HelmChartTemplateSpec struct {
 
 	// Interval at which to check the v1beta2.Source for updates. Defaults to
 	// 'HelmReleaseSpec.Interval'.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
 
@@ -326,6 +332,8 @@ type Install struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like
 	// Jobs for hooks) during the performance of a Helm install action. Defaults to
 	// 'HelmReleaseSpec.Timeout'.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -502,6 +510,8 @@ type Upgrade struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like
 	// Jobs for hooks) during the performance of a Helm upgrade action. Defaults to
 	// 'HelmReleaseSpec.Timeout'.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -683,6 +693,8 @@ type Test struct {
 
 	// Timeout is the time to wait for any individual Kubernetes operation during
 	// the performance of a Helm test action. Defaults to 'HelmReleaseSpec.Timeout'.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -708,6 +720,8 @@ type Rollback struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like
 	// Jobs for hooks) during the performance of a Helm rollback action. Defaults to
 	// 'HelmReleaseSpec.Timeout'.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -754,6 +768,8 @@ type Uninstall struct {
 	// Timeout is the time to wait for any individual Kubernetes operation (like
 	// Jobs for hooks) during the performance of a Helm uninstall action. Defaults
 	// to 'HelmReleaseSpec.Timeout'.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 

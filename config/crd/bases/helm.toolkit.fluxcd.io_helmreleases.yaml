@@ -63,6 +63,7 @@ spec:
                       interval:
                         description: Interval at which to check the v1beta2.Source
                           for updates. Defaults to 'HelmReleaseSpec.Interval'.
+                        pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
                         type: string
                       reconcileStrategy:
                         default: ChartVersion
@@ -230,10 +231,12 @@ spec:
                     description: Timeout is the time to wait for any individual Kubernetes
                       operation (like Jobs for hooks) during the performance of a
                       Helm install action. Defaults to 'HelmReleaseSpec.Timeout'.
+                    pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m))+$
                     type: string
                 type: object
               interval:
                 description: Interval at which to reconcile the Helm release.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
                 type: string
               kubeConfig:
                 description: KubeConfig for reconciling the HelmRelease on a remote
@@ -505,6 +508,7 @@ spec:
                     description: Timeout is the time to wait for any individual Kubernetes
                       operation (like Jobs for hooks) during the performance of a
                       Helm rollback action. Defaults to 'HelmReleaseSpec.Timeout'.
+                    pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m))+$
                     type: string
                 type: object
               serviceAccountName:
@@ -546,12 +550,14 @@ spec:
                     description: Timeout is the time to wait for any individual Kubernetes
                       operation during the performance of a Helm test action. Defaults
                       to 'HelmReleaseSpec.Timeout'.
+                    pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m))+$
                     type: string
                 type: object
               timeout:
                 description: Timeout is the time to wait for any individual Kubernetes
                   operation (like Jobs for hooks) during the performance of a Helm
                   action. Defaults to '5m0s'.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m))+$
                 type: string
               uninstall:
                 description: Uninstall holds the configuration for Helm uninstall
@@ -573,6 +579,7 @@ spec:
                     description: Timeout is the time to wait for any individual Kubernetes
                       operation (like Jobs for hooks) during the performance of a
                       Helm uninstall action. Defaults to 'HelmReleaseSpec.Timeout'.
+                    pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m))+$
                     type: string
                 type: object
               upgrade:
@@ -659,6 +666,7 @@ spec:
                     description: Timeout is the time to wait for any individual Kubernetes
                       operation (like Jobs for hooks) during the performance of a
                       Helm upgrade action. Defaults to 'HelmReleaseSpec.Timeout'.
+                    pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m))+$
                     type: string
                 type: object
               values:
