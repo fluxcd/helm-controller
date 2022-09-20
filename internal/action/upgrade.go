@@ -28,6 +28,7 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/postrender"
+	"github.com/fluxcd/helm-controller/internal/release"
 )
 
 // UpgradeOption can be used to modify Helm's action.Upgrade after the instructions
@@ -58,12 +59,11 @@ func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 		return nil, fmt.Errorf("failed to apply CustomResourceDefinitions: %w", err)
 	}
 
-	return upgrade.RunWithContext(ctx, obj.GetReleaseName(), chrt, vals.AsMap())
+	return upgrade.RunWithContext(ctx, release.ShortenName(obj.GetReleaseName()), chrt, vals.AsMap())
 }
 
 func newUpgrade(config *helmaction.Configuration, obj *v2.HelmRelease, opts []UpgradeOption) *helmaction.Upgrade {
 	upgrade := helmaction.NewUpgrade(config)
-
 	upgrade.Namespace = obj.GetReleaseNamespace()
 	upgrade.ResetValues = !obj.GetUpgrade().PreserveValues
 	upgrade.ReuseValues = obj.GetUpgrade().PreserveValues

@@ -28,6 +28,7 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/postrender"
+	"github.com/fluxcd/helm-controller/internal/release"
 )
 
 // InstallOption can be used to modify Helm's action.Install after the instructions
@@ -64,7 +65,7 @@ func Install(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 func newInstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []InstallOption) *helmaction.Install {
 	install := helmaction.NewInstall(config)
 
-	install.ReleaseName = obj.GetReleaseName()
+	install.ReleaseName = release.ShortenName(obj.GetReleaseName())
 	install.Namespace = obj.GetReleaseNamespace()
 	install.Timeout = obj.GetInstall().GetTimeout(obj.GetTimeout()).Duration
 	install.Wait = !obj.GetInstall().DisableWait
