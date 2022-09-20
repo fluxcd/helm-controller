@@ -984,6 +984,8 @@ spec:
                       chart:
                         description: The name or path the Helm chart is available
                           at in the SourceRef.
+                        maxLength: 2048
+                        minLength: 1
                         type: string
                       interval:
                         description: Interval at which to check the v1.Source for
@@ -1482,6 +1484,8 @@ spec:
               serviceAccountName:
                 description: The name of the Kubernetes service account to impersonate
                   when reconciling this HelmRelease.
+                maxLength: 253
+                minLength: 1
                 type: string
               storageNamespace:
                 description: StorageNamespace used for the Helm storage. Defaults
@@ -1521,6 +1525,8 @@ spec:
                           type: boolean
                         name:
                           description: Name is the name of the test.
+                          maxLength: 253
+                          minLength: 1
                           type: string
                       required:
                       - name
@@ -1977,6 +1983,8 @@ spec:
               storageNamespace:
                 description: StorageNamespace is the namespace of the Helm release
                   storage for the Current release.
+                maxLength: 63
+                minLength: 1
                 type: string
               upgradeFailures:
                 description: UpgradeFailures is the upgrade failure count against

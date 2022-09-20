@@ -139,6 +139,8 @@ type HelmReleaseSpec struct {
 
 	// The name of the Kubernetes service account to impersonate
 	// when reconciling this HelmRelease.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
 	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 
@@ -225,6 +227,8 @@ type HelmChartTemplateObjectMeta struct {
 // generate a v1beta2.HelmChartSpec object.
 type HelmChartTemplateSpec struct {
 	// The name or path the Helm chart is available at in the SourceRef.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=2048
 	// +required
 	Chart string `json:"chart"`
 
@@ -707,6 +711,9 @@ func (in Test) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 // Filter holds the configuration for individual Helm test filters.
 type Filter struct {
 	// Name is the name of the test.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +required
 	Name string `json:"name"`
 	// Exclude is specifies whether the named test should be excluded.
 	// +optional
@@ -925,6 +932,10 @@ type HelmReleaseStatus struct {
 
 	// StorageNamespace is the namespace of the Helm release storage for the
 	// Current release.
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Optional
+	// +optional
 	StorageNamespace string `json:"storageNamespace,omitempty"`
 
 	// Current holds the latest observed HelmReleaseInfo for the current
