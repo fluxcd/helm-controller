@@ -103,6 +103,13 @@ func (r *Install) Type() ReconcilerType {
 	return ReconcilerTypeRelease
 }
 
+const (
+	// fmtInstallFailure is the message format for an installation failure.
+	fmtInstallFailure = "Install of release %s/%s with chart %s@%s failed: %s"
+	// fmtInstallSuccess is the message format for a successful installation.
+	fmtInstallSuccess = "Installed release %s with chart %s"
+)
+
 // failure records the failure of a Helm installation action in the status of
 // the given Request.Object by marking ReleasedCondition=False and increasing
 // the failure counter. In addition, it emits a warning event for the
@@ -114,8 +121,8 @@ func (r *Install) Type() ReconcilerType {
 // result in Helm storage drift.
 func (r *Install) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Compose failure message.
-	msg := fmt.Sprintf("Install of release %s/%s with chart %s@%s failed: %s", req.Object.GetReleaseNamespace(),
-		req.Object.GetReleaseName(), req.Chart.Name(), req.Chart.Metadata.Version, err.Error())
+	msg := fmt.Sprintf(fmtInstallFailure, req.Object.GetReleaseNamespace(), req.Object.GetReleaseName(), req.Chart.Name(),
+		req.Chart.Metadata.Version, err.Error())
 
 	// Mark install failure on object.
 	req.Object.Status.Failures++
@@ -134,13 +141,12 @@ func (r *Install) failure(req *Request, buffer *action.LogBuffer, err error) {
 func (r *Install) success(req *Request) {
 	// Compose success message.
 	cur := req.Object.GetCurrent()
-	msg := fmt.Sprintf("Installed release %s with chart %s", cur.FullReleaseName(), cur.VersionedChartName())
+	msg := fmt.Sprintf(fmtInstallSuccess, cur.FullReleaseName(), cur.VersionedChartName())
 
 	// Mark install success on object.
 	conditions.MarkTrue(req.Object, v2.ReleasedCondition, v2.InstallSucceededReason, msg)
 	if req.Object.GetTest().Enable && !cur.HasBeenTested() {
-		conditions.MarkFalse(req.Object, v2.TestSuccessCondition, "Pending",
-			"Release %s with chart %s has not been tested yet", cur.FullReleaseName(), cur.VersionedChartName())
+		conditions.MarkFalse(req.Object, v2.TestSuccessCondition, "Pending", fmtTestPending, cur.FullReleaseName(), cur.VersionedChartName())
 	}
 
 	// Record event.

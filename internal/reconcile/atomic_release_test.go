@@ -151,7 +151,7 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 			WithObjects(obj).
 			WithStatusSubresource(&v2.HelmRelease{}).
 			Build()
-		recorder := record.NewFakeRecorder(10)
+		recorder := new(record.FakeRecorder)
 
 		req := &Request{
 			Object: obj,

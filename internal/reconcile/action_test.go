@@ -704,7 +704,7 @@ func Test_NextAction(t *testing.T) {
 				}
 			}
 
-			recorder := record.NewFakeRecorder(10)
+			recorder := new(record.FakeRecorder)
 			got, err := NextAction(context.TODO(), cfg, recorder, &Request{
 				Object: obj,
 				Chart:  tt.chart,

@@ -29,6 +29,7 @@ import (
 	helmreleaseutil "helm.sh/helm/v3/pkg/releaseutil"
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 
@@ -327,7 +328,7 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := record.NewFakeRecorder(10)
+			recorder := new(record.FakeRecorder)
 			got := (NewRollbackRemediation(cfg, recorder)).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
@@ -359,6 +360,120 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			g.Expect(obj.Status.UpgradeFailures).To(Equal(tt.expectUpgradeFailures))
 		})
 	}
+}
+
+func TestRollbackRemediation_failure(t *testing.T) {
+	var (
+		prev = testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:    mockReleaseName,
+			Chart:   testutil.BuildChart(),
+			Version: 4,
+		})
+		obj = &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
+				Previous: release.ObservedToInfo(release.ObserveRelease(prev)),
+			},
+		}
+		err = errors.New("rollback error")
+	)
+
+	t.Run("records failure", func(t *testing.T) {
+		g := NewWithT(t)
+
+		recorder := testutil.NewFakeRecorder(10, false)
+		r := &RollbackRemediation{
+			eventRecorder: recorder,
+		}
+
+		req := &Request{Object: obj.DeepCopy()}
+		r.failure(req, nil, err)
+
+		expectMsg := fmt.Sprintf(fmtRollbackRemediationFailure,
+			fmt.Sprintf("%s/%s.%d", prev.Namespace, prev.Name, prev.Version),
+			fmt.Sprintf("%s@%s", prev.Chart.Name(), prev.Chart.Metadata.Version),
+			err.Error())
+
+		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.FalseCondition(v2.RemediatedCondition, v2.RollbackFailedReason, expectMsg),
+		}))
+		g.Expect(req.Object.Status.Failures).To(Equal(int64(1)))
+		g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+			{
+				Type:    corev1.EventTypeWarning,
+				Reason:  v2.RollbackFailedReason,
+				Message: expectMsg,
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"revision": prev.Chart.Metadata.Version,
+					},
+				},
+			},
+		}))
+	})
+
+	t.Run("records failure with logs", func(t *testing.T) {
+		g := NewWithT(t)
+
+		recorder := testutil.NewFakeRecorder(10, false)
+		r := &RollbackRemediation{
+			eventRecorder: recorder,
+		}
+		req := &Request{Object: obj.DeepCopy()}
+		r.failure(req, mockLogBuffer(5, 10), err)
+
+		expectSubStr := "Last Helm logs"
+		g.Expect(conditions.IsFalse(req.Object, v2.RemediatedCondition)).To(BeTrue())
+		g.Expect(conditions.GetMessage(req.Object, v2.RemediatedCondition)).ToNot(ContainSubstring(expectSubStr))
+
+		events := recorder.GetEvents()
+		g.Expect(events).To(HaveLen(1))
+		g.Expect(events[0].Message).To(ContainSubstring(expectSubStr))
+	})
+}
+
+func TestRollbackRemediation_success(t *testing.T) {
+	g := NewWithT(t)
+
+	var prev = testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+		Name:    mockReleaseName,
+		Chart:   testutil.BuildChart(),
+		Version: 4,
+	})
+
+	recorder := testutil.NewFakeRecorder(10, false)
+	r := &RollbackRemediation{
+		eventRecorder: recorder,
+	}
+
+	obj := &v2.HelmRelease{
+		Status: v2.HelmReleaseStatus{
+			Previous: release.ObservedToInfo(release.ObserveRelease(prev)),
+		},
+	}
+
+	req := &Request{Object: obj}
+	r.success(req)
+
+	expectMsg := fmt.Sprintf(fmtRollbackRemediationSuccess,
+		fmt.Sprintf("%s/%s.%d", prev.Namespace, prev.Name, prev.Version),
+		fmt.Sprintf("%s@%s", prev.Chart.Name(), prev.Chart.Metadata.Version))
+
+	g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+		*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason, expectMsg),
+	}))
+	g.Expect(req.Object.Status.Failures).To(Equal(int64(0)))
+	g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+		{
+			Type:    corev1.EventTypeNormal,
+			Reason:  v2.RollbackSucceededReason,
+			Message: expectMsg,
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"revision": prev.Chart.Metadata.Version,
+				},
+			},
+		},
+	}))
 }
 
 func Test_observeRollback(t *testing.T) {
