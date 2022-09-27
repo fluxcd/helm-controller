@@ -103,6 +103,13 @@ func (r *Upgrade) Type() ReconcilerType {
 	return ReconcilerTypeRelease
 }
 
+const (
+	// fmtUpgradeFailure is the message format for an upgrade failure.
+	fmtUpgradeFailure = "Upgrade of release %s/%s with chart %s@%s failed: %s"
+	// fmtUpgradeSuccess is the message format for a successful upgrade.
+	fmtUpgradeSuccess = "Upgraded release %s with chart %s"
+)
+
 // failure records the failure of a Helm upgrade action in the status of the
 // given Request.Object by marking ReleasedCondition=False and increasing the
 // failure counter. In addition, it emits a warning event for the
@@ -114,8 +121,7 @@ func (r *Upgrade) Type() ReconcilerType {
 // result in Helm storage drift.
 func (r *Upgrade) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Compose failure message.
-	msg := fmt.Sprintf("Upgrade of release %s/%s with chart %s@%s failed: %s", req.Object.GetReleaseNamespace(),
-		req.Object.GetReleaseName(), req.Chart.Name(), req.Chart.Metadata.Version, err.Error())
+	msg := fmt.Sprintf(fmtUpgradeFailure, req.Object.GetReleaseNamespace(), req.Object.GetReleaseName(), req.Chart.Name(), req.Chart.Metadata.Version, err.Error())
 
 	// Mark upgrade failure on object.
 	req.Object.Status.Failures++
@@ -134,13 +140,13 @@ func (r *Upgrade) failure(req *Request, buffer *action.LogBuffer, err error) {
 func (r *Upgrade) success(req *Request) {
 	// Compose success message.
 	cur := req.Object.GetCurrent()
-	msg := fmt.Sprintf("Upgraded release %s with chart %s", cur.FullReleaseName(), cur.VersionedChartName())
+	msg := fmt.Sprintf(fmtUpgradeSuccess, cur.FullReleaseName(), cur.VersionedChartName())
 
 	// Mark upgrade success on object.
 	conditions.MarkTrue(req.Object, v2.ReleasedCondition, v2.UpgradeSucceededReason, msg)
 	if req.Object.GetTest().Enable && !cur.HasBeenTested() {
-		conditions.MarkFalse(req.Object, v2.TestSuccessCondition, "Pending",
-			"Release %s with chart %s has not been tested yet", cur.FullReleaseName(), cur.VersionedChartName())
+		conditions.MarkFalse(req.Object, v2.TestSuccessCondition, "Pending", fmtTestPending,
+			cur.FullReleaseName(), cur.VersionedChartName())
 	}
 
 	// Record event.

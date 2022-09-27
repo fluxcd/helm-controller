@@ -188,7 +188,7 @@ func conditionallyDeleteRemediated(req *Request) {
 // eventMessageWithLog returns an event message composed out of the given
 // message and any log messages by appending them to the message.
 func eventMessageWithLog(msg string, log *action.LogBuffer) string {
-	if log == nil && log.Len() > 0 {
+	if log != nil && log.Len() > 0 {
 		msg = msg + "\n\nLast Helm logs:\n\n" + log.String()
 	}
 	return msg

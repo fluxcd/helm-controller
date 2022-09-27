@@ -119,14 +119,22 @@ func (r *RollbackRemediation) Type() ReconcilerType {
 	return ReconcilerTypeRemediate
 }
 
+const (
+	// fmtRollbackRemediationFailure is the message format for a rollback
+	// remediation failure.
+	fmtRollbackRemediationFailure = "Rollback to previous release %s with chart %s failed: %s"
+	// fmtRollbackRemediationSuccess is the message format for a successful
+	// rollback remediation.
+	fmtRollbackRemediationSuccess = "Rolled back to previous release %s with chart %s"
+)
+
 // failure records the failure of a Helm rollback action in the status of the
 // given Request.Object by marking Remediated=False and emitting a warning
 // event.
 func (r *RollbackRemediation) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Compose failure message.
 	prev := req.Object.GetPrevious()
-	msg := fmt.Sprintf("Rollback to %s with chart %s failed: %s",
-		prev.FullReleaseName(), prev.VersionedChartName(), err.Error())
+	msg := fmt.Sprintf(fmtRollbackRemediationFailure, prev.FullReleaseName(), prev.VersionedChartName(), err.Error())
 
 	// Mark remediation failure on object.
 	req.Object.Status.Failures++
@@ -142,7 +150,7 @@ func (r *RollbackRemediation) failure(req *Request, buffer *action.LogBuffer, er
 func (r *RollbackRemediation) success(req *Request) {
 	// Compose success message.
 	prev := req.Object.GetPrevious()
-	msg := fmt.Sprintf("Rolled back to %s with chart %s", prev.FullReleaseName(), prev.VersionedChartName())
+	msg := fmt.Sprintf(fmtRollbackRemediationSuccess, prev.FullReleaseName(), prev.VersionedChartName())
 
 	// Mark remediation success on object.
 	conditions.MarkTrue(req.Object, v2.RemediatedCondition, v2.RollbackSucceededReason, msg)

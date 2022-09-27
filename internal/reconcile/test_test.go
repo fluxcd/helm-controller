@@ -19,6 +19,7 @@ package reconcile
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	helmreleaseutil "helm.sh/helm/v3/pkg/releaseutil"
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 
@@ -307,7 +309,7 @@ func TestTest_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := record.NewFakeRecorder(10)
+			recorder := new(record.FakeRecorder)
 			got := (NewTest(cfg, recorder)).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
@@ -406,5 +408,183 @@ func Test_observeTest(t *testing.T) {
 		observeTest(obj)(rls)
 		g.Expect(obj.GetCurrent()).To(BeNil())
 		g.Expect(obj.GetPrevious()).To(BeNil())
+	})
+}
+
+func TestTest_failure(t *testing.T) {
+	var (
+		cur = testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Chart:     testutil.BuildChart(),
+			Version:   4,
+		})
+		obj = &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
+				Current: release.ObservedToInfo(release.ObserveRelease(cur)),
+			},
+		}
+		err = errors.New("test error")
+	)
+
+	t.Run("records failure", func(t *testing.T) {
+		g := NewWithT(t)
+
+		recorder := testutil.NewFakeRecorder(10, false)
+		r := &Test{
+			eventRecorder: recorder,
+		}
+
+		req := &Request{Object: obj.DeepCopy()}
+		r.failure(req, nil, err)
+
+		expectMsg := fmt.Sprintf(fmtTestFailure,
+			fmt.Sprintf("%s/%s.%d", cur.Namespace, cur.Name, cur.Version),
+			fmt.Sprintf("%s@%s", cur.Chart.Name(), cur.Chart.Metadata.Version),
+			err.Error())
+
+		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestFailedReason, expectMsg),
+		}))
+		g.Expect(req.Object.Status.Failures).To(Equal(int64(1)))
+		g.Expect(req.Object.Status.InstallFailures).To(BeZero())
+		g.Expect(req.Object.Status.UpgradeFailures).To(BeZero())
+		g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+			{
+				Type:    corev1.EventTypeWarning,
+				Reason:  v2.TestFailedReason,
+				Message: expectMsg,
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"revision": cur.Chart.Metadata.Version,
+					},
+				},
+			},
+		}))
+	})
+
+	t.Run("records failure with logs", func(t *testing.T) {
+		g := NewWithT(t)
+
+		recorder := testutil.NewFakeRecorder(10, false)
+		r := &Test{
+			eventRecorder: recorder,
+		}
+		req := &Request{Object: obj.DeepCopy()}
+		r.failure(req, mockLogBuffer(5, 10), err)
+
+		expectSubStr := "Last Helm logs"
+		g.Expect(conditions.IsFalse(req.Object, v2.TestSuccessCondition)).To(BeTrue())
+		g.Expect(conditions.GetMessage(req.Object, v2.TestSuccessCondition)).ToNot(ContainSubstring(expectSubStr))
+
+		events := recorder.GetEvents()
+		g.Expect(events).To(HaveLen(1))
+		g.Expect(events[0].Message).To(ContainSubstring(expectSubStr))
+	})
+
+	t.Run("increases remediation failure count", func(t *testing.T) {
+		g := NewWithT(t)
+
+		recorder := testutil.NewFakeRecorder(10, false)
+		r := &Test{
+			eventRecorder: recorder,
+		}
+
+		obj := obj.DeepCopy()
+		obj.Status.Current.SetTestHooks(map[string]*v2.HelmReleaseTestHook{})
+		req := &Request{Object: obj}
+		r.failure(req, nil, err)
+
+		g.Expect(req.Object.Status.InstallFailures).To(Equal(int64(1)))
+	})
+
+	t.Run("follows ignore failure instructions", func(t *testing.T) {
+		g := NewWithT(t)
+
+		recorder := testutil.NewFakeRecorder(10, false)
+		r := &Test{
+			eventRecorder: recorder,
+		}
+
+		obj := obj.DeepCopy()
+		obj.Spec.Test = &v2.Test{IgnoreFailures: true}
+		obj.Status.Current.SetTestHooks(map[string]*v2.HelmReleaseTestHook{})
+		req := &Request{Object: obj}
+		r.failure(req, nil, err)
+
+		g.Expect(req.Object.Status.InstallFailures).To(BeZero())
+	})
+}
+
+func TestTest_success(t *testing.T) {
+	g := NewWithT(t)
+
+	var (
+		cur = testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Chart:     testutil.BuildChart(),
+			Version:   4,
+		})
+		obj = &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
+				Current: release.ObservedToInfo(release.ObserveRelease(cur)),
+			},
+		}
+	)
+
+	t.Run("records success", func(t *testing.T) {
+		recorder := testutil.NewFakeRecorder(10, false)
+		r := &Test{
+			eventRecorder: recorder,
+		}
+
+		obj := obj.DeepCopy()
+		obj.Status.Current.SetTestHooks(map[string]*v2.HelmReleaseTestHook{
+			"test": {
+				Phase: helmrelease.HookPhaseSucceeded.String(),
+			},
+			"test-2": {
+				Phase: helmrelease.HookPhaseSucceeded.String(),
+			},
+		})
+		req := &Request{Object: obj}
+		r.success(req)
+
+		expectMsg := fmt.Sprintf(fmtTestSuccess,
+			fmt.Sprintf("%s/%s.%d", cur.Namespace, cur.Name, cur.Version),
+			fmt.Sprintf("%s@%s", cur.Chart.Name(), cur.Chart.Metadata.Version),
+			"2 test hooks completed successfully")
+
+		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(v2.TestSuccessCondition, v2.TestSucceededReason, expectMsg),
+		}))
+		g.Expect(req.Object.Status.Failures).To(Equal(int64(0)))
+		g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+			{
+				Type:    corev1.EventTypeNormal,
+				Reason:  v2.TestSucceededReason,
+				Message: expectMsg,
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"revision": cur.Chart.Metadata.Version,
+					},
+				},
+			},
+		}))
+	})
+
+	t.Run("records success without hooks", func(t *testing.T) {
+		r := &Test{
+			eventRecorder: new(testutil.FakeRecorder),
+		}
+
+		obj := obj.DeepCopy()
+		obj.Status.Current.SetTestHooks(map[string]*v2.HelmReleaseTestHook{})
+		req := &Request{Object: obj}
+		r.success(req)
+
+		g.Expect(conditions.IsTrue(req.Object, v2.TestSuccessCondition)).To(BeTrue())
+		g.Expect(req.Object.Status.Conditions[0].Message).To(ContainSubstring("no test hooks"))
 	})
 }

@@ -19,6 +19,7 @@ package reconcile
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	helmreleaseutil "helm.sh/helm/v3/pkg/releaseutil"
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 
@@ -320,7 +322,7 @@ func TestUnlock_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := record.NewFakeRecorder(10)
+			recorder := new(record.FakeRecorder)
 			got := NewUnlock(cfg, recorder).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
@@ -352,6 +354,105 @@ func TestUnlock_Reconcile(t *testing.T) {
 			g.Expect(obj.Status.UpgradeFailures).To(Equal(tt.expectUpgradeFailures))
 		})
 	}
+}
+
+func TestUnlock_failure(t *testing.T) {
+	g := NewWithT(t)
+
+	var (
+		cur = testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Chart:     testutil.BuildChart(),
+			Version:   4,
+		})
+		obj = &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
+				Current: release.ObservedToInfo(release.ObserveRelease(cur)),
+			},
+		}
+		status = helmrelease.StatusPendingInstall
+		err    = fmt.Errorf("unlock error")
+	)
+
+	recorder := testutil.NewFakeRecorder(10, false)
+	r := &Unlock{
+		eventRecorder: recorder,
+	}
+
+	req := &Request{Object: obj}
+	r.failure(req, status, err)
+
+	expectMsg := fmt.Sprintf(fmtUnlockFailure,
+		fmt.Sprintf("%s/%s.%d", cur.Namespace, cur.Name, cur.Version),
+		fmt.Sprintf("%s@%s", cur.Chart.Name(), cur.Chart.Metadata.Version),
+		status, err.Error())
+
+	g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+		*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", expectMsg),
+	}))
+	g.Expect(req.Object.Status.Failures).To(Equal(int64(1)))
+	g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+		{
+			Type:    corev1.EventTypeWarning,
+			Reason:  "PendingRelease",
+			Message: expectMsg,
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"revision": cur.Chart.Metadata.Version,
+				},
+			},
+		},
+	}))
+}
+
+func TestUnlock_success(t *testing.T) {
+	g := NewWithT(t)
+
+	var (
+		cur = testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Chart:     testutil.BuildChart(),
+			Version:   4,
+		})
+		obj = &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
+				Current: release.ObservedToInfo(release.ObserveRelease(cur)),
+			},
+		}
+		status = helmrelease.StatusPendingInstall
+	)
+
+	recorder := testutil.NewFakeRecorder(10, false)
+	r := &Unlock{
+		eventRecorder: recorder,
+	}
+
+	req := &Request{Object: obj}
+	r.success(req, status)
+
+	expectMsg := fmt.Sprintf(fmtUnlockSuccess,
+		fmt.Sprintf("%s/%s.%d", cur.Namespace, cur.Name, cur.Version),
+		fmt.Sprintf("%s@%s", cur.Chart.Name(), cur.Chart.Metadata.Version),
+		status)
+
+	g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+		*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", expectMsg),
+	}))
+	g.Expect(req.Object.Status.Failures).To(Equal(int64(0)))
+	g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+		{
+			Type:    corev1.EventTypeNormal,
+			Reason:  "PendingRelease",
+			Message: expectMsg,
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"revision": cur.Chart.Metadata.Version,
+				},
+			},
+		},
+	}))
 }
 
 func Test_observeUnlock(t *testing.T) {

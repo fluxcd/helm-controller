@@ -111,14 +111,20 @@ func (r *Unlock) Type() ReconcilerType {
 	return ReconcilerTypeUnlock
 }
 
+const (
+	// fmtUnlockFailure is the message format for an unlock failure.
+	fmtUnlockFailure = "Unlock of release %s with chart %s in %s state failed: %s"
+	// fmtUnlockSuccess is the message format for a successful unlock.
+	fmtUnlockSuccess = "Unlocked release %s with chart %s in %s state"
+)
+
 // failure records the failure of an unlock action in the status of the given
 // Request.Object by marking ReleasedCondition=False and increasing the failure
 // counter. In addition, it emits a warning event for the Request.Object.
 func (r *Unlock) failure(req *Request, status helmrelease.Status, err error) {
 	// Compose failure message.
 	cur := req.Object.GetCurrent()
-	msg := fmt.Sprintf("Unlock of release %s with chart %s in %s state failed: %s",
-		cur.FullReleaseName(), cur.VersionedChartName(), status.String(), err.Error())
+	msg := fmt.Sprintf(fmtUnlockFailure, cur.FullReleaseName(), cur.VersionedChartName(), status.String(), err.Error())
 
 	// Mark unlock failure on object.
 	req.Object.Status.Failures++
@@ -133,8 +139,7 @@ func (r *Unlock) failure(req *Request, status helmrelease.Status, err error) {
 func (r *Unlock) success(req *Request, status helmrelease.Status) {
 	// Compose success message.
 	cur := req.Object.GetCurrent()
-	msg := fmt.Sprintf("Unlocked release %s with chart %s from %s state",
-		cur.FullReleaseName(), cur.VersionedChartName(), status.String())
+	msg := fmt.Sprintf(fmtUnlockSuccess, cur.FullReleaseName(), cur.VersionedChartName(), status.String())
 
 	// Mark unlock success on object.
 	conditions.MarkFalse(req.Object, v2.ReleasedCondition, "PendingRelease", msg)

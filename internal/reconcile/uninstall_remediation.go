@@ -128,14 +128,22 @@ func (r *UninstallRemediation) Type() ReconcilerType {
 	return ReconcilerTypeRemediate
 }
 
+const (
+	// fmtUninstallRemediationFailure is the message format for an uninstall
+	// remediation failure.
+	fmtUninstallRemediationFailure = "Uninstall remediation for release %s with chart %s failed: %s"
+	// fmtUninstallRemediationSuccess is the message format for a successful
+	// uninstall remediation.
+	fmtUninstallRemediationSuccess = "Uninstall remediation for release %s with chart %s succeeded"
+)
+
 // success records the success of a Helm uninstall remediation action in the
 // status of the given Request.Object by marking Remediated=False and emitting
 // a warning event.
 func (r *UninstallRemediation) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Compose success message.
 	cur := req.Object.GetCurrent()
-	msg := fmt.Sprintf("Uninstall remediation for release %s with chart %s failed: %s",
-		cur.FullReleaseName(), cur.VersionedChartName(), err.Error())
+	msg := fmt.Sprintf(fmtUninstallRemediationFailure, cur.FullReleaseName(), cur.VersionedChartName(), err.Error())
 
 	// Mark uninstall failure on object.
 	req.Object.Status.Failures++
@@ -152,8 +160,7 @@ func (r *UninstallRemediation) failure(req *Request, buffer *action.LogBuffer, e
 func (r *UninstallRemediation) success(req *Request) {
 	// Compose success message.
 	cur := req.Object.GetCurrent()
-	msg := fmt.Sprintf("Uninstall remediation for release %s with chart %s succeeded",
-		cur.FullReleaseName(), cur.VersionedChartName())
+	msg := fmt.Sprintf(fmtUninstallRemediationSuccess, cur.FullReleaseName(), cur.VersionedChartName())
 
 	// Mark remediation success on object.
 	conditions.MarkTrue(req.Object, v2.RemediatedCondition, v2.UninstallSucceededReason, msg)
