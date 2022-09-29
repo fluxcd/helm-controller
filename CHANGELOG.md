@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.25.0
+
+**Release date:** 2022-09-29
+
+This prerelease comes with strict validation rules for API fields which define a
+(time) duration. Effectively, this means values without a time unit (e.g. `ms`,
+`s`, `m`, `h`) will now be rejected by the API server. To stimulate sane
+configurations, the units `ns`, `us` and `µs` can no longer be configured, nor
+can `h` be set for fields defining a timeout value.
+
+In addition, the controller dependencies have been updated
+to Kubernetes controller-runtime v0.13.
+
+:warning: **Breaking changes:**
+- `.spec.interval` new validation pattern is `"^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"`
+- `.spec.timeout` new validation pattern is `"^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"`
+
+Improvements:
+- api: add custom validation for v1.Duration types
+  [#533](https://github.com/fluxcd/helm-controller/pull/533)
+- Build with Go 1.19
+  [#537](https://github.com/fluxcd/helm-controller/pull/537)
+- Update dependencies
+  [#538](https://github.com/fluxcd/helm-controller/pull/538)
+
 ## 0.24.0
 
 **Release date:** 2022-09-12
