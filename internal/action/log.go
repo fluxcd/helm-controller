@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
 	helmaction "helm.sh/helm/v3/pkg/action"
@@ -28,6 +29,9 @@ import (
 
 // DefaultLogBufferSize is the default size of the LogBuffer.
 const DefaultLogBufferSize = 5
+
+// nowTS can be used to stub out time.Now() in tests.
+var nowTS = time.Now
 
 // NewDebugLog returns an action.DebugLog that logs to the given logr.Logger.
 func NewDebugLog(log logr.Logger) helmaction.DebugLog {
@@ -41,6 +45,35 @@ type LogBuffer struct {
 	mu     sync.RWMutex
 	log    helmaction.DebugLog
 	buffer *ring.Ring
+}
+
+// logLine is a log message with a timestamp.
+type logLine struct {
+	ts     time.Time
+	lastTS time.Time
+	msg    string
+	count  int64
+}
+
+// String returns the log line as a string, in the format of:
+// '<RFC3339 nano timestamp>: <message>'. But only if the message is not empty.
+func (l *logLine) String() string {
+	if l == nil || l.msg == "" {
+		return ""
+	}
+
+	msg := fmt.Sprintf("%s %s", l.ts.Format(time.RFC3339Nano), l.msg)
+	if c := l.count; c > 0 {
+		msg += fmt.Sprintf("\n%s %s", l.lastTS.Format(time.RFC3339Nano), l.msg)
+	}
+	if c := l.count - 1; c > 0 {
+		var dup = "line"
+		if c > 1 {
+			dup += "s"
+		}
+		msg += fmt.Sprintf(" (%d duplicate %s omitted)", c, dup)
+	}
+	return msg
 }
 
 // NewLogBuffer creates a new LogBuffer with the given log function
@@ -64,8 +97,17 @@ func (l *LogBuffer) Log(format string, v ...interface{}) {
 	// Filter out duplicate log lines, this happens for example when
 	// Helm is waiting on workloads to become ready.
 	msg := fmt.Sprintf(format, v...)
-	if prev := l.buffer.Prev(); prev.Value != msg {
-		l.buffer.Value = msg
+	prev, ok := l.buffer.Prev().Value.(*logLine)
+	if ok && prev.msg == msg {
+		prev.count++
+		prev.lastTS = nowTS().UTC()
+		l.buffer.Prev().Value = prev
+	}
+	if !ok || prev.msg != msg {
+		l.buffer.Value = &logLine{
+			ts:  nowTS().UTC(),
+			msg: msg,
+		}
 		l.buffer = l.buffer.Next()
 	}
 
@@ -74,19 +116,20 @@ func (l *LogBuffer) Log(format string, v ...interface{}) {
 }
 
 // Len returns the count of non-empty values in the buffer.
-func (l *LogBuffer) Len() int {
-	var count int
+func (l *LogBuffer) Len() (count int) {
 	l.mu.RLock()
 	l.buffer.Do(func(s interface{}) {
 		if s == nil {
 			return
 		}
-		if s.(string) != "" {
-			count++
+		ll, ok := s.(*logLine)
+		if !ok || ll.String() == "" {
+			return
 		}
+		count++
 	})
 	l.mu.RUnlock()
-	return count
+	return
 }
 
 // Reset clears the buffer.
@@ -104,7 +147,13 @@ func (l *LogBuffer) String() string {
 		if s == nil {
 			return
 		}
-		str += s.(string) + "\n"
+		ll, ok := s.(*logLine)
+		if !ok {
+			return
+		}
+		if msg := ll.String(); msg != "" {
+			str += msg + "\n"
+		}
 	})
 	l.mu.RUnlock()
 	return strings.TrimSpace(str)
