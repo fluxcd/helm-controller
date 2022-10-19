@@ -566,6 +566,24 @@ for backwards compatibility the file defined here is merged before the
 ValuesFiles items. Ignored when omitted.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>verify</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta1.HelmChartTemplateVerification">
+HelmChartTemplateVerification
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Verify contains the secret name containing the trusted public keys
+used to verify the signature and specifies which provider to use to check
+whether OCI image is authentic.
+This field is only supported for OCI sources.
+Chart dependencies, which are not bundled in the umbrella chart artifact, are not verified.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -686,6 +704,71 @@ string
 be a relative path in the SourceRef. Deprecated in favor of ValuesFiles,
 for backwards compatibility the file defined here is merged before the
 ValuesFiles items. Ignored when omitted.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>verify</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta1.HelmChartTemplateVerification">
+HelmChartTemplateVerification
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Verify contains the secret name containing the trusted public keys
+used to verify the signature and specifies which provider to use to check
+whether OCI image is authentic.
+This field is only supported for OCI sources.
+Chart dependencies, which are not bundled in the umbrella chart artifact, are not verified.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2beta1.HelmChartTemplateVerification">HelmChartTemplateVerification
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta1.HelmChartTemplateSpec">HelmChartTemplateSpec</a>)
+</p>
+<p>HelmChartTemplateVerification verifies the authenticity of an OCI Helm chart.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>provider</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Provider specifies the technology used to sign the OCI Helm chart.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>secretRef</code><br>
+<em>
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#LocalObjectReference">
+github.com/fluxcd/pkg/apis/meta.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SecretRef specifies the Kubernetes Secret containing the
+trusted public keys.</p>
 </td>
 </tr>
 </tbody>

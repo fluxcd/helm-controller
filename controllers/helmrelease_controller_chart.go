@@ -211,6 +211,7 @@ func buildHelmChartFromTemplate(hr *v2.HelmRelease) *sourcev1.HelmChart {
 			ReconcileStrategy: template.Spec.ReconcileStrategy,
 			ValuesFiles:       template.Spec.ValuesFiles,
 			ValuesFile:        template.Spec.ValuesFile,
+			Verify:            templateVerificationToSourceVerification(template.Spec.Verify),
 		},
 	}
 }
@@ -239,7 +240,21 @@ func helmChartRequiresUpdate(hr *v2.HelmRelease, chart *sourcev1.HelmChart) bool
 		return true
 	case template.Spec.ValuesFile != chart.Spec.ValuesFile:
 		return true
+	case !reflect.DeepEqual(templateVerificationToSourceVerification(template.Spec.Verify), chart.Spec.Verify):
+		return true
 	default:
 		return false
+	}
+}
+
+// templateVerificationToSourceVerification converts the HelmChartTemplateVerification to the OCIRepositoryVerification.
+func templateVerificationToSourceVerification(template *v2.HelmChartTemplateVerification) *sourcev1.OCIRepositoryVerification {
+	if template == nil {
+		return nil
+	}
+
+	return &sourcev1.OCIRepositoryVerification{
+		Provider:  template.Provider,
+		SecretRef: template.SecretRef,
 	}
 }

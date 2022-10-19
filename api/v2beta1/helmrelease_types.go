@@ -286,6 +286,14 @@ type HelmChartTemplateSpec struct {
 	// +optional
 	// +deprecated
 	ValuesFile string `json:"valuesFile,omitempty"`
+
+	// Verify contains the secret name containing the trusted public keys
+	// used to verify the signature and specifies which provider to use to check
+	// whether OCI image is authentic.
+	// This field is only supported for OCI sources.
+	// Chart dependencies, which are not bundled in the umbrella chart artifact, are not verified.
+	// +optional
+	Verify *HelmChartTemplateVerification `json:"verify,omitempty"`
 }
 
 // GetInterval returns the configured interval for the v1beta2.HelmChart,
@@ -304,6 +312,19 @@ func (in HelmChartTemplate) GetNamespace(defaultNamespace string) string {
 		return defaultNamespace
 	}
 	return in.Spec.SourceRef.Namespace
+}
+
+// HelmChartTemplateVerification verifies the authenticity of an OCI Helm chart.
+type HelmChartTemplateVerification struct {
+	// Provider specifies the technology used to sign the OCI Helm chart.
+	// +kubebuilder:validation:Enum=cosign
+	// +kubebuilder:default:=cosign
+	Provider string `json:"provider"`
+
+	// SecretRef specifies the Kubernetes Secret containing the
+	// trusted public keys.
+	// +optional
+	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 // DeploymentAction defines a consistent interface for Install and Upgrade.
