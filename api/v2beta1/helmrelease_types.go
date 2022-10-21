@@ -333,7 +333,7 @@ type Install struct {
 	// Jobs for hooks) during the performance of a Helm install action. Defaults to
 	// 'HelmReleaseSpec.Timeout'.
 	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -511,7 +511,7 @@ type Upgrade struct {
 	// Jobs for hooks) during the performance of a Helm upgrade action. Defaults to
 	// 'HelmReleaseSpec.Timeout'.
 	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -694,7 +694,7 @@ type Test struct {
 	// Timeout is the time to wait for any individual Kubernetes operation during
 	// the performance of a Helm test action. Defaults to 'HelmReleaseSpec.Timeout'.
 	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -721,7 +721,7 @@ type Rollback struct {
 	// Jobs for hooks) during the performance of a Helm rollback action. Defaults to
 	// 'HelmReleaseSpec.Timeout'.
 	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
@@ -769,7 +769,7 @@ type Uninstall struct {
 	// Jobs for hooks) during the performance of a Helm uninstall action. Defaults
 	// to 'HelmReleaseSpec.Timeout'.
 	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
