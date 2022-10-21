@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.26.0
+
+**Release date:** 2022-10-21
+
+This prerelease comes with support for Cosign verification of Helm OCI charts.
+The signatures verification can be configured by setting `HelmRelease.spec.chart.spec.verify` with
+`provider` as `cosign` and a `secretRef` to a secret containing the public key.
+Cosign keyless verification is also supported, please see the
+[HelmChart API documentation](https://github.com/fluxcd/source-controller/blob/api/v0.31.0/docs/spec/v1beta2/helmcharts.md#verification)
+for more details.
+
+In addition, the controller dependencies have been updated
+to Kubernetes v1.25.3 and Helm v3.10.1.
+
+Improvements:
+- Enable Cosign verification of Helm charts stored as OCI artifacts in container registries
+  [#545](https://github.com/fluxcd/helm-controller/pull/545)
+- API: allow configuration of h unit for timeouts
+  [#549](https://github.com/fluxcd/helm-controller/pull/549)
+- Update dependencies
+  [#550](https://github.com/fluxcd/helm-controller/pull/550)
+
 ## 0.25.0
 
 **Release date:** 2022-09-29
