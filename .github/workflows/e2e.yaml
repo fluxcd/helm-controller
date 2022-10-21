@@ -110,6 +110,7 @@ jobs:
           kubectl -n helm-system apply -f config/testdata/podinfo
           kubectl -n helm-system wait helmreleases/podinfo --for=condition=ready --timeout=4m
           kubectl -n helm-system wait helmreleases/podinfo-git --for=condition=ready --timeout=4m
+          kubectl -n helm-system wait helmreleases/podinfo-oci --for=condition=ready --timeout=4m
           kubectl -n helm-system delete -f config/testdata/podinfo
       - name: Run dependency tests
         run: |

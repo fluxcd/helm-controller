@@ -8,9 +8,9 @@ require (
 	github.com/fluxcd/helm-controller/api v0.25.0
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/kustomize v0.6.0
-	github.com/fluxcd/pkg/apis/meta v0.16.0
+	github.com/fluxcd/pkg/apis/meta v0.17.0
 	github.com/fluxcd/pkg/runtime v0.19.0
-	github.com/fluxcd/source-controller/api v0.30.0
+	github.com/fluxcd/source-controller/api v0.31.0
 	github.com/go-logr/logr v1.2.3
 	github.com/hashicorp/go-retryablehttp v0.7.1
 	github.com/onsi/gomega v1.20.2
@@ -18,7 +18,7 @@ require (
 	helm.sh/helm/v3 v3.10.0
 	k8s.io/api v0.25.2
 	k8s.io/apiextensions-apiserver v0.25.2
-	k8s.io/apimachinery v0.25.2
+	k8s.io/apimachinery v0.25.3
 	k8s.io/cli-runtime v0.25.2
 	k8s.io/client-go v0.25.2
 	k8s.io/utils v0.0.0-20220922133306-665eaaec4324

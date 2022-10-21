@@ -18,9 +18,11 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
@@ -371,6 +373,39 @@ func Test_buildHelmChartFromTemplate(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "take cosign verification into account",
+			modify: func(hr *v2.HelmRelease) {
+				hr.Spec.Chart.Spec.Verify = &v2.HelmChartTemplateVerification{
+					Provider: "cosign",
+					SecretRef: &meta.LocalObjectReference{
+						Name: "cosign-key",
+					},
+				}
+			},
+			want: &sourcev1.HelmChart{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default-test-release",
+					Namespace: "default",
+				},
+				Spec: sourcev1.HelmChartSpec{
+					Chart:   "chart",
+					Version: "1.0.0",
+					SourceRef: sourcev1.LocalHelmChartSourceReference{
+						Name: "test-repository",
+						Kind: "HelmRepository",
+					},
+					Interval:    metav1.Duration{Duration: 2 * time.Minute},
+					ValuesFiles: []string{"values.yaml"},
+					Verify: &sourcev1.OCIRepositoryVerification{
+						Provider: "cosign",
+						SecretRef: &meta.LocalObjectReference{
+							Name: "cosign-key",
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -398,6 +433,9 @@ func Test_helmChartRequiresUpdate(t *testing.T) {
 						Kind: "HelmRepository",
 					},
 					Interval: &metav1.Duration{Duration: 2 * time.Minute},
+					Verify: &v2.HelmChartTemplateVerification{
+						Provider: "cosign",
+					},
 				},
 			},
 		},
@@ -469,6 +507,13 @@ func Test_helmChartRequiresUpdate(t *testing.T) {
 			},
 			want: true,
 		},
+		{
+			name: "detects verify change",
+			modify: func(hr *v2.HelmRelease, hc *sourcev1.HelmChart) {
+				hr.Spec.Chart.Spec.Verify.Provider = "foo-bar"
+			},
+			want: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -476,9 +521,12 @@ func Test_helmChartRequiresUpdate(t *testing.T) {
 
 			hr := hrWithChartTemplate.DeepCopy()
 			hc := buildHelmChartFromTemplate(hr)
+			// second copy to avoid modifying the original
+			hr = hrWithChartTemplate.DeepCopy()
 			g.Expect(helmChartRequiresUpdate(hr, hc)).To(Equal(false))
 
 			tt.modify(hr, hc)
+			fmt.Println("verify", hr.Spec.Chart.Spec.Verify.Provider, hc.Spec.Verify.Provider)
 			g.Expect(helmChartRequiresUpdate(hr, hc)).To(Equal(tt.want))
 		})
 	}
