@@ -1,0 +1,21 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: podinfo-oci
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: podinfo
+      version: '6.2.1'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo-oci
+      interval: 1m
+      verify:
+        provider: cosign
+  values:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
