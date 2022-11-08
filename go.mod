@@ -7,13 +7,14 @@ replace github.com/fluxcd/helm-controller/api => ./api
 require (
 	github.com/fluxcd/helm-controller/api v0.26.0
 	github.com/fluxcd/pkg/apis/acl v0.1.0
+	github.com/fluxcd/pkg/apis/event v0.1.0
 	github.com/fluxcd/pkg/apis/kustomize v0.6.0
 	github.com/fluxcd/pkg/apis/meta v0.17.0
-	github.com/fluxcd/pkg/runtime v0.22.0
+	github.com/fluxcd/pkg/runtime v0.23.0
 	github.com/fluxcd/source-controller/api v0.31.0
 	github.com/go-logr/logr v1.2.3
 	github.com/hashicorp/go-retryablehttp v0.7.1
-	github.com/onsi/gomega v1.22.1
+	github.com/onsi/gomega v1.24.0
 	github.com/spf13/pflag v1.0.5
 	helm.sh/helm/v3 v3.10.1
 	k8s.io/api v0.25.3
@@ -21,8 +22,8 @@ require (
 	k8s.io/apimachinery v0.25.3
 	k8s.io/cli-runtime v0.25.3
 	k8s.io/client-go v0.25.3
-	k8s.io/utils v0.0.0-20221012122500-cfd413dd9e85
-	sigs.k8s.io/controller-runtime v0.13.0
+	k8s.io/utils v0.0.0-20221107191617-1a15be271d1d
+	sigs.k8s.io/controller-runtime v0.13.1
 	sigs.k8s.io/kustomize/api v0.12.1
 	sigs.k8s.io/yaml v1.3.0
 )
@@ -141,11 +142,11 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
-	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
+	golang.org/x/net v0.1.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
+	golang.org/x/sys v0.1.0 // indirect
+	golang.org/x/term v0.1.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
