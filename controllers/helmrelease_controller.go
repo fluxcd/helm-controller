@@ -50,10 +50,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apiacl "github.com/fluxcd/pkg/apis/acl"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/acl"
 	fluxClient "github.com/fluxcd/pkg/runtime/client"
-	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	"github.com/fluxcd/pkg/runtime/transform"
@@ -226,20 +226,20 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 	if reconcileErr != nil {
 		if acl.IsAccessDenied(reconcileErr) {
 			log.Error(reconcileErr, "access denied to cross-namespace source")
-			r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, reconcileErr.Error())
+			r.event(ctx, hr, hr.Status.LastAttemptedRevision, eventv1.EventSeverityError, reconcileErr.Error())
 			return v2.HelmReleaseNotReady(hr, apiacl.AccessDeniedReason, reconcileErr.Error()),
 				ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
 		}
 
 		msg := fmt.Sprintf("chart reconciliation failed: %s", reconcileErr.Error())
-		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, msg)
+		r.event(ctx, hr, hr.Status.LastAttemptedRevision, eventv1.EventSeverityError, msg)
 		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{Requeue: true}, reconcileErr
 	}
 
 	// Check chart readiness
 	if hc.Generation != hc.Status.ObservedGeneration || !apimeta.IsStatusConditionTrue(hc.Status.Conditions, meta.ReadyCondition) {
 		msg := fmt.Sprintf("HelmChart '%s/%s' is not ready", hc.GetNamespace(), hc.GetName())
-		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityInfo, msg)
+		r.event(ctx, hr, hr.Status.LastAttemptedRevision, eventv1.EventSeverityInfo, msg)
 		log.Info(msg)
 		// Do not requeue immediately, when the artifact is created
 		// the watcher should trigger a reconciliation.
@@ -251,7 +251,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 		if err := r.checkDependencies(hr); err != nil {
 			msg := fmt.Sprintf("dependencies do not meet ready condition (%s), retrying in %s",
 				err.Error(), r.requeueDependency.String())
-			r.event(ctx, hr, hc.GetArtifact().Revision, events.EventSeverityInfo, msg)
+			r.event(ctx, hr, hc.GetArtifact().Revision, eventv1.EventSeverityInfo, msg)
 			log.Info(msg)
 
 			// Exponential backoff would cause execution to be prolonged too much,
@@ -265,21 +265,21 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 	// Compose values
 	values, err := r.composeValues(ctx, hr)
 	if err != nil {
-		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, err.Error())
+		r.event(ctx, hr, hr.Status.LastAttemptedRevision, eventv1.EventSeverityError, err.Error())
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error()), ctrl.Result{Requeue: true}, nil
 	}
 
 	// Load chart from artifact
 	chart, err := r.loadHelmChart(hc)
 	if err != nil {
-		r.event(ctx, hr, hr.Status.LastAttemptedRevision, events.EventSeverityError, err.Error())
+		r.event(ctx, hr, hr.Status.LastAttemptedRevision, eventv1.EventSeverityError, err.Error())
 		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, err.Error()), ctrl.Result{Requeue: true}, nil
 	}
 
 	// Reconcile Helm release
 	reconciledHr, reconcileErr := r.reconcileRelease(ctx, *hr.DeepCopy(), chart, values)
 	if reconcileErr != nil {
-		r.event(ctx, hr, hc.GetArtifact().Revision, events.EventSeverityError,
+		r.event(ctx, hr, hc.GetArtifact().Revision, eventv1.EventSeverityError,
 			fmt.Sprintf("reconciliation failed: %s", reconcileErr.Error()))
 	}
 	return reconciledHr, ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, reconcileErr
@@ -361,13 +361,13 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	// Deploy the release.
 	var deployAction v2.DeploymentAction
 	if rel == nil {
-		r.event(ctx, hr, revision, events.EventSeverityInfo, "Helm install has started")
+		r.event(ctx, hr, revision, eventv1.EventSeverityInfo, "Helm install has started")
 		deployAction = hr.Spec.GetInstall()
 		rel, err = run.Install(hr, chart, values)
 		err = r.handleHelmActionResult(ctx, &hr, revision, err, deployAction.GetDescription(),
 			v2.ReleasedCondition, v2.InstallSucceededReason, v2.InstallFailedReason)
 	} else {
-		r.event(ctx, hr, revision, events.EventSeverityInfo, "Helm upgrade has started")
+		r.event(ctx, hr, revision, eventv1.EventSeverityInfo, "Helm upgrade has started")
 		deployAction = hr.Spec.GetUpgrade()
 		rel, err = run.Upgrade(hr, chart, values)
 		err = r.handleHelmActionResult(ctx, &hr, revision, err, deployAction.GetDescription(),
@@ -666,7 +666,7 @@ func (r *HelmReleaseReconciler) handleHelmActionResult(ctx context.Context,
 			Message: msg,
 		}
 		apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
-		r.event(ctx, *hr, revision, events.EventSeverityError, msg)
+		r.event(ctx, *hr, revision, eventv1.EventSeverityError, msg)
 		return &ConditionError{Reason: failedReason, Err: err}
 	} else {
 		msg := fmt.Sprintf("Helm %s succeeded", action)
@@ -677,7 +677,7 @@ func (r *HelmReleaseReconciler) handleHelmActionResult(ctx context.Context,
 			Message: msg,
 		}
 		apimeta.SetStatusCondition(hr.GetStatusConditions(), newCondition)
-		r.event(ctx, *hr, revision, events.EventSeverityInfo, msg)
+		r.event(ctx, *hr, revision, eventv1.EventSeverityInfo, msg)
 		return nil
 	}
 }
@@ -728,7 +728,7 @@ func (r *HelmReleaseReconciler) event(_ context.Context, hr v2.HelmRelease, revi
 		meta = map[string]string{v2.GroupVersion.Group + "/revision": revision}
 	}
 	eventtype := "Normal"
-	if severity == events.EventSeverityError {
+	if severity == eventv1.EventSeverityError {
 		eventtype = "Warning"
 	}
 	r.EventRecorder.AnnotatedEventf(&hr, meta, eventtype, severity, msg)
