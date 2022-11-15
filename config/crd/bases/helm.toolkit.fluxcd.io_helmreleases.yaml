@@ -584,7 +584,7 @@ spec:
                 description: Timeout is the time to wait for any individual Kubernetes
                   operation (like Jobs for hooks) during the performance of a Helm
                   action. Defaults to '5m0s'.
-                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m))+$
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
                 type: string
               uninstall:
                 description: Uninstall holds the configuration for Helm uninstall
