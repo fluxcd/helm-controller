@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.27.0
+
+**Release date:** 2022-11-22
+
+This prerelease comes with re-added support for `h` in the HelmRelease
+`spec.timeout` field, so that users can use hours to set reconciliation
+timeouts.
+
+Improvements:
+- Allow 'h' in HelmRelease timeout field
+  [#559](https://github.com/fluxcd/helm-controller/pull/559)
+- Use Flux Event API v1beta1
+  [#557](https://github.com/fluxcd/helm-controller/pull/557)
+- Update dependencies
+  [#561](https://github.com/fluxcd/helm-controller/pull/561)
+
+
 ## 0.26.0
 
 **Release date:** 2022-10-21
