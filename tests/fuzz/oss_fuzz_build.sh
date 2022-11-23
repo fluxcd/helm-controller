@@ -16,64 +16,66 @@
 
 set -euxo pipefail
 
+# This file aims for:
+# - Dynamically discover and build all fuzz tests within the repository.
+# - Work for both local make fuzz-smoketest and the upstream oss-fuzz.
+
 GOPATH="${GOPATH:-/root/go}"
 GO_SRC="${GOPATH}/src"
 PROJECT_PATH="github.com/fluxcd/helm-controller"
-TMP_DIR=$(mktemp -d /tmp/oss_fuzz-XXXXXX)
 
-cleanup(){
-	rm -rf "${TMP_DIR}"
-}
-trap cleanup EXIT
-
+# install_deps installs all dependencies needed for upstream oss-fuzz.
+# Unfortunately we can't pin versions here, as we want to always
+# have the latest, so that we can reproduce errors occuring upstream.
 install_deps(){
-	if ! command -v go-118-fuzz-build &> /dev/null || ! command -v addimport &> /dev/null; then
-		mkdir -p "${TMP_DIR}/go-118-fuzz-build"
-
-		git clone https://github.com/AdamKorcz/go-118-fuzz-build "${TMP_DIR}/go-118-fuzz-build"
-		cd "${TMP_DIR}/go-118-fuzz-build"
-		go build -o "${GOPATH}/bin/go-118-fuzz-build"
-
-		cd addimport
-		go build -o "${GOPATH}/bin/addimport"
+	if ! command -v go-118-fuzz-build &> /dev/null; then
+		go install github.com/AdamKorcz/go-118-fuzz-build@latest
 	fi
-
-	if ! command -v goimports &> /dev/null; then
-		go install golang.org/x/tools/cmd/goimports@latest
-	fi
-}
-
-# Removes the content of test funcs which could cause the Fuzz
-# tests to break.
-remove_test_funcs(){
-	filename=$1
-
-	echo "removing co-located *testing.T"
-	sed -i -e '/func Test.*testing.T) {$/ {:r;/\n}/!{N;br}; s/\n.*\n/\n/}' "${filename}"
-
-	# After removing the body of the go testing funcs, consolidate the imports.
-	goimports -w "${filename}"
 }
 
 install_deps
 
 cd "${GO_SRC}/${PROJECT_PATH}"
 
-go get github.com/AdamKorcz/go-118-fuzz-build/utils
+# Ensure any project-specific requirements are catered for ahead of
+# the generic build process.
+if [ -f "tests/fuzz/oss_fuzz_prebuild.sh" ]; then
+	tests/fuzz/oss_fuzz_prebuild.sh
+fi
 
-# Iterate through all Go Fuzz targets, compiling each into a fuzzer.
-test_files=$(grep -r --include='**_test.go' --files-with-matches 'func Fuzz' .)
-for file in ${test_files}
-do
-	remove_test_funcs "${file}"
+modules=$(find . -mindepth 1 -maxdepth 4 -type f -name 'go.mod' | cut -c 3- | sed 's|/[^/]*$$||' | sort -u | sed 's;/go.mod;;g' | sed 's;go.mod;.;g')
 
-	targets=$(grep -oP 'func \K(Fuzz\w*)' "${file}")
-	for target_name in ${targets}
-	do
-		fuzzer_name=$(echo "${target_name}" | tr '[:upper:]' '[:lower:]')
-		target_dir=$(dirname "${file}")
+for module in ${modules}; do
 
-		echo "Building ${file}.${target_name} into ${fuzzer_name}"
-		compile_native_go_fuzzer "${target_dir}" "${target_name}" "${fuzzer_name}"
+	cd "${GO_SRC}/${PROJECT_PATH}/${module}"
+
+	# TODO: stop ignoring recorder_fuzzer_test.go. Temporary fix for fuzzing building issues.
+	test_files=$(grep -r --include='**_test.go' --files-with-matches 'func Fuzz' . || echo "")
+	if [ -z "${test_files}" ]; then
+		continue
+	fi
+
+	go get github.com/AdamKorcz/go-118-fuzz-build/testing
+
+	# Iterate through all Go Fuzz targets, compiling each into a fuzzer.
+	for file in ${test_files}; do
+		# If the subdir is a module, skip this file, as it will be handled
+		# at the next iteration of the outer loop. 
+		if [ -f "$(dirname "${file}")/go.mod" ]; then
+			continue
+		fi
+
+		targets=$(grep -oP 'func \K(Fuzz\w*)' "${file}")
+		for target_name in ${targets}; do
+			# Transform module path into module name (e.g. git/libgit2 to git_libgit2).
+			module_name=$(echo ${module} | tr / _)
+			# Compose fuzzer name based on the lowercase version of the func names.
+			# The module name is added after the fuzz prefix, for better discoverability.
+			fuzzer_name=$(echo "${target_name}" | tr '[:upper:]' '[:lower:]' | sed "s;fuzz_;fuzz_${module_name}_;g")
+			target_dir=$(dirname "${file}")
+
+			echo "Building ${file}.${target_name} into ${fuzzer_name}"
+			compile_native_go_fuzzer "${target_dir}" "${target_name}" "${fuzzer_name}"
+		done
 	done
 done
