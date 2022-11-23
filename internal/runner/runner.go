@@ -159,6 +159,7 @@ func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 	upgrade.Wait = !hr.Spec.GetUpgrade().DisableWait
 	upgrade.WaitForJobs = !hr.Spec.GetUpgrade().DisableWaitForJobs
 	upgrade.DisableHooks = hr.Spec.GetUpgrade().DisableHooks
+	upgrade.DisableOpenAPIValidation = hr.Spec.GetUpgrade().DisableOpenAPIValidation
 	upgrade.Force = hr.Spec.GetUpgrade().Force
 	upgrade.CleanupOnFail = hr.Spec.GetUpgrade().CleanupOnFail
 	upgrade.Devel = true
