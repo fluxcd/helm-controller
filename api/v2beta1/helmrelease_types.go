@@ -808,7 +808,7 @@ type Uninstall struct {
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
 
-	// IfSuspended uninstalls the release even if it is suspended
+	// IfSuspended uninstalls the release even if it is suspended.
 	IfSuspended bool `json:"ifSuspended,omitempty"`
 }
 

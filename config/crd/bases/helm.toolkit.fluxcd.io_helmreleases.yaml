@@ -600,7 +600,7 @@ spec:
                     type: boolean
                   ifSuspended:
                     description: IfSuspended uninstalls the release even if it is
-                      suspended
+                      suspended.
                     type: boolean
                   keepHistory:
                     description: KeepHistory tells Helm to remove all associated resources

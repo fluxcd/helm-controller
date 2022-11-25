@@ -1885,7 +1885,7 @@ bool
 </em>
 </td>
 <td>
-<p>IfSuspended uninstalls the release even if it is suspended</p>
+<p>IfSuspended uninstalls the release even if it is suspended.</p>
 </td>
 </tr>
 </tbody>
