@@ -598,6 +598,10 @@ spec:
                     description: DisableWait disables waiting for all the resources
                       to be deleted after a Helm uninstall is performed.
                     type: boolean
+                  ifSuspended:
+                    description: IfSuspended uninstalls the release even if it is
+                      suspended
+                    type: boolean
                   keepHistory:
                     description: KeepHistory tells Helm to remove all associated resources
                       and mark the release as deleted, but retain the release history.

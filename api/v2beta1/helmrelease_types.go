@@ -807,6 +807,9 @@ type Uninstall struct {
 	// a Helm uninstall is performed.
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
+
+	// IfSuspended uninstalls the release even if it is suspended
+	IfSuspended bool `json:"ifSuspended,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm uninstall action, or

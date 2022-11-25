@@ -1877,6 +1877,17 @@ bool
 a Helm uninstall is performed.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>ifSuspended</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>IfSuspended uninstalls the release even if it is suspended</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
