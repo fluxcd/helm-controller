@@ -1274,7 +1274,7 @@ spec:
 
 When the controller completes a reconciliation, it reports the result in the status sub-resource.
 
-The following `status.condtions` types are advertised. Here, "desired state" is as detailed in
+The following `status.conditions` types are advertised. Here, "desired state" is as detailed in
 [reconciliation](#reconciliation):
 
 - `Ready` - status of the last reconciliation attempt
