@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.28.1
+
+**Release date:** 2022-12-22
+
+This prerelease sets the default value for the `--graceful-shutdown-timeout` to
+match the default value we set in the Deployment for
+`terminationGracePeriodSeconds` which is 600s. This should fix handling graceful
+shutdown correctly.
+
+Fixes:
+- Align `graceful-shutdown-timeout` with `terminationGracePeriodSeconds` 
+  [#584](https://github.com/fluxcd/helm-controller/pull/584)
+
 ## 0.28.0
 
 **Release date:** 2022-12-20
