@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-retryablehttp"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
@@ -542,6 +543,10 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 				return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
 			}
 			if data, ok := resource.Data[v.GetValuesKey()]; !ok {
+				if v.Optional {
+					(logr.FromContext(ctx)).Info(fmt.Sprintf("could not find optional key %s in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName))
+					continue
+				}
 				return nil, fmt.Errorf("missing key '%s' in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName)
 			} else {
 				valuesData = []byte(data)
@@ -575,6 +580,10 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 				return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
 			}
 			if data, ok := resource.Data[v.GetValuesKey()]; !ok {
+				if v.Optional {
+					(logr.FromContext(ctx)).Info(fmt.Sprintf("could not find optional key %s in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName))
+					continue
+				}
 				return nil, fmt.Errorf("missing key '%s' in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName)
 			} else {
 				valuesData = data
