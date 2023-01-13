@@ -83,6 +83,7 @@ func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace strin
 // a single combined post renderer.
 func postRenderers(hr v2.HelmRelease) (postrender.PostRenderer, error) {
 	var combinedRenderer = newCombinedPostRenderer()
+	combinedRenderer.addRenderer(newPostRendererYamlFlatten(&hr))
 	for _, r := range hr.Spec.PostRenderers {
 		if r.Kustomize != nil {
 			combinedRenderer.addRenderer(newPostRendererKustomize(r.Kustomize))
