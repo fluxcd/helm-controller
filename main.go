@@ -28,6 +28,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/fluxcd/pkg/runtime/acl"
@@ -40,10 +41,13 @@ import (
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	corev1 "k8s.io/api/core/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	"github.com/fluxcd/helm-controller/controllers"
+	"github.com/fluxcd/helm-controller/internal/features"
 	intkube "github.com/fluxcd/helm-controller/internal/kube"
+	feathelper "github.com/fluxcd/pkg/runtime/features"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -64,19 +68,21 @@ func init() {
 
 func main() {
 	var (
-		metricsAddr           string
-		eventsAddr            string
-		healthAddr            string
-		concurrent            int
-		requeueDependency     time.Duration
-		watchAllNamespaces    bool
-		httpRetry             int
-		clientOptions         client.Options
-		kubeConfigOpts        client.KubeConfigOptions
-		logOptions            logger.Options
-		aclOptions            acl.Options
-		leaderElectionOptions leaderelection.Options
-		rateLimiterOptions    helper.RateLimiterOptions
+		metricsAddr             string
+		eventsAddr              string
+		healthAddr              string
+		concurrent              int
+		requeueDependency       time.Duration
+		gracefulShutdownTimeout time.Duration
+		watchAllNamespaces      bool
+		httpRetry               int
+		clientOptions           client.Options
+		kubeConfigOpts          client.KubeConfigOptions
+		featureGates            feathelper.FeatureGates
+		logOptions              logger.Options
+		aclOptions              acl.Options
+		leaderElectionOptions   leaderelection.Options
+		rateLimiterOptions      helper.RateLimiterOptions
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -84,6 +90,7 @@ func main() {
 	flag.StringVar(&healthAddr, "health-addr", ":9440", "The address the health endpoint binds to.")
 	flag.IntVar(&concurrent, "concurrent", 4, "The number of concurrent HelmRelease reconciles.")
 	flag.DurationVar(&requeueDependency, "requeue-dependency", 30*time.Second, "The interval at which failing dependencies are reevaluated.")
+	flag.DurationVar(&gracefulShutdownTimeout, "graceful-shutdown-timeout", 600*time.Second, "The duration given to the reconciler to finish before forcibly stopping.")
 	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
 		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
 	flag.IntVar(&httpRetry, "http-retry", 9, "The maximum number of retries when failing to fetch artifacts over HTTP.")
@@ -94,9 +101,17 @@ func main() {
 	leaderElectionOptions.BindFlags(flag.CommandLine)
 	rateLimiterOptions.BindFlags(flag.CommandLine)
 	kubeConfigOpts.BindFlags(flag.CommandLine)
+	featureGates.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	ctrl.SetLogger(logger.NewLogger(logOptions))
+
+	err := featureGates.WithLogger(setupLog).
+		SupportedFeatures(features.FeatureGates())
+	if err != nil {
+		setupLog.Error(err, "unable to load feature gates")
+		os.Exit(1)
+	}
 
 	metricsRecorder := metrics.NewRecorder()
 	crtlmetrics.Registry.MustRegister(metricsRecorder.Collectors()...)
@@ -104,6 +119,16 @@ func main() {
 	watchNamespace := ""
 	if !watchAllNamespaces {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
+	}
+
+	disableCacheFor := []ctrlclient.Object{}
+	shouldCache, err := features.Enabled(features.CacheSecretsAndConfigMaps)
+	if err != nil {
+		setupLog.Error(err, "unable to check feature gate CacheSecretsAndConfigMaps")
+		os.Exit(1)
+	}
+	if !shouldCache {
+		disableCacheFor = append(disableCacheFor, &corev1.Secret{}, &corev1.ConfigMap{})
 	}
 
 	// set the managedFields owner for resources reconciled from Helm charts
@@ -120,9 +145,11 @@ func main() {
 		LeaseDuration:                 &leaderElectionOptions.LeaseDuration,
 		RenewDeadline:                 &leaderElectionOptions.RenewDeadline,
 		RetryPeriod:                   &leaderElectionOptions.RetryPeriod,
+		GracefulShutdownTimeout:       &gracefulShutdownTimeout,
 		LeaderElectionID:              fmt.Sprintf("%s-leader-election", controllerName),
 		Namespace:                     watchNamespace,
 		Logger:                        ctrl.Log,
+		ClientDisableCacheFor:         disableCacheFor,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

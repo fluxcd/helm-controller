@@ -17,4 +17,4 @@
 set -euxo pipefail
 
 # run each fuzzer once to ensure they are working properly
-find /out -type f -name "fuzz*" -exec echo {} -runs=1 \; | bash -e
+find /out -type f -iname "fuzz*" -exec echo {} -runs=1 \; | bash -e

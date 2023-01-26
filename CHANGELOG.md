@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.28.1
+
+**Release date:** 2022-12-22
+
+This prerelease sets the default value for the `--graceful-shutdown-timeout` to
+match the default value we set in the Deployment for
+`terminationGracePeriodSeconds` which is 600s. This should fix handling graceful
+shutdown correctly.
+
+Fixes:
+- Align `graceful-shutdown-timeout` with `terminationGracePeriodSeconds` 
+  [#584](https://github.com/fluxcd/helm-controller/pull/584)
+
+## 0.28.0
+
+**Release date:** 2022-12-20
+
+This prerelease disables the caching of Secret and ConfigMap resources to
+improve memory usage. To opt-out from this behaviour, start the controller
+with: `--feature-gates=CacheSecretsAndConfigMaps=true`.
+
+In addition, a new flag `--graceful-shutdown-timeout` has been added to
+control the duration of the graceful shutdown period. The default value is
+`-1` (disabled), to help prevent releases from being stuck due to the
+controller being terminated before the Helm action has completed.
+
+Helm has been updated to v3.10.3, which includes security fixes.
+
+Fixes:
+- Assign the value of `DisableOpenApiValidation` during upgrade
+  [#564](https://github.com/fluxcd/helm-controller/pull/564)
+- build: Fix cifuzz and improve fuzz tests' reliability
+  [#565](https://github.com/fluxcd/helm-controller/pull/565)
+- Minor typo in doc
+  [#566](https://github.com/fluxcd/helm-controller/pull/566)
+- fuzz: Use build script from upstream and fix fuzzers
+  [#578](https://github.com/fluxcd/helm-controller/pull/578)
+
+Improvements:
+- Disable caching of Secrets and ConfigMaps
+  [#513](https://github.com/fluxcd/helm-controller/513)
+- Allow overriding ctrl manager graceful shutdown timeout
+  [#570](https://github.com/fluxcd/helm-controller/pull/570)
+  [#582](https://github.com/fluxcd/helm-controller/pull/582)
+- helm: Update SDK to v3.10.3
+  [#577](https://github.com/fluxcd/helm-controller/pull/577)
+- Update source-controller and dependencies
+  [#581](https://github.com/fluxcd/helm-controller/pull/581)
+
 ## 0.27.0
 
 **Release date:** 2022-11-22
