@@ -17,12 +17,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Setup QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2
         with:
           platforms: all
       - name: Setup Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
         with:
           buildkitd-flags: "--debug"
       - name: Restore Go cache
@@ -45,22 +45,16 @@ jobs:
         with:
           go-version: 1.19.x
       - name: Setup Kubernetes
-        uses: engineerd/setup-kind@v0.5.0
+        uses: helm/kind-action@v1.5.0
         with:
-          version: v0.11.1
-          image: kindest/node:v1.23.13
+          version: v0.17.0
+          cluster_name: kind
       - name: Setup Helm
         uses: fluxcd/pkg/actions/helm@main
       - name: Setup Kustomize
         uses: fluxcd/pkg/actions/kustomize@main
-      - name: Setup Kubebuilder
-        uses: fluxcd/pkg/actions/kubebuilder@main
-      - name: Setup Kubectl
-        uses: fluxcd/pkg/actions/kubectl@main
       - name: Run tests
         run: make test
-        env:
-          KUBEBUILDER_ASSETS: ${{ github.workspace }}/kubebuilder/bin
       - name: Check if working tree is dirty
         run: |
           if [[ $(git diff --stat) != '' ]]; then
@@ -594,9 +588,6 @@ jobs:
       - name: Debug failure
         if: failure()
         run: |
-          which kubectl
-          kubectl version
-          helm version
           kubectl -n helm-system get helmrepositories -oyaml || true
           kubectl -n helm-system get helmcharts -oyaml || true
           kubectl -n helm-system get helmreleases -oyaml || true
