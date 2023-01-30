@@ -32,7 +32,7 @@ COPY internal/ internal/
 ENV CGO_ENABLED=0
 RUN xx-go build -trimpath -a -o helm-controller main.go
 
-FROM alpine:3.16
+FROM alpine:3.17
 
 # link repo to the GitHub Container Registry image
 LABEL org.opencontainers.image.source="https://github.com/fluxcd/helm-controller"
