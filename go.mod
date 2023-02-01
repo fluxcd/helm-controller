@@ -11,7 +11,7 @@ require (
 	github.com/fluxcd/pkg/apis/kustomize v0.8.0
 	github.com/fluxcd/pkg/apis/meta v0.19.0
 	github.com/fluxcd/pkg/runtime v0.27.0
-	github.com/fluxcd/source-controller/api v0.33.0
+	github.com/fluxcd/source-controller/api v0.34.0
 	github.com/go-logr/logr v1.2.3
 	github.com/hashicorp/go-retryablehttp v0.7.2
 	github.com/onsi/gomega v1.26.0
