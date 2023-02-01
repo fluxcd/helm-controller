@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.29.0
+
+**Release date:** 2023-02-01
+
+This prerelease comes with an update of Kubernetes dependencies to v1.26, Helm
+to v3.11.0, and a general update of other dependencies to their latest versions.
+
+Starting with this release, Custom Resource Definitions installed by the
+controller as part of a [`Create` or `CreateReplace`
+policy](https://github.com/fluxcd/helm-controller/blob/main/docs/spec/v2beta1/helmreleases.md#crds)
+are now labeled with `helm.toolkit.fluxcd.io/name` and
+`helm.toolkit.fluxcd.io/namespace` to allow tracking the `HelmRelease` origin
+of the resource. Note that these labels are only added to new and/or changed
+resources, existing resources will not be updated.
+
+Improvements:
+- build: Enable SBOM and SLSA Provenance
+  [#594](https://github.com/fluxcd/helm-controller/pull/594)
+- Update dependencies
+  [#595](https://github.com/fluxcd/helm-controller/pull/595)
+- Patch CRDs with origin labels
+  [#596](https://github.com/fluxcd/helm-controller/pull/596)
+- Update source-controller to v0.34.0
+  [#597](https://github.com/fluxcd/helm-controller/pull/597)
+
 ## 0.28.1
 
 **Release date:** 2022-12-22
