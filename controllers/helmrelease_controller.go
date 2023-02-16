@@ -714,7 +714,7 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(o client.Object) []re
 	for _, i := range list.Items {
 		// If the revision of the artifact equals to the last attempted revision,
 		// we should not make a request for this HelmRelease
-		if hc.GetArtifact().Revision == i.Status.LastAttemptedRevision {
+		if hc.GetArtifact().HasRevision(i.Status.LastAttemptedRevision) {
 			continue
 		}
 		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&i)})
