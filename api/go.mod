@@ -7,11 +7,8 @@ require (
 	github.com/fluxcd/pkg/apis/meta v0.19.0
 	k8s.io/apiextensions-apiserver v0.26.1
 	k8s.io/apimachinery v0.26.1
-	sigs.k8s.io/controller-runtime v0.14.2
+	sigs.k8s.io/controller-runtime v0.14.4
 )
-
-// Fix CVE-2022-32149
-replace golang.org/x/text => golang.org/x/text v0.4.0
 
 require (
 	github.com/go-logr/logr v1.2.3 // indirect
