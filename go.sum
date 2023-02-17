@@ -168,8 +168,8 @@ github.com/fluxcd/pkg/apis/meta v0.19.0 h1:CX75e/eaRWZDTzNdMSWomY1InlssLKcS8GQDS
 github.com/fluxcd/pkg/apis/meta v0.19.0/go.mod h1:7b6prDPsViyAzoY7eRfSPS0/MbXpGGsOMvRq2QrTKa4=
 github.com/fluxcd/pkg/runtime v0.29.0 h1:/BDitj/y5shWqczECCiZFsEm9FH7do4VBgMHBiRiol0=
 github.com/fluxcd/pkg/runtime v0.29.0/go.mod h1:NrBONYHO5Piuzm6Y7QTS3cJRlgkgsDPn2EKB6gJ4BQw=
-github.com/fluxcd/source-controller/api v0.35.0 h1:vVjUv4vxV3uS8AvdXe6J55TU88NwbpabPxlM72c7HwY=
-github.com/fluxcd/source-controller/api v0.35.0/go.mod h1:TImPMy/MEwNpDu6qHsw9LlCznXaB8bSO8mnxBSFsX4Q=
+github.com/fluxcd/source-controller/api v0.35.1 h1:IHlbN7giz5kY4z9oWZ9QLNKtHAaxHdk9RbIurUPS1aI=
+github.com/fluxcd/source-controller/api v0.35.1/go.mod h1:TImPMy/MEwNpDu6qHsw9LlCznXaB8bSO8mnxBSFsX4Q=
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
 github.com/fsnotify/fsnotify v1.6.0 h1:n+5WquG0fcWoWp6xPWfHdbskMCQaFnG6PfBrh1Ky4HY=
 github.com/fsnotify/fsnotify v1.6.0/go.mod h1:sl3t1tCWJFWoRz9R8WJCbQihKKwmorjAbSClcnxKAGw=
