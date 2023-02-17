@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.30.0
+
+**Release date:** 2023-02-17
+
+This prerelease adds support for parsing the
+[RFC-0005](https://github.com/fluxcd/flux2/tree/main/rfcs/0005-artifact-revision-and-digest)
+revision format produced by source-controller `>=v0.35.0`.
+
+In addition, the controller dependencies have been updated to their latest
+versions, including a security patch of Helm to `v3.11.1`.
+
+Improvements:
+- Support RFC-0005 revision format
+  [#606](https://github.com/fluxcd/helm-controller/pull/606)
+- Update dependencies
+  [#610](https://github.com/fluxcd/helm-controller/pull/610)
+- Update source-controller to v0.35.1
+  [#612](https://github.com/fluxcd/helm-controller/pull/612)
+
 ## 0.29.0
 
 **Release date:** 2023-02-01
