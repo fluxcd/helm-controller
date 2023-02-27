@@ -1270,6 +1270,42 @@ spec:
     crds: CreateReplace
 ```
 
+### Drift detection
+
+**Note:** This feature is experimental and can be enabled by setting `--feature-gates=DetectDrift=true`.
+
+When a HelmRelease is in-sync with the Helm release object in the storage, the controller will
+compare the manifests from the Helm storage with the current state of the cluster using a
+[server-side dry-run apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/).
+If this comparison detects a drift (either due resource being created or modified during the
+dry-run), the controller will perform an upgrade for the release, restoring the desired state.
+
+### Excluding resources from drift detection
+
+The drift detection feature can be configured to exclude certain resources from the comparison
+by labeling or annotating them with `helm.toolkit.fluxcd.io/diff: disabled`. Using
+[post-renderers](#post-renderers), this can be applied to any resource rendered by Helm.
+
+```yaml
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: app
+  namespace: webapp
+spec:
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              version: v1
+              kind: Deployment
+              name: my-app
+            patch: |
+              - op: add
+                path: /metadata/annotations/helm.toolkit.fluxcd.io~1diff
+                value: disabled
+```
+
 ## Status
 
 When the controller completes a reconciliation, it reports the result in the status sub-resource.
