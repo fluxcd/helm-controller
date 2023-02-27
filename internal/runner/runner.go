@@ -99,7 +99,7 @@ func postRenderers(hr v2.HelmRelease) (postrender.PostRenderer, error) {
 }
 
 // Install runs a Helm install action for the given v2beta1.HelmRelease.
-func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (*release.Release, error) {
+func (r *Runner) Install(ctx context.Context, hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (*release.Release, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	defer r.logBuffer.Reset()
@@ -141,12 +141,12 @@ func (r *Runner) Install(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 		}
 	}
 
-	rel, err := install.Run(chart, values.AsMap())
+	rel, err := install.RunWithContext(ctx, chart, values.AsMap())
 	return rel, wrapActionErr(r.logBuffer, err)
 }
 
 // Upgrade runs an Helm upgrade action for the given v2beta1.HelmRelease.
-func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (*release.Release, error) {
+func (r *Runner) Upgrade(ctx context.Context, hr v2.HelmRelease, chart *chart.Chart, values chartutil.Values) (*release.Release, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	defer r.logBuffer.Reset()
@@ -182,7 +182,7 @@ func (r *Runner) Upgrade(hr v2.HelmRelease, chart *chart.Chart, values chartutil
 		}
 	}
 
-	rel, err := upgrade.Run(hr.GetReleaseName(), chart, values.AsMap())
+	rel, err := upgrade.RunWithContext(ctx, hr.GetReleaseName(), chart, values.AsMap())
 	return rel, wrapActionErr(r.logBuffer, err)
 }
 
