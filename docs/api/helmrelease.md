@@ -99,8 +99,8 @@ Kubernetes meta/v1.Duration
 <td>
 <code>kubeConfig</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2beta1.KubeConfig">
-KubeConfig
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#KubeConfigReference">
+github.com/fluxcd/pkg/apis/meta.KubeConfigReference
 </a>
 </em>
 </td>
@@ -823,8 +823,8 @@ Kubernetes meta/v1.Duration
 <td>
 <code>kubeConfig</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2beta1.KubeConfig">
-KubeConfig
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#KubeConfigReference">
+github.com/fluxcd/pkg/apis/meta.KubeConfigReference
 </a>
 </em>
 </td>
@@ -1454,48 +1454,6 @@ bool
 <em>(Optional)</em>
 <p>RemediateLastFailure tells the controller to remediate the last failure, when
 no retries remain. Defaults to &lsquo;false&rsquo;.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<h3 id="helm.toolkit.fluxcd.io/v2beta1.KubeConfig">KubeConfig
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2beta1.HelmReleaseSpec">HelmReleaseSpec</a>)
-</p>
-<p>KubeConfig references a Kubernetes secret that contains a kubeconfig file.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>secretRef</code><br>
-<em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#SecretKeyReference">
-github.com/fluxcd/pkg/apis/meta.SecretKeyReference
-</a>
-</em>
-</td>
-<td>
-<p>SecretRef holds the name to a secret that contains a key with
-the kubeconfig file as the value. If no key is specified the key will
-default to &lsquo;value&rsquo;. The secret must be in the same namespace as
-the HelmRelease.
-It is recommended that the kubeconfig is self-contained, and the secret
-is regularly updated if credentials such as a cloud-access-token expire.
-Cloud specific <code>cmd-path</code> auth helpers will not function without adding
-binaries and credentials to the Pod that is responsible for reconciling
-the HelmRelease.</p>
 </td>
 </tr>
 </tbody>
