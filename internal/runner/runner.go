@@ -43,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/fluxcd/helm-controller/internal/features"
 )
 
 var accessor = meta.NewAccessor()
@@ -120,6 +121,11 @@ func (r *Runner) Install(ctx context.Context, hr v2.HelmRelease, chart *chart.Ch
 		install.CreateNamespace = hr.Spec.GetInstall().CreateNamespace
 	}
 
+	// If user opted-in to allow DNS lookups, enable it.
+	if allowDNS, _ := features.Enabled(features.AllowDNSLookups); allowDNS {
+		install.EnableDNS = allowDNS
+	}
+
 	renderer, err := postRenderers(hr)
 	if err != nil {
 		return nil, wrapActionErr(r.logBuffer, err)
@@ -164,6 +170,11 @@ func (r *Runner) Upgrade(ctx context.Context, hr v2.HelmRelease, chart *chart.Ch
 	upgrade.Force = hr.Spec.GetUpgrade().Force
 	upgrade.CleanupOnFail = hr.Spec.GetUpgrade().CleanupOnFail
 	upgrade.Devel = true
+
+	// If user opted-in to allow DNS lookups, enable it.
+	if allowDNS, _ := features.Enabled(features.AllowDNSLookups); allowDNS {
+		upgrade.EnableDNS = allowDNS
+	}
 
 	renderer, err := postRenderers(hr)
 	if err != nil {

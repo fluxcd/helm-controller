@@ -32,6 +32,12 @@ const (
 	// the desired state as described in the manifest of the Helm release
 	// storage object.
 	DetectDrift = "DetectDrift"
+
+	// AllowDNSLookups allows the controller to perform DNS lookups when rendering Helm
+	// templates. This is disabled by default, as it can be a security risk.
+	//
+	// Ref: https://github.com/helm/helm/security/advisories/GHSA-pwcw-6f5g-gxf8
+	AllowDNSLookups = "AllowDNSLookups"
 )
 
 var features = map[string]bool{
@@ -41,6 +47,9 @@ var features = map[string]bool{
 	// DetectClusterStateDrift
 	// opt-in from v0.31
 	DetectDrift: false,
+	// AllowDNSLookups
+	// opt-in from v0.31
+	AllowDNSLookups: false,
 }
 
 // FeatureGates contains a list of all supported feature gates and
