@@ -19,19 +19,20 @@ package diff
 import (
 	"context"
 	"fmt"
-	"github.com/fluxcd/pkg/runtime/logger"
-	"github.com/google/go-cmp/cmp"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"strings"
-
-	"helm.sh/helm/v3/pkg/release"
-	"k8s.io/apimachinery/pkg/util/errors"
 
 	"github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/ssa"
+	"github.com/google/go-cmp/cmp"
+	"helm.sh/helm/v3/pkg/release"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/fluxcd/pkg/runtime/logger"
 
 	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
+	intcmp "github.com/fluxcd/helm-controller/internal/cmp"
 	"github.com/fluxcd/helm-controller/internal/util"
 )
 
@@ -131,10 +132,13 @@ func (d *Differ) Diff(ctx context.Context, rel *release.Release) (*ssa.ChangeSet
 			if entry.Action == ssa.ConfiguredAction {
 				// TODO: remove this once we have a better way to log the diff
 				//       for example using a custom dyff reporter, or a flux CLI command
-				ctrl.LoggerFrom(ctx).V(logger.DebugLevel).Info(entry.Subject + " diff:" + cmp.Diff(
+				r := intcmp.SimpleUnstructuredReporter{}
+				if diff := cmp.Diff(
 					unstructuredWithoutStatus(releaseObject).UnstructuredContent(),
 					unstructuredWithoutStatus(clusterObject).UnstructuredContent(),
-				))
+					cmp.Reporter(&r)); diff != "" {
+					ctrl.LoggerFrom(ctx).V(logger.DebugLevel).Info(entry.Subject + " diff:\n" + r.String())
+				}
 			}
 		case ssa.SkippedAction:
 			changeSet.Add(*entry)
