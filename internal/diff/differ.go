@@ -19,6 +19,10 @@ package diff
 import (
 	"context"
 	"fmt"
+	"github.com/fluxcd/pkg/runtime/logger"
+	"github.com/google/go-cmp/cmp"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"strings"
 
 	"helm.sh/helm/v3/pkg/release"
@@ -106,7 +110,7 @@ func (d *Differ) Diff(ctx context.Context, rel *release.Release) (*ssa.ChangeSet
 			}
 		}
 
-		entry, _, _, err := resourceManager.Diff(ctx, obj, ssa.DiffOptions{
+		entry, releaseObject, clusterObject, err := resourceManager.Diff(ctx, obj, ssa.DiffOptions{
 			Exclusions: map[string]string{
 				MetadataKey: MetadataDisabledValue,
 			},
@@ -115,10 +119,23 @@ func (d *Differ) Diff(ctx context.Context, rel *release.Release) (*ssa.ChangeSet
 			errs = append(errs, err)
 		}
 
+		if entry == nil {
+			continue
+		}
+
 		switch entry.Action {
 		case ssa.CreatedAction, ssa.ConfiguredAction:
 			diff = true
 			changeSet.Add(*entry)
+
+			if entry.Action == ssa.ConfiguredAction {
+				// TODO: remove this once we have a better way to log the diff
+				//       for example using a custom dyff reporter, or a flux CLI command
+				ctrl.LoggerFrom(ctx).V(logger.DebugLevel).Info(entry.Subject + " diff:" + cmp.Diff(
+					unstructuredWithoutStatus(releaseObject).UnstructuredContent(),
+					unstructuredWithoutStatus(clusterObject).UnstructuredContent(),
+				))
+			}
 		case ssa.SkippedAction:
 			changeSet.Add(*entry)
 		}
@@ -129,4 +146,10 @@ func (d *Differ) Diff(ctx context.Context, rel *release.Release) (*ssa.ChangeSet
 		return nil, diff, err
 	}
 	return changeSet, diff, err
+}
+
+func unstructuredWithoutStatus(obj *unstructured.Unstructured) *unstructured.Unstructured {
+	obj = obj.DeepCopy()
+	delete(obj.Object, "status")
+	return obj
 }
