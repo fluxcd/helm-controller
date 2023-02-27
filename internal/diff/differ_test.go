@@ -18,6 +18,7 @@ package diff
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -87,6 +88,14 @@ metadata:
   name: test
 stringData:
   foo: bar
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-ns
+  namespace: other
+stringData:
+  foo: bar
 `,
 			},
 			want: &ssa.ChangeSet{
@@ -103,9 +112,113 @@ stringData:
 						Subject:      "Secret/release/test",
 						Action:       ssa.CreatedAction,
 					},
+					{
+						ObjMetadata: object.ObjMetadata{
+							Namespace: "other",
+							Name:      "test-ns",
+							GroupKind: schema.GroupKind{
+								Kind: "Secret",
+							},
+						},
+						GroupVersion: "v1",
+						Subject:      "Secret/other/test-ns",
+						Action:       ssa.CreatedAction,
+					},
 				},
 			},
 			wantDrift: true,
+		},
+		{
+			name: "ignores exclusions",
+			client: fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithRESTMapper(mapper).
+				Build(),
+			rel: &release.Release{
+				Namespace: "release",
+				Manifest: fmt.Sprintf(`---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test
+  labels:
+    %[1]s: %[2]s
+stringData:
+    foo: bar
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test2
+stringData:
+  foo: bar
+`, MetadataKey, MetadataDisabledValue),
+			},
+			want: &ssa.ChangeSet{
+				Entries: []ssa.ChangeSetEntry{
+					{
+						ObjMetadata: object.ObjMetadata{
+							Namespace: "release",
+							Name:      "test",
+							GroupKind: schema.GroupKind{
+								Kind: "Secret",
+							},
+						},
+						GroupVersion: "v1",
+						Subject:      "Secret/release/test",
+						Action:       ssa.SkippedAction,
+					},
+					{
+						ObjMetadata: object.ObjMetadata{
+							Namespace: "release",
+							Name:      "test2",
+							GroupKind: schema.GroupKind{
+								Kind: "Secret",
+							},
+						},
+						GroupVersion: "v1",
+						Subject:      "Secret/release/test2",
+						Action:       ssa.CreatedAction,
+					},
+				},
+			},
+			wantDrift: true,
+		},
+		{
+			name: "ignores exclusions (without diff)",
+			client: fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithRESTMapper(mapper).
+				Build(),
+			rel: &release.Release{
+				Namespace: "release",
+				Manifest: fmt.Sprintf(`---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test
+  labels:
+    %[1]s: %[2]s
+stringData:
+    foo: bar`, MetadataKey, MetadataDisabledValue),
+			},
+			want: &ssa.ChangeSet{
+				Entries: []ssa.ChangeSetEntry{
+					{
+						ObjMetadata: object.ObjMetadata{
+							Namespace: "release",
+							Name:      "test",
+							GroupKind: schema.GroupKind{
+								Kind: "Secret",
+							},
+						},
+						GroupVersion: "v1",
+						Subject:      "Secret/release/test",
+						Action:       ssa.SkippedAction,
+					},
+				},
+			},
+			wantDrift: false,
 		},
 	}
 	for _, tt := range tests {
