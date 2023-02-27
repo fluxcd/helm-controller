@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/rest"
 	kuberecorder "k8s.io/client-go/tools/record"
 	"k8s.io/client-go/tools/reference"
+	"sigs.k8s.io/cli-utils/pkg/kstatus/polling"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,13 +54,15 @@ import (
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/acl"
-	fluxClient "github.com/fluxcd/pkg/runtime/client"
+	runtimeClient "github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	"github.com/fluxcd/pkg/runtime/transform"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/fluxcd/helm-controller/internal/diff"
+	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/runner"
 	"github.com/fluxcd/helm-controller/internal/util"
@@ -83,8 +86,11 @@ type HelmReleaseReconciler struct {
 	MetricsRecorder       *metrics.Recorder
 	DefaultServiceAccount string
 	NoCrossNamespaceRef   bool
-	ClientOpts            fluxClient.Options
-	KubeConfigOpts        fluxClient.KubeConfigOptions
+	ClientOpts            runtimeClient.Options
+	KubeConfigOpts        runtimeClient.KubeConfigOptions
+	StatusPoller          *polling.StatusPoller
+	PollingOpts           polling.Options
+	ControllerName        string
 }
 
 func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
@@ -103,7 +109,7 @@ func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmRele
 	r.requeueDependency = opts.DependencyRequeueInterval
 
 	// Configure the retryable http client used for fetching artifacts.
-	// By default it retries 10 times within a 3.5 minutes window.
+	// By default, it retries 10 times within a 3.5 minutes window.
 	httpClient := retryablehttp.NewClient()
 	httpClient.RetryWaitMin = 5 * time.Second
 	httpClient.RetryWaitMax = 30 * time.Second
@@ -319,6 +325,44 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	releaseRevision := util.ReleaseRevision(rel)
 	valuesChecksum := util.ValuesChecksum(values)
 	hr, hasNewState := v2.HelmReleaseAttempted(hr, revision, releaseRevision, valuesChecksum)
+
+	// Run diff against current cluster state.
+	if !hasNewState {
+		if ok, _ := features.Enabled(features.DetectDrift); ok {
+			differ := diff.NewDiffer(runtimeClient.NewImpersonator(
+				r.Client,
+				r.StatusPoller,
+				r.PollingOpts,
+				hr.Spec.KubeConfig,
+				r.KubeConfigOpts,
+				r.DefaultServiceAccount,
+				hr.Spec.ServiceAccountName,
+				hr.GetNamespace(),
+			), r.ControllerName)
+
+			changeSet, drift, err := differ.Diff(ctx, rel)
+			if err != nil {
+				if changeSet == nil {
+					msg := "failed to diff release against cluster resources"
+					r.event(ctx, hr, rel.Chart.Metadata.Version, eventv1.EventSeverityError, err.Error())
+					return v2.HelmReleaseNotReady(hr, "DiffFailed", fmt.Sprintf("%s: %s", msg, err.Error())), err
+				}
+				log.Error(err, "diff of release against cluster resources finished with error")
+			}
+
+			msg := "no diff in cluster resources compared to release"
+			if drift {
+				hasNewState = true
+				msg = "diff in cluster resources compared to release"
+			}
+			if changeSet != nil {
+				msg = fmt.Sprintf("%s:\n\n%s", msg, changeSet.String())
+				r.event(ctx, hr, rel.Chart.Metadata.Version, eventv1.EventSeverityInfo, msg)
+			}
+			log.Info(msg)
+		}
+	}
+
 	if hasNewState {
 		hr = v2.HelmReleaseProgressing(hr)
 		if updateStatusErr := r.patchStatus(ctx, &hr); updateStatusErr != nil {

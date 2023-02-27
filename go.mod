@@ -11,6 +11,7 @@ require (
 	github.com/fluxcd/pkg/apis/kustomize v0.8.0
 	github.com/fluxcd/pkg/apis/meta v0.19.0
 	github.com/fluxcd/pkg/runtime v0.29.0
+	github.com/fluxcd/pkg/ssa v0.23.0
 	github.com/fluxcd/source-controller/api v0.35.1
 	github.com/go-logr/logr v1.2.3
 	github.com/hashicorp/go-retryablehttp v0.7.2
@@ -23,6 +24,7 @@ require (
 	k8s.io/cli-runtime v0.26.1
 	k8s.io/client-go v0.26.1
 	k8s.io/utils v0.0.0-20230209194617-a36077c30491
+	sigs.k8s.io/cli-utils v0.34.0
 	sigs.k8s.io/controller-runtime v0.14.4
 	sigs.k8s.io/kustomize/api v0.12.1
 	sigs.k8s.io/yaml v1.3.0
@@ -50,7 +52,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
-	github.com/containerd/containerd v1.6.18 // indirect
+	github.com/containerd/containerd v1.6.15 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/cli v20.10.21+incompatible // indirect
@@ -161,7 +163,6 @@ require (
 	k8s.io/kube-openapi v0.0.0-20221110221610-a28e98eb7c70 // indirect
 	k8s.io/kubectl v0.26.0 // indirect
 	oras.land/oras-go v1.2.2 // indirect
-	sigs.k8s.io/cli-utils v0.34.0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect

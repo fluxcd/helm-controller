@@ -24,15 +24,23 @@ const (
 	// CacheSecretsAndConfigMaps configures the caching of Secrets and ConfigMaps
 	// by the controller-runtime client.
 	//
-	// When enabled, it will cache both object types, resulting in increased memory usage
-	// and cluster-wide RBAC permissions (list and watch).
+	// When enabled, it will cache both object types, resulting in increased memory
+	// usage and cluster-wide RBAC permissions (list and watch).
 	CacheSecretsAndConfigMaps = "CacheSecretsAndConfigMaps"
+
+	// DetectDrift configures the detection of cluster state drift compared to
+	// the desired state as described in the manifest of the Helm release
+	// storage object.
+	DetectDrift = "DetectDrift"
 )
 
 var features = map[string]bool{
 	// CacheSecretsAndConfigMaps
 	// opt-in from v0.28
 	CacheSecretsAndConfigMaps: false,
+	// DetectClusterStateDrift
+	// opt-in from v0.31
+	DetectDrift: false,
 }
 
 // FeatureGates contains a list of all supported feature gates and
