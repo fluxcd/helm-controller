@@ -27,7 +27,17 @@ import (
 	"github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/ssa"
 
+	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
 	"github.com/fluxcd/helm-controller/internal/util"
+)
+
+var (
+	// MetadataKey is the label or annotation key used to disable the diffing
+	// of an object.
+	MetadataKey = helmv1.GroupVersion.Group + "/diff"
+	// MetadataDisabledValue is the value used to disable the diffing of an
+	// object using MetadataKey.
+	MetadataDisabledValue = "disabled"
 )
 
 type Differ struct {
@@ -72,6 +82,7 @@ func (d *Differ) Diff(ctx context.Context, rel *release.Release) (*ssa.ChangeSet
 	var (
 		changeSet       = ssa.NewChangeSet()
 		isNamespacedGVK = map[string]bool{}
+		diff            bool
 		errs            []error
 	)
 	for _, obj := range objects {
@@ -95,18 +106,27 @@ func (d *Differ) Diff(ctx context.Context, rel *release.Release) (*ssa.ChangeSet
 			}
 		}
 
-		entry, _, _, err := resourceManager.Diff(ctx, obj, ssa.DiffOptions{})
+		entry, _, _, err := resourceManager.Diff(ctx, obj, ssa.DiffOptions{
+			Exclusions: map[string]string{
+				MetadataKey: MetadataDisabledValue,
+			},
+		})
 		if err != nil {
 			errs = append(errs, err)
 		}
-		if entry != nil && (entry.Action == string(ssa.CreatedAction) || entry.Action == string(ssa.ConfiguredAction)) {
+
+		switch entry.Action {
+		case ssa.CreatedAction, ssa.ConfiguredAction:
+			diff = true
+			changeSet.Add(*entry)
+		case ssa.SkippedAction:
 			changeSet.Add(*entry)
 		}
 	}
 
 	err = errors.Reduce(errors.Flatten(errors.NewAggregate(errs)))
 	if len(changeSet.Entries) == 0 {
-		return nil, false, err
+		return nil, diff, err
 	}
-	return changeSet, true, err
+	return changeSet, diff, err
 }

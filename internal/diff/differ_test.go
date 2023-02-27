@@ -101,7 +101,7 @@ stringData:
 						},
 						GroupVersion: "v1",
 						Subject:      "Secret/release/test",
-						Action:       string(ssa.CreatedAction),
+						Action:       ssa.CreatedAction,
 					},
 				},
 			},
