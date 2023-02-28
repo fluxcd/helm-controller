@@ -1306,6 +1306,56 @@ spec:
                 value: disabled
 ```
 
+**Note:** For some charts, we have observed the drift detection feature can detect spurious
+changes due to Helm not properly patching an object, which seems to be related to
+[Helm#5915](https://github.com/helm/helm/issues/5915) and issues alike. In this case (and
+when possible for your workload), configuring `.spec.upgrade.force` to `true` might be a
+more fitting solution than ignoring the object in full.
+
+#### Drift exclusion example Prometheus Stack
+
+```yaml
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+spec:
+  interval: 5m
+  chart:
+    spec:
+      version: "45.x"
+      chart: kube-prometheus-stack
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+      interval: 60m
+  upgrade:
+    crds: CreateReplace
+    # Force recreation due to Helm not properly patching Deployment with e.g. added port,
+    # causing spurious drift detection
+    force: true
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              # Ignore these objects from Flux diff as they are mutated from chart hooks
+              kind: (ValidatingWebhookConfiguration|MutatingWebhookConfiguration)
+              name: kube-prometheus-stack-admission
+            patch: |
+              - op: add
+                path: /metadata/annotations/helm.toolkit.fluxcd.io~1diff
+                value: disabled
+          - target:
+              # Ignore these objects from Flux diff as they are mutated at apply time but not
+              # at dry-run time
+              kind: PrometheusRule
+            patch: |
+              - op: add
+                path: /metadata/annotations/helm.toolkit.fluxcd.io~1diff
+                value: disabled
+```
+
 ## Status
 
 When the controller completes a reconciliation, it reports the result in the status sub-resource.
