@@ -660,8 +660,11 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 
 // reconcileDelete deletes the v1beta2.HelmChart of the v2beta1.HelmRelease,
 // and uninstalls the Helm release if the resource has not been suspended.
+// It only performs a Helm uninstall if the ServiceAccount to be impersonated
+// exists.
 func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmRelease) (ctrl.Result, error) {
 	r.recordReadiness(ctx, hr)
+	log := ctrl.LoggerFrom(ctx)
 
 	// Delete the HelmChart that belongs to this resource.
 	if err := r.deleteHelmChart(ctx, &hr); err != nil {
@@ -670,19 +673,36 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmR
 
 	// Only uninstall the Helm Release if the resource is not suspended.
 	if !hr.Spec.Suspend {
-		getter, err := r.buildRESTClientGetter(ctx, hr)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		run, err := runner.NewRunner(getter, hr.GetStorageNamespace(), ctrl.LoggerFrom(ctx))
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		if err := run.Uninstall(hr); err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
-			return ctrl.Result{}, err
-		}
-		ctrl.LoggerFrom(ctx).Info("uninstalled Helm release for deleted resource")
+		impersonator := runtimeClient.NewImpersonator(
+			r.Client,
+			r.StatusPoller,
+			r.PollingOpts,
+			hr.Spec.KubeConfig,
+			r.KubeConfigOpts,
+			kube.DefaultServiceAccountName,
+			hr.Spec.ServiceAccountName,
+			hr.GetNamespace(),
+		)
 
+		if impersonator.CanImpersonate(ctx) {
+			getter, err := r.buildRESTClientGetter(ctx, hr)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			run, err := runner.NewRunner(getter, hr.GetStorageNamespace(), ctrl.LoggerFrom(ctx))
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if err := run.Uninstall(hr); err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
+				return ctrl.Result{}, err
+			}
+			log.Info("uninstalled Helm release for deleted resource")
+		} else {
+			err := fmt.Errorf("failed to find service account to impersonate")
+			msg := "skipping Helm uninstall"
+			log.Error(err, msg)
+			r.event(ctx, hr, hr.Status.LastAppliedRevision, eventv1.EventSeverityError, fmt.Sprintf("%s: %s", msg, err.Error()))
+		}
 	} else {
 		ctrl.LoggerFrom(ctx).Info("skipping Helm uninstall for suspended resource")
 	}
