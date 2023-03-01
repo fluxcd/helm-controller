@@ -1283,7 +1283,7 @@ dry-run), the controller will perform an upgrade for the release, restoring the 
 ### Excluding resources from drift detection
 
 The drift detection feature can be configured to exclude certain resources from the comparison
-by labeling or annotating them with `helm.toolkit.fluxcd.io/diff: disabled`. Using
+by labeling or annotating them with `helm.toolkit.fluxcd.io/driftDetection: disabled`. Using
 [post-renderers](#post-renderers), this can be applied to any resource rendered by Helm.
 
 ```yaml
@@ -1302,7 +1302,7 @@ spec:
               name: my-app
             patch: |
               - op: add
-                path: /metadata/annotations/helm.toolkit.fluxcd.io~1diff
+                path: /metadata/annotations/helm.toolkit.fluxcd.io~1driftDetection
                 value: disabled
 ```
 
@@ -1344,7 +1344,7 @@ spec:
               name: kube-prometheus-stack-admission
             patch: |
               - op: add
-                path: /metadata/annotations/helm.toolkit.fluxcd.io~1diff
+                path: /metadata/annotations/helm.toolkit.fluxcd.io~1driftDetection
                 value: disabled
           - target:
               # Ignore these objects from Flux diff as they are mutated at apply time but not
@@ -1352,7 +1352,7 @@ spec:
               kind: PrometheusRule
             patch: |
               - op: add
-                path: /metadata/annotations/helm.toolkit.fluxcd.io~1diff
+                path: /metadata/annotations/helm.toolkit.fluxcd.io~1driftDetection
                 value: disabled
 ```
 

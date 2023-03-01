@@ -39,7 +39,7 @@ import (
 var (
 	// MetadataKey is the label or annotation key used to disable the diffing
 	// of an object.
-	MetadataKey = helmv1.GroupVersion.Group + "/diff"
+	MetadataKey = helmv1.GroupVersion.Group + "/driftDetection"
 	// MetadataDisabledValue is the value used to disable the diffing of an
 	// object using MetadataKey.
 	MetadataDisabledValue = "disabled"
