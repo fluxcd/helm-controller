@@ -42,6 +42,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	runtimelogger "github.com/fluxcd/pkg/runtime/logger"
+
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	"github.com/fluxcd/helm-controller/internal/features"
 )
@@ -74,12 +76,15 @@ type Runner struct {
 // namespace configured to the provided values.
 func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace string, logger logr.Logger) (*Runner, error) {
 	runner := &Runner{
-		logBuffer: NewLogBuffer(NewDebugLog(logger).Log, defaultBufferSize),
+		logBuffer: NewLogBuffer(NewDebugLog(logger.V(runtimelogger.DebugLevel)).Log, defaultBufferSize),
 	}
-	runner.config = new(action.Configuration)
-	if err := runner.config.Init(getter, storageNamespace, "secret", runner.logBuffer.Log); err != nil {
+	cfg := new(action.Configuration)
+	if err := cfg.Init(getter, storageNamespace, "secret", NewDebugLog(logger.V(runtimelogger.TraceLevel)).Log); err != nil {
 		return nil, err
 	}
+	// Override the logger used by the Helm actions with the log buffer.
+	cfg.Log = runner.logBuffer.Log
+	runner.config = cfg
 	return runner, nil
 }
 

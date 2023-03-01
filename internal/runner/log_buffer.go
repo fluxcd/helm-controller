@@ -37,7 +37,7 @@ func NewDebugLog(log logr.Logger) *DebugLog {
 }
 
 func (l *DebugLog) Log(format string, v ...interface{}) {
-	l.log.V(1).Info(fmt.Sprintf(format, v...))
+	l.log.Info(fmt.Sprintf(format, v...))
 }
 
 type LogBuffer struct {
