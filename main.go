@@ -27,6 +27,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"sigs.k8s.io/cli-utils/pkg/kstatus/polling"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -165,6 +166,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	pollingOpts := polling.Options{}
 	if err = (&controllers.HelmReleaseReconciler{
 		Client:              mgr.GetClient(),
 		Config:              mgr.GetConfig(),
@@ -174,6 +176,9 @@ func main() {
 		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
 		ClientOpts:          clientOptions,
 		KubeConfigOpts:      kubeConfigOpts,
+		PollingOpts:         pollingOpts,
+		StatusPoller:        polling.NewStatusPoller(mgr.GetClient(), mgr.GetRESTMapper(), pollingOpts),
+		ControllerName:      controllerName,
 	}).SetupWithManager(mgr, controllers.HelmReleaseReconcilerOptions{
 		MaxConcurrentReconciles:   concurrent,
 		DependencyRequeueInterval: requeueDependency,

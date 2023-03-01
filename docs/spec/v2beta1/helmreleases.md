@@ -1270,6 +1270,92 @@ spec:
     crds: CreateReplace
 ```
 
+### Drift detection
+
+**Note:** This feature is experimental and can be enabled by setting `--feature-gates=DetectDrift=true`.
+
+When a HelmRelease is in-sync with the Helm release object in the storage, the controller will
+compare the manifests from the Helm storage with the current state of the cluster using a
+[server-side dry-run apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/).
+If this comparison detects a drift (either due resource being created or modified during the
+dry-run), the controller will perform an upgrade for the release, restoring the desired state.
+
+### Excluding resources from drift detection
+
+The drift detection feature can be configured to exclude certain resources from the comparison
+by labeling or annotating them with `helm.toolkit.fluxcd.io/driftDetection: disabled`. Using
+[post-renderers](#post-renderers), this can be applied to any resource rendered by Helm.
+
+```yaml
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: app
+  namespace: webapp
+spec:
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              version: v1
+              kind: Deployment
+              name: my-app
+            patch: |
+              - op: add
+                path: /metadata/annotations/helm.toolkit.fluxcd.io~1driftDetection
+                value: disabled
+```
+
+**Note:** For some charts, we have observed the drift detection feature can detect spurious
+changes due to Helm not properly patching an object, which seems to be related to
+[Helm#5915](https://github.com/helm/helm/issues/5915) and issues alike. In this case (and
+when possible for your workload), configuring `.spec.upgrade.force` to `true` might be a
+more fitting solution than ignoring the object in full.
+
+#### Drift exclusion example Prometheus Stack
+
+```yaml
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+spec:
+  interval: 5m
+  chart:
+    spec:
+      version: "45.x"
+      chart: kube-prometheus-stack
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+      interval: 60m
+  upgrade:
+    crds: CreateReplace
+    # Force recreation due to Helm not properly patching Deployment with e.g. added port,
+    # causing spurious drift detection
+    force: true
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              # Ignore these objects from Flux diff as they are mutated from chart hooks
+              kind: (ValidatingWebhookConfiguration|MutatingWebhookConfiguration)
+              name: kube-prometheus-stack-admission
+            patch: |
+              - op: add
+                path: /metadata/annotations/helm.toolkit.fluxcd.io~1driftDetection
+                value: disabled
+          - target:
+              # Ignore these objects from Flux diff as they are mutated at apply time but not
+              # at dry-run time
+              kind: PrometheusRule
+            patch: |
+              - op: add
+                path: /metadata/annotations/helm.toolkit.fluxcd.io~1driftDetection
+                value: disabled
+```
+
 ## Status
 
 When the controller completes a reconciliation, it reports the result in the status sub-resource.
