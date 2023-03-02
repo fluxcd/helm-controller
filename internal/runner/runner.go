@@ -76,10 +76,10 @@ type Runner struct {
 // namespace configured to the provided values.
 func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace string, logger logr.Logger) (*Runner, error) {
 	runner := &Runner{
-		logBuffer: NewLogBuffer(NewDebugLog(logger.V(runtimelogger.DebugLevel)).Log, defaultBufferSize),
+		logBuffer: NewLogBuffer(NewDebugLog(logger.V(runtimelogger.DebugLevel)), defaultBufferSize),
 	}
 	cfg := new(action.Configuration)
-	if err := cfg.Init(getter, storageNamespace, "secret", NewDebugLog(logger.V(runtimelogger.TraceLevel)).Log); err != nil {
+	if err := cfg.Init(getter, storageNamespace, "secret", NewDebugLog(logger.V(runtimelogger.TraceLevel))); err != nil {
 		return nil, err
 	}
 	// Override the logger used by the Helm actions with the log buffer.

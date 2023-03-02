@@ -28,16 +28,10 @@ import (
 
 const defaultBufferSize = 5
 
-type DebugLog struct {
-	log logr.Logger
-}
-
-func NewDebugLog(log logr.Logger) *DebugLog {
-	return &DebugLog{log: log}
-}
-
-func (l *DebugLog) Log(format string, v ...interface{}) {
-	l.log.Info(fmt.Sprintf(format, v...))
+func NewDebugLog(log logr.Logger) action.DebugLog {
+	return func(format string, v ...interface{}) {
+		log.Info(fmt.Sprintf(format, v...))
+	}
 }
 
 type LogBuffer struct {
