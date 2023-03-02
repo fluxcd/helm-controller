@@ -7,10 +7,10 @@ replace github.com/fluxcd/helm-controller/api => ./api
 require (
 	github.com/fluxcd/helm-controller/api v0.30.0
 	github.com/fluxcd/pkg/apis/acl v0.1.0
-	github.com/fluxcd/pkg/apis/event v0.4.0
-	github.com/fluxcd/pkg/apis/kustomize v0.8.0
-	github.com/fluxcd/pkg/apis/meta v0.19.0
-	github.com/fluxcd/pkg/runtime v0.29.0
+	github.com/fluxcd/pkg/apis/event v0.4.1
+	github.com/fluxcd/pkg/apis/kustomize v0.8.1
+	github.com/fluxcd/pkg/apis/meta v0.19.1
+	github.com/fluxcd/pkg/runtime v0.30.0
 	github.com/fluxcd/pkg/ssa v0.24.1
 	github.com/fluxcd/source-controller/api v0.35.2
 	github.com/go-logr/logr v1.2.3
@@ -26,7 +26,7 @@ require (
 	k8s.io/client-go v0.26.2
 	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5
 	sigs.k8s.io/cli-utils v0.34.0
-	sigs.k8s.io/controller-runtime v0.14.4
+	sigs.k8s.io/controller-runtime v0.14.5
 	sigs.k8s.io/kustomize/api v0.12.1
 	sigs.k8s.io/yaml v1.3.0
 )
@@ -50,7 +50,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
-	github.com/containerd/containerd v1.6.15 // indirect
+	github.com/containerd/containerd v1.6.18 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/cli v20.10.21+incompatible // indirect
@@ -156,7 +156,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiserver v0.26.2 // indirect
 	k8s.io/component-base v0.26.2 // indirect
-	k8s.io/klog/v2 v2.90.0 // indirect
+	k8s.io/klog/v2 v2.90.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20221110221610-a28e98eb7c70 // indirect
 	k8s.io/kubectl v0.26.0 // indirect
 	oras.land/oras-go v1.2.2 // indirect
