@@ -668,8 +668,9 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmR
 		return ctrl.Result{}, err
 	}
 
-	// Only uninstall the Helm Release if the resource is not suspended.
-	if !hr.Spec.Suspend {
+	// Only uninstall the Helm Release if the resource is not suspended or if it
+	// is configured to ignore suspension.
+	if !hr.Spec.Suspend || hr.Spec.Uninstall.IfSuspended {
 		getter, err := r.buildRESTClientGetter(ctx, hr)
 		if err != nil {
 			return ctrl.Result{}, err
