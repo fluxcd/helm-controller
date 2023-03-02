@@ -541,11 +541,11 @@ jobs:
           kubectl apply -f config/testdata/delete-ns
           kubectl -n delete-ns wait helmreleases/podinfo --for=condition=ready --timeout=2m
           kubectl delete ns delete-ns 1>/dev/null 2>&1 &
-          echo -n ">> Waiting for namespace to be deleted"
-          if kubectl wait --for=delete namespace delete-ns --timeout=2m; then
-            echo 'Namespace deleted successfully'
+          echo -n ">>> Waiting for namespace to be deleted"
+          if kubectl wait --for=delete namespace delete-ns --timeout=3m; then
+            echo ' Namespace deleted successfully'
           else
-            echo 'Timed out waiting for namespace to be deleted'
+            echo ' Timed out waiting for namespace to be deleted'
             exit 1
           fi
       - name: Run post-renderer-kustomize test
