@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/fluxcd/helm-controller/internal/oomwatch"
 	"os"
 	"time"
 
@@ -84,18 +85,33 @@ func main() {
 		aclOptions              acl.Options
 		leaderElectionOptions   leaderelection.Options
 		rateLimiterOptions      helper.RateLimiterOptions
+		oomWatchInterval        time.Duration
+		oomWatchMemoryThreshold float64
 	)
 
-	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
-	flag.StringVar(&healthAddr, "health-addr", ":9440", "The address the health endpoint binds to.")
-	flag.IntVar(&concurrent, "concurrent", 4, "The number of concurrent HelmRelease reconciles.")
-	flag.DurationVar(&requeueDependency, "requeue-dependency", 30*time.Second, "The interval at which failing dependencies are reevaluated.")
-	flag.DurationVar(&gracefulShutdownTimeout, "graceful-shutdown-timeout", 600*time.Second, "The duration given to the reconciler to finish before forcibly stopping.")
+	flag.StringVar(&metricsAddr, "metrics-addr", ":8080",
+		"The address the metric endpoint binds to.")
+	flag.StringVar(&eventsAddr, "events-addr", "",
+		"The address of the events receiver.")
+	flag.StringVar(&healthAddr, "health-addr", ":9440",
+		"The address the health endpoint binds to.")
+	flag.IntVar(&concurrent, "concurrent", 4,
+		"The number of concurrent HelmRelease reconciles.")
+	flag.DurationVar(&requeueDependency, "requeue-dependency", 30*time.Second,
+		"The interval at which failing dependencies are reevaluated.")
+	flag.DurationVar(&gracefulShutdownTimeout, "graceful-shutdown-timeout", 600*time.Second,
+		"The duration given to the reconciler to finish before forcibly stopping.")
 	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
 		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
-	flag.IntVar(&httpRetry, "http-retry", 9, "The maximum number of retries when failing to fetch artifacts over HTTP.")
-	flag.StringVar(&intkube.DefaultServiceAccountName, "default-service-account", "", "Default service account used for impersonation.")
+	flag.IntVar(&httpRetry, "http-retry", 9,
+		"The maximum number of retries when failing to fetch artifacts over HTTP.")
+	flag.StringVar(&intkube.DefaultServiceAccountName, "default-service-account", "",
+		"Default service account used for impersonation.")
+	flag.Float64Var(&oomWatchMemoryThreshold, "oom-watch-memory-threshold", 95,
+		"The memory threshold in percentage at which the OOM watcher will trigger a graceful shutdown. Requires feature gate 'OOMWatch' to be enabled.")
+	flag.DurationVar(&oomWatchInterval, "oom-watch-interval", 500*time.Millisecond,
+		"The interval at which the OOM watcher will check for memory usage. Requires feature gate 'OOMWatch' to be enabled.")
+
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
 	aclOptions.BindFlags(flag.CommandLine)
@@ -103,6 +119,7 @@ func main() {
 	rateLimiterOptions.BindFlags(flag.CommandLine)
 	kubeConfigOpts.BindFlags(flag.CommandLine)
 	featureGates.BindFlags(flag.CommandLine)
+
 	flag.Parse()
 
 	ctrl.SetLogger(logger.NewLogger(logOptions))
@@ -122,7 +139,7 @@ func main() {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
 	}
 
-	disableCacheFor := []ctrlclient.Object{}
+	var disableCacheFor []ctrlclient.Object
 	shouldCache, err := features.Enabled(features.CacheSecretsAndConfigMaps)
 	if err != nil {
 		setupLog.Error(err, "unable to check feature gate CacheSecretsAndConfigMaps")
@@ -190,8 +207,19 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
+	ctx := ctrl.SetupSignalHandler()
+	if ok, _ := features.Enabled(features.OOMWatch); ok {
+		setupLog.Info("setting up OOM watcher")
+		ow, err := oomwatch.NewDefault(oomWatchMemoryThreshold, oomWatchInterval, ctrl.Log.WithName("OOMwatch"))
+		if err != nil {
+			setupLog.Error(err, "unable to setup OOM watcher")
+			os.Exit(1)
+		}
+		ctx = ow.Watch(ctx)
+	}
+
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
