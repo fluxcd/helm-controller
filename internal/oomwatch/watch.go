@@ -64,16 +64,16 @@ type Watcher struct {
 // New returns a new Watcher.
 func New(memoryMaxPath, memoryCurrentPath string, memoryUsagePercentThreshold float64, interval time.Duration, logger logr.Logger) (*Watcher, error) {
 	if memoryUsagePercentThreshold < 1 || memoryUsagePercentThreshold > 100 {
-		return nil, fmt.Errorf("memory usage percent threshold must be between 1 and 100, got %f", memoryUsagePercentThreshold)
+		return nil, fmt.Errorf("memory usage percent threshold must be between 1 and 100, got %.2f", memoryUsagePercentThreshold)
 	}
 
 	if _, err := os.Lstat(memoryCurrentPath); err != nil {
-		return nil, fmt.Errorf("failed to stat %q: %w", memoryCurrentPath, err)
+		return nil, fmt.Errorf("failed to stat memory.current %q: %w", memoryCurrentPath, err)
 	}
 
 	memoryMax, err := readUintFromFile(memoryMaxPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read memory.max %q: %w", memoryMaxPath, err)
 	}
 
 	return &Watcher{
