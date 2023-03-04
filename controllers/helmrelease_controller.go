@@ -520,7 +520,8 @@ func (r *HelmReleaseReconciler) checkDependencies(hr v2.HelmRelease) error {
 }
 
 func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, hr v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {
-	opts := []kube.ClientGetterOption{
+	opts := []kube.Option{
+		kube.WithNamespace(hr.GetReleaseNamespace()),
 		kube.WithClientOptions(r.ClientOpts),
 		// When ServiceAccountName is empty, it will fall back to the configured default.
 		// If this is not configured either, this option will result in a no-op.
@@ -535,13 +536,13 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, hr v2
 		if err := r.Get(ctx, secretName, &secret); err != nil {
 			return nil, fmt.Errorf("could not find KubeConfig secret '%s': %w", secretName, err)
 		}
-		kubeConfig, err := kube.ConfigFromSecret(&secret, hr.Spec.KubeConfig.SecretRef.Key)
+		kubeConfig, err := kube.ConfigFromSecret(&secret, hr.Spec.KubeConfig.SecretRef.Key, r.KubeConfigOpts)
 		if err != nil {
 			return nil, err
 		}
-		opts = append(opts, kube.WithKubeConfig(kubeConfig, r.KubeConfigOpts))
+		return kube.NewMemoryRESTClientGetter(kubeConfig, opts...), nil
 	}
-	return kube.BuildClientGetter(hr.GetReleaseNamespace(), opts...)
+	return kube.NewInClusterMemoryRESTClientGetter(opts...)
 }
 
 // composeValues attempts to resolve all v2beta1.ValuesReference resources

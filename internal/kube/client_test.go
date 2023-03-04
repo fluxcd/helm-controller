@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Flux authors
+Copyright 2023 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,178 +20,220 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/fluxcd/pkg/runtime/client"
 	. "github.com/onsi/gomega"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/fluxcd/pkg/runtime/client"
 )
 
-var cfg = []byte(`current-context: federal-context
-apiVersion: v1
-clusters:
-- cluster:
-    api-version: v1
-    server: http://cow.org:8080
-    insecure-skip-tls-verify: true
-  name: cow-cluster
-contexts:
-- context:
-    cluster: cow-cluster
-    user: blue-user
-  name: federal-context
-kind: Config
-users:
-- name: blue-user
-  user:
-    token: foo`)
-
-func TestNewInClusterRESTClientGetter(t *testing.T) {
-	t.Run("discover config", func(t *testing.T) {
+func TestWithNamespace(t *testing.T) {
+	t.Run("sets the namespace", func(t *testing.T) {
 		g := NewWithT(t)
 
-		cfg := &rest.Config{
-			Host:        "https://example.com",
-			BearerToken: "chase-the-honey",
-			TLSClientConfig: rest.TLSClientConfig{
-				CAFile: "afile",
+		c := &MemoryRESTClientGetter{}
+		WithNamespace("foo")(c)
+		g.Expect(c.namespace).To(Equal("foo"))
+	})
+}
+
+func TestWithImpersonate(t *testing.T) {
+	t.Run("sets the impersonate", func(t *testing.T) {
+		g := NewWithT(t)
+
+		c := &MemoryRESTClientGetter{
+			cfg: &rest.Config{
+				Host: "https://example.com",
 			},
 		}
-		ctrl.GetConfig = func() (*rest.Config, error) {
-			return cfg, nil
-		}
-		got, err := NewInClusterRESTClientGetter("", "", "", nil)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(got).To(BeAssignableToTypeOf(&genericclioptions.ConfigFlags{}))
+		WithImpersonate("foo", "bar")(c)
+		g.Expect(c.impersonate).To(Equal(fmt.Sprintf(userNameFormat, "bar", "foo")))
+		g.Expect(c.cfg.Impersonate.UserName).To(Equal(c.impersonate))
+	})
+}
 
-		flags := got.(*genericclioptions.ConfigFlags)
-		fields := map[*string]*string{
-			flags.APIServer:   &cfg.Host,
-			flags.BearerToken: &cfg.BearerToken,
-			flags.CAFile:      &cfg.CAFile,
+func TestWithClientOptions(t *testing.T) {
+	t.Run("sets the client options", func(t *testing.T) {
+		g := NewWithT(t)
+
+		c := &MemoryRESTClientGetter{
+			cfg: &rest.Config{
+				Host: "https://example.com",
+			},
 		}
-		for f, ff := range fields {
-			g.Expect(f).ToNot(BeNil())
-			g.Expect(f).To(Equal(ff))
-			g.Expect(f).ToNot(BeIdenticalTo(ff))
-		}
+		WithClientOptions(client.Options{
+			Burst: 10,
+			QPS:   5,
+		})(c)
+		g.Expect(c.cfg.Burst).To(Equal(10))
+		g.Expect(c.cfg.QPS).To(Equal(float32(5)))
+	})
+}
+
+func TestNewMemoryRESTClientGetter(t *testing.T) {
+	t.Run("returns a new MemoryRESTClientGetter", func(t *testing.T) {
+		g := NewWithT(t)
+
+		c := NewMemoryRESTClientGetter(&rest.Config{
+			Host: "https://example.com",
+		})
+		g.Expect(c).ToNot(BeNil())
+		g.Expect(c.cfg).ToNot(BeNil())
+		g.Expect(c.cfg.Host).To(Equal("https://example.com"))
 	})
 
-	t.Run("config retrieval error", func(t *testing.T) {
+	t.Run("returns a new MemoryRESTClientGetter with default options", func(t *testing.T) {
+		g := NewWithT(t)
+
+		c := NewMemoryRESTClientGetter(&rest.Config{
+			Host: "https://example.com",
+		})
+		g.Expect(c).ToNot(BeNil())
+		g.Expect(c.cfg).ToNot(BeNil())
+		g.Expect(c.namespace).To(Equal("default"))
+	})
+
+	t.Run("returns a new MemoryRESTClientGetter with options", func(t *testing.T) {
+		g := NewWithT(t)
+
+		c := NewMemoryRESTClientGetter(&rest.Config{
+			Host: "https://example.com",
+		}, WithNamespace("foo"))
+		g.Expect(c).ToNot(BeNil())
+		g.Expect(c.cfg).ToNot(BeNil())
+		g.Expect(c.namespace).To(Equal("foo"))
+	})
+}
+
+func TestNewInClusterMemoryRESTClientGetter(t *testing.T) {
+	t.Cleanup(func() {
+		cfg := ctrl.GetConfig
+		ctrl.GetConfig = cfg
+	})
+
+	t.Run("discovers the in cluster config", func(t *testing.T) {
+		g := NewWithT(t)
+
+		mockCfg := &rest.Config{
+			Host: "https://example.com",
+		}
+		ctrl.GetConfig = func() (*rest.Config, error) {
+			return mockCfg, nil
+		}
+
+		c, err := NewInClusterMemoryRESTClientGetter()
+		g.Expect(c).ToNot(BeNil())
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(c.cfg).To(Equal(mockCfg))
+	})
+
+	t.Run("returns an error if the in cluster config cannot be discovered", func(t *testing.T) {
 		g := NewWithT(t)
 
 		ctrl.GetConfig = func() (*rest.Config, error) {
 			return nil, fmt.Errorf("error")
 		}
-		got, err := NewInClusterRESTClientGetter("", "", "", nil)
+
+		c, err := NewInClusterMemoryRESTClientGetter()
+		g.Expect(c).To(BeNil())
 		g.Expect(err).To(HaveOccurred())
-		g.Expect(err.Error()).To(ContainSubstring("failed to get config for in-cluster REST client"))
-		g.Expect(got).To(BeNil())
 	})
 
-	t.Run("namespace", func(t *testing.T) {
+	t.Run("configures the client with options", func(t *testing.T) {
 		g := NewWithT(t)
 
-		ctrl.GetConfig = mockGetConfig
-		namespace := "a-space"
-		got, err := NewInClusterRESTClientGetter(namespace, "", "", nil)
+		mockCfg := &rest.Config{
+			Host: "https://example.com",
+		}
+		ctrl.GetConfig = func() (*rest.Config, error) {
+			return mockCfg, nil
+		}
+
+		c, err := NewInClusterMemoryRESTClientGetter(WithNamespace("foo"))
+		g.Expect(c).ToNot(BeNil())
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(got).To(BeAssignableToTypeOf(&genericclioptions.ConfigFlags{}))
-
-		flags := got.(*genericclioptions.ConfigFlags)
-		g.Expect(flags.Namespace).ToNot(BeNil())
-		g.Expect(*flags.Namespace).To(Equal(namespace))
-	})
-
-	t.Run("impersonation", func(t *testing.T) {
-		g := NewWithT(t)
-
-		ctrl.GetConfig = mockGetConfig
-		ns := "a-namespace"
-		accountName := "foo"
-		accountNamespace := "another-namespace"
-		got, err := NewInClusterRESTClientGetter(ns, accountName, accountNamespace, nil)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(got).To(BeAssignableToTypeOf(&genericclioptions.ConfigFlags{}))
-
-		flags := got.(*genericclioptions.ConfigFlags)
-		g.Expect(flags.Impersonate).ToNot(BeNil())
-		g.Expect(*flags.Impersonate).To(Equal(fmt.Sprintf("system:serviceaccount:%s:%s", accountNamespace, accountName)))
+		g.Expect(c.cfg).To(Equal(mockCfg))
+		g.Expect(c.namespace).To(Equal("foo"))
 	})
 }
 
 func TestMemoryRESTClientGetter_ToRESTConfig(t *testing.T) {
-	t.Run("loads REST config from KubeConfig", func(t *testing.T) {
+	t.Run("returns a REST config", func(t *testing.T) {
 		g := NewWithT(t)
-		getter := NewMemoryRESTClientGetter(cfg, "", "", "", client.Options{}, client.KubeConfigOptions{})
-		got, err := getter.ToRESTConfig()
+
+		c := &MemoryRESTClientGetter{
+			cfg: &rest.Config{
+				Host: "https://example.com",
+			},
+		}
+		cfg, err := c.ToRESTConfig()
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(got.Host).To(Equal("http://cow.org:8080"))
-		g.Expect(got.TLSClientConfig.Insecure).To(BeFalse())
+		g.Expect(cfg).To(BeIdenticalTo(c.cfg))
 	})
 
-	t.Run("sets ImpersonationConfig", func(t *testing.T) {
-		g := NewWithT(t)
-		getter := NewMemoryRESTClientGetter(cfg, "", "someone", "a-namespace", client.Options{}, client.KubeConfigOptions{})
-
-		got, err := getter.ToRESTConfig()
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(got.Impersonate.UserName).To(Equal("system:serviceaccount:a-namespace:someone"))
-	})
-
-	t.Run("uses KubeConfigOptions", func(t *testing.T) {
+	t.Run("error on nil REST config", func(t *testing.T) {
 		g := NewWithT(t)
 
-		agent := "a static string forever," +
-			"but static strings can have dreams and hope too"
-		getter := NewMemoryRESTClientGetter(cfg, "", "someone", "", client.Options{QPS: 400, Burst: 800}, client.KubeConfigOptions{
-			UserAgent: agent,
-		})
-
-		got, err := getter.ToRESTConfig()
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(got.UserAgent).To(Equal(agent))
-	})
-
-	t.Run("invalid config", func(t *testing.T) {
-		g := NewWithT(t)
-
-		getter := NewMemoryRESTClientGetter([]byte("invalid"), "", "", "", client.Options{QPS: 400, Burst: 800}, client.KubeConfigOptions{})
-		got, err := getter.ToRESTConfig()
+		c := &MemoryRESTClientGetter{}
+		cfg, err := c.ToRESTConfig()
 		g.Expect(err).To(HaveOccurred())
-		g.Expect(got).To(BeNil())
+		g.Expect(cfg).To(BeNil())
 	})
 }
 
 func TestMemoryRESTClientGetter_ToDiscoveryClient(t *testing.T) {
-	g := NewWithT(t)
+	t.Run("returns a discovery client", func(t *testing.T) {
+		g := NewWithT(t)
 
-	getter := NewMemoryRESTClientGetter(cfg, "", "", "", client.Options{QPS: 400, Burst: 800}, client.KubeConfigOptions{})
-	got, err := getter.ToDiscoveryClient()
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(got).ToNot(BeNil())
+		c := &MemoryRESTClientGetter{
+			cfg: &rest.Config{
+				Host: "https://example.com",
+			},
+		}
+		dc, err := c.ToDiscoveryClient()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(dc).ToNot(BeNil())
+
+		// Calling it again should return the same instance.
+		dc2, err := c.ToDiscoveryClient()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(dc2).To(BeIdenticalTo(dc))
+	})
 }
 
 func TestMemoryRESTClientGetter_ToRESTMapper(t *testing.T) {
-	g := NewWithT(t)
+	t.Run("returns a REST mapper", func(t *testing.T) {
+		g := NewWithT(t)
 
-	getter := NewMemoryRESTClientGetter(cfg, "", "", "", client.Options{QPS: 400, Burst: 800}, client.KubeConfigOptions{})
-	got, err := getter.ToRESTMapper()
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(got).ToNot(BeNil())
+		c := &MemoryRESTClientGetter{
+			cfg: &rest.Config{
+				Host: "https://example.com",
+			},
+		}
+		rm, err := c.ToRESTMapper()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(rm).ToNot(BeNil())
+
+		// Calling it again should return the same instance.
+		rm2, err := c.ToRESTMapper()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(rm2).To(BeIdenticalTo(rm))
+	})
 }
 
 func TestMemoryRESTClientGetter_ToRawKubeConfigLoader(t *testing.T) {
-	g := NewWithT(t)
+	t.Run("returns a client config", func(t *testing.T) {
+		g := NewWithT(t)
 
-	getter := NewMemoryRESTClientGetter(cfg, "a-namespace", "impersonate", "other-namespace", client.Options{QPS: 400, Burst: 800}, client.KubeConfigOptions{})
-	got := getter.ToRawKubeConfigLoader()
-	g.Expect(got).ToNot(BeNil())
+		c := &MemoryRESTClientGetter{
+			cfg: &rest.Config{
+				Host: "https://example.com",
+			},
+		}
+		cc := c.ToRawKubeConfigLoader()
+		g.Expect(cc).ToNot(BeNil())
 
-	cfg, err := got.ClientConfig()
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(cfg.Impersonate.UserName).To(Equal("impersonate"))
-	ns, _, err := got.Namespace()
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(ns).To(Equal("a-namespace"))
+		// Calling it again should return the same instance.
+		g.Expect(c.ToRawKubeConfigLoader()).To(BeIdenticalTo(cc))
+	})
 }
