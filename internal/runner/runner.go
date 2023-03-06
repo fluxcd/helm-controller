@@ -337,22 +337,21 @@ func (r *Runner) applyCRDs(policy v2.CRDsPolicy, chart *chart.Chart, visitorFunc
 	}
 
 	if len(totalItems) > 0 {
-		// Invalidate the local cache, since it will not have the new CRDs
-		// present.
-		discoveryClient, err := r.config.RESTClientGetter.ToDiscoveryClient()
-		if err != nil {
-			r.config.Log("Error in cfg.RESTClientGetter.ToDiscoveryClient(): %s", err)
-			return err
-		}
-		r.config.Log("Clearing discovery cache")
-		discoveryClient.Invalidate()
 		// Give time for the CRD to be recognized.
 		if err := r.config.KubeClient.Wait(totalItems, 60*time.Second); err != nil {
 			r.config.Log("Error waiting for items: %s", err)
 			return err
 		}
-		// Make sure to force a rebuild of the cache.
-		discoveryClient.ServerGroups()
+
+		// Clear the RESTMapper cache, since it will not have the new CRDs.
+		// Further invalidation of the client is done at a later stage by Helm
+		// when it gathers the server capabilities.
+		if m, err := r.config.RESTClientGetter.ToRESTMapper(); err == nil {
+			if rm, ok := m.(meta.ResettableRESTMapper); ok {
+				r.config.Log("Clearing REST mapper cache")
+				rm.Reset()
+			}
+		}
 	}
 	return nil
 }
