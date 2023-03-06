@@ -47,7 +47,7 @@ type Watcher struct {
 	memoryCurrentPath string
 	// memoryUsagePercentThreshold is the threshold at which the system is
 	// considered to be near OOM.
-	memoryUsagePercentThreshold float64
+	memoryUsagePercentThreshold uint8
 	// interval is the interval at which to check for OOM.
 	interval time.Duration
 	// logger is the logger to use.
@@ -62,9 +62,13 @@ type Watcher struct {
 }
 
 // New returns a new Watcher.
-func New(memoryMaxPath, memoryCurrentPath string, memoryUsagePercentThreshold float64, interval time.Duration, logger logr.Logger) (*Watcher, error) {
+func New(memoryMaxPath, memoryCurrentPath string, memoryUsagePercentThreshold uint8, interval time.Duration, logger logr.Logger) (*Watcher, error) {
 	if memoryUsagePercentThreshold < 1 || memoryUsagePercentThreshold > 100 {
-		return nil, fmt.Errorf("memory usage percent threshold must be between 1 and 100, got %.2f", memoryUsagePercentThreshold)
+		return nil, fmt.Errorf("memory usage percent threshold must be between 1 and 100, got %d", memoryUsagePercentThreshold)
+	}
+
+	if minInterval := 50 * time.Millisecond; interval < minInterval {
+		return nil, fmt.Errorf("interval must be at least %s, got %s", minInterval, interval)
 	}
 
 	if _, err := os.Lstat(memoryCurrentPath); err != nil {
@@ -86,7 +90,7 @@ func New(memoryMaxPath, memoryCurrentPath string, memoryUsagePercentThreshold fl
 }
 
 // NewDefault returns a new Watcher with default path values.
-func NewDefault(memoryUsagePercentThreshold float64, interval time.Duration, logger logr.Logger) (*Watcher, error) {
+func NewDefault(memoryUsagePercentThreshold uint8, interval time.Duration, logger logr.Logger) (*Watcher, error) {
 	return New(
 		filepath.Join(DefaultCgroupPath, MemoryMaxFile),
 		filepath.Join(DefaultCgroupPath, MemoryCurrentFile),
@@ -128,13 +132,13 @@ func (w *Watcher) watchForNearOOM(ctx context.Context) {
 			}
 
 			currentPercentage := float64(current) / float64(w.memoryMax) * 100
-			if currentPercentage >= w.memoryUsagePercentThreshold {
+			if currentPercentage >= float64(w.memoryUsagePercentThreshold) {
 				w.logger.Info(fmt.Sprintf("Memory usage is near OOM (%s/%s), shutting down",
 					formatSize(current), formatSize(w.memoryMax)))
 				w.cancel()
 				return
 			}
-			w.logger.V(2).Info(fmt.Sprintf("Current memory usage %s/%s (%.2f%% out of %.2f%%)",
+			w.logger.V(2).Info(fmt.Sprintf("Current memory usage %s/%s (%.2f%% out of %d%%)",
 				formatSize(current), formatSize(w.memoryMax), currentPercentage, w.memoryUsagePercentThreshold))
 		}
 	}

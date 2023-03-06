@@ -57,14 +57,24 @@ func TestNew(t *testing.T) {
 
 				_, err := New("", "", 0, 0, logr.Discard())
 				g.Expect(err).To(HaveOccurred())
-				g.Expect(err).To(MatchError("memory usage percent threshold must be between 1 and 100, got 0.00"))
+				g.Expect(err).To(MatchError("memory usage percent threshold must be between 1 and 100, got 0"))
 			})
 			t.Run("greater than 100", func(t *testing.T) {
 				g := NewWithT(t)
 
 				_, err := New("", "", 101, 0, logr.Discard())
 				g.Expect(err).To(HaveOccurred())
-				g.Expect(err).To(MatchError("memory usage percent threshold must be between 1 and 100, got 101.00"))
+				g.Expect(err).To(MatchError("memory usage percent threshold must be between 1 and 100, got 101"))
+			})
+		})
+
+		t.Run("interval", func(t *testing.T) {
+			t.Run("less than 50ms", func(t *testing.T) {
+				g := NewWithT(t)
+
+				_, err := New("", "", 1, 49*time.Millisecond, logr.Discard())
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(err).To(MatchError("interval must be at least 50ms, got 49ms"))
 			})
 		})
 
@@ -72,7 +82,7 @@ func TestNew(t *testing.T) {
 			t.Run("does not exist", func(t *testing.T) {
 				g := NewWithT(t)
 
-				_, err := New("", "", 1, 0, logr.Discard())
+				_, err := New("", "", 1, 50*time.Second, logr.Discard())
 				g.Expect(err).To(HaveOccurred())
 				g.Expect(err.Error()).To(ContainSubstring("failed to stat memory.current \"\": lstat : no such file or directory"))
 			})
@@ -86,7 +96,7 @@ func TestNew(t *testing.T) {
 				_, err := os.Create(mockMemoryCurrent)
 				g.Expect(err).NotTo(HaveOccurred())
 
-				_, err = New("", mockMemoryCurrent, 1, 0, logr.Discard())
+				_, err = New("", mockMemoryCurrent, 1, 50*time.Second, logr.Discard())
 				g.Expect(err).To(HaveOccurred())
 				g.Expect(err.Error()).To(ContainSubstring("failed to read memory.max \"\": open : no such file or directory"))
 			})

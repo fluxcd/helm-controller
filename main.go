@@ -86,7 +86,7 @@ func main() {
 		leaderElectionOptions   leaderelection.Options
 		rateLimiterOptions      helper.RateLimiterOptions
 		oomWatchInterval        time.Duration
-		oomWatchMemoryThreshold float64
+		oomWatchMemoryThreshold uint8
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080",
@@ -107,7 +107,7 @@ func main() {
 		"The maximum number of retries when failing to fetch artifacts over HTTP.")
 	flag.StringVar(&intkube.DefaultServiceAccountName, "default-service-account", "",
 		"Default service account used for impersonation.")
-	flag.Float64Var(&oomWatchMemoryThreshold, "oom-watch-memory-threshold", 95,
+	flag.Uint8Var(&oomWatchMemoryThreshold, "oom-watch-memory-threshold", 95,
 		"The memory threshold in percentage at which the OOM watcher will trigger a graceful shutdown. Requires feature gate 'OOMWatch' to be enabled.")
 	flag.DurationVar(&oomWatchInterval, "oom-watch-interval", 500*time.Millisecond,
 		"The interval at which the OOM watcher will check for memory usage. Requires feature gate 'OOMWatch' to be enabled.")
