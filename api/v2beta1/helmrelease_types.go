@@ -219,9 +219,28 @@ func (in HelmReleaseSpec) GetUninstall() Uninstall {
 // generate a v1beta2.HelmChart object in the same namespace as the referenced
 // v1beta2.Source.
 type HelmChartTemplate struct {
+	// ObjectMeta holds the template for metadata including Labels and Annotations
+	// +optional
+	HelmChartTemplateObjectMeta `json:"metadata,omitempty"`
+
 	// Spec holds the template for the v1beta2.HelmChartSpec for this HelmRelease.
 	// +required
 	Spec HelmChartTemplateSpec `json:"spec"`
+}
+
+type HelmChartTemplateObjectMeta struct {
+	// Map of string keys and values that can be used to organize and categorize
+	// (scope and select) objects.
+	// More info: http://kubernetes.io/docs/user-guide/labels
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+
+	// Annotations is an unstructured key value map stored with a resource that may be
+	// set by external tools to store and retrieve arbitrary metadata. They are not
+	// queryable and should be preserved when modifying objects.
+	// More info: http://kubernetes.io/docs/user-guide/annotations
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // HelmChartTemplateSpec defines the template from which the controller will

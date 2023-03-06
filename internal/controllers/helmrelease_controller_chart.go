@@ -34,6 +34,7 @@ import (
 	_ "github.com/opencontainers/go-digest/blake3"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -82,6 +83,9 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	case helmChartRequiresUpdate(hr, &helmChart):
 		ctrl.LoggerFrom(ctx).Info("chart diverged from template", strings.ToLower(sourcev1.HelmChartKind), chartName.String())
 		helmChart.Spec = hc.Spec
+		helmChart.Labels = hc.Labels
+		helmChart.Annotations = hc.Annotations
+
 		if err = r.Client.Update(ctx, &helmChart); err != nil {
 			return nil, err
 		}
@@ -196,8 +200,10 @@ func buildHelmChartFromTemplate(hr *v2.HelmRelease) *sourcev1.HelmChart {
 	template := hr.Spec.Chart
 	return &sourcev1.HelmChart{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      hr.GetHelmChartName(),
-			Namespace: hr.Spec.Chart.GetNamespace(hr.Namespace),
+			Name:        hr.GetHelmChartName(),
+			Namespace:   hr.Spec.Chart.GetNamespace(hr.Namespace),
+			Labels:      hr.Spec.Chart.Labels,
+			Annotations: hr.Spec.Chart.Annotations,
 		},
 		Spec: sourcev1.HelmChartSpec{
 			Chart:   template.Spec.Chart,
@@ -238,6 +244,10 @@ func helmChartRequiresUpdate(hr *v2.HelmRelease, chart *sourcev1.HelmChart) bool
 	case !reflect.DeepEqual(template.Spec.ValuesFiles, chart.Spec.ValuesFiles):
 		return true
 	case template.Spec.ValuesFile != chart.Spec.ValuesFile:
+		return true
+	case !apiequality.Semantic.DeepEqual(template.Annotations, chart.Annotations):
+		return true
+	case !apiequality.Semantic.DeepEqual(template.Labels, chart.Labels):
 		return true
 	case !reflect.DeepEqual(templateVerificationToSourceVerification(template.Spec.Verify), chart.Spec.Verify):
 		return true

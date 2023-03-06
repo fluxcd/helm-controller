@@ -457,6 +457,20 @@ v1beta2.Source.</p>
 <tbody>
 <tr>
 <td>
+<code>metadata</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta1.HelmChartTemplateObjectMeta">
+HelmChartTemplateObjectMeta
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ObjectMeta holds the template for metadata including Labels and Annotations</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>spec</code><br>
 <em>
 <a href="#helm.toolkit.fluxcd.io/v2beta1.HelmChartTemplateSpec">
@@ -585,6 +599,55 @@ Chart dependencies, which are not bundled in the umbrella chart artifact, are no
 </td>
 </tr>
 </table>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2beta1.HelmChartTemplateObjectMeta">HelmChartTemplateObjectMeta
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta1.HelmChartTemplate">HelmChartTemplate</a>)
+</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>labels</code><br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Map of string keys and values that can be used to organize and categorize
+(scope and select) objects.
+More info: <a href="http://kubernetes.io/docs/user-guide/labels">http://kubernetes.io/docs/user-guide/labels</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>annotations</code><br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Annotations is an unstructured key value map stored with a resource that may be
+set by external tools to store and retrieve arbitrary metadata. They are not
+queryable and should be preserved when modifying objects.
+More info: <a href="http://kubernetes.io/docs/user-guide/annotations">http://kubernetes.io/docs/user-guide/annotations</a></p>
 </td>
 </tr>
 </tbody>
