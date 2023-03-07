@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Flux authors
+Copyright 2023 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,142 +18,165 @@ package kube
 
 import (
 	"fmt"
+	"sync"
+
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/pointer"
-	controllerruntime "sigs.k8s.io/controller-runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/fluxcd/pkg/runtime/client"
 )
 
-// NewInClusterRESTClientGetter creates a new genericclioptions.RESTClientGetter
-// using genericclioptions.NewConfigFlags, and configures it with the server,
-// authentication, impersonation, client options, and the provided namespace.
-// It returns an error if it fails to retrieve a rest.Config.
-func NewInClusterRESTClientGetter(namespace, impersonateAccount, impersonateNamespace string, opts *client.Options) (genericclioptions.RESTClientGetter, error) {
-	cfg, err := controllerruntime.GetConfig()
+// Option is a function that configures an MemoryRESTClientGetter.
+type Option func(*MemoryRESTClientGetter)
+
+// WithNamespace sets the namespace to use for the client.
+func WithNamespace(namespace string) Option {
+	return func(c *MemoryRESTClientGetter) {
+		c.namespace = namespace
+	}
+}
+
+// WithImpersonate sets the service account to impersonate. It configures the
+// REST client to impersonate the service account in the given namespace, and
+// sets the service account name as the username to use in the raw KubeConfig.
+func WithImpersonate(serviceAccount, namespace string) Option {
+	return func(c *MemoryRESTClientGetter) {
+		if username := SetImpersonationConfig(c.cfg, namespace, serviceAccount); username != "" {
+			c.impersonate = username
+		}
+	}
+}
+
+// WithClientOptions sets the client options (e.g. QPS and Burst) to use for
+// the client.
+func WithClientOptions(opts client.Options) Option {
+	return func(c *MemoryRESTClientGetter) {
+		c.cfg.Burst = opts.Burst
+		c.cfg.QPS = opts.QPS
+	}
+}
+
+// MemoryRESTClientGetter is a resource.RESTClientGetter that uses an
+// in-memory REST config, REST mapper, and discovery client. The REST config,
+// REST mapper, and discovery client are lazily initialized, and cached for
+// subsequent calls.
+type MemoryRESTClientGetter struct {
+	// namespace is the namespace to use for the client.
+	namespace string
+	// impersonate is the username to use for the client.
+	impersonate string
+
+	cfg *rest.Config
+
+	restMapper   meta.RESTMapper
+	restMapperMu sync.Mutex
+
+	discoveryClient discovery.CachedDiscoveryInterface
+	discoveryMu     sync.Mutex
+
+	clientCfg   clientcmd.ClientConfig
+	clientCfgMu sync.Mutex
+}
+
+// setDefaults sets the default values for the MemoryRESTClientGetter.
+func (c *MemoryRESTClientGetter) setDefaults() {
+	if c.namespace == "" {
+		c.namespace = "default"
+	}
+}
+
+// NewMemoryRESTClientGetter returns a new MemoryRESTClientGetter.
+func NewMemoryRESTClientGetter(cfg *rest.Config, opts ...Option) *MemoryRESTClientGetter {
+	g := &MemoryRESTClientGetter{
+		cfg: cfg,
+	}
+	for _, opts := range opts {
+		opts(g)
+	}
+	g.setDefaults()
+	return g
+}
+
+// NewInClusterMemoryRESTClientGetter returns a new MemoryRESTClientGetter
+// that uses the in-cluster REST config. It returns an error if the in-cluster
+// REST config cannot be obtained.
+func NewInClusterMemoryRESTClientGetter(opts ...Option) (*MemoryRESTClientGetter, error) {
+	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config for in-cluster REST client: %w", err)
 	}
-	SetImpersonationConfig(cfg, impersonateNamespace, impersonateAccount)
-
-	flags := genericclioptions.NewConfigFlags(false)
-	flags.APIServer = pointer.String(cfg.Host)
-	flags.BearerToken = pointer.String(cfg.BearerToken)
-	flags.CAFile = pointer.String(cfg.CAFile)
-	flags.Namespace = pointer.String(namespace)
-	if opts != nil {
-		flags.WithDiscoveryBurst(opts.Burst)
-		flags.WithDiscoveryQPS(opts.QPS)
-	}
-	if sa := cfg.Impersonate.UserName; sa != "" {
-		flags.Impersonate = pointer.String(sa)
-	}
-	// In a container, we are not expected to be able to write to the
-	// home dir default. However, explicitly disabling this is better.
-	flags.CacheDir = nil
-	return flags, nil
+	return NewMemoryRESTClientGetter(cfg, opts...), nil
 }
 
-// MemoryRESTClientGetter is an implementation of the genericclioptions.RESTClientGetter,
-// capable of working with an in-memory kubeconfig file.
-type MemoryRESTClientGetter struct {
-	// kubeConfig used to load a rest.Config, after being sanitized.
-	kubeConfig []byte
-	// kubeConfigOpts controls the sanitization of the kubeConfig.
-	kubeConfigOpts client.KubeConfigOptions
-	// clientOpts controls the kube client configuration.
-	clientOpts client.Options
-	// namespace specifies the namespace the client is configured to.
-	namespace string
-	// impersonateAccount configures the rest.ImpersonationConfig account name.
-	impersonateAccount string
-	// impersonateAccount configures the rest.ImpersonationConfig account namespace.
-	impersonateNamespace string
-}
-
-// NewMemoryRESTClientGetter returns a MemoryRESTClientGetter configured with
-// the provided values and client.KubeConfigOptions. The provided KubeConfig is
-// sanitized, configure the settings for this using client.KubeConfigOptions.
-func NewMemoryRESTClientGetter(
-	kubeConfig []byte,
-	namespace string,
-	impersonateAccount string,
-	impersonateNamespace string,
-	clientOpts client.Options,
-	kubeConfigOpts client.KubeConfigOptions) genericclioptions.RESTClientGetter {
-	return &MemoryRESTClientGetter{
-		kubeConfig:           kubeConfig,
-		namespace:            namespace,
-		impersonateAccount:   impersonateAccount,
-		impersonateNamespace: impersonateNamespace,
-		clientOpts:           clientOpts,
-		kubeConfigOpts:       kubeConfigOpts,
-	}
-}
-
-// ToRESTConfig creates a rest.Config with the rest.ImpersonationConfig configured
-// with to the impersonation account. It loads the config the KubeConfig bytes and
-// sanitizes it using the client.KubeConfigOptions.
+// ToRESTConfig returns the in-memory REST config.
 func (c *MemoryRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
-	cfg, err := clientcmd.RESTConfigFromKubeConfig(c.kubeConfig)
-	if err != nil {
-		return nil, err
+	if c.cfg == nil {
+		return nil, fmt.Errorf("MemoryRESTClientGetter has no REST config")
 	}
-	cfg = client.KubeConfig(cfg, c.kubeConfigOpts)
-	SetImpersonationConfig(cfg, c.impersonateNamespace, c.impersonateAccount)
-	return cfg, nil
+	return c.cfg, nil
 }
 
-// ToDiscoveryClient returns a discovery.CachedDiscoveryInterface configured
-// with ToRESTConfig, and the QPS and Burst settings.
+// ToDiscoveryClient returns a memory cached discovery client. Calling it
+// multiple times will return the same instance.
 func (c *MemoryRESTClientGetter) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
-	config, err := c.ToRESTConfig()
-	if err != nil {
-		return nil, err
-	}
+	c.clientCfgMu.Lock()
+	defer c.clientCfgMu.Unlock()
 
-	config.QPS = c.clientOpts.QPS
-	config.Burst = c.clientOpts.Burst
+	if c.discoveryClient == nil {
+		config, err := c.ToRESTConfig()
+		if err != nil {
+			return nil, err
+		}
 
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
-	if err != nil {
-		return nil, err
+		discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+		if err != nil {
+			return nil, err
+		}
+		c.discoveryClient = memory.NewMemCacheClient(discoveryClient)
 	}
-	return memory.NewMemCacheClient(discoveryClient), nil
+	return c.discoveryClient, nil
 }
 
-// ToRESTMapper returns a RESTMapper constructed from ToDiscoveryClient.
+// ToRESTMapper returns a meta.RESTMapper using the discovery client. Calling
+// it multiple times will return the same instance.
 func (c *MemoryRESTClientGetter) ToRESTMapper() (meta.RESTMapper, error) {
-	discoveryClient, err := c.ToDiscoveryClient()
-	if err != nil {
-		return nil, err
-	}
+	c.discoveryMu.Lock()
+	defer c.discoveryMu.Unlock()
 
-	mapper := restmapper.NewDeferredDiscoveryRESTMapper(discoveryClient)
-	expander := restmapper.NewShortcutExpander(mapper, discoveryClient)
-	return expander, nil
+	if c.restMapper == nil {
+		discoveryClient, err := c.ToDiscoveryClient()
+		if err != nil {
+			return nil, err
+		}
+		mapper := restmapper.NewDeferredDiscoveryRESTMapper(discoveryClient)
+		c.restMapper = restmapper.NewShortcutExpander(mapper, discoveryClient)
+	}
+	return c.restMapper, nil
 }
 
 // ToRawKubeConfigLoader returns a clientcmd.ClientConfig using
 // clientcmd.DefaultClientConfig. With clientcmd.ClusterDefaults, namespace, and
 // impersonate configured as overwrites.
 func (c *MemoryRESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig {
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	// use the standard defaults for this client command
-	// DEPRECATED: remove and replace with something more accurate
-	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+	c.clientCfgMu.Lock()
+	defer c.clientCfgMu.Unlock()
 
-	overrides := &clientcmd.ConfigOverrides{ClusterDefaults: clientcmd.ClusterDefaults}
-	overrides.Context.Namespace = c.namespace
+	if c.clientCfg == nil {
+		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+		// use the standard defaults for this client command
+		// DEPRECATED: remove and replace with something more accurate
+		loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 
-	if c.impersonateAccount != "" {
-		overrides.AuthInfo.Impersonate = c.impersonateAccount
+		overrides := &clientcmd.ConfigOverrides{ClusterDefaults: clientcmd.ClusterDefaults}
+		overrides.Context.Namespace = c.namespace
+		overrides.AuthInfo.Impersonate = c.impersonate
+
+		c.clientCfg = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides)
 	}
-	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides)
+	return c.clientCfg
 }
