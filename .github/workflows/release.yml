@@ -60,7 +60,7 @@ jobs:
           tags: |
             type=raw,value=${{ steps.prep.outputs.VERSION }}
       - name: Publish images
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           sbom: true
           provenance: true
@@ -77,13 +77,13 @@ jobs:
           docker buildx imagetools inspect ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
           docker pull docker.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
           docker pull ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
-      - uses: sigstore/cosign-installer@main
+      - uses: sigstore/cosign-installer@v3
       - name: Sign images
         env:
           COSIGN_EXPERIMENTAL: 1
         run: |
-          cosign sign fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
-          cosign sign ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+          cosign sign --yes fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
+          cosign sign --yes ghcr.io/fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.VERSION }}
       - name: Generate release artifacts
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
@@ -94,7 +94,7 @@ jobs:
       - uses: anchore/sbom-action/download-syft@v0
       - name: Create release and SBOM
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@v4
         with:
           version: latest
           args: release --release-notes=config/release/notes.md --rm-dist --skip-validate
