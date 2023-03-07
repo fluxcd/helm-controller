@@ -10,7 +10,7 @@ require (
 	github.com/fluxcd/pkg/apis/event v0.4.1
 	github.com/fluxcd/pkg/apis/kustomize v0.8.1
 	github.com/fluxcd/pkg/apis/meta v0.19.1
-	github.com/fluxcd/pkg/runtime v0.30.0
+	github.com/fluxcd/pkg/runtime v0.31.0
 	github.com/fluxcd/pkg/ssa v0.24.1
 	github.com/fluxcd/source-controller/api v0.35.2
 	github.com/go-logr/logr v1.2.3
