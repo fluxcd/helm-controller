@@ -38,6 +38,10 @@ const (
 	//
 	// Ref: https://github.com/helm/helm/security/advisories/GHSA-pwcw-6f5g-gxf8
 	AllowDNSLookups = "AllowDNSLookups"
+
+	// OOMWatch enables the OOM watcher, which will gracefully shut down the controller
+	// when the memory usage exceeds the configured limit. This is disabled by default.
+	OOMWatch = "OOMWatch"
 )
 
 var features = map[string]bool{
@@ -50,6 +54,9 @@ var features = map[string]bool{
 	// AllowDNSLookups
 	// opt-in from v0.31
 	AllowDNSLookups: false,
+	// OOMWatch
+	// opt-in from v0.31
+	OOMWatch: false,
 }
 
 // FeatureGates contains a list of all supported feature gates and
