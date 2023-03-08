@@ -1,5 +1,101 @@
 # Changelog
 
+## 0.31.0
+
+**Release date:** 2023-03-08
+
+This prerelease comes with a number of new features and improvements after a
+long period of non-substantial changes.
+
+### Highlights
+
+#### Experimental drift detection
+
+The controller now supports experimental drift detection, which can be enabled
+by configuring the Deployment with `--feature-gates=DetectDrift=true`. This
+feature is still in its early stages, and lacks certain UX features. Diff
+output is currently available in the controller logs when the `--log-level=debug`
+flag is set.
+
+The feature itself makes use of the same approach as kustomize-controller to
+detect drift using a dry-run Server Side Apply of the rendered manifests of a
+release. When drift is detected, the controller will emit an event and trigger
+a Helm upgrade.
+
+When a specific object from a release causes spurious upgrades, it can be
+excluded by annotating or labeling the object with
+`helm.toolkit.fluxcd.io/driftDetection: disabled`. Refer to the [drift detection
+documentation](https://github.com/fluxcd/helm-controller/blob/v0.31.0/docs/spec/v2beta1/helmreleases.md#excluding-resources-from-drift-detection)
+for more information.
+
+#### Cancellation of actions on controller shutdown
+
+When a `SIGTERM` signal is received by the controller, it will now propagate
+this to any running Helm action, which will mark the release as `failed`. This
+should prevent the controller from getting stuck in a `pending` state when
+receiving a `SIGTERM` signal.
+
+#### Detection of near OOM
+
+The controller can now be configured to detect when it is nearing an OOM kill.
+This is enabled by configuring the Deployment with
+`--feature-gates=OOMWatch=true`.
+
+When enabled, the controller will monitor its memory usage as reported by
+cgroups, and when it is nearing OOM, attempt to gracefully shutdown. Releases
+that are currently being upgraded will be cancelled (resulting in a `failed`
+release as opposed to a `pending` deadlock), and no new releases will be
+started.
+
+This is best combined with a thoughtful configuration of remediation strategies
+on the `HelmRelease` resources, to ensure that the controller can recover from
+the failed release.
+
+To control the threshold at which the controller will attempt to shut down, use
+the `--oom-watch-memory-threshold` (default `95`) and `--oom-watch-interval`
+(default `500ms`) flags.
+
+In a future release, we will add support for unlocking releases that are in a
+pending state as a different approach to handling OOM situations. But this is
+waiting for architectural changes to happen first.
+
+#### Kubernetes client improvements
+
+We have made a number of improvements to the Kubernetes client used by the
+controller for Helm actions, which should reduce the memory usage of the
+controller and the number of API requests it makes when creating or replacing
+Custom Resource Definitions.
+
+#### Miscellaneous
+
+`klog` is now configured to log using the same logger as the rest  of the
+controller (providing a consistent log format).
+
+In addition, the controller is now built with Go 1.20, and the dependencies
+have been updated.
+
+#### Full changelog
+
+Improvements:
+- Enable experimental drift detection
+  [#617](https://github.com/fluxcd/helm-controller/pull/617)
+- helm: propagate context to install and upgrade
+  [#620](https://github.com/fluxcd/helm-controller/pull/620)
+- Check if Service Account exists before uninstalling release
+  [#623](https://github.com/fluxcd/helm-controller/pull/623)
+- runner: configure Helm action cfg log levels
+  [#625](https://github.com/fluxcd/helm-controller/pull/625)
+- Update dependencies
+  [#626](https://github.com/fluxcd/helm-controller/pull/626)
+  [#627](https://github.com/fluxcd/helm-controller/pull/627)
+  [#635](https://github.com/fluxcd/helm-controller/pull/635)
+- Add OOM watcher to allow graceful shutdown
+  [#628](https://github.com/fluxcd/helm-controller/pull/628)
+- kube: unify clients into single RESTClientGetter
+  [#630](https://github.com/fluxcd/helm-controller/pull/630)
+- Use `logger.SetLogger` to also configure `klog`
+  [#633](https://github.com/fluxcd/helm-controller/pull/633)
+
 ## 0.30.0
 
 **Release date:** 2023-02-17
