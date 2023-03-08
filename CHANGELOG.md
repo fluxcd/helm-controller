@@ -74,7 +74,7 @@ controller (providing a consistent log format).
 In addition, the controller is now built with Go 1.20, and the dependencies
 have been updated.
 
-#### Full changelog
+### Full changelog
 
 Improvements:
 - Enable experimental drift detection
