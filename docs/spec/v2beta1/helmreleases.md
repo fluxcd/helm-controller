@@ -1270,7 +1270,7 @@ spec:
     crds: CreateReplace
 ```
 
-### Drift detection
+## Drift detection
 
 **Note:** This feature is experimental and can be enabled by setting `--feature-gates=DetectDrift=true`.
 
