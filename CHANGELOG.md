@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.31.1
+
+**Release date:** 2023-03-10
+
+This prerelease extends the OOM watch feature introduced in `v0.31.0` with
+support for automatic detection of cgroup v1 paths, and flags to configure
+alternative paths using `--oom-watch-max-memory-path` and
+`--oom-watch-current-memory-path`.
+
+Fixes:
+- oomwatch: auto-detect well known cgroup paths
+  [#641](https://github.com/fluxcd/helm-controller/pull/641)
+
 ## 0.31.0
 
 **Release date:** 2023-03-08
