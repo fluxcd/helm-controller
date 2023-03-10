@@ -50,6 +50,42 @@ func TestNew(t *testing.T) {
 		}))
 	})
 
+	t.Run("auto discovery", func(t *testing.T) {
+		t.Run("success", func(t *testing.T) {
+			g := NewWithT(t)
+
+			setDefaultCgroupPath(t)
+
+			mockMemoryMax := filepath.Join(DefaultCgroupPath, MemoryMaxFile)
+			g.Expect(os.WriteFile(mockMemoryMax, []byte("1000000000"), 0o640)).To(Succeed())
+
+			mockMemoryCurrent := filepath.Join(DefaultCgroupPath, MemoryCurrentFile)
+			_, err := os.Create(mockMemoryCurrent)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			w, err := New("", "", 1, time.Second, logr.Discard())
+			g.Expect(err).ToNot(HaveOccurred())
+
+			g.Expect(w).To(BeEquivalentTo(&Watcher{
+				memoryMax:                   uint64(1000000000),
+				memoryCurrentPath:           mockMemoryCurrent,
+				memoryUsagePercentThreshold: 1,
+				interval:                    time.Second,
+				logger:                      logr.Discard(),
+			}))
+		})
+
+		t.Run("failure", func(t *testing.T) {
+			g := NewWithT(t)
+
+			setDefaultCgroupPath(t)
+
+			_, err := New("", "", 1, time.Second, logr.Discard())
+			g.Expect(err).To(HaveOccurred())
+			g.Expect(err.Error()).To(ContainSubstring("failed to discover cgroup paths"))
+		})
+	})
+
 	t.Run("validation", func(t *testing.T) {
 		t.Run("memory usage percentage threshold", func(t *testing.T) {
 			t.Run("less than 1", func(t *testing.T) {
@@ -82,9 +118,9 @@ func TestNew(t *testing.T) {
 			t.Run("does not exist", func(t *testing.T) {
 				g := NewWithT(t)
 
-				_, err := New("", "", 1, 50*time.Second, logr.Discard())
+				_, err := New("ignore", "does.not.exist", 1, 50*time.Second, logr.Discard())
 				g.Expect(err).To(HaveOccurred())
-				g.Expect(err.Error()).To(ContainSubstring("failed to stat memory.current \"\": lstat : no such file or directory"))
+				g.Expect(err.Error()).To(ContainSubstring(`failed to confirm existence of current memory usage file: lstat does.not.exist: no such file or directory`))
 			})
 		})
 
@@ -96,9 +132,9 @@ func TestNew(t *testing.T) {
 				_, err := os.Create(mockMemoryCurrent)
 				g.Expect(err).NotTo(HaveOccurred())
 
-				_, err = New("", mockMemoryCurrent, 1, 50*time.Second, logr.Discard())
+				_, err = New("does.not.exist", mockMemoryCurrent, 1, 50*time.Second, logr.Discard())
 				g.Expect(err).To(HaveOccurred())
-				g.Expect(err.Error()).To(ContainSubstring("failed to read memory.max \"\": open : no such file or directory"))
+				g.Expect(err.Error()).To(ContainSubstring(`failed to read memory usage limit: open does.not.exist: no such file or directory`))
 			})
 		})
 	})
@@ -247,4 +283,88 @@ func TestWatcher_watchForNearOOM(t *testing.T) {
 			t.Fatal("context was not cancelled")
 		}
 	})
+}
+
+func Test_discoverCgroupPaths(t *testing.T) {
+	t.Run("discovers memory max path", func(t *testing.T) {
+		paths := []string{
+			MemoryMaxFile,
+			MemoryLimitFile,
+		}
+		for _, p := range paths {
+			t.Run(p, func(t *testing.T) {
+				g := NewWithT(t)
+
+				setDefaultCgroupPath(t)
+
+				maxPathMock := filepath.Join(DefaultCgroupPath, p)
+				g.Expect(os.MkdirAll(filepath.Dir(maxPathMock), 0o755)).To(Succeed())
+				g.Expect(os.WriteFile(maxPathMock, []byte("0"), 0o640)).To(Succeed())
+
+				currentDummy := filepath.Join(DefaultCgroupPath, "dummy")
+				max, current, err := discoverCgroupPaths("", currentDummy)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(max).To(Equal(maxPathMock))
+				g.Expect(current).To(Equal(currentDummy))
+			})
+		}
+	})
+
+	t.Run("discovers memory current path", func(t *testing.T) {
+		paths := []string{
+			MemoryCurrentFile,
+			MemoryUsageFile,
+		}
+		for _, p := range paths {
+			t.Run(p, func(t *testing.T) {
+				g := NewWithT(t)
+
+				setDefaultCgroupPath(t)
+
+				currentPathMock := filepath.Join(DefaultCgroupPath, p)
+				g.Expect(os.MkdirAll(filepath.Dir(currentPathMock), 0o755)).To(Succeed())
+				g.Expect(os.WriteFile(currentPathMock, []byte("0"), 0o640)).To(Succeed())
+
+				maxDummy := filepath.Join(DefaultCgroupPath, "dummy")
+				max, current, err := discoverCgroupPaths(maxDummy, "")
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(max).To(Equal(maxDummy))
+				g.Expect(current).To(Equal(currentPathMock))
+			})
+		}
+	})
+
+	t.Run("returns provided paths", func(t *testing.T) {
+		g := NewWithT(t)
+
+		maxDummy := filepath.Join(DefaultCgroupPath, "dummy")
+		currentDummy := filepath.Join(DefaultCgroupPath, "dummy")
+
+		max, current, err := discoverCgroupPaths(maxDummy, currentDummy)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(max).To(Equal(maxDummy))
+		g.Expect(current).To(Equal(currentDummy))
+	})
+
+	t.Run("returns error when no paths are discovered", func(t *testing.T) {
+		g := NewWithT(t)
+
+		setDefaultCgroupPath(t)
+
+		max, min, err := discoverCgroupPaths("", "")
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("failed to discover cgroup paths"))
+		g.Expect(max).To(BeEmpty())
+		g.Expect(min).To(BeEmpty())
+	})
+}
+
+func setDefaultCgroupPath(t *testing.T) {
+	t.Helper()
+
+	t.Cleanup(func() {
+		reset := DefaultCgroupPath
+		DefaultCgroupPath = reset
+	})
+	DefaultCgroupPath = t.TempDir()
 }

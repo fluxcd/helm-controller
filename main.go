@@ -70,23 +70,25 @@ func init() {
 
 func main() {
 	var (
-		metricsAddr             string
-		eventsAddr              string
-		healthAddr              string
-		concurrent              int
-		requeueDependency       time.Duration
-		gracefulShutdownTimeout time.Duration
-		watchAllNamespaces      bool
-		httpRetry               int
-		clientOptions           client.Options
-		kubeConfigOpts          client.KubeConfigOptions
-		featureGates            feathelper.FeatureGates
-		logOptions              logger.Options
-		aclOptions              acl.Options
-		leaderElectionOptions   leaderelection.Options
-		rateLimiterOptions      helper.RateLimiterOptions
-		oomWatchInterval        time.Duration
-		oomWatchMemoryThreshold uint8
+		metricsAddr               string
+		eventsAddr                string
+		healthAddr                string
+		concurrent                int
+		requeueDependency         time.Duration
+		gracefulShutdownTimeout   time.Duration
+		watchAllNamespaces        bool
+		httpRetry                 int
+		clientOptions             client.Options
+		kubeConfigOpts            client.KubeConfigOptions
+		featureGates              feathelper.FeatureGates
+		logOptions                logger.Options
+		aclOptions                acl.Options
+		leaderElectionOptions     leaderelection.Options
+		rateLimiterOptions        helper.RateLimiterOptions
+		oomWatchInterval          time.Duration
+		oomWatchMemoryThreshold   uint8
+		oomWatchMaxMemoryPath     string
+		oomWatchCurrentMemoryPath string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080",
@@ -111,6 +113,10 @@ func main() {
 		"The memory threshold in percentage at which the OOM watcher will trigger a graceful shutdown. Requires feature gate 'OOMWatch' to be enabled.")
 	flag.DurationVar(&oomWatchInterval, "oom-watch-interval", 500*time.Millisecond,
 		"The interval at which the OOM watcher will check for memory usage. Requires feature gate 'OOMWatch' to be enabled.")
+	flag.StringVar(&oomWatchMaxMemoryPath, "oom-watch-max-memory-path", "",
+		"The path to the cgroup memory limit file. Requires feature gate 'OOMWatch' to be enabled. If not set, the path will be automatically detected.")
+	flag.StringVar(&oomWatchCurrentMemoryPath, "oom-watch-current-memory-path", "",
+		"The path to the cgroup current memory usage file. Requires feature gate 'OOMWatch' to be enabled. If not set, the path will be automatically detected.")
 
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
@@ -210,7 +216,13 @@ func main() {
 	ctx := ctrl.SetupSignalHandler()
 	if ok, _ := features.Enabled(features.OOMWatch); ok {
 		setupLog.Info("setting up OOM watcher")
-		ow, err := oomwatch.NewDefault(oomWatchMemoryThreshold, oomWatchInterval, ctrl.Log.WithName("OOMwatch"))
+		ow, err := oomwatch.New(
+			oomWatchMaxMemoryPath,
+			oomWatchCurrentMemoryPath,
+			oomWatchMemoryThreshold,
+			oomWatchInterval,
+			ctrl.Log.WithName("OOMwatch"),
+		)
 		if err != nil {
 			setupLog.Error(err, "unable to setup OOM watcher")
 			os.Exit(1)

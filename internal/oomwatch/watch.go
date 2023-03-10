@@ -30,12 +30,26 @@ import (
 	"github.com/go-logr/logr"
 )
 
-const (
-	// DefaultCgroupPath is the default path to the cgroup directory.
+var (
+	// DefaultCgroupPath is the default path to the cgroup directory within a
+	// container. It is used to discover the cgroup files if they are not
+	// provided.
 	DefaultCgroupPath = "/sys/fs/cgroup/"
-	// MemoryMaxFile is the cgroup memory.max filename.
+)
+
+const (
+	// MemoryLimitFile is the cgroup v1 memory.limit_in_bytes filepath relative
+	// to DefaultCgroupPath.
+	MemoryLimitFile = "memory/memory.limit_in_bytes"
+	// MemoryUsageFile is the cgroup v1 memory.usage_in_bytes filepath relative
+	// to DefaultCgroupPath.
+	MemoryUsageFile = "memory/memory.usage_in_bytes"
+
+	// MemoryMaxFile is the cgroup v2 memory.max filepath relative to
+	// DefaultCgroupPath.
 	MemoryMaxFile = "memory.max"
-	// MemoryCurrentFile is the cgroup memory.current filename.
+	// MemoryCurrentFile is the cgroup v2 memory.current filepath relative to
+	// DefaultCgroupPath.
 	MemoryCurrentFile = "memory.current"
 )
 
@@ -61,8 +75,11 @@ type Watcher struct {
 	once sync.Once
 }
 
-// New returns a new Watcher.
-func New(memoryMaxPath, memoryCurrentPath string, memoryUsagePercentThreshold uint8, interval time.Duration, logger logr.Logger) (*Watcher, error) {
+// New returns a new Watcher with the given configuration. If the provided
+// paths are empty, it will attempt to discover the paths to the cgroup files.
+// It returns an error if the paths cannot be discovered or if the provided
+// configuration is invalid.
+func New(memoryMaxPath, memoryCurrentPath string, memoryUsagePercentThreshold uint8, interval time.Duration, logger logr.Logger) (_ *Watcher, err error) {
 	if memoryUsagePercentThreshold < 1 || memoryUsagePercentThreshold > 100 {
 		return nil, fmt.Errorf("memory usage percent threshold must be between 1 and 100, got %d", memoryUsagePercentThreshold)
 	}
@@ -71,13 +88,18 @@ func New(memoryMaxPath, memoryCurrentPath string, memoryUsagePercentThreshold ui
 		return nil, fmt.Errorf("interval must be at least %s, got %s", minInterval, interval)
 	}
 
-	if _, err := os.Lstat(memoryCurrentPath); err != nil {
-		return nil, fmt.Errorf("failed to stat memory.current %q: %w", memoryCurrentPath, err)
+	memoryMaxPath, memoryCurrentPath, err = discoverCgroupPaths(memoryMaxPath, memoryCurrentPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err = os.Lstat(memoryCurrentPath); err != nil {
+		return nil, fmt.Errorf("failed to confirm existence of current memory usage file: %w", err)
 	}
 
 	memoryMax, err := readUintFromFile(memoryMaxPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read memory.max %q: %w", memoryMaxPath, err)
+		return nil, fmt.Errorf("failed to read memory usage limit: %w", err)
 	}
 
 	return &Watcher{
@@ -87,17 +109,6 @@ func New(memoryMaxPath, memoryCurrentPath string, memoryUsagePercentThreshold ui
 		interval:                    interval,
 		logger:                      logger,
 	}, nil
-}
-
-// NewDefault returns a new Watcher with default path values.
-func NewDefault(memoryUsagePercentThreshold uint8, interval time.Duration, logger logr.Logger) (*Watcher, error) {
-	return New(
-		filepath.Join(DefaultCgroupPath, MemoryMaxFile),
-		filepath.Join(DefaultCgroupPath, MemoryCurrentFile),
-		memoryUsagePercentThreshold,
-		interval,
-		logger,
-	)
 }
 
 // Watch returns a context that is canceled when the system reaches the
@@ -142,6 +153,45 @@ func (w *Watcher) watchForNearOOM(ctx context.Context) {
 				formatSize(current), formatSize(w.memoryMax), currentPercentage, w.memoryUsagePercentThreshold))
 		}
 	}
+}
+
+// discoverCgroupPaths attempts to automatically discover the cgroup v1 and v2
+// paths for the max and current memory files when they are not provided. It
+// returns the discovered and/or provided max and current paths.
+// When a path is not provided and cannot be discovered, an error is returned.
+func discoverCgroupPaths(memoryMaxPath, memoryCurrentPath string) (string, string, error) {
+	if memoryMaxPath == "" {
+		maxPathV1 := filepath.Join(DefaultCgroupPath, MemoryLimitFile)
+		maxPathV2 := filepath.Join(DefaultCgroupPath, MemoryMaxFile)
+
+		if _, err := os.Lstat(maxPathV2); err == nil {
+			memoryMaxPath = maxPathV2
+		} else if _, err = os.Lstat(maxPathV1); err == nil {
+			memoryMaxPath = maxPathV1
+		}
+	}
+	if memoryCurrentPath == "" {
+		currentPathV1 := filepath.Join(DefaultCgroupPath, MemoryUsageFile)
+		currentPathV2 := filepath.Join(DefaultCgroupPath, MemoryCurrentFile)
+
+		if _, err := os.Lstat(currentPathV2); err == nil {
+			memoryCurrentPath = currentPathV2
+		} else if _, err = os.Lstat(currentPathV1); err == nil {
+			memoryCurrentPath = currentPathV1
+		}
+	}
+
+	if memoryMaxPath == "" && memoryCurrentPath == "" {
+		return "", "", fmt.Errorf("failed to discover cgroup paths, please specify them manually")
+	}
+	if memoryMaxPath == "" {
+		return "", "", fmt.Errorf("failed to discover max memory path, please specify it manually")
+	}
+	if memoryCurrentPath == "" {
+		return "", "", fmt.Errorf("failed to discover current memory path, please specify it manually")
+	}
+
+	return memoryMaxPath, memoryCurrentPath, nil
 }
 
 // readUintFromFile reads an uint64 from the file at the given path.
