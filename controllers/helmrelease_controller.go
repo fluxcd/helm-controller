@@ -588,6 +588,10 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 				return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
 			}
 			if data, ok := resource.Data[v.GetValuesKey()]; !ok {
+				if v.Optional {
+					(ctrl.LoggerFrom(ctx)).Info(fmt.Sprintf("could not find optional key %s in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName))
+					continue
+				}
 				return nil, fmt.Errorf("missing key '%s' in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName)
 			} else {
 				valuesData = []byte(data)
@@ -621,6 +625,10 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 				return nil, fmt.Errorf("could not find %s '%s'", v.Kind, namespacedName)
 			}
 			if data, ok := resource.Data[v.GetValuesKey()]; !ok {
+				if v.Optional {
+					(ctrl.LoggerFrom(ctx)).Info(fmt.Sprintf("could not find optional key %s in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName))
+					continue
+				}
 				return nil, fmt.Errorf("missing key '%s' in %s '%s'", v.GetValuesKey(), v.Kind, namespacedName)
 			} else {
 				valuesData = data
