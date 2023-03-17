@@ -352,8 +352,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 
 			msg := "no diff in cluster resources compared to release"
 			if drift {
-				hasNewState = true
 				msg = "diff in cluster resources compared to release"
+				hasNewState, _ = features.Enabled(features.CorrectDrift)
 			}
 			if changeSet != nil {
 				msg = fmt.Sprintf("%s:\n\n%s", msg, changeSet.String())
