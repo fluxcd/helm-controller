@@ -33,6 +33,11 @@ const (
 	// storage object.
 	DetectDrift = "DetectDrift"
 
+	// CorrectDrift configures the correction of cluster state drift compared to
+	// the desired state as described in the manifest of the Helm release. It
+	// is only effective when DetectDrift is enabled.
+	CorrectDrift = "CorrectDrift"
+
 	// AllowDNSLookups allows the controller to perform DNS lookups when rendering Helm
 	// templates. This is disabled by default, as it can be a security risk.
 	//
@@ -48,9 +53,12 @@ var features = map[string]bool{
 	// CacheSecretsAndConfigMaps
 	// opt-in from v0.28
 	CacheSecretsAndConfigMaps: false,
-	// DetectClusterStateDrift
+	// DetectDrift
 	// opt-in from v0.31
 	DetectDrift: false,
+	// CorrectDrift,
+	// opt-out from v0.31.2
+	CorrectDrift: true,
 	// AllowDNSLookups
 	// opt-in from v0.31
 	AllowDNSLookups: false,
