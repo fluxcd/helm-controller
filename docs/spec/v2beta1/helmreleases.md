@@ -1280,6 +1280,13 @@ compare the manifests from the Helm storage with the current state of the cluste
 If this comparison detects a drift (either due resource being created or modified during the
 dry-run), the controller will perform an upgrade for the release, restoring the desired state.
 
+To help aid transition to this new feature, it is possible to enable drift detection without it
+correcting drift. This can be done by adding `CorrectDrift=false` to the `--feature-gates` flag,
+i.e. `--feature-gates=DetectDrift=true,CorrectDrift=false`. This will allow you to see what drift
+is detected in the controller logs (with `--log-level=debug`), to potentially add the appropriate
+[exclusions annotations or labels](#excluding-resources-from-drift-detection), before enabling the
+feature full.
+
 ### Excluding resources from drift detection
 
 The drift detection feature can be configured to exclude certain resources from the comparison
