@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.31.2
+
+**Release date:** 2023-03-20
+
+This prerelease extends the drift detection feature introduced in `v0.31.0`
+with support for disabling the correction of drift using the `CorrectDrift`
+feature gate.
+
+When disabled while `DetectDrift` is enabled (using `--feature-gates=DetectDrift=true,CorrectDrift=false`),
+the controller will only emit events and log messages when drift is detected,
+but will not attempt to correct it. This allows to transition to drift
+detection and correction in a controlled manner.
+
+In addition, the controller dependencies have been updated to their latest
+versions.
+
+Fixes:
+- Allow opt-out of drift correction
+  [#647](https://github.com/fluxcd/helm-controller/pull/647)
+
+Improvements:
+- Update dependencies
+  [#649](https://github.com/fluxcd/helm-controller/pull/649)
+
 ## 0.31.1
 
 **Release date:** 2023-03-10
