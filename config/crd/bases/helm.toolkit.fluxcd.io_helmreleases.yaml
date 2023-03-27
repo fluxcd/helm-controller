@@ -393,6 +393,8 @@ spec:
                                       selecting resources. https://github.com/kubernetes/community/blob/master/contributors/design-proposals/api-machinery/api-group.md
                                     type: string
                                 type: object
+                            required:
+                            - patch
                             type: object
                           type: array
                         patchesJson6902:
