@@ -18,8 +18,8 @@ package controllers
 
 import (
 	"context"
-	"crypto/sha1"
-	"crypto/sha256"
+	_ "crypto/sha256"
+	_ "crypto/sha512"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,6 +30,8 @@ import (
 
 	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/hashicorp/go-retryablehttp"
+	"github.com/opencontainers/go-digest"
+	_ "github.com/opencontainers/go-digest/blake3"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -145,24 +147,21 @@ func (r *HelmReleaseReconciler) loadHelmChart(source *sourcev1.HelmChart) (*char
 }
 
 func (r *HelmReleaseReconciler) copyAndVerifyArtifact(artifact *sourcev1.Artifact, reader io.Reader, writer io.Writer) error {
-	hasher := sha256.New()
-
-	// for backwards compatibility with source-controller v0.17.2 and older
-	if len(artifact.Checksum) == 40 {
-		hasher = sha1.New()
+	dig, err := digest.Parse(artifact.Digest)
+	if err != nil {
+		return fmt.Errorf("failed to verify artifact: %w", err)
 	}
 
-	// compute checksum
-	mw := io.MultiWriter(hasher, writer)
+	// Verify the downloaded artifact against the advertised digest.
+	verifier := dig.Verifier()
+	mw := io.MultiWriter(verifier, writer)
 	if _, err := io.Copy(mw, reader); err != nil {
 		return err
 	}
 
-	if checksum := fmt.Sprintf("%x", hasher.Sum(nil)); checksum != artifact.Checksum {
-		return fmt.Errorf("failed to verify artifact: computed checksum '%s' doesn't match advertised '%s'",
-			checksum, artifact.Checksum)
+	if !verifier.Verified() {
+		return fmt.Errorf("failed to verify artifact: computed digest doesn't match advertised '%s'", dig)
 	}
-
 	return nil
 }
 
