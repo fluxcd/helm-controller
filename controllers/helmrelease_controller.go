@@ -78,10 +78,9 @@ import (
 // HelmReleaseReconciler reconciles a HelmRelease object
 type HelmReleaseReconciler struct {
 	client.Client
-	httpClient            *retryablehttp.Client
+
 	Config                *rest.Config
 	Scheme                *runtime.Scheme
-	requeueDependency     time.Duration
 	EventRecorder         kuberecorder.EventRecorder
 	MetricsRecorder       *metrics.Recorder
 	DefaultServiceAccount string
@@ -91,6 +90,9 @@ type HelmReleaseReconciler struct {
 	StatusPoller          *polling.StatusPoller
 	PollingOpts           polling.Options
 	ControllerName        string
+
+	httpClient        *retryablehttp.Client
+	requeueDependency time.Duration
 }
 
 func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {

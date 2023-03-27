@@ -17,6 +17,8 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/go-retryablehttp v0.7.2
 	github.com/onsi/gomega v1.27.4
+	github.com/opencontainers/go-digest v1.0.0
+	github.com/opencontainers/go-digest/blake3 v0.0.0-20220411205349-bde1400a84be
 	github.com/spf13/pflag v1.0.5
 	helm.sh/helm/v3 v3.11.1
 	k8s.io/api v0.26.2
@@ -29,6 +31,10 @@ require (
 	sigs.k8s.io/kustomize/api v0.12.1
 	sigs.k8s.io/yaml v1.3.0
 )
+
+// Replace digest lib to master to gather access to BLAKE3.
+// xref: https://github.com/opencontainers/go-digest/pull/66
+replace github.com/opencontainers/go-digest => github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be
 
 // Pin kustomize to v4.5.7
 replace (
@@ -112,7 +118,6 @@ require (
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -131,6 +136,7 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	github.com/xlab/treeprint v1.1.0 // indirect
+	github.com/zeebo/blake3 v0.1.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.starlark.net v0.0.0-20221028183056-acb66ad56dd2 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
