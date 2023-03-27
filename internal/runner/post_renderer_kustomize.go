@@ -109,7 +109,7 @@ func (k *postRendererKustomize) Run(renderedManifests *bytes.Buffer) (modifiedMa
 	for _, m := range k.spec.Patches {
 		cfg.Patches = append(cfg.Patches, kustypes.Patch{
 			Patch:  m.Patch,
-			Target: adaptSelector(&m.Target),
+			Target: adaptSelector(m.Target),
 		})
 	}
 
