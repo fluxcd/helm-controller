@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/fluxcd/helm-controller/internal/oomwatch"
 	"os"
 	"time"
 
@@ -46,9 +45,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
-	"github.com/fluxcd/helm-controller/controllers"
+	"github.com/fluxcd/helm-controller/internal/controllers"
 	"github.com/fluxcd/helm-controller/internal/features"
 	intkube "github.com/fluxcd/helm-controller/internal/kube"
+	"github.com/fluxcd/helm-controller/internal/oomwatch"
 	feathelper "github.com/fluxcd/pkg/runtime/features"
 	// +kubebuilder:scaffold:imports
 )
