@@ -23,12 +23,14 @@ import (
 
 	flag "github.com/spf13/pflag"
 	"helm.sh/helm/v3/pkg/kube"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/cli-utils/pkg/kstatus/polling"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
@@ -36,21 +38,21 @@ import (
 	"github.com/fluxcd/pkg/runtime/client"
 	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/events"
+	feathelper "github.com/fluxcd/pkg/runtime/features"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
-	corev1 "k8s.io/api/core/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	// +kubebuilder:scaffold:imports
+
 	"github.com/fluxcd/helm-controller/internal/controllers"
 	"github.com/fluxcd/helm-controller/internal/features"
 	intkube "github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/oomwatch"
-	feathelper "github.com/fluxcd/pkg/runtime/features"
-	// +kubebuilder:scaffold:imports
 )
 
 const controllerName = "helm-controller"
@@ -76,7 +78,6 @@ func main() {
 		concurrent                int
 		requeueDependency         time.Duration
 		gracefulShutdownTimeout   time.Duration
-		watchAllNamespaces        bool
 		httpRetry                 int
 		clientOptions             client.Options
 		kubeConfigOpts            client.KubeConfigOptions
@@ -85,6 +86,7 @@ func main() {
 		aclOptions                acl.Options
 		leaderElectionOptions     leaderelection.Options
 		rateLimiterOptions        helper.RateLimiterOptions
+		watchOptions              helper.WatchOptions
 		oomWatchInterval          time.Duration
 		oomWatchMemoryThreshold   uint8
 		oomWatchMaxMemoryPath     string
@@ -103,8 +105,6 @@ func main() {
 		"The interval at which failing dependencies are reevaluated.")
 	flag.DurationVar(&gracefulShutdownTimeout, "graceful-shutdown-timeout", 600*time.Second,
 		"The duration given to the reconciler to finish before forcibly stopping.")
-	flag.BoolVar(&watchAllNamespaces, "watch-all-namespaces", true,
-		"Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace.")
 	flag.IntVar(&httpRetry, "http-retry", 9,
 		"The maximum number of retries when failing to fetch artifacts over HTTP.")
 	flag.StringVar(&intkube.DefaultServiceAccountName, "default-service-account", "",
@@ -125,6 +125,7 @@ func main() {
 	rateLimiterOptions.BindFlags(flag.CommandLine)
 	kubeConfigOpts.BindFlags(flag.CommandLine)
 	featureGates.BindFlags(flag.CommandLine)
+	watchOptions.BindFlags(flag.CommandLine)
 
 	flag.Parse()
 
@@ -141,8 +142,14 @@ func main() {
 	crtlmetrics.Registry.MustRegister(metricsRecorder.Collectors()...)
 
 	watchNamespace := ""
-	if !watchAllNamespaces {
+	if !watchOptions.AllNamespaces {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
+	}
+
+	watchSelector, err := helper.GetWatchSelector(watchOptions)
+	if err != nil {
+		setupLog.Error(err, "unable to configure watch label selector for manager")
+		os.Exit(1)
 	}
 
 	var disableCacheFor []ctrlclient.Object
@@ -153,6 +160,11 @@ func main() {
 	}
 	if !shouldCache {
 		disableCacheFor = append(disableCacheFor, &corev1.Secret{}, &corev1.ConfigMap{})
+	}
+
+	leaderElectionId := fmt.Sprintf("%s-%s", controllerName, "leader-election")
+	if watchOptions.LabelSelector != "" {
+		leaderElectionId = leaderelection.GenerateID(leaderElectionId, watchOptions.LabelSelector)
 	}
 
 	// set the managedFields owner for resources reconciled from Helm charts
@@ -170,10 +182,15 @@ func main() {
 		RenewDeadline:                 &leaderElectionOptions.RenewDeadline,
 		RetryPeriod:                   &leaderElectionOptions.RetryPeriod,
 		GracefulShutdownTimeout:       &gracefulShutdownTimeout,
-		LeaderElectionID:              fmt.Sprintf("%s-leader-election", controllerName),
+		LeaderElectionID:              leaderElectionId,
 		Namespace:                     watchNamespace,
 		Logger:                        ctrl.Log,
 		ClientDisableCacheFor:         disableCacheFor,
+		NewCache: ctrlcache.BuilderWithOptions(ctrlcache.Options{
+			SelectorsByObject: ctrlcache.SelectorsByObject{
+				&v2.HelmRelease{}: {Label: watchSelector},
+			},
+		}),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

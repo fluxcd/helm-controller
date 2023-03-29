@@ -10,7 +10,7 @@ require (
 	github.com/fluxcd/pkg/apis/event v0.4.1
 	github.com/fluxcd/pkg/apis/kustomize v1.0.0
 	github.com/fluxcd/pkg/apis/meta v1.0.0
-	github.com/fluxcd/pkg/runtime v0.33.0
+	github.com/fluxcd/pkg/runtime v0.35.0
 	github.com/fluxcd/pkg/ssa v0.26.0
 	github.com/fluxcd/source-controller/api v0.36.1
 	github.com/go-logr/logr v1.2.3
@@ -27,7 +27,7 @@ require (
 	k8s.io/cli-runtime v0.26.3
 	k8s.io/client-go v0.26.3
 	sigs.k8s.io/cli-utils v0.34.0
-	sigs.k8s.io/controller-runtime v0.14.5
+	sigs.k8s.io/controller-runtime v0.14.6
 	sigs.k8s.io/kustomize/api v0.12.1
 	sigs.k8s.io/yaml v1.3.0
 )
