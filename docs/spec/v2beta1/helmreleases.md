@@ -134,9 +134,30 @@ type KubeConfig struct {
 // generate a v1beta1.HelmChart object in the same namespace as the referenced
 // v1beta1.Source.
 type HelmChartTemplate struct {
+	// ObjectMeta holds the template for metadata like labels and annotations.
+	// +optional
+	ObjectMeta HelmChartTemplateObjectMeta `json:"metadata,omitempty"`
+
 	// Spec holds the template for the v1beta1.HelmChartSpec for this HelmRelease.
 	// +required
 	Spec HelmChartTemplateSpec `json:"spec"`
+}
+
+// HelmChartTemplateObjectMeta defines the template for the ObjectMeta of a
+// v1beta2.HelmChart.
+type HelmChartTemplateObjectMeta struct {
+	// Map of string keys and values that can be used to organize and categorize
+	// (scope and select) objects.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+
+	// Annotations is an unstructured key value map stored with a resource that may be
+	// set by external tools to store and retrieve arbitrary metadata. They are not
+	// queryable and should be preserved when modifying objects.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // HelmChartTemplateSpec defines the template from which the controller will
@@ -681,7 +702,7 @@ of the `HelmRelease`. These can be overridden respectively via `spec.targetNames
 
 ## Helm chart template
 
-The `spec.chart.spec` values are used by the helm-controller as a template
+The `spec.chart` values are used by the helm-controller as a template
 to create a new `HelmChart` resource with the given spec.
 
 The `spec.chart.spec.sourceRef` is a reference to an object managed by
@@ -699,8 +720,8 @@ The `HelmChart` is created in the same namespace as the `sourceRef`,
 with a name matching the `HelmRelease` `<metadata.namespace>-<metadata.name>`.
 
 > **Note** that on multi-tenant clusters,  platform admins can disable cross-namespace references
-> with the `--no-cross-namespace-refs=true` flag. When this flag is set, the helmrelease can only
-> refer to sources in the same  namespace as the helmrelease object.
+> with the `--no-cross-namespace-refs=true` flag. When this flag is set, the HelmRelease can only
+> refer to sources in the same  namespace as the HelmRelease object.
 
 The `chart.spec.chart` can either contain:
 
@@ -712,6 +733,9 @@ The `chart.spec.chart` can either contain:
 The `chart.spec.version` can be a fixed semver, or any semver range
 (i.e. `>=4.0.0 <5.0.0`). It is ignored for `HelmRelease` resources
 that reference a `GitRepository` or `Bucket` source.
+
+Annotations and labels can be added by configuring the respective `.spec.chart.metadata`
+fields.
 
 ## Values overrides
 

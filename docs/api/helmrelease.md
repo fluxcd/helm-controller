@@ -466,7 +466,7 @@ HelmChartTemplateObjectMeta
 </td>
 <td>
 <em>(Optional)</em>
-<p>ObjectMeta holds the template for metadata including Labels and Annotations</p>
+<p>ObjectMeta holds the template for metadata like labels and annotations.</p>
 </td>
 </tr>
 <tr>
@@ -611,6 +611,8 @@ Chart dependencies, which are not bundled in the umbrella chart artifact, are no
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2beta1.HelmChartTemplate">HelmChartTemplate</a>)
 </p>
+<p>HelmChartTemplateObjectMeta defines the template for the ObjectMeta of a
+v1beta2.HelmChart.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -632,7 +634,7 @@ map[string]string
 <em>(Optional)</em>
 <p>Map of string keys and values that can be used to organize and categorize
 (scope and select) objects.
-More info: <a href="http://kubernetes.io/docs/user-guide/labels">http://kubernetes.io/docs/user-guide/labels</a></p>
+More info: <a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/">https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/</a></p>
 </td>
 </tr>
 <tr>
@@ -647,7 +649,7 @@ map[string]string
 <p>Annotations is an unstructured key value map stored with a resource that may be
 set by external tools to store and retrieve arbitrary metadata. They are not
 queryable and should be preserved when modifying objects.
-More info: <a href="http://kubernetes.io/docs/user-guide/annotations">http://kubernetes.io/docs/user-guide/annotations</a></p>
+More info: <a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/">https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/</a></p>
 </td>
 </tr>
 </tbody>

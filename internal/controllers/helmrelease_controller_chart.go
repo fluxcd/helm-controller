@@ -202,8 +202,8 @@ func buildHelmChartFromTemplate(hr *v2.HelmRelease) *sourcev1.HelmChart {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        hr.GetHelmChartName(),
 			Namespace:   hr.Spec.Chart.GetNamespace(hr.Namespace),
-			Labels:      hr.Spec.Chart.Labels,
-			Annotations: hr.Spec.Chart.Annotations,
+			Labels:      hr.Spec.Chart.ObjectMeta.Labels,
+			Annotations: hr.Spec.Chart.ObjectMeta.Annotations,
 		},
 		Spec: sourcev1.HelmChartSpec{
 			Chart:   template.Spec.Chart,
@@ -245,9 +245,9 @@ func helmChartRequiresUpdate(hr *v2.HelmRelease, chart *sourcev1.HelmChart) bool
 		return true
 	case template.Spec.ValuesFile != chart.Spec.ValuesFile:
 		return true
-	case !apiequality.Semantic.DeepEqual(template.Annotations, chart.Annotations):
+	case !apiequality.Semantic.DeepEqual(template.ObjectMeta.Annotations, chart.Annotations):
 		return true
-	case !apiequality.Semantic.DeepEqual(template.Labels, chart.Labels):
+	case !apiequality.Semantic.DeepEqual(template.ObjectMeta.Labels, chart.Labels):
 		return true
 	case !reflect.DeepEqual(templateVerificationToSourceVerification(template.Spec.Verify), chart.Spec.Verify):
 		return true

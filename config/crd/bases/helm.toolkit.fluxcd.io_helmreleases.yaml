@@ -52,8 +52,8 @@ spec:
                   should be created for this HelmRelease.
                 properties:
                   metadata:
-                    description: ObjectMeta holds the template for metadata including
-                      Labels and Annotations
+                    description: ObjectMeta holds the template for metadata like labels
+                      and annotations.
                     properties:
                       annotations:
                         additionalProperties:
@@ -62,14 +62,14 @@ spec:
                           stored with a resource that may be set by external tools
                           to store and retrieve arbitrary metadata. They are not queryable
                           and should be preserved when modifying objects. More info:
-                          http://kubernetes.io/docs/user-guide/annotations'
+                          https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/'
                         type: object
                       labels:
                         additionalProperties:
                           type: string
                         description: 'Map of string keys and values that can be used
                           to organize and categorize (scope and select) objects. More
-                          info: http://kubernetes.io/docs/user-guide/labels'
+                          info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/'
                         type: object
                     type: object
                   spec:
