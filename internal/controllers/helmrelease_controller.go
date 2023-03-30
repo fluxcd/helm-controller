@@ -751,12 +751,13 @@ func (r *HelmReleaseReconciler) handleHelmActionResult(ctx context.Context,
 }
 
 func (r *HelmReleaseReconciler) patchStatus(ctx context.Context, hr *v2.HelmRelease) error {
-	key := client.ObjectKeyFromObject(hr)
 	latest := &v2.HelmRelease{}
-	if err := r.Client.Get(ctx, key, latest); err != nil {
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(hr), latest); err != nil {
 		return err
 	}
-	return r.Client.Status().Patch(ctx, hr, client.MergeFrom(latest))
+	patch := client.MergeFrom(latest.DeepCopy())
+	latest.Status = hr.Status
+	return r.Client.Status().Patch(ctx, latest, patch, client.FieldOwner(r.ControllerName))
 }
 
 func (r *HelmReleaseReconciler) requestsForHelmChartChange(o client.Object) []reconcile.Request {
