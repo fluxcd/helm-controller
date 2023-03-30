@@ -52,6 +52,19 @@ func TestWithImpersonate(t *testing.T) {
 	})
 }
 
+func TestWithPersistent(t *testing.T) {
+	t.Run("sets persistent flag", func(t *testing.T) {
+		g := NewWithT(t)
+
+		c := &MemoryRESTClientGetter{}
+		WithPersistent(true)(c)
+		g.Expect(c.persistent).To(BeTrue())
+
+		WithPersistent(false)(c)
+		g.Expect(c.persistent).To(BeFalse())
+	})
+}
+
 func TestWithClientOptions(t *testing.T) {
 	t.Run("sets the client options", func(t *testing.T) {
 		g := NewWithT(t)
@@ -182,6 +195,25 @@ func TestMemoryRESTClientGetter_ToRESTConfig(t *testing.T) {
 }
 
 func TestMemoryRESTClientGetter_ToDiscoveryClient(t *testing.T) {
+	t.Run("returns a persistent discovery client", func(t *testing.T) {
+		g := NewWithT(t)
+
+		c := &MemoryRESTClientGetter{
+			cfg: &rest.Config{
+				Host: "https://example.com",
+			},
+			persistent: true,
+		}
+		dc, err := c.ToDiscoveryClient()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(dc).ToNot(BeNil())
+
+		// Calling it again should return the same instance.
+		dc2, err := c.ToDiscoveryClient()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(dc2).To(BeIdenticalTo(dc))
+	})
+
 	t.Run("returns a discovery client", func(t *testing.T) {
 		g := NewWithT(t)
 
@@ -194,14 +226,33 @@ func TestMemoryRESTClientGetter_ToDiscoveryClient(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(dc).ToNot(BeNil())
 
-		// Calling it again should return the same instance.
+		// Calling it again should return a new instance.
 		dc2, err := c.ToDiscoveryClient()
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(dc2).To(BeIdenticalTo(dc))
+		g.Expect(dc2).ToNot(BeIdenticalTo(dc))
 	})
 }
 
 func TestMemoryRESTClientGetter_ToRESTMapper(t *testing.T) {
+	t.Run("returns a persistent REST mapper", func(t *testing.T) {
+		g := NewWithT(t)
+
+		c := &MemoryRESTClientGetter{
+			cfg: &rest.Config{
+				Host: "https://example.com",
+			},
+			persistent: true,
+		}
+		rm, err := c.ToRESTMapper()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(rm).ToNot(BeNil())
+
+		// Calling it again should return the same instance.
+		rm2, err := c.ToRESTMapper()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(rm2).To(BeIdenticalTo(rm))
+	})
+
 	t.Run("returns a REST mapper", func(t *testing.T) {
 		g := NewWithT(t)
 
@@ -214,14 +265,30 @@ func TestMemoryRESTClientGetter_ToRESTMapper(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(rm).ToNot(BeNil())
 
-		// Calling it again should return the same instance.
+		// Calling it again should return a new instance.
 		rm2, err := c.ToRESTMapper()
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(rm2).To(BeIdenticalTo(rm))
+		g.Expect(rm2).ToNot(BeIdenticalTo(rm))
 	})
 }
 
 func TestMemoryRESTClientGetter_ToRawKubeConfigLoader(t *testing.T) {
+	t.Run("returns a persistent client config", func(t *testing.T) {
+		g := NewWithT(t)
+
+		c := &MemoryRESTClientGetter{
+			cfg: &rest.Config{
+				Host: "https://example.com",
+			},
+			persistent: true,
+		}
+		cc := c.ToRawKubeConfigLoader()
+		g.Expect(cc).ToNot(BeNil())
+
+		// Calling it again should return the same instance.
+		g.Expect(c.ToRawKubeConfigLoader()).To(BeIdenticalTo(cc))
+	})
+
 	t.Run("returns a client config", func(t *testing.T) {
 		g := NewWithT(t)
 
@@ -234,6 +301,6 @@ func TestMemoryRESTClientGetter_ToRawKubeConfigLoader(t *testing.T) {
 		g.Expect(cc).ToNot(BeNil())
 
 		// Calling it again should return the same instance.
-		g.Expect(c.ToRawKubeConfigLoader()).To(BeIdenticalTo(cc))
+		g.Expect(c.ToRawKubeConfigLoader()).ToNot(BeIdenticalTo(cc))
 	})
 }
