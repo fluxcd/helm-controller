@@ -225,6 +225,11 @@ func (in *HelmReleaseSpec) DeepCopyInto(out *HelmReleaseSpec) {
 		*out = new(int)
 		**out = **in
 	}
+	if in.PersistentClient != nil {
+		in, out := &in.PersistentClient, &out.PersistentClient
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Install != nil {
 		in, out := &in.Install, &out.Install
 		*out = new(Install)

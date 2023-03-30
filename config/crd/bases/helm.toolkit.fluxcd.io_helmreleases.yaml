@@ -322,6 +322,17 @@ spec:
                   this HelmRelease. Use '0' for an unlimited number of revisions;
                   defaults to '10'.
                 type: integer
+              persistentClient:
+                description: "PersistentClient tells the controller to use a persistent
+                  Kubernetes client for this release. When enabled, the client will
+                  be reused for the duration of the reconciliation, instead of being
+                  created and destroyed for each (step of a) Helm action. \n This
+                  can improve performance, but may cause issues with some Helm charts
+                  that for example do create Custom Resource Definitions during installation
+                  outside Helm's CRD lifecycle hooks, which are then not observed
+                  to be available by e.g. post-install hooks. \n If not set, it defaults
+                  to true."
+                type: boolean
               postRenderers:
                 description: PostRenderers holds an array of Helm PostRenderers, which
                   will be applied in order of their definition.

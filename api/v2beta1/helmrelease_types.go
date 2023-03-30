@@ -137,6 +137,21 @@ type HelmReleaseSpec struct {
 	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 
+	// PersistentClient tells the controller to use a persistent Kubernetes
+	// client for this release. When enabled, the client will be reused for the
+	// duration of the reconciliation, instead of being created and destroyed
+	// for each (step of a) Helm action.
+	//
+	// This can improve performance, but may cause issues with some Helm charts
+	// that for example do create Custom Resource Definitions during installation
+	// outside Helm's CRD lifecycle hooks, which are then not observed to be
+	// available by e.g. post-install hooks.
+	//
+	// If not set, it defaults to true.
+	//
+	// +optional
+	PersistentClient *bool `json:"persistentClient,omitempty"`
+
 	// Install holds the configuration for Helm install actions for this HelmRelease.
 	// +optional
 	Install *Install `json:"install,omitempty"`
@@ -1037,6 +1052,15 @@ func (in HelmRelease) GetMaxHistory() int {
 		return 10
 	}
 	return *in.Spec.MaxHistory
+}
+
+// UsePersistentClient returns the configured PersistentClient, or the default
+// of true.
+func (in HelmRelease) UsePersistentClient() bool {
+	if in.Spec.PersistentClient == nil {
+		return true
+	}
+	return *in.Spec.PersistentClient
 }
 
 // GetDependsOn returns the list of dependencies across-namespaces.
