@@ -61,15 +61,27 @@ func WithClientOptions(opts client.Options) Option {
 	}
 }
 
+// WithPersistent sets whether the client should persist the underlying client
+// config, REST mapper, and discovery client.
+func WithPersistent(persist bool) Option {
+	return func(c *MemoryRESTClientGetter) {
+		c.persistent = persist
+	}
+}
+
 // MemoryRESTClientGetter is a resource.RESTClientGetter that uses an
-// in-memory REST config, REST mapper, and discovery client. The REST config,
-// REST mapper, and discovery client are lazily initialized, and cached for
-// subsequent calls.
+// in-memory REST config, REST mapper, and discovery client.
+// If configured, the client config, REST mapper, and discovery client are
+// lazily initialized, and cached for subsequent calls.
 type MemoryRESTClientGetter struct {
 	// namespace is the namespace to use for the client.
 	namespace string
 	// impersonate is the username to use for the client.
 	impersonate string
+	// persistent indicates whether the client should persist the restMapper,
+	// clientCfg, and discoveryClient. Rather than re-initializing them on
+	// every call, they will be cached and reused.
+	persistent bool
 
 	cfg *rest.Config
 
@@ -124,59 +136,100 @@ func (c *MemoryRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
 // ToDiscoveryClient returns a memory cached discovery client. Calling it
 // multiple times will return the same instance.
 func (c *MemoryRESTClientGetter) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
-	c.clientCfgMu.Lock()
-	defer c.clientCfgMu.Unlock()
+	if c.persistent {
+		return c.toPersistentDiscoveryClient()
+	}
+	return c.toDiscoveryClient()
+}
+
+func (c *MemoryRESTClientGetter) toPersistentDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
+	c.discoveryMu.Lock()
+	defer c.discoveryMu.Unlock()
 
 	if c.discoveryClient == nil {
-		config, err := c.ToRESTConfig()
+		discoveryClient, err := c.toDiscoveryClient()
 		if err != nil {
 			return nil, err
 		}
-
-		discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
-		if err != nil {
-			return nil, err
-		}
-		c.discoveryClient = memory.NewMemCacheClient(discoveryClient)
+		c.discoveryClient = discoveryClient
 	}
 	return c.discoveryClient, nil
+}
+
+func (c *MemoryRESTClientGetter) toDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
+	config, err := c.ToRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	return memory.NewMemCacheClient(discoveryClient), nil
 }
 
 // ToRESTMapper returns a meta.RESTMapper using the discovery client. Calling
 // it multiple times will return the same instance.
 func (c *MemoryRESTClientGetter) ToRESTMapper() (meta.RESTMapper, error) {
-	c.discoveryMu.Lock()
-	defer c.discoveryMu.Unlock()
+	if c.persistent {
+		return c.toPersistentRESTMapper()
+	}
+	return c.toRESTMapper()
+}
+
+func (c *MemoryRESTClientGetter) toPersistentRESTMapper() (meta.RESTMapper, error) {
+	c.restMapperMu.Lock()
+	defer c.restMapperMu.Unlock()
 
 	if c.restMapper == nil {
-		discoveryClient, err := c.ToDiscoveryClient()
+		restMapper, err := c.toRESTMapper()
 		if err != nil {
 			return nil, err
 		}
-		mapper := restmapper.NewDeferredDiscoveryRESTMapper(discoveryClient)
-		c.restMapper = restmapper.NewShortcutExpander(mapper, discoveryClient)
+		c.restMapper = restMapper
 	}
 	return c.restMapper, nil
+}
+
+func (c *MemoryRESTClientGetter) toRESTMapper() (meta.RESTMapper, error) {
+	discoveryClient, err := c.ToDiscoveryClient()
+	if err != nil {
+		return nil, err
+	}
+	mapper := restmapper.NewDeferredDiscoveryRESTMapper(discoveryClient)
+	return restmapper.NewShortcutExpander(mapper, discoveryClient), nil
 }
 
 // ToRawKubeConfigLoader returns a clientcmd.ClientConfig using
 // clientcmd.DefaultClientConfig. With clientcmd.ClusterDefaults, namespace, and
 // impersonate configured as overwrites.
 func (c *MemoryRESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig {
+	if c.persistent {
+		return c.toPersistentRawKubeConfigLoader()
+	}
+	return c.toRawKubeConfigLoader()
+}
+
+func (c *MemoryRESTClientGetter) toPersistentRawKubeConfigLoader() clientcmd.ClientConfig {
 	c.clientCfgMu.Lock()
 	defer c.clientCfgMu.Unlock()
 
 	if c.clientCfg == nil {
-		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-		// use the standard defaults for this client command
-		// DEPRECATED: remove and replace with something more accurate
-		loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-
-		overrides := &clientcmd.ConfigOverrides{ClusterDefaults: clientcmd.ClusterDefaults}
-		overrides.Context.Namespace = c.namespace
-		overrides.AuthInfo.Impersonate = c.impersonate
-
-		c.clientCfg = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides)
+		c.clientCfg = c.toRawKubeConfigLoader()
 	}
 	return c.clientCfg
+}
+
+func (c *MemoryRESTClientGetter) toRawKubeConfigLoader() clientcmd.ClientConfig {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	// use the standard defaults for this client command
+	// DEPRECATED: remove and replace with something more accurate
+	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+
+	overrides := &clientcmd.ConfigOverrides{ClusterDefaults: clientcmd.ClusterDefaults}
+	overrides.Context.Namespace = c.namespace
+	overrides.AuthInfo.Impersonate = c.impersonate
+
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides)
 }

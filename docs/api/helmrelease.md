@@ -226,6 +226,26 @@ when reconciling this HelmRelease.</p>
 </tr>
 <tr>
 <td>
+<code>persistentClient</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PersistentClient tells the controller to use a persistent Kubernetes
+client for this release. When enabled, the client will be reused for the
+duration of the reconciliation, instead of being created and destroyed
+for each (step of a) Helm action.</p>
+<p>This can improve performance, but may cause issues with some Helm charts
+that for example do create Custom Resource Definitions during installation
+outside Helm&rsquo;s CRD lifecycle hooks, which are then not observed to be
+available by e.g. post-install hooks.</p>
+<p>If not set, it defaults to true.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>install</code><br>
 <em>
 <a href="#helm.toolkit.fluxcd.io/v2beta1.Install">
@@ -1011,6 +1031,26 @@ string
 <em>(Optional)</em>
 <p>The name of the Kubernetes service account to impersonate
 when reconciling this HelmRelease.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>persistentClient</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PersistentClient tells the controller to use a persistent Kubernetes
+client for this release. When enabled, the client will be reused for the
+duration of the reconciliation, instead of being created and destroyed
+for each (step of a) Helm action.</p>
+<p>This can improve performance, but may cause issues with some Helm charts
+that for example do create Custom Resource Definitions during installation
+outside Helm&rsquo;s CRD lifecycle hooks, which are then not observed to be
+available by e.g. post-install hooks.</p>
+<p>If not set, it defaults to true.</p>
 </td>
 </tr>
 <tr>
