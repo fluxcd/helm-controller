@@ -40,12 +40,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	sourcev1b2 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 )
 
-func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, error) {
+func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1b2.HelmChart, error) {
 	chartName := types.NamespacedName{
 		Namespace: hr.Spec.Chart.GetNamespace(hr.Namespace),
 		Name:      hr.GetHelmChartName(),
@@ -67,7 +68,7 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	}
 
 	// Continue with the reconciliation of the current template.
-	var helmChart sourcev1.HelmChart
+	var helmChart sourcev1b2.HelmChart
 	err := r.Client.Get(ctx, chartName, &helmChart)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return nil, err
@@ -81,7 +82,7 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 		hr.Status.HelmChart = chartName.String()
 		return hc, nil
 	case helmChartRequiresUpdate(hr, &helmChart):
-		ctrl.LoggerFrom(ctx).Info("chart diverged from template", strings.ToLower(sourcev1.HelmChartKind), chartName.String())
+		ctrl.LoggerFrom(ctx).Info("chart diverged from template", strings.ToLower(sourcev1b2.HelmChartKind), chartName.String())
 		helmChart.Spec = hc.Spec
 		helmChart.Labels = hc.Labels
 		helmChart.Annotations = hc.Annotations
@@ -97,9 +98,9 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 // getHelmChart retrieves the v1beta2.HelmChart for the given
 // v2beta1.HelmRelease using the name that is advertised in the status
 // object. It returns the v1beta2.HelmChart, or an error.
-func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, error) {
+func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1b2.HelmChart, error) {
 	namespace, name := hr.Status.GetHelmChart()
-	hc := &sourcev1.HelmChart{}
+	hc := &sourcev1b2.HelmChart{}
 	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, hc); err != nil {
 		return nil, err
 	}
@@ -109,7 +110,7 @@ func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, hr *v2.HelmRel
 // loadHelmChart attempts to download the artifact from the provided source,
 // loads it into a chart.Chart, and removes the downloaded artifact.
 // It returns the loaded chart.Chart on success, or an error.
-func (r *HelmReleaseReconciler) loadHelmChart(source *sourcev1.HelmChart) (*chart.Chart, error) {
+func (r *HelmReleaseReconciler) loadHelmChart(source *sourcev1b2.HelmChart) (*chart.Chart, error) {
 	f, err := os.CreateTemp("", fmt.Sprintf("%s-%s-*.tgz", source.GetNamespace(), source.GetName()))
 	if err != nil {
 		return nil, err
@@ -174,7 +175,7 @@ func (r *HelmReleaseReconciler) deleteHelmChart(ctx context.Context, hr *v2.Helm
 	if hr.Status.HelmChart == "" {
 		return nil
 	}
-	var hc sourcev1.HelmChart
+	var hc sourcev1b2.HelmChart
 	chartNS, chartName := hr.Status.GetHelmChart()
 	err := r.Client.Get(ctx, types.NamespacedName{Namespace: chartNS, Name: chartName}, &hc)
 	if err != nil {
@@ -196,19 +197,19 @@ func (r *HelmReleaseReconciler) deleteHelmChart(ctx context.Context, hr *v2.Helm
 
 // buildHelmChartFromTemplate builds a v1beta2.HelmChart from the
 // v2beta1.HelmChartTemplate of the given v2beta1.HelmRelease.
-func buildHelmChartFromTemplate(hr *v2.HelmRelease) *sourcev1.HelmChart {
+func buildHelmChartFromTemplate(hr *v2.HelmRelease) *sourcev1b2.HelmChart {
 	template := hr.Spec.Chart
-	return &sourcev1.HelmChart{
+	return &sourcev1b2.HelmChart{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        hr.GetHelmChartName(),
 			Namespace:   hr.Spec.Chart.GetNamespace(hr.Namespace),
 			Labels:      hr.Spec.Chart.ObjectMeta.Labels,
 			Annotations: hr.Spec.Chart.ObjectMeta.Annotations,
 		},
-		Spec: sourcev1.HelmChartSpec{
+		Spec: sourcev1b2.HelmChartSpec{
 			Chart:   template.Spec.Chart,
 			Version: template.Spec.Version,
-			SourceRef: sourcev1.LocalHelmChartSourceReference{
+			SourceRef: sourcev1b2.LocalHelmChartSourceReference{
 				Name: template.Spec.SourceRef.Name,
 				Kind: template.Spec.SourceRef.Kind,
 			},
@@ -224,7 +225,7 @@ func buildHelmChartFromTemplate(hr *v2.HelmRelease) *sourcev1.HelmChart {
 // helmChartRequiresUpdate compares the v2beta1.HelmChartTemplate of the
 // v2beta1.HelmRelease to the given v1beta2.HelmChart to determine if an
 // update is required.
-func helmChartRequiresUpdate(hr *v2.HelmRelease, chart *sourcev1.HelmChart) bool {
+func helmChartRequiresUpdate(hr *v2.HelmRelease, chart *sourcev1b2.HelmChart) bool {
 	template := hr.Spec.Chart
 	switch {
 	case template.Spec.Chart != chart.Spec.Chart:
@@ -257,12 +258,12 @@ func helmChartRequiresUpdate(hr *v2.HelmRelease, chart *sourcev1.HelmChart) bool
 }
 
 // templateVerificationToSourceVerification converts the HelmChartTemplateVerification to the OCIRepositoryVerification.
-func templateVerificationToSourceVerification(template *v2.HelmChartTemplateVerification) *sourcev1.OCIRepositoryVerification {
+func templateVerificationToSourceVerification(template *v2.HelmChartTemplateVerification) *sourcev1b2.OCIRepositoryVerification {
 	if template == nil {
 		return nil
 	}
 
-	return &sourcev1.OCIRepositoryVerification{
+	return &sourcev1b2.OCIRepositoryVerification{
 		Provider:  template.Provider,
 		SecretRef: template.SecretRef,
 	}
