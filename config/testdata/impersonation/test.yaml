@@ -42,7 +42,7 @@ subjects:
     name: gotk-reconciler
     namespace: impersonation
 ---
-apiVersion: source.toolkit.fluxcd.io/v1beta1
+apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: HelmRepository
 metadata:
   name: podinfo
@@ -62,7 +62,7 @@ spec:
   chart:
     spec:
       chart: podinfo
-      version: 5.0.3
+      version: 6.3.5
       sourceRef:
         kind: HelmRepository
         name: podinfo
@@ -78,7 +78,7 @@ spec:
   chart:
     spec:
       chart: podinfo
-      version: 5.0.3
+      version: 6.3.5
       sourceRef:
         kind: HelmRepository
         name: podinfo
