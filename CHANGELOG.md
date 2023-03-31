@@ -1,5 +1,83 @@
 # Changelog
 
+## 0.32.0
+
+**Release date:** 2023-03-31
+
+This prerelease comes with a number of new features and improvements, and
+solves a long-standing issue with the patching of the HelmRelease status.
+
+### Highlights
+
+#### Management of HelmChart labels and annotations
+
+The HelmRelease now supports the definition of a set of labels and annotations
+using `.spec.chart.metadata.labels` and `.spec.chart.metadata.annotations`,
+which will be applied to the HelmChart created by the controller.
+
+#### Sharding
+
+The controller can now be configured with `--watch-label-selector`, after
+which only HelmRelease objects with this label will be reconciled by the
+controller.
+
+This allows for horizontal scaling, where the controller can be deployed
+multiple times with a unique label selector which is used as the sharding key.
+
+Note that if you want to ensure a HelmChart gets created for a specific
+source-controller instance, you have to provide the labels for this controller
+in `.spec.chart.metadata.labels` of the HelmRelease.
+
+In addition, the source referenced (i.e. HelmRepository) in the HelmChart must
+be available to this same controller instance.
+
+#### Opt-out of persistent Kubernetes client
+
+The HelmRelease now supports opting out of the persistent Kubernetes client
+introduced in `v0.31.0` by defining `.spec.persistentClient: false` (default
+`true`).
+
+This can be useful when a HelmRelease is used to manage a Helm chart that
+itself manages Custom Resource Definitions outside the Helm chart's CRD
+lifecycle (like OPA Gatekeeper), as the persistent client will not observe
+the creation of these resources.
+
+Disabling this increases memory consumption, and should only be used when
+necessary.
+
+#### Verification of Artifact Digest
+
+The controller will now verify the Digest of the Artifact as advertised by
+the HelmChart, introduced in source-controller `v0.35.0`.
+
+Due to this, the controller will now require source-controller `v0.35.0` or
+higher (and ships with `v1.0.0-rc.1` by default, which includes v1 of the
+`Artifact` API).
+
+### Full changelog
+
+Improvements:
+- Manage labels and annotations for a HelmChart
+  [#631](https://github.com/fluxcd/helm-controller/pull/631)
+- Verify Digest of Artifact
+  [#651](https://github.com/fluxcd/helm-controller/pull/651)
+- Move `controllers` to `internal/controllers`
+  [#653](https://github.com/fluxcd/helm-controller/pull/653)
+- Update dependencies
+  [#654](https://github.com/fluxcd/helm-controller/pull/654)
+- Add reconciler sharding capability based on label selector
+  [#658](https://github.com/fluxcd/helm-controller/pull/658)
+- Add `PersistentClient` flag to allow control over Kubernetes client behavior
+  [#659](https://github.com/fluxcd/helm-controller/pull/659)
+- Update source-controller to v1.0.0-rc.1
+  [#661](https://github.com/fluxcd/helm-controller/pull/661)
+- config/*: update API versions and file names
+  [#662](https://github.com/fluxcd/helm-controller/pull/662)
+
+Fixes:
+- Update status patch logic
+  [#660](https://github.com/fluxcd/helm-controller/pull/660)
+
 ## 0.31.2
 
 **Release date:** 2023-03-20
