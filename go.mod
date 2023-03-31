@@ -11,12 +11,12 @@ require (
 	github.com/fluxcd/pkg/apis/kustomize v1.0.0
 	github.com/fluxcd/pkg/apis/meta v1.0.0
 	github.com/fluxcd/pkg/runtime v0.35.0
-	github.com/fluxcd/pkg/ssa v0.26.0
-	github.com/fluxcd/source-controller/api v0.36.1
-	github.com/go-logr/logr v1.2.3
+	github.com/fluxcd/pkg/ssa v0.27.0
+	github.com/fluxcd/source-controller/api v1.0.0-rc.1
+	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/go-retryablehttp v0.7.2
-	github.com/onsi/gomega v1.27.5
+	github.com/onsi/gomega v1.27.6
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20220411205349-bde1400a84be
 	github.com/spf13/pflag v1.0.5
