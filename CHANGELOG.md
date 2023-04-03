@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.32.1
+
+**Release date:** 2023-04-03
+
+This prerelease comes with a bug fix in HelmRelease related to the
+`.spec.chart.metadata` field which wasn't truly optional, leading to empty value
+assignment even when it wasn't set.
+
+Fixes:
+- Fix chart metadata by making it truly optional
+  [#665](https://github.com/fluxcd/helm-controller/pull/665)
+
 ## 0.32.0
 
 **Release date:** 2023-03-31
