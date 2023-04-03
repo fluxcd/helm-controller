@@ -517,14 +517,14 @@ func Test_helmChartRequiresUpdate(t *testing.T) {
 		{
 			name: "detects labels change",
 			modify: func(hr *v2.HelmRelease, hc *sourcev1.HelmChart) {
-				hr.Spec.Chart.ObjectMeta.Labels = map[string]string{"foo": "bar"}
+				hr.Spec.Chart.ObjectMeta = &v2.HelmChartTemplateObjectMeta{Labels: map[string]string{"foo": "bar"}}
 			},
 			want: true,
 		},
 		{
 			name: "detects annotations change",
 			modify: func(hr *v2.HelmRelease, hc *sourcev1.HelmChart) {
-				hr.Spec.Chart.ObjectMeta.Annotations = map[string]string{"foo": "bar"}
+				hr.Spec.Chart.ObjectMeta = &v2.HelmChartTemplateObjectMeta{Annotations: map[string]string{"foo": "bar"}}
 			},
 			want: true,
 		},

@@ -151,7 +151,7 @@ type KubeConfig struct {
 type HelmChartTemplate struct {
 	// ObjectMeta holds the template for metadata like labels and annotations.
 	// +optional
-	ObjectMeta HelmChartTemplateObjectMeta `json:"metadata,omitempty"`
+	ObjectMeta *HelmChartTemplateObjectMeta `json:"metadata,omitempty"`
 
 	// Spec holds the template for the v1beta1.HelmChartSpec for this HelmRelease.
 	// +required
