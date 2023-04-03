@@ -199,12 +199,10 @@ func (r *HelmReleaseReconciler) deleteHelmChart(ctx context.Context, hr *v2.Helm
 // v2beta1.HelmChartTemplate of the given v2beta1.HelmRelease.
 func buildHelmChartFromTemplate(hr *v2.HelmRelease) *sourcev1b2.HelmChart {
 	template := hr.Spec.Chart
-	return &sourcev1b2.HelmChart{
+	result := &sourcev1b2.HelmChart{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        hr.GetHelmChartName(),
-			Namespace:   hr.Spec.Chart.GetNamespace(hr.Namespace),
-			Labels:      hr.Spec.Chart.ObjectMeta.Labels,
-			Annotations: hr.Spec.Chart.ObjectMeta.Annotations,
+			Name:      hr.GetHelmChartName(),
+			Namespace: hr.Spec.Chart.GetNamespace(hr.Namespace),
 		},
 		Spec: sourcev1b2.HelmChartSpec{
 			Chart:   template.Spec.Chart,
@@ -220,6 +218,11 @@ func buildHelmChartFromTemplate(hr *v2.HelmRelease) *sourcev1b2.HelmChart {
 			Verify:            templateVerificationToSourceVerification(template.Spec.Verify),
 		},
 	}
+	if hr.Spec.Chart.ObjectMeta != nil {
+		result.ObjectMeta.Labels = hr.Spec.Chart.ObjectMeta.Labels
+		result.ObjectMeta.Annotations = hr.Spec.Chart.ObjectMeta.Annotations
+	}
+	return result
 }
 
 // helmChartRequiresUpdate compares the v2beta1.HelmChartTemplate of the
@@ -246,9 +249,9 @@ func helmChartRequiresUpdate(hr *v2.HelmRelease, chart *sourcev1b2.HelmChart) bo
 		return true
 	case template.Spec.ValuesFile != chart.Spec.ValuesFile:
 		return true
-	case !apiequality.Semantic.DeepEqual(template.ObjectMeta.Annotations, chart.Annotations):
+	case template.ObjectMeta != nil && !apiequality.Semantic.DeepEqual(template.ObjectMeta.Annotations, chart.Annotations):
 		return true
-	case !apiequality.Semantic.DeepEqual(template.ObjectMeta.Labels, chart.Labels):
+	case template.ObjectMeta != nil && !apiequality.Semantic.DeepEqual(template.ObjectMeta.Labels, chart.Labels):
 		return true
 	case !reflect.DeepEqual(templateVerificationToSourceVerification(template.Spec.Verify), chart.Spec.Verify):
 		return true
