@@ -329,7 +329,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	hr, hasNewState := v2.HelmReleaseAttempted(hr, revision, releaseRevision, valuesChecksum)
 
 	// Run diff against current cluster state.
-	if !hasNewState {
+	if !hasNewState && rel != nil {
 		if ok, _ := features.Enabled(features.DetectDrift); ok {
 			differ := diff.NewDiffer(runtimeClient.NewImpersonator(
 				r.Client,
