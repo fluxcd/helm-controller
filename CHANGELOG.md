@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.32.2
+
+**Release date:** 2023-04-13
+
+This prerelease comes with a bug fix for a nil pointer deref that could occur
+when drift detection was enabled.
+
+In addition, it updates Helm to `v3.11.3`, which includes two fixes for Go
+routine leaks.
+
+Fixes:
+- Fix nil pointer deref during diff attempt
+  [#672](https://github.com/fluxcd/helm-controller/pull/672)
+- Update Helm to v3.11.3
+  [#673](https://github.com/fluxcd/helm-controller/pull/673)
+
 ## 0.32.1
 
 **Release date:** 2023-04-03
