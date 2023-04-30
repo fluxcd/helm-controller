@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -792,7 +794,7 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(o client.Object) []re
 }
 
 // event emits a Kubernetes event and forwards the event to notification controller if configured.
-func (r *HelmReleaseReconciler) event(_ context.Context, hr v2.HelmRelease, revision, severity, msg string) {
+func (r *HelmReleaseReconciler) event(ctx context.Context, hr v2.HelmRelease, revision, severity, msg string) {
 	var meta map[string]string
 	addMetadata := func(key, value string) {
 		if meta == nil {
@@ -800,12 +802,24 @@ func (r *HelmReleaseReconciler) event(_ context.Context, hr v2.HelmRelease, revi
 		}
 		meta[v2.GroupVersion.Group+"/"+key] = value
 	}
+
 	for key, value := range hr.Spec.EventMetadata {
 		addMetadata(key, value)
 	}
+
 	if revision != "" {
 		addMetadata("revision", revision)
 	}
+
+	// values hash. here json.Marshal() gives stability to the hash
+	valuesBytes, err := json.Marshal(hr.GetValues())
+	if err != nil {
+		valuesBytes = nil
+		ctrl.LoggerFrom(ctx).Error(err, "unable to marshal helm values")
+	}
+	valuesHash := fmt.Sprintf("%x", sha256.Sum256(valuesBytes))
+	addMetadata("config_checksum", valuesHash)
+
 	eventtype := "Normal"
 	if severity == eventv1.EventSeverityError {
 		eventtype = "Warning"
