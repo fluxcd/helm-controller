@@ -198,6 +198,13 @@ spec:
                   - name
                   type: object
                 type: array
+              eventMetadata:
+                additionalProperties:
+                  type: string
+                description: EventMetadata is an optional field for adding metadata
+                  to events emitted by the controller. Metadata fields added by the
+                  controller have priority over the fields added here.
+                type: object
               install:
                 description: Install holds the configuration for Helm install actions
                   for this HelmRelease.

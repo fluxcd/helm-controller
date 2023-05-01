@@ -357,6 +357,20 @@ Kubernetes pkg/apis/apiextensions/v1.JSON
 of their definition.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>eventMetadata</code><br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>EventMetadata is an optional field for adding metadata to events emitted by the
+controller. Metadata fields added by the controller have priority over the fields
+added here.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -1164,6 +1178,20 @@ Kubernetes pkg/apis/apiextensions/v1.JSON
 <em>(Optional)</em>
 <p>PostRenderers holds an array of Helm PostRenderers, which will be applied in order
 of their definition.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>eventMetadata</code><br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>EventMetadata is an optional field for adding metadata to events emitted by the
+controller. Metadata fields added by the controller have priority over the fields
+added here.</p>
 </td>
 </tr>
 </tbody>

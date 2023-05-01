@@ -794,8 +794,17 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(o client.Object) []re
 // event emits a Kubernetes event and forwards the event to notification controller if configured.
 func (r *HelmReleaseReconciler) event(_ context.Context, hr v2.HelmRelease, revision, severity, msg string) {
 	var meta map[string]string
+	addMetadata := func(key, value string) {
+		if meta == nil {
+			meta = make(map[string]string)
+		}
+		meta[v2.GroupVersion.Group+"/"+key] = value
+	}
+	for key, value := range hr.Spec.EventMetadata {
+		addMetadata(key, value)
+	}
 	if revision != "" {
-		meta = map[string]string{v2.GroupVersion.Group + "/revision": revision}
+		addMetadata("revision", revision)
 	}
 	eventtype := "Normal"
 	if severity == eventv1.EventSeverityError {

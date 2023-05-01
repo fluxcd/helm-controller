@@ -184,6 +184,12 @@ type HelmReleaseSpec struct {
 	// of their definition.
 	// +optional
 	PostRenderers []PostRenderer `json:"postRenderers,omitempty"`
+
+	// EventMetadata is an optional field for adding metadata to events emitted by the
+	// controller. Metadata fields added by the controller have priority over the fields
+	// added here.
+	// +optional
+	EventMetadata map[string]string `json:"eventMetadata,omitempty"`
 }
 
 // GetInstall returns the configuration for Helm install actions for the

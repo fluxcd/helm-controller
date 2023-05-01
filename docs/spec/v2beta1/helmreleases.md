@@ -128,6 +128,12 @@ type HelmReleaseSpec struct {
 	// of their definition.
 	// +optional
 	PostRenderers []PostRenderer `json:"postRenderers,omitempty"`
+
+	// EventMetadata is an optional field for adding metadata to events emitted by the
+	// controller. Metadata fields added by the controller have priority over the fields
+	// added here.
+	// +optional
+	EventMetadata map[string]string `json:"eventMetadata,omitempty"`
 }
 
 // KubeConfig references a Kubernetes secret that contains a kubeconfig file.
