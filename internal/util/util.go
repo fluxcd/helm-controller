@@ -22,34 +22,25 @@ import (
 	"sort"
 
 	goyaml "gopkg.in/yaml.v2"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/release"
 	"sigs.k8s.io/yaml"
 )
 
 // ValuesChecksum calculates and returns the SHA1 checksum for the
 // given chartutil.Values.
-func ValuesChecksum(values map[string]interface{}) string {
-	newValues := copyValues(values)
-	var (
-		s   []byte
-		err error
-	)
-
-	if len(newValues) != 0 {
-		// cleanUpInterfaceMap
-		for i, value := range newValues {
-			newValues[i] = cleanUpMapValue(value)
-		}
+func ValuesChecksum(values chartutil.Values) string {
+	var s []byte
+	if len(values) != 0 {
+		// Check sum on the formatted values
+		newValues := copyValues(values)
 		msValues := yaml.JSONObjectToYAMLObject(newValues)
 		// Sort
 		SortMapSlice(msValues)
 		// Marshal
-		s, err = goyaml.Marshal(msValues)
-		if err != nil {
-			panic(err)
-		}
+		s, _ = goyaml.Marshal(msValues)
 	}
-	// Gethash
+	// Get hash
 	return fmt.Sprintf("%x", sha1.Sum(s))
 }
 
@@ -76,17 +67,15 @@ func cleanUpMapValue(v interface{}) interface{} {
 		return cleanUpInterfaceArray(v)
 	case map[interface{}]interface{}:
 		return cleanUpInterfaceMap(v)
-	case string:
-		return v
 	default:
-		return fmt.Sprintf("%v", v)
+		return v
 	}
 }
 
 func cleanUpInterfaceMap(in map[interface{}]interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 	for k, v := range in {
-		result[fmt.Sprintf("%v", k)] = cleanUpMapValue(v)
+		result[fmt.Sprintf("%T.%v", k, k)] = cleanUpMapValue(v)
 	}
 	return result
 }
@@ -101,14 +90,16 @@ func cleanUpInterfaceArray(in []interface{}) []interface{} {
 
 func copyValues(in map[string]interface{}) map[string]interface{} {
 	// Marshal
-	coppiedValues, err := goyaml.Marshal(in)
-	if err != nil {
-		panic(err)
-	}
+	coppiedValues, _ := goyaml.Marshal(in)
 	// Unmarshal
-	newValues := make(map[string]interface{})
+	newValues := make(map[interface{}]interface{})
 	goyaml.Unmarshal(coppiedValues, newValues)
-	return newValues
+	formattedValues := make(map[string]interface{})
+	// cleanUpInterfaceMap
+	for i, value := range newValues {
+		formattedValues[fmt.Sprintf("%T.%v", i, i)] = cleanUpMapValue(value)
+	}
+	return formattedValues
 }
 
 // ReleaseRevision returns the revision of the given release.Release.

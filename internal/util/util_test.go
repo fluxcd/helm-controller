@@ -44,7 +44,7 @@ func TestValuesChecksum(t *testing.T) {
 					"cool": "stuff",
 				},
 			},
-			want: "7d487b668ca37fe68c42adfc06fa4d0e74443afd",
+			want: "d76f7bd99c3dce0405da811625ed02624a0184d4",
 		},
 	}
 	for _, tt := range tests {
