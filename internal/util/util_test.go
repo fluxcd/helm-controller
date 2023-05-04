@@ -44,13 +44,45 @@ func TestValuesChecksum(t *testing.T) {
 					"cool": "stuff",
 				},
 			},
-			want: "d76f7bd99c3dce0405da811625ed02624a0184d4",
+			want: "7d487b668ca37fe68c42adfc06fa4d0e74443afd",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := ValuesChecksum(tt.values); got != tt.want {
 				t.Errorf("ValuesChecksum() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestOrderedValuesChecksum(t *testing.T) {
+	tests := []struct {
+		name   string
+		values chartutil.Values
+		want   string
+	}{
+		{
+			name:   "empty",
+			values: chartutil.Values{},
+			want:   "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+		},
+		{
+			name: "value map",
+			values: chartutil.Values{
+				"foo": "bar",
+				"baz": map[string]string{
+					"fruit": "apple",
+					"cool":  "stuff",
+				},
+			},
+			want: "b52b224a60333043adb9ae4eb34357e2d9694368",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := OrderedValuesChecksum(tt.values); got != tt.want {
+				t.Errorf("OrderedValuesChecksum() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -328,6 +328,12 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	valuesChecksum := util.ValuesChecksum(values)
 	hr, hasNewState := v2.HelmReleaseAttempted(hr, revision, releaseRevision, valuesChecksum)
 
+	if hasNewState {
+		// If there is a change, check on ordered checksum.
+		valuesChecksum = util.OrderedValuesChecksum(values)
+		hr, hasNewState = v2.HelmReleaseAttempted(hr, revision, releaseRevision, valuesChecksum)
+	}
+
 	// Run diff against current cluster state.
 	if !hasNewState && rel != nil {
 		if ok, _ := features.Enabled(features.DetectDrift); ok {

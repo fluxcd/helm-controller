@@ -30,6 +30,16 @@ import (
 // ValuesChecksum calculates and returns the SHA1 checksum for the
 // given chartutil.Values.
 func ValuesChecksum(values chartutil.Values) string {
+	var s string
+	if len(values) != 0 {
+		s, _ = values.YAML()
+	}
+	return fmt.Sprintf("%x", sha1.Sum([]byte(s)))
+}
+
+// OrderedValuesChecksum sort the chartutil.Values then calculates
+// and returns the SHA1 checksum for the sorted values.
+func OrderedValuesChecksum(values chartutil.Values) string {
 	var s []byte
 	if len(values) != 0 {
 		// Check sum on the formatted values
