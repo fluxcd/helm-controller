@@ -56,7 +56,7 @@ func OrderedValuesChecksum(values chartutil.Values) string {
 
 func SortMapSlice(ms goyaml.MapSlice) {
 	sort.Slice(ms, func(i, j int) bool {
-		return fmt.Sprint(ms[i].Key) < fmt.Sprint(ms[j].Key)
+		return fmt.Sprintf("%T.%v", ms[i].Key, ms[i].Key) < fmt.Sprintf("%T.%v", ms[j].Key, ms[j].Key)
 	})
 	for _, item := range ms {
 		if nestedMS, ok := item.Value.(goyaml.MapSlice); ok {
@@ -85,7 +85,7 @@ func cleanUpMapValue(v interface{}) interface{} {
 func cleanUpInterfaceMap(in map[interface{}]interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 	for k, v := range in {
-		result[fmt.Sprintf("%T.%v", k, k)] = cleanUpMapValue(v)
+		result[fmt.Sprintf("%v", k)] = cleanUpMapValue(v)
 	}
 	return result
 }
@@ -102,14 +102,13 @@ func copyValues(in map[string]interface{}) map[string]interface{} {
 	// Marshal
 	coppiedValues, _ := goyaml.Marshal(in)
 	// Unmarshal
-	newValues := make(map[interface{}]interface{})
+	newValues := make(map[string]interface{})
 	goyaml.Unmarshal(coppiedValues, newValues)
-	formattedValues := make(map[string]interface{})
 	// cleanUpInterfaceMap
 	for i, value := range newValues {
-		formattedValues[fmt.Sprintf("%T.%v", i, i)] = cleanUpMapValue(value)
+		newValues[fmt.Sprint(i)] = cleanUpMapValue(value)
 	}
-	return formattedValues
+	return newValues
 }
 
 // ReleaseRevision returns the revision of the given release.Release.

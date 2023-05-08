@@ -76,7 +76,7 @@ func TestOrderedValuesChecksum(t *testing.T) {
 					"cool":  "stuff",
 				},
 			},
-			want: "b52b224a60333043adb9ae4eb34357e2d9694368",
+			want: "dfd6589332e4d2da5df7bcbf5885f406f08b58ee",
 		},
 	}
 	for _, tt := range tests {
