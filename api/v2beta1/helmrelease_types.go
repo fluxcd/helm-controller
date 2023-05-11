@@ -945,6 +945,8 @@ func HelmReleaseReady(hr HelmRelease) HelmRelease {
 
 // HelmReleaseAttempted registers an attempt of the given HelmRelease with the given state.
 // and returns the modified HelmRelease and a boolean indicating a state change.
+//
+// Deprecated: in favor of HelmReleaseChanged and HelmReleaseRecordAttempt.
 func HelmReleaseAttempted(hr HelmRelease, revision string, releaseRevision int, valuesChecksum string) (HelmRelease, bool) {
 	changed := hr.Status.LastAttemptedRevision != revision ||
 		hr.Status.LastReleaseRevision != releaseRevision ||
@@ -954,6 +956,31 @@ func HelmReleaseAttempted(hr HelmRelease, revision string, releaseRevision int, 
 	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
 
 	return hr, changed
+}
+
+// HelmReleaseChanged returns if the HelmRelease has changed compared to the
+// provided values.
+func HelmReleaseChanged(hr HelmRelease, revision string, releaseRevision int, valuesChecksums ...string) bool {
+	return hr.Status.LastAttemptedRevision != revision ||
+		hr.Status.LastReleaseRevision != releaseRevision ||
+		!inStringSlice(hr.Status.LastAttemptedValuesChecksum, valuesChecksums)
+}
+
+// HelmReleaseRecordAttempt returns an attempt of the given HelmRelease with the
+// given state in the Status of the provided object.
+func HelmReleaseRecordAttempt(hr *HelmRelease, revision string, releaseRevision int, valuesChecksum string) {
+	hr.Status.LastAttemptedRevision = revision
+	hr.Status.LastReleaseRevision = releaseRevision
+	hr.Status.LastAttemptedValuesChecksum = valuesChecksum
+}
+
+func inStringSlice(str string, s []string) bool {
+	for _, v := range s {
+		if str == v {
+			return true
+		}
+	}
+	return false
 }
 
 func resetFailureCounts(hr *HelmRelease) {

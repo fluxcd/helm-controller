@@ -322,11 +322,15 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		return v2.HelmReleaseNotReady(hr, v2.GetLastReleaseFailedReason, "failed to get last release revision"), err
 	}
 
-	// Register the current release attempt.
+	// Detect divergence between release in storage and HelmRelease spec.
 	revision := chart.Metadata.Version
 	releaseRevision := util.ReleaseRevision(rel)
-	valuesChecksum := util.ValuesChecksum(values)
-	hr, hasNewState := v2.HelmReleaseAttempted(hr, revision, releaseRevision, valuesChecksum)
+	// TODO: deprecate "unordered" checksum.
+	valuesChecksum := util.OrderedValuesChecksum(values)
+	hasNewState := v2.HelmReleaseChanged(hr, revision, releaseRevision, util.ValuesChecksum(values), valuesChecksum)
+
+	// Register the current release attempt.
+	v2.HelmReleaseRecordAttempt(&hr, revision, releaseRevision, valuesChecksum)
 
 	// Run diff against current cluster state.
 	if !hasNewState && rel != nil {
