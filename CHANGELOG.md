@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.33.0
+
+**Release date:** 2023-05-12
+
+This prerelease comes with a change to the calculation of the release values
+checksum. Previously, the checksum was calculated based on the values as
+provided by the user, which could lead to an upgrade when the values changed
+order, but not content. This has been changed to calculate the checksum based
+on the values after stable sorting them by key. This means that the checksum
+will only change when the values actually change.
+
+In addition, the dependencies have been updated including a mitigation for
+CVE-2023-2253, and the controller base image has been updated to Alpine 3.18.
+
+Improvements:
+- Stable sort release values by key
+  [#684](https://github.com/fluxcd/helm-controller/pull/684)
+- Update Alpine to 3.18
+  [#685](https://github.com/fluxcd/helm-controller/pull/685)
+- build(deps): bump github.com/docker/distribution from 2.8.1+incompatible to 2.8.2+incompatible
+  [#686](https://github.com/fluxcd/helm-controller/pull/686)
+- Update dependencies
+  [#687](https://github.com/fluxcd/helm-controller/pull/687)
+
 ## 0.32.2
 
 **Release date:** 2023-04-13
