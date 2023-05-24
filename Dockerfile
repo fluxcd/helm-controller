@@ -33,13 +33,11 @@ RUN xx-go build -trimpath -a -o helm-controller main.go
 
 FROM alpine:3.18
 
-# link repo to the GitHub Container Registry image
-LABEL org.opencontainers.image.source="https://github.com/fluxcd/helm-controller"
-
-RUN apk add --no-cache ca-certificates tini
+RUN apk add --no-cache ca-certificates \
+    && update-ca-certificates
 
 COPY --from=builder /workspace/helm-controller /usr/local/bin/
 
 USER 65534:65534
 
-ENTRYPOINT [ "/sbin/tini", "--", "helm-controller" ]
+ENTRYPOINT [ "helm-controller" ]
