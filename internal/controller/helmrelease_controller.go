@@ -794,15 +794,22 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, 
 
 // event emits a Kubernetes event and forwards the event to notification controller if configured.
 func (r *HelmReleaseReconciler) event(_ context.Context, hr v2.HelmRelease, revision, severity, msg string) {
-	var meta map[string]string
-	if revision != "" {
-		meta = map[string]string{v2.GroupVersion.Group + "/revision": revision}
+	var eventMeta map[string]string
+
+	if revision != "" || hr.Status.LastAttemptedValuesChecksum != "" {
+		if revision != "" {
+			eventMeta = map[string]string{v2.GroupVersion.Group + "/" + eventv1.MetaRevisionKey: revision}
+		}
+		if hr.Status.LastAttemptedValuesChecksum != "" {
+			eventMeta = map[string]string{v2.GroupVersion.Group + "/" + eventv1.MetaTokenKey: hr.Status.LastAttemptedValuesChecksum}
+		}
 	}
-	eventtype := "Normal"
+
+	eventType := corev1.EventTypeNormal
 	if severity == eventv1.EventSeverityError {
-		eventtype = "Warning"
+		eventType = corev1.EventTypeWarning
 	}
-	r.EventRecorder.AnnotatedEventf(&hr, meta, eventtype, severity, msg)
+	r.EventRecorder.AnnotatedEventf(&hr, eventMeta, eventType, severity, msg)
 }
 
 func (r *HelmReleaseReconciler) recordSuspension(ctx context.Context, hr v2.HelmRelease) {
