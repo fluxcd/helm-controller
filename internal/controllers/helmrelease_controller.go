@@ -48,7 +48,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apiacl "github.com/fluxcd/pkg/apis/acl"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
@@ -95,9 +94,9 @@ type HelmReleaseReconciler struct {
 	requeueDependency time.Duration
 }
 
-func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
+func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
 	// Index the HelmRelease by the HelmChart references they point at
-	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v2.HelmRelease{}, v2.SourceIndexKey,
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2.HelmRelease{}, v2.SourceIndexKey,
 		func(o client.Object) []string {
 			hr := o.(*v2.HelmRelease)
 			return []string{
@@ -119,20 +118,17 @@ func (r *HelmReleaseReconciler) SetupWithManager(mgr ctrl.Manager, opts HelmRele
 	httpClient.Logger = nil
 	r.httpClient = httpClient
 
-	recoverPanic := true
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v2.HelmRelease{}, builder.WithPredicates(
 			predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{}),
 		)).
 		Watches(
-			&source.Kind{Type: &sourcev1.HelmChart{}},
+			&sourcev1.HelmChart{},
 			handler.EnqueueRequestsFromMapFunc(r.requestsForHelmChartChange),
 			builder.WithPredicates(SourceRevisionChangePredicate{}),
 		).
 		WithOptions(controller.Options{
-			MaxConcurrentReconciles: opts.MaxConcurrentReconciles,
-			RateLimiter:             opts.RateLimiter,
-			RecoverPanic:            &recoverPanic,
+			RateLimiter: opts.RateLimiter,
 		}).
 		Complete(r)
 }
@@ -295,7 +291,6 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 }
 
 type HelmReleaseReconcilerOptions struct {
-	MaxConcurrentReconciles   int
 	HTTPRetry                 int
 	DependencyRequeueInterval time.Duration
 	RateLimiter               ratelimiter.RateLimiter
@@ -765,21 +760,23 @@ func (r *HelmReleaseReconciler) patchStatus(ctx context.Context, hr *v2.HelmRele
 	return r.Client.Status().Patch(ctx, latest, patch, client.FieldOwner(r.ControllerName))
 }
 
-func (r *HelmReleaseReconciler) requestsForHelmChartChange(o client.Object) []reconcile.Request {
+func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, o client.Object) []reconcile.Request {
 	hc, ok := o.(*sourcev1.HelmChart)
 	if !ok {
-		panic(fmt.Sprintf("Expected a HelmChart, got %T", o))
+		err := fmt.Errorf("expected a HelmChart, got %T", o)
+		ctrl.LoggerFrom(ctx).Error(err, "failed to get requests for HelmChart change")
+		return nil
 	}
 	// If we do not have an artifact, we have no requests to make
 	if hc.GetArtifact() == nil {
 		return nil
 	}
 
-	ctx := context.Background()
 	var list v2.HelmReleaseList
 	if err := r.List(ctx, &list, client.MatchingFields{
 		v2.SourceIndexKey: client.ObjectKeyFromObject(hc).String(),
 	}); err != nil {
+		ctrl.LoggerFrom(ctx).Error(err, "failed to list HelmReleases for HelmChart change")
 		return nil
 	}
 
