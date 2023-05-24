@@ -28,10 +28,12 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/cli-utils/pkg/kstatus/polling"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlcfg "sigs.k8s.io/controller-runtime/pkg/config"
 	crtlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/fluxcd/pkg/runtime/acl"
@@ -175,7 +177,6 @@ func main() {
 		Scheme:                        scheme,
 		MetricsBindAddress:            metricsAddr,
 		HealthProbeBindAddress:        healthAddr,
-		Port:                          9443,
 		LeaderElection:                leaderElectionOptions.Enable,
 		LeaderElectionReleaseOnCancel: leaderElectionOptions.ReleaseOnCancel,
 		LeaseDuration:                 &leaderElectionOptions.LeaseDuration,
@@ -183,14 +184,22 @@ func main() {
 		RetryPeriod:                   &leaderElectionOptions.RetryPeriod,
 		GracefulShutdownTimeout:       &gracefulShutdownTimeout,
 		LeaderElectionID:              leaderElectionId,
-		Namespace:                     watchNamespace,
 		Logger:                        ctrl.Log,
-		ClientDisableCacheFor:         disableCacheFor,
-		NewCache: ctrlcache.BuilderWithOptions(ctrlcache.Options{
-			SelectorsByObject: ctrlcache.SelectorsByObject{
+		Client: ctrlclient.Options{
+			Cache: &ctrlclient.CacheOptions{
+				DisableFor: disableCacheFor,
+			},
+		},
+		Cache: ctrlcache.Options{
+			ByObject: map[ctrlclient.Object]ctrlcache.ByObject{
 				&v2.HelmRelease{}: {Label: watchSelector},
 			},
-		}),
+			Namespaces: []string{watchNamespace},
+		},
+		Controller: ctrlcfg.Controller{
+			RecoverPanic:            pointer.Bool(true),
+			MaxConcurrentReconciles: concurrent,
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -205,30 +214,6 @@ func main() {
 		setupLog.Error(err, "unable to create event recorder")
 		os.Exit(1)
 	}
-
-	pollingOpts := polling.Options{}
-	if err = (&controllers.HelmReleaseReconciler{
-		Client:              mgr.GetClient(),
-		Config:              mgr.GetConfig(),
-		Scheme:              mgr.GetScheme(),
-		EventRecorder:       eventRecorder,
-		MetricsRecorder:     metricsRecorder,
-		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
-		ClientOpts:          clientOptions,
-		KubeConfigOpts:      kubeConfigOpts,
-		PollingOpts:         pollingOpts,
-		StatusPoller:        polling.NewStatusPoller(mgr.GetClient(), mgr.GetRESTMapper(), pollingOpts),
-		ControllerName:      controllerName,
-	}).SetupWithManager(mgr, controllers.HelmReleaseReconcilerOptions{
-		MaxConcurrentReconciles:   concurrent,
-		DependencyRequeueInterval: requeueDependency,
-		HTTPRetry:                 httpRetry,
-		RateLimiter:               helper.GetRateLimiter(rateLimiterOptions),
-	}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", v2.HelmReleaseKind)
-		os.Exit(1)
-	}
-	// +kubebuilder:scaffold:builder
 
 	ctx := ctrl.SetupSignalHandler()
 	if ok, _ := features.Enabled(features.OOMWatch); ok {
@@ -246,6 +231,29 @@ func main() {
 		}
 		ctx = ow.Watch(ctx)
 	}
+
+	pollingOpts := polling.Options{}
+	if err = (&controllers.HelmReleaseReconciler{
+		Client:              mgr.GetClient(),
+		Config:              mgr.GetConfig(),
+		Scheme:              mgr.GetScheme(),
+		EventRecorder:       eventRecorder,
+		MetricsRecorder:     metricsRecorder,
+		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
+		ClientOpts:          clientOptions,
+		KubeConfigOpts:      kubeConfigOpts,
+		PollingOpts:         pollingOpts,
+		StatusPoller:        polling.NewStatusPoller(mgr.GetClient(), mgr.GetRESTMapper(), pollingOpts),
+		ControllerName:      controllerName,
+	}).SetupWithManager(ctx, mgr, controllers.HelmReleaseReconcilerOptions{
+		DependencyRequeueInterval: requeueDependency,
+		HTTPRetry:                 httpRetry,
+		RateLimiter:               helper.GetRateLimiter(rateLimiterOptions),
+	}); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", v2.HelmReleaseKind)
+		os.Exit(1)
+	}
+	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {

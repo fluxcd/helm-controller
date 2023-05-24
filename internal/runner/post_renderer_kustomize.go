@@ -153,7 +153,6 @@ func (k *postRendererKustomize) Run(renderedManifests *bytes.Buffer) (modifiedMa
 var kustomizeRenderMutex sync.Mutex
 
 // buildKustomization wraps krusty.MakeKustomizer with the following settings:
-// - reorder the resources just before output (Namespaces and Cluster roles/role bindings first, CRDs before CRs, Webhooks last)
 // - load files from outside the kustomization.yaml root
 // - disable plugins except for the builtin ones
 func buildKustomization(fs filesys.FileSystem, dirPath string) (resmap.ResMap, error) {
@@ -163,11 +162,8 @@ func buildKustomization(fs filesys.FileSystem, dirPath string) (resmap.ResMap, e
 	defer kustomizeRenderMutex.Unlock()
 
 	buildOptions := &krusty.Options{
-		DoLegacyResourceSort: true,
-		LoadRestrictions:     kustypes.LoadRestrictionsNone,
-		AddManagedbyLabel:    false,
-		DoPrune:              false,
-		PluginConfig:         kustypes.DisabledPluginConfig(),
+		LoadRestrictions: kustypes.LoadRestrictionsNone,
+		PluginConfig:     kustypes.DisabledPluginConfig(),
 	}
 
 	k := krusty.MakeKustomizer(buildOptions)
