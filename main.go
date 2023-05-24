@@ -51,7 +51,7 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	// +kubebuilder:scaffold:imports
 
-	"github.com/fluxcd/helm-controller/internal/controllers"
+	"github.com/fluxcd/helm-controller/internal/controller"
 	"github.com/fluxcd/helm-controller/internal/features"
 	intkube "github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/oomwatch"
@@ -233,7 +233,7 @@ func main() {
 	}
 
 	pollingOpts := polling.Options{}
-	if err = (&controllers.HelmReleaseReconciler{
+	if err = (&controller.HelmReleaseReconciler{
 		Client:              mgr.GetClient(),
 		Config:              mgr.GetConfig(),
 		Scheme:              mgr.GetScheme(),
@@ -245,7 +245,7 @@ func main() {
 		PollingOpts:         pollingOpts,
 		StatusPoller:        polling.NewStatusPoller(mgr.GetClient(), mgr.GetRESTMapper(), pollingOpts),
 		ControllerName:      controllerName,
-	}).SetupWithManager(ctx, mgr, controllers.HelmReleaseReconcilerOptions{
+	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		DependencyRequeueInterval: requeueDependency,
 		HTTPRetry:                 httpRetry,
 		RateLimiter:               helper.GetRateLimiter(rateLimiterOptions),
