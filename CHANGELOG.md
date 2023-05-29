@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.34.0
+
+**Release date:** 2023-05-29
+
+This prerelease comes with support for Helm 3.12.0 and Kustomize v5.0.3.
+
+⚠️ Note that Kustomize v5 contains breaking changes, please consult their
+[changelog](https://github.com/kubernetes-sigs/kustomize/releases/tag/kustomize%2Fv5.0.0)
+for more details.
+
+In addition, the controller dependencies have been updated to
+Kubernetes v1.27.2 and controller-runtime v0.15.0.
+
+Lastly, the logic to forward events to notification-controller has been modified
+to use `.status.lastAttemptedValuesChecksum` as an event metadata token to
+prevent incorrect rate limiting.
+
+Improvements:
+- Update Kubernetes, controller-runtime and Helm
+  [#690](https://github.com/fluxcd/helm-controller/pull/690)
+- Remove the tini supervisor, and other nits
+  [#691](https://github.com/fluxcd/helm-controller/pull/691)
+- Use last attempted values checksum as event metadata token
+  [#692](https://github.com/fluxcd/helm-controller/pull/692)
+- Update source-controller to v1.0.0-rc.4
+  [#693](https://github.com/fluxcd/helm-controller/pull/693)
+
 ## 0.33.0
 
 **Release date:** 2023-05-12
