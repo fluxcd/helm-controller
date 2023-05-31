@@ -797,11 +797,12 @@ func (r *HelmReleaseReconciler) event(_ context.Context, hr v2.HelmRelease, revi
 	var eventMeta map[string]string
 
 	if revision != "" || hr.Status.LastAttemptedValuesChecksum != "" {
+		eventMeta = make(map[string]string)
 		if revision != "" {
-			eventMeta = map[string]string{v2.GroupVersion.Group + "/" + eventv1.MetaRevisionKey: revision}
+			eventMeta[v2.GroupVersion.Group+"/"+eventv1.MetaRevisionKey] = revision
 		}
 		if hr.Status.LastAttemptedValuesChecksum != "" {
-			eventMeta = map[string]string{v2.GroupVersion.Group + "/" + eventv1.MetaTokenKey: hr.Status.LastAttemptedValuesChecksum}
+			eventMeta[v2.GroupVersion.Group+"/"+eventv1.MetaTokenKey] = hr.Status.LastAttemptedValuesChecksum
 		}
 	}
 
