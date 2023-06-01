@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.34.1
+
+**Release date:** 2023-06-01
+
+This prerelease comes with a bug fix for the event metadata revision, which
+was not included when a token was already present.
+
+In addition, the source-controller dependency has been updated to v1.0.0-rc.5.
+
+Fixes:
+- Include revision and token in event metadata
+  [#695](https://github.com/fluxcd/helm-controller/pull/695)
+
+Improvements:
+- Update source-controller to v1.0.0-rc.5
+  [#696](https://github.com/fluxcd/helm-controller/pull/696)
+
 ## 0.34.0
 
 **Release date:** 2023-05-29
