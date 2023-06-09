@@ -399,6 +399,7 @@ func (r *Runner) Uninstall(hr v2.HelmRelease) error {
 	uninstall.Timeout = hr.Spec.GetUninstall().GetTimeout(hr.GetTimeout()).Duration
 	uninstall.DisableHooks = hr.Spec.GetUninstall().DisableHooks
 	uninstall.KeepHistory = hr.Spec.GetUninstall().KeepHistory
+	uninstall.DeletionPropagation = hr.Spec.GetUninstall().GetDeletionPropagation()
 	uninstall.Wait = !hr.Spec.GetUninstall().DisableWait
 
 	_, err := uninstall.Run(hr.GetReleaseName())

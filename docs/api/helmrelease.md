@@ -1940,6 +1940,19 @@ bool
 a Helm uninstall is performed.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>deletionPropagation</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DeletionPropagation specifies the deletion propagation policy when
+a Helm uninstall is performed.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
