@@ -33,11 +33,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
+	"github.com/fluxcd/helm-controller/internal/chartutil"
+	"github.com/fluxcd/helm-controller/internal/digest"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
 	"github.com/fluxcd/helm-controller/internal/testutil"
@@ -415,7 +418,8 @@ func TestUninstall_failure(t *testing.T) {
 				Message: expectMsg,
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						"revision": cur.Chart.Metadata.Version,
+						eventMetaGroupKey(eventv1.MetaRevisionKey): cur.Chart.Metadata.Version,
+						eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, cur.Config).String(),
 					},
 				},
 			},
@@ -481,7 +485,8 @@ func TestUninstall_success(t *testing.T) {
 			Message: expectMsg,
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
-					"revision": cur.Chart.Metadata.Version,
+					eventMetaGroupKey(eventv1.MetaRevisionKey): cur.Chart.Metadata.Version,
+					eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, cur.Config).String(),
 				},
 			},
 		},

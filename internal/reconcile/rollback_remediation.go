@@ -30,6 +30,8 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
+	"github.com/fluxcd/helm-controller/internal/chartutil"
+	"github.com/fluxcd/helm-controller/internal/digest"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
 )
@@ -142,7 +144,13 @@ func (r *RollbackRemediation) failure(req *Request, buffer *action.LogBuffer, er
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
-	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(prev.ChartVersion), corev1.EventTypeWarning, v2.RollbackFailedReason, eventMessageWithLog(msg, buffer))
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(prev.ChartVersion, chartutil.DigestValues(digest.Canonical, req.Values).String()),
+		corev1.EventTypeWarning,
+		v2.RollbackFailedReason,
+		eventMessageWithLog(msg, buffer),
+	)
 }
 
 // success records the success of a Helm rollback action in the status of the
@@ -156,7 +164,13 @@ func (r *RollbackRemediation) success(req *Request) {
 	conditions.MarkTrue(req.Object, v2.RemediatedCondition, v2.RollbackSucceededReason, msg)
 
 	// Record event.
-	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(prev.ChartVersion), corev1.EventTypeNormal, v2.RollbackSucceededReason, msg)
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(prev.ChartVersion, chartutil.DigestValues(digest.Canonical, req.Values).String()),
+		corev1.EventTypeNormal,
+		v2.RollbackSucceededReason,
+		msg,
+	)
 }
 
 // observeRollback returns a storage.ObserveFunc that can be used to observe

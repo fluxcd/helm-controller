@@ -154,7 +154,12 @@ func (r *Uninstall) failure(req *Request, buffer *action.LogBuffer, err error) {
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
-	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(cur.ChartVersion), corev1.EventTypeWarning, v2.UninstallFailedReason, eventMessageWithLog(msg, buffer))
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		corev1.EventTypeWarning, v2.UninstallFailedReason,
+		eventMessageWithLog(msg, buffer),
+	)
 }
 
 // success records the success of a Helm uninstall action in the status of
@@ -170,7 +175,13 @@ func (r *Uninstall) success(req *Request) {
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
-	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(cur.ChartVersion), corev1.EventTypeNormal, v2.UninstallSucceededReason, msg)
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		corev1.EventTypeNormal,
+		v2.UninstallSucceededReason,
+		msg,
+	)
 }
 
 // observeUninstall returns a storage.ObserveFunc that can be used to observe

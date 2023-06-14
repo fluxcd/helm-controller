@@ -23,6 +23,7 @@ import (
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 
@@ -196,11 +197,22 @@ func eventMessageWithLog(msg string, log *action.LogBuffer) string {
 
 // eventMeta returns the event (annotation) metadata based on the given
 // parameters.
-func eventMeta(revision string) map[string]string {
-	if revision == "" {
-		return nil
+func eventMeta(revision, token string) map[string]string {
+	var metadata map[string]string
+	if revision != "" || token != "" {
+		metadata = make(map[string]string)
+		if revision != "" {
+			metadata[eventMetaGroupKey(eventv1.MetaRevisionKey)] = revision
+		}
+		if token != "" {
+			metadata[eventMetaGroupKey(eventv1.MetaTokenKey)] = token
+		}
 	}
-	return map[string]string{
-		"revision": revision,
-	}
+	return metadata
+}
+
+// eventMetaGroupKey returns the event (annotation) metadata key prefixed with
+// the group.
+func eventMetaGroupKey(key string) string {
+	return v2.GroupVersion.Group + "/" + key
 }
