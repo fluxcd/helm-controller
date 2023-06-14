@@ -29,6 +29,8 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
+	"github.com/fluxcd/helm-controller/internal/chartutil"
+	"github.com/fluxcd/helm-controller/internal/digest"
 )
 
 // Install is an ActionReconciler which attempts to install a Helm release
@@ -130,7 +132,13 @@ func (r *Install) failure(req *Request, buffer *action.LogBuffer, err error) {
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
-	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(req.Chart.Metadata.Version), corev1.EventTypeWarning, v2.InstallFailedReason, eventMessageWithLog(msg, buffer))
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(req.Chart.Metadata.Version, chartutil.DigestValues(digest.Canonical, req.Values).String()),
+		corev1.EventTypeWarning,
+		v2.InstallFailedReason,
+		eventMessageWithLog(msg, buffer),
+	)
 }
 
 // success records the success of a Helm installation action in the status of
@@ -150,5 +158,11 @@ func (r *Install) success(req *Request) {
 	}
 
 	// Record event.
-	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(cur.ChartVersion), corev1.EventTypeNormal, v2.InstallSucceededReason, msg)
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		corev1.EventTypeNormal,
+		v2.InstallSucceededReason,
+		msg,
+	)
 }

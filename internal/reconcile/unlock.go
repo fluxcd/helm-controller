@@ -21,11 +21,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/fluxcd/pkg/runtime/conditions"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
+
+	"github.com/fluxcd/pkg/runtime/conditions"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -131,7 +132,13 @@ func (r *Unlock) failure(req *Request, status helmrelease.Status, err error) {
 	conditions.MarkFalse(req.Object, v2.ReleasedCondition, "PendingRelease", msg)
 
 	// Record warning event.
-	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(cur.ChartVersion), corev1.EventTypeWarning, "PendingRelease", msg)
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		corev1.EventTypeWarning,
+		"PendingRelease",
+		msg,
+	)
 }
 
 // success records the success of an unlock action in the status of the given
@@ -145,7 +152,13 @@ func (r *Unlock) success(req *Request, status helmrelease.Status) {
 	conditions.MarkFalse(req.Object, v2.ReleasedCondition, "PendingRelease", msg)
 
 	// Record event.
-	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(cur.ChartVersion), corev1.EventTypeNormal, "PendingRelease", msg)
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		corev1.EventTypeNormal,
+		"PendingRelease",
+		msg,
+	)
 }
 
 // observeUnlock returns a storage.ObserveFunc that can be used to observe and

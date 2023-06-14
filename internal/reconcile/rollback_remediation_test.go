@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"testing"
 	"time"
 
@@ -38,6 +39,8 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
+	"github.com/fluxcd/helm-controller/internal/chartutil"
+	"github.com/fluxcd/helm-controller/internal/digest"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
 	"github.com/fluxcd/helm-controller/internal/testutil"
@@ -404,7 +407,8 @@ func TestRollbackRemediation_failure(t *testing.T) {
 				Message: expectMsg,
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						"revision": prev.Chart.Metadata.Version,
+						eventMetaGroupKey(eventv1.MetaRevisionKey): prev.Chart.Metadata.Version,
+						eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
 					},
 				},
 			},
@@ -451,7 +455,7 @@ func TestRollbackRemediation_success(t *testing.T) {
 		},
 	}
 
-	req := &Request{Object: obj}
+	req := &Request{Object: obj, Values: map[string]interface{}{"foo": "bar"}}
 	r.success(req)
 
 	expectMsg := fmt.Sprintf(fmtRollbackRemediationSuccess,
@@ -469,7 +473,8 @@ func TestRollbackRemediation_success(t *testing.T) {
 			Message: expectMsg,
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
-					"revision": prev.Chart.Metadata.Version,
+					eventMetaGroupKey(eventv1.MetaRevisionKey): prev.Chart.Metadata.Version,
+					eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
 				},
 			},
 		},

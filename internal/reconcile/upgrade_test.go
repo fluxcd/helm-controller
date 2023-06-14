@@ -35,11 +35,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
+	"github.com/fluxcd/helm-controller/internal/chartutil"
+	"github.com/fluxcd/helm-controller/internal/digest"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
 	"github.com/fluxcd/helm-controller/internal/testutil"
@@ -411,7 +414,7 @@ func TestUpgrade_failure(t *testing.T) {
 			eventRecorder: recorder,
 		}
 
-		req := &Request{Object: obj.DeepCopy(), Chart: chrt}
+		req := &Request{Object: obj.DeepCopy(), Chart: chrt, Values: map[string]interface{}{"foo": "bar"}}
 		r.failure(req, nil, err)
 
 		expectMsg := fmt.Sprintf(fmtUpgradeFailure, mockReleaseNamespace, mockReleaseName, chrt.Name(),
@@ -428,7 +431,8 @@ func TestUpgrade_failure(t *testing.T) {
 				Message: expectMsg,
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						"revision": chrt.Metadata.Version,
+						eventMetaGroupKey(eventv1.MetaRevisionKey): chrt.Metadata.Version,
+						eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
 					},
 				},
 			},
@@ -496,7 +500,8 @@ func TestUpgrade_success(t *testing.T) {
 				Message: expectMsg,
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						"revision": obj.Status.Current.ChartVersion,
+						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.Status.Current.ChartVersion,
+						eventMetaGroupKey(eventv1.MetaTokenKey):    obj.Status.Current.ConfigDigest,
 					},
 				},
 			},

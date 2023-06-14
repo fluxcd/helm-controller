@@ -151,7 +151,13 @@ func (r *UninstallRemediation) failure(req *Request, buffer *action.LogBuffer, e
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
-	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(cur.ChartVersion), corev1.EventTypeWarning, v2.UninstallFailedReason, eventMessageWithLog(msg, buffer))
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		corev1.EventTypeWarning,
+		v2.UninstallFailedReason,
+		eventMessageWithLog(msg, buffer),
+	)
 }
 
 // success records the success of a Helm uninstall remediation action in the
@@ -166,5 +172,11 @@ func (r *UninstallRemediation) success(req *Request) {
 	conditions.MarkTrue(req.Object, v2.RemediatedCondition, v2.UninstallSucceededReason, msg)
 
 	// Record event.
-	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(cur.ChartVersion), corev1.EventTypeNormal, v2.UninstallSucceededReason, msg)
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		corev1.EventTypeNormal,
+		v2.UninstallSucceededReason,
+		msg,
+	)
 }

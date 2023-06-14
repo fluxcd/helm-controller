@@ -143,7 +143,13 @@ func (r *Test) failure(req *Request, buffer *action.LogBuffer, err error) {
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
-	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(cur.ChartVersion), corev1.EventTypeWarning, v2.TestFailedReason, eventMessageWithLog(msg, buffer))
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		corev1.EventTypeWarning,
+		v2.TestFailedReason,
+		eventMessageWithLog(msg, buffer),
+	)
 
 	if req.Object.GetCurrent().HasBeenTested() {
 		// Count the failure of the test for the active remediation strategy if enabled.
@@ -173,7 +179,13 @@ func (r *Test) success(req *Request) {
 	conditions.MarkTrue(req.Object, v2.TestSuccessCondition, v2.TestSucceededReason, msg)
 
 	// Record event.
-	r.eventRecorder.AnnotatedEventf(req.Object, eventMeta(cur.ChartVersion), corev1.EventTypeNormal, v2.TestSucceededReason, msg)
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		corev1.EventTypeNormal,
+		v2.TestSucceededReason,
+		msg,
+	)
 }
 
 // observeTest returns a storage.ObserveFunc that can be used to observe
