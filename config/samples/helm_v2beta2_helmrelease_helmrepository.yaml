@@ -1,14 +1,15 @@
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
 kind: HelmRelease
 metadata:
-  name: podinfo-gitrepository
+  name: podinfo-helmrepository
 spec:
   interval: 5m
   chart:
     spec:
-      chart: ./charts/podinfo
+      chart: podinfo
+      version: '>=6.0.0 <7.0.0'
       sourceRef:
-        kind: GitRepository
+        kind: HelmRepository
         name: podinfo
       interval: 1m
   upgrade:
