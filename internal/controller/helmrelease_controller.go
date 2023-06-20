@@ -483,6 +483,10 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	}
 
 	hr.Status.LastReleaseRevision = util.ReleaseRevision(rel)
+	if updateStatusErr := r.patchStatus(ctx, &hr); updateStatusErr != nil {
+		log.Error(updateStatusErr, "unable to update status after state update")
+		return hr, updateStatusErr
+	}
 
 	if err != nil {
 		reason := v2.ReconciliationFailedReason
