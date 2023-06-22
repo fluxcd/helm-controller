@@ -14,13 +14,16 @@ release:
   footer: |
     ## Container images
     
-    - docker.io/fluxcd/{{.ProjectName}}:{{.Tag}}
-    - ghcr.io/fluxcd/{{.ProjectName}}:{{.Tag}}
+    - `docker.io/fluxcd/{{.ProjectName}}:{{.Tag}}`
+    - `ghcr.io/fluxcd/{{.ProjectName}}:{{.Tag}}`
     
     Supported architectures: `linux/amd64`, `linux/arm64` and `linux/arm/v7`.
     
     The container images are built on GitHub hosted runners and are signed with cosign and GitHub OIDC.
     To verify the images and their provenance (SLSA level 3), please see the [security documentation](https://fluxcd.io/flux/security/).
+
+changelog:
+  skip: true
 
 checksum:
   extra_files:
