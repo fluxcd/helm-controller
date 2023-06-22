@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.34.2
+
+**Release date:** 2023-06-22
+
+This prerelease fixes a regression bug for long-running reconciliations introduced
+in v0.34.0.
+
+In addition, the controller release workflow was enhanced with SLSA level 3 generators.
+Starting with this version, provenance attestations are generated for
+the controller release assets and for the multi-arch container images.
+
+Fixes:
+- Fix HelmRelease reconciliation loop
+  [#703](https://github.com/fluxcd/helm-controller/pull/703)
+
+Improvements:
+- Add SLSA3 generators to release workflow
+  [#705](https://github.com/fluxcd/helm-controller/pull/705)
+
 ## 0.34.1
 
 **Release date:** 2023-06-01
