@@ -1,6 +1,6 @@
 module github.com/fluxcd/helm-controller/api
 
-go 1.18
+go 1.20
 
 require (
 	github.com/fluxcd/pkg/apis/kustomize v1.1.0

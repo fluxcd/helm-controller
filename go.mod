@@ -1,6 +1,6 @@
 module github.com/fluxcd/helm-controller
 
-go 1.18
+go 1.20
 
 replace github.com/fluxcd/helm-controller/api => ./api
 

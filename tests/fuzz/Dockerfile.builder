@@ -1,5 +1,11 @@
 FROM gcr.io/oss-fuzz-base/base-builder-go
 
+RUN wget https://go.dev/dl/go1.20.5.linux-amd64.tar.gz \
+    && mkdir temp-go \
+    && rm -rf /root/.go/* \
+    && tar -C temp-go/ -xzf go1.20.5.linux-amd64.tar.gz \
+    && mv temp-go/go/* /root/.go/
+
 ENV SRC=$GOPATH/src/github.com/fluxcd/helm-controller
 ENV FLUX_CI=true
 
