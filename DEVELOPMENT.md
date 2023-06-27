@@ -24,7 +24,7 @@ If any of the above dependencies are not present on your system, the first invoc
 ## How to run the test suite
 
 Prerequisites:
-* Go >= 1.18
+* Go >= 1.20
 
 You can run the test suite by simply doing
 
