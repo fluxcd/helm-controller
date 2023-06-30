@@ -2,16 +2,16 @@
 # Ref: https://github.com/EndBug/label-sync#Config-files
 
 - name: area/drift
-  description: Drift detection/correction related issues and PRs
+  description: Drift detection/correction related issues and pull requests
   color: '#ff5c00'
 - name: area/helm
-  description: Helm related issues and PRs
+  description: Helm related issues and pull requests
   color: '#1673b6'
 - name: area/kustomize
-  description: Kustomize (post-rendering) related issues and PRs
+  description: Kustomize (post-rendering) related issues and pull requests
   color: '#00e54d'
 - name: area/oci
-  description: OCI related issues and PRs
+  description: OCI related issues and pull requests
   color: '#c739ff'
 
 # TODO: enable this when we have a release/v1.0.x branch
