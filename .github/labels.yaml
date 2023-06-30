@@ -1,0 +1,20 @@
+# Configuration file to declaratively configure labels
+# Ref: https://github.com/EndBug/label-sync#Config-files
+
+- name: area/drift
+  description: Drift detection/correction related issues and PRs
+  color: '#ff5c00'
+- name: area/helm
+  description: Helm related issues and PRs
+  color: '#1673b6'
+- name: area/kustomize
+  description: Kustomize (post-rendering) related issues and PRs
+  color: '#00e54d'
+- name: area/oci
+  description: OCI related issues and PRs
+  color: '#c739ff'
+
+# TODO: enable this when we have a release/v1.0.x branch
+#- name: backport:release/v1.0.x
+#  description: To be backported to release/v1.0.x
+#  color: '#ffd700'
