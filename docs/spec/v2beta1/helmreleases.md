@@ -480,6 +480,13 @@ type Uninstall struct {
 	// a Helm uninstall is performed.
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
+
+	// DeletionPropagation specifies the deletion propagation policy when
+	// a Helm uninstall is performed.
+	// +kubebuilder:default=background
+	// +kubebuilder:validation:Enum=background;foreground;orphan
+	// +optional
+	DeletionPropagation *string `json:"deletionPropagation,omitempty"`
 }
 
 // Kustomize Helm PostRenderer specification.
