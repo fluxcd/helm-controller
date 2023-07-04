@@ -4,8 +4,8 @@ on:
   pull_request:
   push:
     branches:
-      - main
-      - "feature/**"
+      - "main"
+      - "release/**"
 
 permissions:
   contents: read # for actions/checkout to fetch code
