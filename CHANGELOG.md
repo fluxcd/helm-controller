@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.35.0
+
+**Release date:** 2023-07-04
+
+This prerelease adds support for configuring the deletion propagation policy to
+use when a Helm uninstall is performed using `.spec.uninstall.deletionPropagation`,
+which was [added as a feature to Helm in `v3.12.0`](https://github.com/helm/helm/releases/tag/v3.12.0).
+Supported values are `background`, `foreground` and `orphan` (defaults to
+`background`). See the [Helm documentation](https://helm.sh/docs/chart_best_practices/deleting/#deletion-propagation)
+
+In addition, it offers support for Kubernetes `v1.27.3` and includes updates to
+the controller's dependencies, such as an upgrade of Helm to `v3.12.1`.
+
+Starting with this version, the build, release and provenance portions of the
+Flux project supply chain [provisionally meet SLSA Build Level 3](https://fluxcd.io/flux/security/slsa-assessment/).
+
+Improvements:
+- Set deletion propagation for helm uninstall
+  [#698](https://github.com/fluxcd/helm-controller/pull/698)
+- Align `go.mod` version with Kubernetes (Go 1.20)
+  [#715](https://github.com/fluxcd/helm-controller/pull/715)
+- Update Go dependencies
+  [#726](https://github.com/fluxcd/helm-controller/pull/726)
+- Update source-controller to v1.0.0
+  [#729](https://github.com/fluxcd/helm-controller/pull/729)
+
 ## 0.34.2
 
 **Release date:** 2023-06-22
