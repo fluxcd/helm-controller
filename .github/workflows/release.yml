@@ -7,7 +7,7 @@ on:
     inputs:
       tag:
         description: 'image tag prefix'
-        default: 'rc'
+        default: 'preview'
         required: true
 
 permissions:
