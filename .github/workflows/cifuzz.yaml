@@ -2,7 +2,8 @@ name: fuzz
 on:
   pull_request:
     branches:
-      - main
+      - "main"
+      - "release/**"
 
 permissions:
   contents: read # for actions/checkout to fetch code
