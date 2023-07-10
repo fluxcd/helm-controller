@@ -153,7 +153,7 @@ func (r *Upgrade) success(req *Request) {
 	// Mark upgrade success on object.
 	conditions.MarkTrue(req.Object, v2.ReleasedCondition, v2.UpgradeSucceededReason, msg)
 	if req.Object.GetTest().Enable && !cur.HasBeenTested() {
-		conditions.MarkFalse(req.Object, v2.TestSuccessCondition, "Pending", fmtTestPending,
+		conditions.MarkUnknown(req.Object, v2.TestSuccessCondition, "Pending", fmtTestPending,
 			cur.FullReleaseName(), cur.VersionedChartName())
 	}
 

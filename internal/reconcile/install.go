@@ -154,7 +154,8 @@ func (r *Install) success(req *Request) {
 	// Mark install success on object.
 	conditions.MarkTrue(req.Object, v2.ReleasedCondition, v2.InstallSucceededReason, msg)
 	if req.Object.GetTest().Enable && !cur.HasBeenTested() {
-		conditions.MarkFalse(req.Object, v2.TestSuccessCondition, "Pending", fmtTestPending, cur.FullReleaseName(), cur.VersionedChartName())
+		conditions.MarkUnknown(req.Object, v2.TestSuccessCondition, "Pending", fmtTestPending,
+			cur.FullReleaseName(), cur.VersionedChartName())
 	}
 
 	// Record event.
