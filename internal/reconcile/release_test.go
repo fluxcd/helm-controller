@@ -294,6 +294,53 @@ func Test_summarize(t *testing.T) {
 			},
 		},
 		{
+			name: "with test hooks enabled and pending tests",
+			conditions: []metav1.Condition{
+				{
+					Type:               v2.ReleasedCondition,
+					Status:             metav1.ConditionTrue,
+					Reason:             v2.InstallSucceededReason,
+					Message:            "Install complete",
+					ObservedGeneration: 1,
+				},
+				{
+					Type:               v2.TestSuccessCondition,
+					Status:             metav1.ConditionUnknown,
+					Reason:             "Pending",
+					Message:            "Release is awaiting tests",
+					ObservedGeneration: 1,
+				},
+			},
+			spec: &v2.HelmReleaseSpec{
+				Test: &v2.Test{
+					Enable: true,
+				},
+			},
+			expect: []metav1.Condition{
+				{
+					Type:               meta.ReadyCondition,
+					Status:             metav1.ConditionFalse,
+					Reason:             "Pending",
+					Message:            "Release is awaiting tests",
+					ObservedGeneration: 1,
+				},
+				{
+					Type:               v2.ReleasedCondition,
+					Status:             metav1.ConditionTrue,
+					Reason:             v2.InstallSucceededReason,
+					Message:            "Install complete",
+					ObservedGeneration: 1,
+				},
+				{
+					Type:               v2.TestSuccessCondition,
+					Status:             metav1.ConditionUnknown,
+					Reason:             "Pending",
+					Message:            "Release is awaiting tests",
+					ObservedGeneration: 1,
+				},
+			},
+		},
+		{
 			name:       "with remediation failure",
 			generation: 1,
 			conditions: []metav1.Condition{
@@ -470,7 +517,7 @@ func Test_summarize(t *testing.T) {
 					Status:             metav1.ConditionTrue,
 					Reason:             v2.UpgradeSucceededReason,
 					Message:            "Upgrade finished",
-					ObservedGeneration: 6,
+					ObservedGeneration: 5,
 				},
 				{
 					Type:               v2.ReleasedCondition,
@@ -619,7 +666,7 @@ func Test_conditionallyDeleteRemediated(t *testing.T) {
 			name: "Released=False",
 			conditions: []metav1.Condition{
 				*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason, "Rollback finished"),
-				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "Upgrade finished"),
+				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason, "Upgrade failed"),
 			},
 			expectDelete: false,
 		},
@@ -662,7 +709,7 @@ func Test_conditionallyDeleteRemediated(t *testing.T) {
 			conditions: []metav1.Condition{
 				*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason, "Rollback finished"),
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "Upgrade finished"),
-				*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestSucceededReason, "Test hooks succeeded"),
+				*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestFailedReason, "Test hooks failed"),
 			},
 			expectDelete: true,
 		},

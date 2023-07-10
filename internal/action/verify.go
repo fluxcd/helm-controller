@@ -43,7 +43,7 @@ var (
 
 // ReleaseTargetChanged returns true if the given release and/or chart
 // name have been mutated in such a way that it no longer has the same release
-// target as the Status.Current. By comparing the (storage) namespace, and
+// target as the Status.Current, by comparing the (storage) namespace, and
 // release and chart names. This can be used to e.g. trigger a garbage
 // collection of the old release before installing the new one.
 func ReleaseTargetChanged(obj *v2.HelmRelease, chartName string) bool {
@@ -126,9 +126,9 @@ func VerifyLastStorageItem(config *helmaction.Configuration, info *v2.HelmReleas
 }
 
 // VerifyReleaseObject verifies the data of the given v2beta2.HelmReleaseInfo
-// matches the given Helm release object. It returns the verified
-// release, or an error of type ErrReleaseDigest or ErrReleaseNotObserved
-// indicating the reason for the verification failure.
+// matches the given Helm release object. It returns an error of type
+// ErrReleaseDigest or ErrReleaseNotObserved indicating the reason for the
+// verification failure, or nil.
 func VerifyReleaseObject(info *v2.HelmReleaseInfo, rls *helmrelease.Release) error {
 	relDig, err := digest.Parse(info.Digest)
 	if err != nil {

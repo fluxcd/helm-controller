@@ -123,6 +123,11 @@ func summarize(req *Request) {
 	})
 
 	status := conds[0].Status
+	// Unknown is considered False within the context of Readiness.
+	if status == metav1.ConditionUnknown {
+		status = metav1.ConditionFalse
+	}
+
 	// Any remediated state is considered an error.
 	if conds[0].Type == v2.RemediatedCondition {
 		status = metav1.ConditionFalse

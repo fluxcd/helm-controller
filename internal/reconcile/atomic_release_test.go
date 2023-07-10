@@ -146,6 +146,10 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 		)
 		g.Expect(err).ToNot(HaveOccurred())
 
+		// We use a fake client here to allow us to work with a minimal release
+		// object mock. As the fake client does not perform any validation.
+		// However, for the Helm storage driver to work, we need a real client
+		// which is therefore initialized separately above.
 		client := fake.NewClientBuilder().
 			WithScheme(testEnv.Scheme()).
 			WithObjects(obj).

@@ -80,7 +80,7 @@ func NextAction(ctx context.Context, cfg *action.ConfigFactory, recorder record.
 	// unexpectedly. Unlock the release and e.g. retry again.
 	if rls.Info.Status.IsPending() {
 		log.Info("observed release is in stale pending state")
-		return &Unlock{configFactory: cfg}, nil
+		return NewUnlock(cfg, recorder), nil
 	}
 
 	remediation := req.Object.GetActiveRemediation()
@@ -110,9 +110,7 @@ func NextAction(ctx context.Context, cfg *action.ConfigFactory, recorder record.
 		// Confirm the current release matches the desired config.
 		if err = action.VerifyRelease(rls, cur, req.Chart.Metadata, req.Values); err != nil {
 			switch err {
-			case action.ErrChartChanged:
-				return NewUpgrade(cfg, recorder), nil
-			case action.ErrConfigDigest:
+			case action.ErrChartChanged, action.ErrConfigDigest:
 				return NewUpgrade(cfg, recorder), nil
 			default:
 				// Error out on any other error as we cannot determine what
