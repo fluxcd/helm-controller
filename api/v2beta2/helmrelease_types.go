@@ -801,6 +801,13 @@ type Uninstall struct {
 	// a Helm uninstall is performed.
 	// +optional
 	DisableWait bool `json:"disableWait,omitempty"`
+
+	// DeletionPropagation specifies the deletion propagation policy when
+	// a Helm uninstall is performed.
+	// +kubebuilder:default=background
+	// +kubebuilder:validation:Enum=background;foreground;orphan
+	// +optional
+	DeletionPropagation *string `json:"deletionPropagation,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm uninstall action, or
@@ -810,6 +817,15 @@ func (in Uninstall) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 		return defaultTimeout
 	}
 	return *in.Timeout
+}
+
+// GetDeletionPropagation returns the configured deletion propagation policy
+// for the Helm uninstall action, or 'background'.
+func (in Uninstall) GetDeletionPropagation() string {
+	if in.DeletionPropagation == nil {
+		return "background"
+	}
+	return *in.DeletionPropagation
 }
 
 // HelmReleaseInfo holds the status information for a Helm release as performed
