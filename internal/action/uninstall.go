@@ -50,6 +50,7 @@ func newUninstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []
 	uninstall.DisableHooks = obj.GetUninstall().DisableHooks
 	uninstall.KeepHistory = obj.GetUninstall().KeepHistory
 	uninstall.Wait = !obj.GetUninstall().DisableWait
+	uninstall.DeletionPropagation = obj.GetUninstall().GetDeletionPropagation()
 
 	for _, opt := range opts {
 		opt(uninstall)

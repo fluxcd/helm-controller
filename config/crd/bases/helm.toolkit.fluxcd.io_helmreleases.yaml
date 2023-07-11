@@ -1555,6 +1555,15 @@ spec:
                 description: Uninstall holds the configuration for Helm uninstall
                   actions for this HelmRelease.
                 properties:
+                  deletionPropagation:
+                    default: background
+                    description: DeletionPropagation specifies the deletion propagation
+                      policy when a Helm uninstall is performed.
+                    enum:
+                    - background
+                    - foreground
+                    - orphan
+                    type: string
                   disableHooks:
                     description: DisableHooks prevents hooks from running during the
                       Helm rollback action.
