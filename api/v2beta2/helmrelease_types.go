@@ -17,7 +17,6 @@ limitations under the License.
 package v2beta2
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -25,6 +24,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/yaml"
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -1118,7 +1118,7 @@ func (in HelmRelease) GetRequeueAfter() time.Duration {
 func (in HelmRelease) GetValues() map[string]interface{} {
 	var values map[string]interface{}
 	if in.Spec.Values != nil {
-		_ = json.Unmarshal(in.Spec.Values.Raw, &values)
+		_ = yaml.Unmarshal(in.Spec.Values.Raw, &values)
 	}
 	return values
 }

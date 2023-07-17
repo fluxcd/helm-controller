@@ -19,14 +19,18 @@ package chartutil
 import (
 	"github.com/opencontainers/go-digest"
 	"helm.sh/helm/v3/pkg/chartutil"
+
+	intyaml "github.com/fluxcd/helm-controller/internal/yaml"
 )
 
 // DigestValues calculates the digest of the values using the provided algorithm.
 // The caller is responsible for ensuring that the algorithm is supported.
 func DigestValues(algo digest.Algorithm, values chartutil.Values) digest.Digest {
 	digester := algo.Digester()
-	if err := values.Encode(digester.Hash()); err != nil {
-		return ""
+	if values = valuesOrNil(values); values != nil {
+		if err := intyaml.Encode(digester.Hash(), values, intyaml.SortMapSlice); err != nil {
+			return ""
+		}
 	}
 	return digester.Digest()
 }
@@ -36,9 +40,22 @@ func VerifyValues(digest digest.Digest, values chartutil.Values) bool {
 	if digest.Validate() != nil {
 		return false
 	}
+
 	verifier := digest.Verifier()
-	if err := values.Encode(verifier); err != nil {
-		return false
+	if values = valuesOrNil(values); values != nil {
+		if err := intyaml.Encode(verifier, values, intyaml.SortMapSlice); err != nil {
+			return false
+		}
 	}
 	return verifier.Verified()
+}
+
+// valuesOrNil returns nil if the values are empty, otherwise the values are
+// returned. This is used to ensure that the digest is calculated against nil
+// opposed to an empty object.
+func valuesOrNil(values chartutil.Values) chartutil.Values {
+	if values != nil && len(values) == 0 {
+		return nil
+	}
+	return values
 }
