@@ -1,4 +1,4 @@
-<h1>HelmRelease API reference</h1>
+<h1>Helm API reference v2beta1</h1>
 <p>Packages:</p>
 <ul class="simple">
 <li>
