@@ -104,16 +104,19 @@ func (r *HelmReleaseChartReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}()
 
+	// Examine if the object is under deletion.
+	// NOTE: This needs to happen before the finalizer check, as
+	if !obj.ObjectMeta.DeletionTimestamp.IsZero() {
+		return r.reconcileDelete(ctx, obj)
+	}
+
 	// Add finalizer first if not exist to avoid the race condition
 	// between init and delete.
+	// Note: Finalizers in general can only be added when the deletionTimestamp
+	// is not set.
 	if !controllerutil.ContainsFinalizer(obj, v2.ChartFinalizer) {
 		controllerutil.AddFinalizer(obj, v2.ChartFinalizer)
 		return ctrl.Result{Requeue: true}, nil
-	}
-
-	// Examine if the object is under deletion.
-	if !obj.ObjectMeta.DeletionTimestamp.IsZero() {
-		return r.reconcileDelete(ctx, obj)
 	}
 
 	// Return early if the object is suspended

@@ -184,16 +184,18 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		defer r.Metrics.RecordReadiness(ctx, obj)
 	}()
 
-	// Add finalizer first if not exist to avoid the race condition
-	// between init and delete.
-	if !controllerutil.ContainsFinalizer(obj, v2.HelmReleaseFinalizer) {
-		controllerutil.AddFinalizer(obj, v2.HelmReleaseFinalizer)
-		return ctrl.Result{Requeue: true}, nil
-	}
-
 	// Examine if the object is under deletion.
 	if !obj.ObjectMeta.DeletionTimestamp.IsZero() {
 		return r.reconcileDelete(ctx, obj)
+	}
+
+	// Add finalizer first if not exist to avoid the race condition
+	// between init and delete.
+	// Note: Finalizers in general can only be added when the deletionTimestamp
+	// is not set.
+	if !controllerutil.ContainsFinalizer(obj, v2.HelmReleaseFinalizer) {
+		controllerutil.AddFinalizer(obj, v2.HelmReleaseFinalizer)
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Return early if the object is suspended
