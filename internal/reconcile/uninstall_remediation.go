@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
@@ -143,7 +144,7 @@ const (
 func (r *UninstallRemediation) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Compose success message.
 	cur := req.Object.GetCurrent()
-	msg := fmt.Sprintf(fmtUninstallRemediationFailure, cur.FullReleaseName(), cur.VersionedChartName(), err.Error())
+	msg := fmt.Sprintf(fmtUninstallRemediationFailure, cur.FullReleaseName(), cur.VersionedChartName(), strings.TrimSpace(err.Error()))
 
 	// Mark uninstall failure on object.
 	req.Object.Status.Failures++

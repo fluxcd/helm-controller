@@ -19,6 +19,7 @@ package reconcile
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/fluxcd/pkg/runtime/logger"
 	helmrelease "helm.sh/helm/v3/pkg/release"
@@ -135,7 +136,7 @@ const (
 func (r *Test) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Compose failure message.
 	cur := req.Object.GetCurrent()
-	msg := fmt.Sprintf(fmtTestFailure, cur.FullReleaseName(), cur.VersionedChartName(), err.Error())
+	msg := fmt.Sprintf(fmtTestFailure, cur.FullReleaseName(), cur.VersionedChartName(), strings.TrimSpace(err.Error()))
 
 	// Mark test failure on object.
 	req.Object.Status.Failures++

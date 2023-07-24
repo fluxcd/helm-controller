@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	"strings"
 	"testing"
 	"time"
 
@@ -394,7 +395,7 @@ func TestRollbackRemediation_failure(t *testing.T) {
 		expectMsg := fmt.Sprintf(fmtRollbackRemediationFailure,
 			fmt.Sprintf("%s/%s.%d", prev.Namespace, prev.Name, prev.Version),
 			fmt.Sprintf("%s@%s", prev.Chart.Name(), prev.Chart.Metadata.Version),
-			err.Error())
+			strings.TrimSpace(err.Error()))
 
 		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.FalseCondition(v2.RemediatedCondition, v2.RollbackFailedReason, expectMsg),

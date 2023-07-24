@@ -19,6 +19,7 @@ package reconcile
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	corev1 "k8s.io/api/core/v1"
@@ -136,7 +137,7 @@ const (
 func (r *RollbackRemediation) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Compose failure message.
 	prev := req.Object.GetPrevious()
-	msg := fmt.Sprintf(fmtRollbackRemediationFailure, prev.FullReleaseName(), prev.VersionedChartName(), err.Error())
+	msg := fmt.Sprintf(fmtRollbackRemediationFailure, prev.FullReleaseName(), prev.VersionedChartName(), strings.TrimSpace(err.Error()))
 
 	// Mark remediation failure on object.
 	req.Object.Status.Failures++

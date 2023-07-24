@@ -19,6 +19,7 @@ package reconcile
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
@@ -123,7 +124,7 @@ const (
 // result in Helm storage drift.
 func (r *Upgrade) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Compose failure message.
-	msg := fmt.Sprintf(fmtUpgradeFailure, req.Object.GetReleaseNamespace(), req.Object.GetReleaseName(), req.Chart.Name(), req.Chart.Metadata.Version, err.Error())
+	msg := fmt.Sprintf(fmtUpgradeFailure, req.Object.GetReleaseNamespace(), req.Object.GetReleaseName(), req.Chart.Name(), req.Chart.Metadata.Version, strings.TrimSpace(err.Error()))
 
 	// Mark upgrade failure on object.
 	req.Object.Status.Failures++

@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
@@ -125,7 +126,7 @@ const (
 func (r *Unlock) failure(req *Request, status helmrelease.Status, err error) {
 	// Compose failure message.
 	cur := req.Object.GetCurrent()
-	msg := fmt.Sprintf(fmtUnlockFailure, cur.FullReleaseName(), cur.VersionedChartName(), status.String(), err.Error())
+	msg := fmt.Sprintf(fmtUnlockFailure, cur.FullReleaseName(), cur.VersionedChartName(), status.String(), strings.TrimSpace(err.Error()))
 
 	// Mark unlock failure on object.
 	req.Object.Status.Failures++

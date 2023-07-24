@@ -19,6 +19,7 @@ package reconcile
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/fluxcd/pkg/runtime/logger"
 	corev1 "k8s.io/api/core/v1"
@@ -124,7 +125,7 @@ const (
 func (r *Install) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Compose failure message.
 	msg := fmt.Sprintf(fmtInstallFailure, req.Object.GetReleaseNamespace(), req.Object.GetReleaseName(), req.Chart.Name(),
-		req.Chart.Metadata.Version, err.Error())
+		req.Chart.Metadata.Version, strings.TrimSpace(err.Error()))
 
 	// Mark install failure on object.
 	req.Object.Status.Failures++

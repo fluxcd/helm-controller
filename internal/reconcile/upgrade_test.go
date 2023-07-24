@@ -140,9 +140,9 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			},
 			expectConditions: []metav1.Condition{
 				*conditions.FalseCondition(meta.ReadyCondition, v2.UpgradeFailedReason,
-					"post-upgrade hooks failed: 1 error occurred:\n\t* timed out waiting for the condition\n\n"),
+					"post-upgrade hooks failed: 1 error occurred:\n\t* timed out waiting for the condition"),
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason,
-					"post-upgrade hooks failed: 1 error occurred:\n\t* timed out waiting for the condition\n\n"),
+					"post-upgrade hooks failed: 1 error occurred:\n\t* timed out waiting for the condition"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
 				return release.ObservedToInfo(release.ObserveRelease(releases[1]))
