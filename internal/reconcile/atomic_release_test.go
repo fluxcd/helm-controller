@@ -18,6 +18,7 @@ package reconcile
 
 import (
 	"context"
+	"github.com/fluxcd/pkg/runtime/patch"
 	"testing"
 	"time"
 
@@ -155,6 +156,7 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 			WithObjects(obj).
 			WithStatusSubresource(&v2.HelmRelease{}).
 			Build()
+		patchHelper := patch.NewSerialPatcher(obj, client)
 		recorder := new(record.FakeRecorder)
 
 		req := &Request{
@@ -162,7 +164,7 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 			Chart:  testutil.BuildChart(testutil.ChartWithTestHook()),
 			Values: nil,
 		}
-		g.Expect(NewAtomicRelease(client, cfg, recorder).Reconcile(context.TODO(), req)).ToNot(HaveOccurred())
+		g.Expect(NewAtomicRelease(patchHelper, cfg, recorder).Reconcile(context.TODO(), req)).ToNot(HaveOccurred())
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			{

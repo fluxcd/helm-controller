@@ -23,14 +23,12 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/client-go/tools/record"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/patch"
+	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -78,7 +76,7 @@ var OwnedConditions = []string{
 // For more information on the individual ActionReconcilers, refer to their
 // documentation.
 type AtomicRelease struct {
-	kubeClient    client.Client
+	patchHelper   *patch.SerialPatcher
 	configFactory *action.ConfigFactory
 	eventRecorder record.EventRecorder
 	strategy      releaseStrategy
@@ -86,9 +84,9 @@ type AtomicRelease struct {
 
 // NewAtomicRelease returns a new AtomicRelease reconciler configured with the
 // provided values.
-func NewAtomicRelease(client client.Client, cfg *action.ConfigFactory, recorder record.EventRecorder) *AtomicRelease {
+func NewAtomicRelease(patchHelper *patch.SerialPatcher, cfg *action.ConfigFactory, recorder record.EventRecorder) *AtomicRelease {
 	return &AtomicRelease{
-		kubeClient:    client,
+		patchHelper:   patchHelper,
 		eventRecorder: recorder,
 		configFactory: cfg,
 		strategy:      &cleanReleaseStrategy{},
@@ -128,7 +126,6 @@ func (cleanReleaseStrategy) MustStop(current ReconcilerType, _ ReconcilerTypeSet
 
 func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 	log := ctrl.LoggerFrom(ctx).V(logger.DebugLevel)
-	patchHelper := patch.NewSerialPatcher(req.Object, r.kubeClient)
 
 	var (
 		previous ReconcilerTypeSet
@@ -178,7 +175,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			conditions.MarkTrue(req.Object, meta.ReconcilingCondition, "Progressing", "Running '%s' %s action with timeout of %s",
 				next.Name(), next.Type(), timeoutForAction(next, req.Object).String())
 			// Patch the object to reflect the new condition.
-			if err = patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner("helm-controller")); err != nil {
+			if err = r.patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner("helm-controller")); err != nil {
 				return err
 			}
 
@@ -201,7 +198,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			previous = append(previous, next.Type())
 
 			// Patch the release to reflect progress.
-			if err = patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner("helm-controller")); err != nil {
+			if err = r.patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner("helm-controller")); err != nil {
 				return err
 			}
 		}

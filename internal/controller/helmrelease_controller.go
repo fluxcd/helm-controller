@@ -202,10 +202,10 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, nil
 	}
 
-	return r.reconcileRelease(ctx, obj)
+	return r.reconcileRelease(ctx, patchHelper, obj)
 }
 
-func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, obj *v2.HelmRelease) (ctrl.Result, error) {
+func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelper *patch.SerialPatcher, obj *v2.HelmRelease) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 
 	// Mark the resource as under reconciliation.
@@ -310,7 +310,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, obj *v2.He
 	}
 
 	// Off we go!
-	if err = intreconcile.NewAtomicRelease(r.Client, cfg, r.EventRecorder).Reconcile(ctx, &intreconcile.Request{
+	if err = intreconcile.NewAtomicRelease(patchHelper, cfg, r.EventRecorder).Reconcile(ctx, &intreconcile.Request{
 		Object: obj,
 		Chart:  loadedChart,
 		Values: values,
