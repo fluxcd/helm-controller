@@ -32,7 +32,7 @@ import (
 
 	"github.com/fluxcd/pkg/runtime/transform"
 
-	"github.com/fluxcd/helm-controller/api/v2beta1"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 )
 
 // ErrValuesRefReason is the descriptive reason for an ErrValuesReference.
@@ -131,7 +131,7 @@ func (e *ErrValuesReference) Unwrap() error {
 
 // NewErrValuesReference returns a new ErrValuesReference constructed from the
 // provided values.
-func NewErrValuesReference(name types.NamespacedName, ref v2beta1.ValuesReference, reason ErrValuesRefReason, err error) *ErrValuesReference {
+func NewErrValuesReference(name types.NamespacedName, ref v2.ValuesReference, reason ErrValuesRefReason, err error) *ErrValuesReference {
 	return &ErrValuesReference{
 		Reason:   reason,
 		Kind:     ref.Kind,
@@ -152,7 +152,7 @@ const (
 // If provided, the values map is merged in last. Overwriting values from
 // references. It returns the merged values, or an ErrValuesReference error.
 func ChartValuesFromReferences(ctx context.Context, client kubeclient.Client, namespace string,
-	values map[string]interface{}, refs ...v2beta1.ValuesReference) (chartutil.Values, error) {
+	values map[string]interface{}, refs ...v2.ValuesReference) (chartutil.Values, error) {
 
 	log := ctrl.LoggerFrom(ctx)
 

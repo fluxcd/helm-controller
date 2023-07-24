@@ -715,7 +715,7 @@ type Filter struct {
 	// +kubebuilder:validation:MaxLength=253
 	// +required
 	Name string `json:"name"`
-	// Exclude is specifies whether the named test should be excluded.
+	// Exclude specifies whether the named test should be excluded.
 	// +optional
 	Exclude bool `json:"exclude,omitempty"`
 }
@@ -937,6 +937,11 @@ type HelmReleaseStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// LastAttemptedGeneration is the last generation the controller attempted
+	// to reconcile.
+	// +optional
+	LastAttemptedGeneration int64 `json:"lastAttemptedGeneration,omitempty"`
+
 	// Conditions holds the conditions for the HelmRelease.
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
@@ -984,10 +989,16 @@ type HelmReleaseStatus struct {
 	// +optional
 	LastAttemptedRevision string `json:"lastAttemptedRevision,omitempty"`
 
-	// LastAttemptedValuesChecksum is the SHA1 checksum of the values of the last
+	// LastAttemptedValuesChecksum is the SHA1 checksum for the values of the last
 	// reconciliation attempt.
+	// Deprecated: Use LastAttemptedConfigDigest instead.
 	// +optional
 	LastAttemptedValuesChecksum string `json:"lastAttemptedValuesChecksum,omitempty"`
+
+	// LastAttemptedConfigDigest is the digest for the config (better known as
+	// "values") of the last reconciliation attempt.
+	// +optional
+	LastAttemptedConfigDigest string `json:"lastAttemptedConfigDigest,omitempty"`
 
 	meta.ReconcileRequestStatus `json:",inline"`
 }
@@ -1172,6 +1183,15 @@ func (in HelmRelease) GetMaxHistory() int {
 		return 10
 	}
 	return *in.Spec.MaxHistory
+}
+
+// UsePersistentClient returns the configured PersistentClient, or the default
+// of true.
+func (in HelmRelease) UsePersistentClient() bool {
+	if in.Spec.PersistentClient == nil {
+		return true
+	}
+	return *in.Spec.PersistentClient
 }
 
 // GetDependsOn returns the list of dependencies across-namespaces.

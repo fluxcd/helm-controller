@@ -31,8 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/yaml"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 )
 
 func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
@@ -282,6 +283,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 					Interval: metav1.Duration{Duration: 5 * time.Minute},
 					Chart: v2.HelmChartTemplate{
 						Spec: v2.HelmChartTemplateSpec{
+							Chart: "mychart",
 							SourceRef: v2.CrossNamespaceObjectReference{
 								Name: "something",
 							},

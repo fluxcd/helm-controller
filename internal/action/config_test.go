@@ -43,7 +43,7 @@ func TestNewConfigFactory(t *testing.T) {
 			name:   "constructs config factory",
 			getter: &kube.MemoryRESTClientGetter{},
 			opts: []ConfigFactoryOption{
-				WithStorage(helmdriver.MemoryDriverName, ""),
+				WithStorage(helmdriver.MemoryDriverName, "default"),
 			},
 			wantErr: nil,
 		},
@@ -89,7 +89,8 @@ func TestWithStorage(t *testing.T) {
 		wantDriver string
 	}{
 		{
-			name: "default_" + DefaultStorageDriver,
+			name:      "default_" + DefaultStorageDriver,
+			namespace: "default",
 			factory: ConfigFactory{
 				KubeClient: helmkube.New(cmdtest.NewTestFactory()),
 			},
@@ -98,6 +99,7 @@ func TestWithStorage(t *testing.T) {
 		{
 			name:       helmdriver.SecretsDriverName,
 			driverName: helmdriver.SecretsDriverName,
+			namespace:  "default",
 			factory: ConfigFactory{
 				KubeClient: helmkube.New(cmdtest.NewTestFactory()),
 			},
@@ -106,6 +108,7 @@ func TestWithStorage(t *testing.T) {
 		{
 			name:       helmdriver.ConfigMapsDriverName,
 			driverName: helmdriver.ConfigMapsDriverName,
+			namespace:  "default",
 			factory: ConfigFactory{
 				KubeClient: helmkube.New(cmdtest.NewTestFactory()),
 			},
@@ -114,12 +117,21 @@ func TestWithStorage(t *testing.T) {
 		{
 			name:       helmdriver.MemoryDriverName,
 			driverName: helmdriver.MemoryDriverName,
+			namespace:  "default",
 			factory:    ConfigFactory{},
 			wantDriver: helmdriver.MemoryDriverName,
 		},
 		{
+			name:       "invalid namespace",
+			driverName: helmdriver.SecretsDriverName,
+			namespace:  "",
+			factory:    ConfigFactory{},
+			wantErr:    errors.New("no namespace provided for Helm storage driver 'secrets'"),
+		},
+		{
 			name:       "invalid driver",
 			driverName: "invalid",
+			namespace:  "default",
 			factory:    ConfigFactory{},
 			wantErr:    errors.New("unsupported Helm storage driver 'invalid'"),
 		},

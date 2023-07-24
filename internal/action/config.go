@@ -87,6 +87,10 @@ func WithStorage(driver, namespace string) ConfigFactoryOption {
 	}
 
 	return func(f *ConfigFactory) error {
+		if namespace == "" {
+			return fmt.Errorf("no namespace provided for '%s' storage driver", driver)
+		}
+
 		switch driver {
 		case helmdriver.SecretsDriverName, helmdriver.ConfigMapsDriverName, "":
 			clientSet, err := f.KubeClient.Factory.KubernetesClientSet()

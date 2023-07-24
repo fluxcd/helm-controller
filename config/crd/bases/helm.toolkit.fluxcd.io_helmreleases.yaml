@@ -1520,8 +1520,8 @@ spec:
                         test filters.
                       properties:
                         exclude:
-                          description: Exclude is specifies whether the named test
-                            should be excluded.
+                          description: Exclude specifies whether the named test should
+                            be excluded.
                           type: boolean
                         name:
                           description: Name is the name of the test.
@@ -1892,13 +1892,23 @@ spec:
                   the latest desired state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
+              lastAttemptedConfigDigest:
+                description: LastAttemptedConfigDigest is the digest for the config
+                  (better known as "values") of the last reconciliation attempt.
+                type: string
+              lastAttemptedGeneration:
+                description: LastAttemptedGeneration is the last generation the controller
+                  attempted to reconcile.
+                format: int64
+                type: integer
               lastAttemptedRevision:
                 description: LastAttemptedRevision is the Source revision of the last
                   reconciliation attempt.
                 type: string
               lastAttemptedValuesChecksum:
-                description: LastAttemptedValuesChecksum is the SHA1 checksum of the
-                  values of the last reconciliation attempt.
+                description: 'LastAttemptedValuesChecksum is the SHA1 checksum for
+                  the values of the last reconciliation attempt. Deprecated: Use LastAttemptedConfigDigest
+                  instead.'
                 type: string
               lastHandledReconcileAt:
                 description: LastHandledReconcileAt holds the value of the most recent

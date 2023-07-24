@@ -36,8 +36,8 @@ import (
 	"github.com/fluxcd/helm-controller/internal/action"
 )
 
-// ownedConditions is a list of Condition types owned by the HelmRelease object.
-var ownedConditions = []string{
+// OwnedConditions is a list of Condition types owned by the HelmRelease object.
+var OwnedConditions = []string{
 	v2.ReleasedCondition,
 	v2.RemediatedCondition,
 	v2.TestSuccessCondition,
@@ -177,7 +177,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			conditions.MarkTrue(req.Object, meta.ReconcilingCondition, "Progressing", "Running '%s' %s action with timeout of %s",
 				next.Name(), next.Type(), timeoutForAction(next, req.Object).String())
 			// Patch the object to reflect the new condition.
-			if err = patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: ownedConditions}); err != nil {
+			if err = patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner("helm-controller")); err != nil {
 				return err
 			}
 
@@ -200,7 +200,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			previous = append(previous, next.Type())
 
 			// Patch the release to reflect progress.
-			if err = patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: ownedConditions}); err != nil {
+			if err = patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner("helm-controller")); err != nil {
 				return err
 			}
 		}

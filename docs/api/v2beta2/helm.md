@@ -490,7 +490,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Exclude is specifies whether the named test should be excluded.</p>
+<p>Exclude specifies whether the named test should be excluded.</p>
 </td>
 </tr>
 </tbody>
@@ -1413,6 +1413,19 @@ int64
 </tr>
 <tr>
 <td>
+<code>lastAttemptedGeneration</code><br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastAttemptedGeneration is the last generation the controller attempted
+to reconcile.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>conditions</code><br>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#condition-v1-meta">
@@ -1542,8 +1555,22 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastAttemptedValuesChecksum is the SHA1 checksum of the values of the last
-reconciliation attempt.</p>
+<p>LastAttemptedValuesChecksum is the SHA1 checksum for the values of the last
+reconciliation attempt.
+Deprecated: Use LastAttemptedConfigDigest instead.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastAttemptedConfigDigest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastAttemptedConfigDigest is the digest for the config (better known as
+&ldquo;values&rdquo;) of the last reconciliation attempt.</p>
 </td>
 </tr>
 <tr>

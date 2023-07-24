@@ -24,12 +24,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/fluxcd/helm-controller/api/v2beta1"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 )
 
 func TestChartTemplateChangePredicate_Create(t *testing.T) {
-	obj := &v2beta1.HelmRelease{Spec: v2beta1.HelmReleaseSpec{}}
-	suspended := &v2beta1.HelmRelease{Spec: v2beta1.HelmReleaseSpec{Suspend: true}}
+	obj := &v2.HelmRelease{Spec: v2.HelmReleaseSpec{}}
+	suspended := &v2.HelmRelease{Spec: v2.HelmReleaseSpec{Suspend: true}}
 	not := &unstructured.Unstructured{}
 
 	tests := []struct {
@@ -56,31 +56,31 @@ func TestChartTemplateChangePredicate_Create(t *testing.T) {
 }
 
 func TestChartTemplateChangePredicate_Update(t *testing.T) {
-	templateA := &v2beta1.HelmRelease{Spec: v2beta1.HelmReleaseSpec{
-		Chart: v2beta1.HelmChartTemplate{
-			Spec: v2beta1.HelmChartTemplateSpec{
+	templateA := &v2.HelmRelease{Spec: v2.HelmReleaseSpec{
+		Chart: v2.HelmChartTemplate{
+			Spec: v2.HelmChartTemplateSpec{
 				Chart: "chart-name-a",
-				SourceRef: v2beta1.CrossNamespaceObjectReference{
+				SourceRef: v2.CrossNamespaceObjectReference{
 					Name: "repository",
 					Kind: "HelmRepository",
 				},
 			},
 		},
 	}}
-	templateB := &v2beta1.HelmRelease{Spec: v2beta1.HelmReleaseSpec{
-		Chart: v2beta1.HelmChartTemplate{
-			Spec: v2beta1.HelmChartTemplateSpec{
+	templateB := &v2.HelmRelease{Spec: v2.HelmReleaseSpec{
+		Chart: v2.HelmChartTemplate{
+			Spec: v2.HelmChartTemplateSpec{
 				Chart: "chart-name-b",
-				SourceRef: v2beta1.CrossNamespaceObjectReference{
+				SourceRef: v2.CrossNamespaceObjectReference{
 					Name: "repository",
 					Kind: "HelmRepository",
 				},
 			},
 		},
 	}}
-	templateWithMetaA := &v2beta1.HelmRelease{Spec: v2beta1.HelmReleaseSpec{
-		Chart: v2beta1.HelmChartTemplate{
-			ObjectMeta: &v2beta1.HelmChartTemplateObjectMeta{
+	templateWithMetaA := &v2.HelmRelease{Spec: v2.HelmReleaseSpec{
+		Chart: v2.HelmChartTemplate{
+			ObjectMeta: &v2.HelmChartTemplateObjectMeta{
 				Labels: map[string]string{
 					"key": "value",
 				},
@@ -88,18 +88,18 @@ func TestChartTemplateChangePredicate_Update(t *testing.T) {
 					"key": "value",
 				},
 			},
-			Spec: v2beta1.HelmChartTemplateSpec{
+			Spec: v2.HelmChartTemplateSpec{
 				Chart: "chart-name-a",
-				SourceRef: v2beta1.CrossNamespaceObjectReference{
+				SourceRef: v2.CrossNamespaceObjectReference{
 					Name: "repository",
 					Kind: "HelmRepository",
 				},
 			},
 		},
 	}}
-	templateWithMetaB := &v2beta1.HelmRelease{Spec: v2beta1.HelmReleaseSpec{
-		Chart: v2beta1.HelmChartTemplate{
-			ObjectMeta: &v2beta1.HelmChartTemplateObjectMeta{
+	templateWithMetaB := &v2.HelmRelease{Spec: v2.HelmReleaseSpec{
+		Chart: v2.HelmChartTemplate{
+			ObjectMeta: &v2.HelmChartTemplateObjectMeta{
 				Labels: map[string]string{
 					"key": "new-value",
 				},
@@ -109,8 +109,8 @@ func TestChartTemplateChangePredicate_Update(t *testing.T) {
 			},
 		},
 	}}
-	empty := &v2beta1.HelmRelease{}
-	suspended := &v2beta1.HelmRelease{Spec: v2beta1.HelmReleaseSpec{Suspend: true}}
+	empty := &v2.HelmRelease{}
+	suspended := &v2.HelmRelease{Spec: v2.HelmReleaseSpec{Suspend: true}}
 	not := &unstructured.Unstructured{}
 
 	tests := []struct {
@@ -147,8 +147,8 @@ func TestChartTemplateChangePredicate_Update(t *testing.T) {
 }
 
 func TestChartTemplateChangePredicate_Delete(t *testing.T) {
-	obj := &v2beta1.HelmRelease{Spec: v2beta1.HelmReleaseSpec{}}
-	suspended := &v2beta1.HelmRelease{Spec: v2beta1.HelmReleaseSpec{Suspend: true}}
+	obj := &v2.HelmRelease{Spec: v2.HelmReleaseSpec{}}
+	suspended := &v2.HelmRelease{Spec: v2.HelmReleaseSpec{Suspend: true}}
 	not := &unstructured.Unstructured{}
 
 	tests := []struct {

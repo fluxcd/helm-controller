@@ -17,6 +17,7 @@ limitations under the License.
 package digest
 
 import (
+	"crypto"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
 
@@ -24,8 +25,17 @@ import (
 	_ "github.com/opencontainers/go-digest/blake3"
 )
 
+const (
+	SHA1 digest.Algorithm = "sha1"
+)
+
 var (
 	// Canonical is the primary digest algorithm used to calculate checksums
 	// for e.g. Helm release objects and config values.
 	Canonical = digest.SHA256
 )
+
+func init() {
+	// Register SHA-1 algorithm for support of legacy values checksums.
+	digest.RegisterAlgorithm(SHA1, crypto.SHA1)
+}

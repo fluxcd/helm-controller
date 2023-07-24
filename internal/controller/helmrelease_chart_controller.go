@@ -46,7 +46,7 @@ import (
 	"github.com/fluxcd/pkg/ssa"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	intpredicates "github.com/fluxcd/helm-controller/internal/predicates"
 )
 
@@ -225,7 +225,7 @@ func (r *HelmReleaseChartReconciler) reconcileDelete(ctx context.Context, obj *v
 				err = fmt.Errorf("failed to delete HelmChart '%s': %w", obj.Status.HelmChart, err)
 				return ctrl.Result{}, err
 			}
-			r.Eventf(obj, eventv1.EventSeverityTrace, "HelmChartDeleted", "deleted HelmChart '%s'", obj.Status.HelmChart)
+			r.Eventf(obj, eventv1.EventTypeTrace, "HelmChartDeleted", "deleted HelmChart '%s'", obj.Status.HelmChart)
 		}
 		// Truncate the chart reference in the status object.
 		obj.Status.HelmChart = ""
