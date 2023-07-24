@@ -145,7 +145,8 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			if next, err = NextAction(ctx, r.configFactory, r.eventRecorder, req); err != nil {
 				log.Error(err, "cannot determine next action")
 				if errors.Is(err, ErrNoRetriesRemain) {
-					conditions.MarkStalled(req.Object, "NoRemainingRetries", "Attempted %d times but failed", req.Object.GetActiveRemediation().GetRetries())
+					conditions.MarkStalled(req.Object, "NoRemainingRetries", "Attempted %d times but failed",
+						req.Object.GetActiveRemediation().GetFailureCount(req.Object))
 				} else {
 					conditions.MarkFalse(req.Object, meta.ReadyCondition, "ActionPlanError", fmt.Sprintf("Could not determine Helm action: %s", err.Error()))
 				}
@@ -159,7 +160,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 				// If we are in-sync, we are no longer reconciling
 				conditions.Delete(req.Object, meta.ReconcilingCondition)
 
-				// Always summarize, this ensures we e.g. restore transient errors written to Ready
+				// Always summarize; this ensures we e.g. restore transient errors written to Ready
 				summarize(req)
 
 				return nil
