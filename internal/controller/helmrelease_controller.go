@@ -155,7 +155,14 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// record suspension metrics
 	defer r.recordSuspension(ctx, hr)
 
-	// Add our finalizer if it does not exist
+	// Examine if the object is under deletion
+	if !hr.ObjectMeta.DeletionTimestamp.IsZero() {
+		return r.reconcileDelete(ctx, hr)
+	}
+
+	// Add our finalizer if it does not exist.
+	// Note: Finalizers in general can only be added when the deletionTimestamp
+	// is not set.
 	if !controllerutil.ContainsFinalizer(&hr, v2.HelmReleaseFinalizer) {
 		patch := client.MergeFrom(hr.DeepCopy())
 		controllerutil.AddFinalizer(&hr, v2.HelmReleaseFinalizer)
@@ -163,11 +170,6 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			log.Error(err, "unable to register finalizer")
 			return ctrl.Result{}, err
 		}
-	}
-
-	// Examine if the object is under deletion
-	if !hr.ObjectMeta.DeletionTimestamp.IsZero() {
-		return r.reconcileDelete(ctx, hr)
 	}
 
 	// Return early if the HelmRelease is suspended.
