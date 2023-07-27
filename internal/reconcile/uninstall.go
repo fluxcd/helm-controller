@@ -94,8 +94,14 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 
 	// Run the Helm uninstall action.
 	res, err := action.Uninstall(ctx, cfg, req.Object, cur.Name)
+
+	// When the release is not found, something else has already uninstalled
+	// the release. As such, we can assume the release is uninstalled while
+	// taking note that we did not do it.
 	if errors.Is(err, helmdriver.ErrReleaseNotFound) {
-		err = nil
+		conditions.MarkFalse(req.Object, v2.ReleasedCondition, v2.UninstallSucceededReason,
+			"Release %s was not found, assuming it is uninstalled", cur.FullReleaseName())
+		return nil
 	}
 
 	// The Helm uninstall action does always target the latest release. Before

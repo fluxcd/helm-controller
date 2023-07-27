@@ -291,6 +291,45 @@ func TestUninstall_Reconcile(t *testing.T) {
 			expectFailures: 1,
 			wantErr:        ErrReleaseMismatch,
 		},
+		{
+			name: "uninstall already deleted release",
+			driver: func(driver helmdriver.Driver) helmdriver.Driver {
+				return &storage.Failing{
+					// Explicitly inherit the driver, as we want to rely on the
+					// Secret storage, as the memory storage does not detach
+					// objects from the release action. Causing writes post-persist
+					// to leak to the stored release object.
+					// xref: https://github.com/helm/helm/issues/11304
+					Driver:   driver,
+					QueryErr: helmdriver.ErrReleaseNotFound,
+				}
+			},
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
+						Status:    helmrelease.StatusDeployed,
+					}),
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
+				}
+			},
+			expectConditions: []metav1.Condition{
+				*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallSucceededReason,
+					"assuming it is uninstalled"),
+				*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallSucceededReason,
+					"assuming it is uninstalled"),
+			},
+			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
+				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
