@@ -19,15 +19,18 @@ package reconcile
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"helm.sh/helm/v3/pkg/kube"
+	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/discovery/cached/memory"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -37,6 +40,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/testenv"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 )
 
 var (
@@ -44,10 +48,23 @@ var (
 	testEnv *testenv.Environment
 )
 
-func TestMain(m *testing.M) {
-	utilruntime.Must(v2.AddToScheme(scheme.Scheme))
+func NewTestScheme() *runtime.Scheme {
+	s := runtime.NewScheme()
+	utilruntime.Must(corev1.AddToScheme(s))
+	utilruntime.Must(apiextensionsv1.AddToScheme(s))
+	utilruntime.Must(sourcev1.AddToScheme(s))
+	utilruntime.Must(v2.AddToScheme(s))
+	return s
+}
 
-	testEnv = testenv.New()
+func TestMain(m *testing.M) {
+	testEnv = testenv.New(
+		testenv.WithCRDPath(
+			filepath.Join("..", "..", "build", "config", "crd", "bases"),
+			filepath.Join("..", "..", "config", "crd", "bases"),
+		),
+		testenv.WithScheme(NewTestScheme()),
+	)
 
 	go func() {
 		fmt.Println("Starting the test environment")

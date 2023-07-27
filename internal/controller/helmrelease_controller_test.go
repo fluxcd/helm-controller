@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"github.com/fluxcd/helm-controller/internal/acl"
 	"strings"
 	"testing"
 	"time"
@@ -115,10 +116,13 @@ func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
 			}
 
 			r := &HelmReleaseReconciler{
-				Client:              builder.Build(),
-				EventRecorder:       record.NewFakeRecorder(32),
-				NoCrossNamespaceRef: tt.disallowCrossNS,
+				Client:        builder.Build(),
+				EventRecorder: record.NewFakeRecorder(32),
 			}
+
+			curAllow := acl.AllowCrossNamespaceRef
+			acl.AllowCrossNamespaceRef = !tt.disallowCrossNS
+			t.Cleanup(func() { acl.AllowCrossNamespaceRef = !curAllow })
 
 			got, err := r.getHelmChart(context.TODO(), tt.rel)
 			if tt.wantErr {

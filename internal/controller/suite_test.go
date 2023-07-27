@@ -18,44 +18,44 @@ package controller
 
 import (
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/fluxcd/pkg/runtime/testenv"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	// +kubebuilder:scaffold:imports
 )
 
 var (
-	testScheme = runtime.NewScheme()
-
 	testEnv *testenv.Environment
-
-	testClient client.Client
 
 	testCtx = ctrl.SetupSignalHandler()
 )
 
-func TestMain(m *testing.M) {
-	utilruntime.Must(scheme.AddToScheme(testScheme))
-	utilruntime.Must(sourcev1.AddToScheme(testScheme))
-	utilruntime.Must(v2.AddToScheme(testScheme))
+func NewTestScheme() *runtime.Scheme {
+	s := runtime.NewScheme()
+	utilruntime.Must(corev1.AddToScheme(s))
+	utilruntime.Must(apiextensionsv1.AddToScheme(s))
+	utilruntime.Must(sourcev1.AddToScheme(s))
+	utilruntime.Must(v2.AddToScheme(s))
+	return s
+}
 
+func TestMain(m *testing.M) {
 	testEnv = testenv.New(
 		testenv.WithCRDPath(
 			filepath.Join("..", "..", "build", "config", "crd", "bases"),
 			filepath.Join("..", "..", "config", "crd", "bases"),
 		),
-		testenv.WithScheme(testScheme),
+		testenv.WithScheme(NewTestScheme()),
 	)
 
 	go func() {
@@ -65,13 +65,6 @@ func TestMain(m *testing.M) {
 		}
 	}()
 	<-testEnv.Manager.Elected()
-
-	// Client with caching disabled.
-	var err error
-	testClient, err = client.New(testEnv.Config, client.Options{Scheme: testScheme})
-	if err != nil {
-		panic(fmt.Sprintf("Failed to create cacheless Kubernetes client: %v", err))
-	}
 
 	code := m.Run()
 

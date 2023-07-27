@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	intacl "github.com/fluxcd/helm-controller/internal/acl"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -86,7 +87,6 @@ type HelmReleaseReconciler struct {
 
 	FieldManager          string
 	DefaultServiceAccount string
-	NoCrossNamespaceRef   bool
 
 	httpClient        *retryablehttp.Client
 	requeueDependency time.Duration
@@ -198,10 +198,15 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	// Return early if the object is suspended
+	// Return early if the object is suspended.
 	if obj.Spec.Suspend {
 		log.Info("reconciliation is suspended for this object")
 		return ctrl.Result{}, nil
+	}
+
+	// Reconcile the HelmChart template.
+	if err := r.reconcileChartTemplate(ctx, obj); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return r.reconcileRelease(ctx, patchHelper, obj)
@@ -276,11 +281,11 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	}
 
 	// If the release target configuration has changed, we need to uninstall the
-	// previous release target first. If we would not do this, the installation would
+	// previous release target first. If we did not do this, the installation would
 	// fail due to resources already existing.
 	if action.ReleaseTargetChanged(obj, loadedChart.Name()) {
 		log.Info("release target configuration changed: running uninstall for current release")
-		if err = r.uninstall(ctx, getter, obj); err != nil && !errors.Is(err, intreconcile.ErrNoCurrent) {
+		if err = r.reconcileUninstall(ctx, getter, obj); err != nil && !errors.Is(err, intreconcile.ErrNoCurrent) {
 			return ctrl.Result{}, err
 		}
 		obj.Status.Current = nil
@@ -304,7 +309,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	obj.Status.LastAttemptedConfigDigest = chartutil.DigestValues(digest.Canonical, values).String()
 	obj.Status.LastAttemptedValuesChecksum = ""
 
-	// Construct config factory
+	// Construct config factory for any further Helm actions.
 	cfg, err := action.NewConfigFactory(getter, action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace))
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "FactoryError", err.Error())
@@ -325,32 +330,58 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 // reconcileDelete deletes the v1beta2.HelmChart of the v2beta2.HelmRelease,
 // and uninstalls the Helm release if the resource has not been suspended.
 func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, obj *v2.HelmRelease) (ctrl.Result, error) {
-	// Only uninstall the Helm Release if the resource is not suspended.
-	if !obj.Spec.Suspend {
-		// Build client getter
-		getter, err := r.buildRESTClientGetter(ctx, obj)
-		if err != nil {
-			conditions.MarkFalse(obj, meta.ReadyCondition, "GetterError", err.Error())
-			return ctrl.Result{}, err
-		}
+	if obj.Status.Current != nil {
+		// Only uninstall the Helm Release if the resource is not suspended.
+		if !obj.Spec.Suspend {
+			// Build client getter.
+			getter, err := r.buildRESTClientGetter(ctx, obj)
+			if err != nil {
+				conditions.MarkFalse(obj, meta.ReadyCondition, "GetterError", err.Error())
+				return ctrl.Result{}, err
+			}
 
-		err = r.uninstall(ctx, getter, obj)
-		if err != nil && !errors.Is(err, intreconcile.ErrNoCurrent) {
-			return ctrl.Result{}, err
+			// Attempt to uninstall the release.
+			err = r.reconcileUninstall(ctx, getter, obj)
+			if err != nil && !errors.Is(err, intreconcile.ErrNoCurrent) {
+				return ctrl.Result{}, err
+			}
+			if err == nil {
+				ctrl.LoggerFrom(ctx).Info("uninstalled Helm release for deleted resource")
+			}
+
+			// Truncate the current release details in the status.
+			obj.Status.Current = nil
+			obj.Status.StorageNamespace = ""
+		} else {
+			ctrl.LoggerFrom(ctx).Info("skipping Helm uninstall for suspended resource")
 		}
-		if err == nil {
-			ctrl.LoggerFrom(ctx).Info("uninstalled Helm release for deleted resource")
-		}
-	} else {
-		ctrl.LoggerFrom(ctx).Info("skipping Helm uninstall for suspended resource")
 	}
 
-	// Remove our finalizer from the list.
-	controllerutil.RemoveFinalizer(obj, v2.HelmReleaseFinalizer)
-	return ctrl.Result{}, nil
+	// Delete the HelmChart resource.
+	if err := r.reconcileChartTemplate(ctx, obj); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if !obj.DeletionTimestamp.IsZero() {
+		// Remove our finalizer from the list.
+		controllerutil.RemoveFinalizer(obj, v2.HelmReleaseFinalizer)
+
+		// Stop reconciliation as the object is being deleted.
+		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{Requeue: true}, nil
 }
 
-func (r *HelmReleaseReconciler) uninstall(ctx context.Context, getter genericclioptions.RESTClientGetter, obj *v2.HelmRelease) error {
+// reconcileChartTemplate reconciles the HelmChart template from the HelmRelease.
+// Effectively, this means that the HelmChart resource is created, updated or
+// deleted based on the state of the HelmRelease.
+func (r *HelmReleaseReconciler) reconcileChartTemplate(ctx context.Context, obj *v2.HelmRelease) error {
+	return intreconcile.NewHelmChartTemplate(r.Client, r.EventRecorder, r.FieldManager).Reconcile(ctx, &intreconcile.Request{
+		Object: obj,
+	})
+}
+
+func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter genericclioptions.RESTClientGetter, obj *v2.HelmRelease) error {
 	// Construct config factory for current release.
 	cfg, err := action.NewConfigFactory(getter, action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace))
 	if err != nil {
@@ -419,18 +450,16 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *
 // getHelmChart retrieves the v1beta2.HelmChart for the given v2beta2.HelmRelease
 // using the name that is advertised in the status object.
 // It returns the v1beta2.HelmChart, or an error.
-func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1.HelmChart, error) {
-	namespace, name := hr.Status.GetHelmChart()
-	chartName := types.NamespacedName{Namespace: namespace, Name: name}
-	if r.NoCrossNamespaceRef && chartName.Namespace != hr.Namespace {
-		return nil, acl.AccessDeniedError(fmt.Sprintf("can't access '%s/%s', cross-namespace references have been blocked",
-			hr.Spec.Chart.Spec.SourceRef.Kind, types.NamespacedName{
-				Namespace: hr.Spec.Chart.Spec.SourceRef.Namespace,
-				Name:      hr.Spec.Chart.Spec.SourceRef.Name,
-			}))
+func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, obj *v2.HelmRelease) (*sourcev1.HelmChart, error) {
+	namespace, name := obj.Status.GetHelmChart()
+	chartRef := types.NamespacedName{Namespace: namespace, Name: name}
+
+	if err := intacl.AllowsAccessTo(obj, sourcev1.HelmChartKind, chartRef); err != nil {
+		return nil, err
 	}
+
 	hc := sourcev1.HelmChart{}
-	if err := r.Client.Get(ctx, chartName, &hc); err != nil {
+	if err := r.Client.Get(ctx, chartRef, &hc); err != nil {
 		return nil, err
 	}
 	return &hc, nil
