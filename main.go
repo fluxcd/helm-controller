@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	intacl "github.com/fluxcd/helm-controller/internal/acl"
 	"os"
 	"time"
 
@@ -52,6 +51,7 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	// +kubebuilder:scaffold:imports
 
+	intacl "github.com/fluxcd/helm-controller/internal/acl"
 	"github.com/fluxcd/helm-controller/internal/controller"
 	"github.com/fluxcd/helm-controller/internal/features"
 	intkube "github.com/fluxcd/helm-controller/internal/kube"
@@ -245,16 +245,15 @@ func main() {
 	statusPoller := polling.NewStatusPoller(mgr.GetClient(), mgr.GetRESTMapper(), pollingOpts)
 
 	if err = (&controller.HelmReleaseReconciler{
-		Client:         mgr.GetClient(),
-		Config:         mgr.GetConfig(),
-		Scheme:         mgr.GetScheme(),
-		EventRecorder:  eventRecorder,
-		Metrics:        metricsH,
-		ClientOpts:     clientOptions,
-		KubeConfigOpts: kubeConfigOpts,
-		PollingOpts:    pollingOpts,
-		StatusPoller:   statusPoller,
-		FieldManager:   controllerName,
+		Client:           mgr.GetClient(),
+		EventRecorder:    eventRecorder,
+		Metrics:          metricsH,
+		GetClusterConfig: ctrl.GetConfig,
+		ClientOpts:       clientOptions,
+		KubeConfigOpts:   kubeConfigOpts,
+		PollingOpts:      pollingOpts,
+		StatusPoller:     statusPoller,
+		FieldManager:     controllerName,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		DependencyRequeueInterval: requeueDependency,
 		HTTPRetry:                 httpRetry,

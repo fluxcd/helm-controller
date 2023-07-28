@@ -20,12 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	intacl "github.com/fluxcd/helm-controller/internal/acl"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	apierrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -54,6 +52,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	intacl "github.com/fluxcd/helm-controller/internal/acl"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/digest"
@@ -76,11 +75,9 @@ type HelmReleaseReconciler struct {
 	kuberecorder.EventRecorder
 	helper.Metrics
 
-	Config *rest.Config
-	Scheme *runtime.Scheme
-
-	ClientOpts     runtimeClient.Options
-	KubeConfigOpts runtimeClient.KubeConfigOptions
+	GetClusterConfig func() (*rest.Config, error)
+	ClientOpts       runtimeClient.Options
+	KubeConfigOpts   runtimeClient.KubeConfigOptions
 
 	PollingOpts  polling.Options
 	StatusPoller *polling.StatusPoller
@@ -222,7 +219,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	if c := len(obj.Spec.DependsOn); c > 0 {
 		log.Info(fmt.Sprintf("checking %d dependencies", c))
 
-		if err := r.checkDependencies(obj); err != nil {
+		if err := r.checkDependencies(ctx, obj); err != nil {
 			msg := fmt.Sprintf("dependencies do not meet ready condition (%s): retrying in %s",
 				err.Error(), r.requeueDependency.String())
 			r.Eventf(obj, obj.Status.Current.ChartVersion, corev1.EventTypeWarning, err.Error())
@@ -330,46 +327,40 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 // reconcileDelete deletes the v1beta2.HelmChart of the v2beta2.HelmRelease,
 // and uninstalls the Helm release if the resource has not been suspended.
 func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, obj *v2.HelmRelease) (ctrl.Result, error) {
-	if obj.Status.Current != nil {
-		// Only uninstall the Helm Release if the resource is not suspended.
-		if !obj.Spec.Suspend {
-			// Build client getter.
-			getter, err := r.buildRESTClientGetter(ctx, obj)
-			if err != nil {
-				conditions.MarkFalse(obj, meta.ReadyCondition, "GetterError", err.Error())
-				return ctrl.Result{}, err
-			}
-
-			// Attempt to uninstall the release.
-			err = r.reconcileUninstall(ctx, getter, obj)
-			if err != nil && !errors.Is(err, intreconcile.ErrNoCurrent) {
-				return ctrl.Result{}, err
-			}
-			if err == nil {
-				ctrl.LoggerFrom(ctx).Info("uninstalled Helm release for deleted resource")
-			}
-
-			// Truncate the current release details in the status.
-			obj.Status.Current = nil
-			obj.Status.StorageNamespace = ""
-		} else {
-			ctrl.LoggerFrom(ctx).Info("skipping Helm uninstall for suspended resource")
+	// Only uninstall the Helm Release if the resource is not suspended.
+	if !obj.Spec.Suspend {
+		// Build client getter.
+		getter, err := r.buildRESTClientGetter(ctx, obj)
+		if err != nil {
+			conditions.MarkFalse(obj, meta.ReadyCondition, "GetterError", err.Error())
+			return ctrl.Result{}, err
 		}
+
+		// Attempt to uninstall the release.
+		if err = r.reconcileUninstall(ctx, getter, obj); err != nil && !errors.Is(err, intreconcile.ErrNoCurrent) {
+			return ctrl.Result{}, err
+		}
+		if err == nil {
+			ctrl.LoggerFrom(ctx).Info("uninstalled Helm release for deleted resource")
+		}
+
+		// Truncate the current release details in the status.
+		obj.Status.Current = nil
+		obj.Status.StorageNamespace = ""
+
+		// Delete the HelmChart resource.
+		if err := r.reconcileChartTemplate(ctx, obj); err != nil {
+			return ctrl.Result{}, err
+		}
+	} else {
+		ctrl.LoggerFrom(ctx).Info("skipping Helm uninstall and chart removal for suspended resource")
 	}
 
-	// Delete the HelmChart resource.
-	if err := r.reconcileChartTemplate(ctx, obj); err != nil {
-		return ctrl.Result{}, err
-	}
+	// Remove our finalizer from the list.
+	controllerutil.RemoveFinalizer(obj, v2.HelmReleaseFinalizer)
 
-	if !obj.DeletionTimestamp.IsZero() {
-		// Remove our finalizer from the list.
-		controllerutil.RemoveFinalizer(obj, v2.HelmReleaseFinalizer)
-
-		// Stop reconciliation as the object is being deleted.
-		return ctrl.Result{}, nil
-	}
-	return ctrl.Result{Requeue: true}, nil
+	// Stop reconciliation as the object is being deleted.
+	return ctrl.Result{}, nil
 }
 
 // reconcileChartTemplate reconciles the HelmChart template from the HelmRelease.
@@ -397,23 +388,23 @@ func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter g
 // are Ready.
 // It returns an error if a dependency can not be retrieved or is not Ready,
 // otherwise nil.
-func (r *HelmReleaseReconciler) checkDependencies(obj *v2.HelmRelease) error {
+func (r *HelmReleaseReconciler) checkDependencies(ctx context.Context, obj *v2.HelmRelease) error {
 	for _, d := range obj.Spec.DependsOn {
-		if d.Namespace == "" {
-			d.Namespace = obj.GetNamespace()
-		}
-		dName := types.NamespacedName{
+		ref := types.NamespacedName{
 			Namespace: d.Namespace,
 			Name:      d.Name,
 		}
-		dHr := &v2.HelmRelease{}
-		err := r.Get(context.Background(), dName, dHr)
-		if err != nil {
-			return fmt.Errorf("unable to get '%s' dependency: %w", dName, err)
+		if ref.Namespace == "" {
+			ref.Namespace = obj.GetNamespace()
 		}
 
-		if dHr.Generation != dHr.Status.ObservedGeneration || len(dHr.Status.Conditions) == 0 || !conditions.IsTrue(dHr, meta.ReadyCondition) {
-			return fmt.Errorf("dependency '%s' is not ready", dName)
+		dHr := &v2.HelmRelease{}
+		if err := r.Get(ctx, ref, dHr); err != nil {
+			return fmt.Errorf("unable to get '%s' dependency: %w", ref, err)
+		}
+
+		if dHr.Generation != dHr.Status.ObservedGeneration || !conditions.IsTrue(dHr, meta.ReadyCondition) {
+			return fmt.Errorf("dependency '%s' is not ready", ref)
 		}
 	}
 	return nil
@@ -444,7 +435,12 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *
 		}
 		return kube.NewMemoryRESTClientGetter(kubeConfig, opts...), nil
 	}
-	return kube.NewInClusterMemoryRESTClientGetter(opts...)
+
+	cfg, err := r.GetClusterConfig()
+	if err != nil {
+		return nil, fmt.Errorf("could not get in-cluster REST config: %w", err)
+	}
+	return kube.NewMemoryRESTClientGetter(cfg, opts...), nil
 }
 
 // getHelmChart retrieves the v1beta2.HelmChart for the given v2beta2.HelmRelease
