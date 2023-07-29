@@ -1,5 +1,7 @@
 # Helm Releases
 
+<!-- menuweight:20 -->
+
 The `HelmRelease` API defines a resource for automated controller driven Helm releases.
 
 ## Specification
