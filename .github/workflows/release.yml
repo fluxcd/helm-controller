@@ -123,7 +123,7 @@ jobs:
       id-token: write # for creating OIDC tokens for signing.
       contents: write # for uploading attestations to GitHub releases.
     if: startsWith(github.ref, 'refs/tags/v')
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.7.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.8.0
     with:
       provenance-name: "provenance.intoto.jsonl"
       base64-subjects: "${{ needs.release.outputs.hashes }}"
@@ -136,7 +136,7 @@ jobs:
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations.
     if: startsWith(github.ref, 'refs/tags/v')
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.7.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.8.0
     with:
       image: ${{ needs.release.outputs.image_url }}
       digest: ${{ needs.release.outputs.image_digest }}
@@ -151,7 +151,7 @@ jobs:
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations.
     if: startsWith(github.ref, 'refs/tags/v')
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.7.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.8.0
     with:
       image: ghcr.io/${{ needs.release.outputs.image_url }}
       digest: ${{ needs.release.outputs.image_digest }}
