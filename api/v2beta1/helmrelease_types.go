@@ -70,6 +70,8 @@ type HelmReleaseSpec struct {
 	Chart HelmChartTemplate `json:"chart"`
 
 	// Interval at which to reconcile the Helm release.
+	// This interval is approximate and may be subject to jitter to ensure
+	// efficient use of resources.
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +required

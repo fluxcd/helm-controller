@@ -20,6 +20,8 @@ type HelmReleaseSpec struct {
 	Chart HelmChartTemplate `json:"chart"`
 
 	// Interval at which to reconcile the Helm release.
+	// This interval is approximate and may be subject to jitter to ensure
+	// efficient use of resources.
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
@@ -821,6 +823,11 @@ desired state, so an upgrade is made in this case as well.
 
 The `spec.interval` tells the reconciler at which interval to reconcile the release. The
 interval time units are `s`, `m` and `h` e.g. `interval: 5m`, the minimum value should be 60 seconds.
+
+**Note:** The controller can be configured to apply a jitter to the interval in
+order to distribute the load more evenly when multiple HelmRelease objects are
+set up with the same interval. For more information, please refer to the
+[helm-controller configuration options](https://fluxcd.io/flux/components/helm/options/).
 
 The reconciler can be told to reconcile the `HelmRelease` outside of the specified interval
 by annotating the object with a `reconcile.fluxcd.io/requestedAt` annotation. For example:

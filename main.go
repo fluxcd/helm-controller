@@ -41,6 +41,7 @@ import (
 	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/events"
 	feathelper "github.com/fluxcd/pkg/runtime/features"
+	"github.com/fluxcd/pkg/runtime/jitter"
 	"github.com/fluxcd/pkg/runtime/leaderelection"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/metrics"
@@ -89,6 +90,7 @@ func main() {
 		leaderElectionOptions     leaderelection.Options
 		rateLimiterOptions        helper.RateLimiterOptions
 		watchOptions              helper.WatchOptions
+		intervalJitterOptions     jitter.IntervalOptions
 		oomWatchInterval          time.Duration
 		oomWatchMemoryThreshold   uint8
 		oomWatchMaxMemoryPath     string
@@ -128,6 +130,7 @@ func main() {
 	kubeConfigOpts.BindFlags(flag.CommandLine)
 	featureGates.BindFlags(flag.CommandLine)
 	watchOptions.BindFlags(flag.CommandLine)
+	intervalJitterOptions.BindFlags(flag.CommandLine)
 
 	flag.Parse()
 
@@ -142,6 +145,11 @@ func main() {
 
 	metricsRecorder := metrics.NewRecorder()
 	crtlmetrics.Registry.MustRegister(metricsRecorder.Collectors()...)
+
+	if err := intervalJitterOptions.SetGlobalJitter(nil); err != nil {
+		setupLog.Error(err, "unable to set global jitter")
+		os.Exit(1)
+	}
 
 	watchNamespace := ""
 	if !watchOptions.AllNamespaces {
