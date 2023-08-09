@@ -42,6 +42,9 @@ jobs:
         uses: github/codeql-action/init@0ba4244466797eb048eb91a6cd43d5c03ca8bd05 # v2.21.2
         with:
           languages: go
+          # xref: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
+          # xref: https://codeql.github.com/codeql-query-help/go/
+          queries: security-and-quality
       - name: Autobuild
         uses: github/codeql-action/autobuild@0ba4244466797eb048eb91a6cd43d5c03ca8bd05 # v2.21.2
       - name: Perform CodeQL Analysis
