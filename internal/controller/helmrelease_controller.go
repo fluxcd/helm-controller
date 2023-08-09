@@ -54,6 +54,7 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/acl"
 	runtimeClient "github.com/fluxcd/pkg/runtime/client"
+	"github.com/fluxcd/pkg/runtime/jitter"
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	"github.com/fluxcd/pkg/runtime/transform"
@@ -233,7 +234,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 			log.Error(reconcileErr, "access denied to cross-namespace source")
 			r.event(ctx, hr, hr.Status.LastAttemptedRevision, eventv1.EventSeverityError, reconcileErr.Error())
 			return v2.HelmReleaseNotReady(hr, apiacl.AccessDeniedReason, reconcileErr.Error()),
-				ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, nil
+				jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: hr.GetRequeueAfter()}), nil
 		}
 
 		msg := fmt.Sprintf("chart reconciliation failed: %s", reconcileErr.Error())
@@ -248,7 +249,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 		log.Info(msg)
 		// Do not requeue immediately, when the artifact is created
 		// the watcher should trigger a reconciliation.
-		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), ctrl.Result{RequeueAfter: hc.Spec.Interval.Duration}, nil
+		return v2.HelmReleaseNotReady(hr, v2.ArtifactFailedReason, msg), jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: hr.GetRequeueAfter()}), nil
 	}
 
 	// Check dependencies
@@ -287,7 +288,7 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 		r.event(ctx, hr, hc.GetArtifact().Revision, eventv1.EventSeverityError,
 			fmt.Sprintf("reconciliation failed: %s", reconcileErr.Error()))
 	}
-	return reconciledHr, ctrl.Result{RequeueAfter: hr.Spec.Interval.Duration}, reconcileErr
+	return reconciledHr, jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: hr.GetRequeueAfter()}), reconcileErr
 }
 
 type HelmReleaseReconcilerOptions struct {
