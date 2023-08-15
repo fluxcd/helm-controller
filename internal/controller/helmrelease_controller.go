@@ -37,7 +37,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	kuberecorder "k8s.io/client-go/tools/record"
-	"k8s.io/client-go/tools/reference"
 	"sigs.k8s.io/cli-utils/pkg/kstatus/polling"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -54,8 +53,8 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/acl"
 	runtimeClient "github.com/fluxcd/pkg/runtime/client"
+	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/jitter"
-	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	"github.com/fluxcd/pkg/runtime/transform"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
@@ -78,11 +77,11 @@ import (
 // HelmReleaseReconciler reconciles a HelmRelease object
 type HelmReleaseReconciler struct {
 	client.Client
+	helper.Metrics
 
 	Config                *rest.Config
 	Scheme                *runtime.Scheme
 	EventRecorder         kuberecorder.EventRecorder
-	MetricsRecorder       *metrics.Recorder
 	DefaultServiceAccount string
 	NoCrossNamespaceRef   bool
 	ClientOpts            runtimeClient.Options
@@ -153,8 +152,12 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// record suspension metrics
-	defer r.recordSuspension(ctx, hr)
+	defer func() {
+		// Always record metrics.
+		r.Metrics.RecordSuspend(ctx, &hr, hr.Spec.Suspend)
+		r.Metrics.RecordReadiness(ctx, &hr)
+		r.Metrics.RecordDuration(ctx, &hr, start)
+	}()
 
 	// Add our finalizer if it does not exist
 	if !controllerutil.ContainsFinalizer(&hr, v2.HelmReleaseFinalizer) {
@@ -168,7 +171,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Examine if the object is under deletion
 	if !hr.ObjectMeta.DeletionTimestamp.IsZero() {
-		return r.reconcileDelete(ctx, hr)
+		return r.reconcileDelete(ctx, &hr)
 	}
 
 	// Return early if the HelmRelease is suspended.
@@ -185,9 +188,6 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{Requeue: true}, updateStatusErr
 	}
 
-	// Record ready status
-	r.recordReadiness(ctx, hr)
-
 	// Log reconciliation duration
 	durationMsg := fmt.Sprintf("reconciliation finished in %s", time.Now().Sub(start).String())
 	if result.RequeueAfter > 0 {
@@ -199,7 +199,6 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease) (v2.HelmRelease, ctrl.Result, error) {
-	reconcileStart := time.Now()
 	log := ctrl.LoggerFrom(ctx)
 	// Record the value of the reconciliation request, if any
 	if v, ok := meta.ReconcileAnnotationValue(hr.GetAnnotations()); ok {
@@ -214,17 +213,6 @@ func (r *HelmReleaseReconciler) reconcile(ctx context.Context, hr v2.HelmRelease
 			log.Error(updateStatusErr, "unable to update status after generation update")
 			return hr, ctrl.Result{Requeue: true}, updateStatusErr
 		}
-		// Record progressing status
-		r.recordReadiness(ctx, hr)
-	}
-
-	// Record reconciliation duration
-	if r.MetricsRecorder != nil {
-		objRef, err := reference.GetReference(r.Scheme, &hr)
-		if err != nil {
-			return hr, ctrl.Result{Requeue: true}, err
-		}
-		defer r.MetricsRecorder.RecordDuration(*objRef, reconcileStart)
 	}
 
 	// Reconcile chart based on the HelmChartTemplate
@@ -371,8 +359,6 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 			log.Error(updateStatusErr, "unable to update status after state update")
 			return hr, updateStatusErr
 		}
-		// Record progressing status
-		r.recordReadiness(ctx, hr)
 	}
 
 	// Check status of any previous release attempt.
@@ -670,12 +656,11 @@ func (r *HelmReleaseReconciler) composeValues(ctx context.Context, hr v2.HelmRel
 // and uninstalls the Helm release if the resource has not been suspended.
 // It only performs a Helm uninstall if the ServiceAccount to be impersonated
 // exists.
-func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmRelease) (ctrl.Result, error) {
-	r.recordReadiness(ctx, hr)
+func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr *v2.HelmRelease) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 
 	// Delete the HelmChart that belongs to this resource.
-	if err := r.deleteHelmChart(ctx, &hr); err != nil {
+	if err := r.deleteHelmChart(ctx, hr); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -693,7 +678,7 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmR
 		)
 
 		if impersonator.CanImpersonate(ctx) {
-			getter, err := r.buildRESTClientGetter(ctx, hr)
+			getter, err := r.buildRESTClientGetter(ctx, *hr)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -701,7 +686,7 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmR
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			if err := run.Uninstall(hr); err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
+			if err := run.Uninstall(*hr); err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
 				return ctrl.Result{}, err
 			}
 			log.Info("uninstalled Helm release for deleted resource")
@@ -709,15 +694,15 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr v2.HelmR
 			err := fmt.Errorf("failed to find service account to impersonate")
 			msg := "skipping Helm uninstall"
 			log.Error(err, msg)
-			r.event(ctx, hr, hr.Status.LastAppliedRevision, eventv1.EventSeverityError, fmt.Sprintf("%s: %s", msg, err.Error()))
+			r.event(ctx, *hr, hr.Status.LastAppliedRevision, eventv1.EventSeverityError, fmt.Sprintf("%s: %s", msg, err.Error()))
 		}
 	} else {
 		ctrl.LoggerFrom(ctx).Info("skipping Helm uninstall for suspended resource")
 	}
 
 	// Remove our finalizer from the list and update it.
-	controllerutil.RemoveFinalizer(&hr, v2.HelmReleaseFinalizer)
-	if err := r.Update(ctx, &hr); err != nil {
+	controllerutil.RemoveFinalizer(hr, v2.HelmReleaseFinalizer)
+	if err := r.Update(ctx, hr); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -816,43 +801,4 @@ func (r *HelmReleaseReconciler) event(_ context.Context, hr v2.HelmRelease, revi
 		eventType = corev1.EventTypeWarning
 	}
 	r.EventRecorder.AnnotatedEventf(&hr, eventMeta, eventType, severity, msg)
-}
-
-func (r *HelmReleaseReconciler) recordSuspension(ctx context.Context, hr v2.HelmRelease) {
-	if r.MetricsRecorder == nil {
-		return
-	}
-	log := ctrl.LoggerFrom(ctx)
-
-	objRef, err := reference.GetReference(r.Scheme, &hr)
-	if err != nil {
-		log.Error(err, "unable to record suspended metric")
-		return
-	}
-
-	if !hr.DeletionTimestamp.IsZero() {
-		r.MetricsRecorder.RecordSuspend(*objRef, false)
-	} else {
-		r.MetricsRecorder.RecordSuspend(*objRef, hr.Spec.Suspend)
-	}
-}
-
-func (r *HelmReleaseReconciler) recordReadiness(ctx context.Context, hr v2.HelmRelease) {
-	if r.MetricsRecorder == nil {
-		return
-	}
-
-	objRef, err := reference.GetReference(r.Scheme, &hr)
-	if err != nil {
-		ctrl.LoggerFrom(ctx).Error(err, "unable to record readiness metric")
-		return
-	}
-	if rc := apimeta.FindStatusCondition(hr.Status.Conditions, meta.ReadyCondition); rc != nil {
-		r.MetricsRecorder.RecordCondition(*objRef, *rc, !hr.DeletionTimestamp.IsZero())
-	} else {
-		r.MetricsRecorder.RecordCondition(*objRef, metav1.Condition{
-			Type:   meta.ReadyCondition,
-			Status: metav1.ConditionUnknown,
-		}, !hr.DeletionTimestamp.IsZero())
-	}
 }
