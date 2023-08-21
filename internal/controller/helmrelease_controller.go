@@ -20,12 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	apierrors "k8s.io/apimachinery/pkg/util/errors"
+	apierrutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	kuberecorder "k8s.io/client-go/tools/record"
@@ -170,7 +172,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 		if err := patchHelper.Patch(ctx, obj, patchOpts...); err != nil {
 			if retErr != nil {
-				retErr = apierrors.NewAggregate([]error{retErr, err})
+				retErr = apierrutil.NewAggregate([]error{retErr, err})
 			} else {
 				retErr = err
 			}
@@ -327,40 +329,119 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 // reconcileDelete deletes the v1beta2.HelmChart of the v2beta2.HelmRelease,
 // and uninstalls the Helm release if the resource has not been suspended.
 func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, obj *v2.HelmRelease) (ctrl.Result, error) {
-	// Only uninstall the Helm Release if the resource is not suspended.
+	// Only uninstall the release and delete the HelmChart resource if the
+	// resource is not suspended.
 	if !obj.Spec.Suspend {
-		// Build client getter.
-		getter, err := r.buildRESTClientGetter(ctx, obj)
-		if err != nil {
-			conditions.MarkFalse(obj, meta.ReadyCondition, "GetterError", err.Error())
+		if err := r.reconcileReleaseDeletion(ctx, obj); err != nil {
 			return ctrl.Result{}, err
 		}
 
-		// Attempt to uninstall the release.
-		if err = r.reconcileUninstall(ctx, getter, obj); err != nil && !errors.Is(err, intreconcile.ErrNoCurrent) {
-			return ctrl.Result{}, err
-		}
-		if err == nil {
-			ctrl.LoggerFrom(ctx).Info("uninstalled Helm release for deleted resource")
-		}
-
-		// Truncate the current release details in the status.
-		obj.Status.Current = nil
-		obj.Status.StorageNamespace = ""
-
-		// Delete the HelmChart resource.
 		if err := r.reconcileChartTemplate(ctx, obj); err != nil {
 			return ctrl.Result{}, err
 		}
-	} else {
-		ctrl.LoggerFrom(ctx).Info("skipping Helm uninstall and chart removal for suspended resource")
 	}
 
-	// Remove our finalizer from the list.
-	controllerutil.RemoveFinalizer(obj, v2.HelmReleaseFinalizer)
+	if !obj.DeletionTimestamp.IsZero() {
+		// Remove our finalizer from the list.
+		controllerutil.RemoveFinalizer(obj, v2.HelmReleaseFinalizer)
 
-	// Stop reconciliation as the object is being deleted.
-	return ctrl.Result{}, nil
+		// Stop reconciliation as the object is being deleted.
+		return ctrl.Result{}, nil
+	}
+
+	return ctrl.Result{Requeue: true}, nil
+}
+
+// handleReleaseDeletion handles the deletion of a HelmRelease resource.
+//
+// Before uninstalling the release, it will check if the current configuration
+// allows for uninstallation. If this is not the case, for example because a
+// Secret reference is missing, it will skip the uninstallation gracefully.
+//
+// If the release is uninstalled successfully, the HelmRelease resource will
+// be marked as ready and the current status will be cleared. If the release
+// cannot be uninstalled, the HelmRelease resource will be marked as not ready
+// and the error will be recorded in the status.
+//
+// Any returned error signals that the release could not be uninstalled, and
+// the reconciliation should be retried.
+func (r *HelmReleaseReconciler) reconcileReleaseDeletion(ctx context.Context, obj *v2.HelmRelease) error {
+	// If the release is not marked for deletion, we should not attempt to
+	// uninstall it.
+	if obj.DeletionTimestamp.IsZero() {
+		return fmt.Errorf("refusing to uninstall Helm release: deletion timestamp is not set")
+	}
+
+	// If the release has not been installed yet, we can skip the uninstallation.
+	if obj.Status.StorageNamespace == "" {
+		ctrl.LoggerFrom(ctx).Info("skipping Helm release uninstallation: no storage namespace configured")
+		return nil
+	}
+
+	// Build client getter.
+	getter, err := r.buildRESTClientGetter(ctx, obj)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Without a Secret reference, we cannot get a REST client
+			// to uninstall the release.
+			ctrl.LoggerFrom(ctx).Error(err, "skipping Helm release uninstallation")
+			return nil
+		}
+
+		conditions.MarkFalse(obj, meta.ReadyCondition, v2.UninstallFailedReason,
+			"failed to build REST client getter to uninstall release: %s", err.Error())
+		return err
+	}
+
+	// Confirm any ServiceAccount used for impersonation exists before
+	// attempting to uninstall.
+	// If the ServiceAccount does not exist, for example, because the
+	// namespace is being terminated, we should not attempt to uninstall the
+	// release.
+	if obj.Spec.KubeConfig == nil {
+		cfg, err := getter.ToRESTConfig()
+		if err != nil {
+			// This should never happen.
+			return err
+		}
+
+		if serviceAccount := cfg.Impersonate.UserName; serviceAccount != "" {
+			i := strings.LastIndex(serviceAccount, ":")
+			if i != -1 {
+				serviceAccount = serviceAccount[i+1:]
+			}
+
+			if err = r.Client.Get(ctx, types.NamespacedName{
+				Namespace: obj.GetNamespace(),
+				Name:      serviceAccount,
+			}, &corev1.ServiceAccount{}); err != nil {
+				if client.IgnoreNotFound(err) == nil {
+					// Without a ServiceAccount reference, we cannot confirm
+					// the ServiceAccount exists.
+					ctrl.LoggerFrom(ctx).Error(err, "skipping Helm release uninstallation")
+					return nil
+				}
+
+				conditions.MarkFalse(obj, meta.ReadyCondition, v2.UninstallFailedReason,
+					"failed to confirm ServiceAccount '%s' can be used to uninstall release: %s", serviceAccount, err.Error())
+				return err
+			}
+		}
+	}
+
+	// Attempt to uninstall the release.
+	if err = r.reconcileUninstall(ctx, getter, obj); err != nil && !errors.Is(err, intreconcile.ErrNoCurrent) {
+		return err
+	}
+	if err == nil {
+		ctrl.LoggerFrom(ctx).Info("uninstalled Helm release for deleted resource")
+	}
+
+	// Truncate the current release details in the status.
+	obj.Status.Current = nil
+	obj.Status.StorageNamespace = ""
+
+	return nil
 }
 
 // reconcileChartTemplate reconciles the HelmChart template from the HelmRelease.

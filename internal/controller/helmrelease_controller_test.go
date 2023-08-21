@@ -19,21 +19,25 @@ package controller
 import (
 	"context"
 	"errors"
-	"k8s.io/client-go/rest"
 	"strings"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
+	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmstorage "helm.sh/helm/v3/pkg/storage"
+	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/yaml"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -42,9 +46,499 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/acl"
+	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/reconcile"
+	"github.com/fluxcd/helm-controller/internal/release"
+	"github.com/fluxcd/helm-controller/internal/testutil"
 )
+
+func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
+	t.Run("uninstalls Helm release and removes chart", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Create a test namespace for storing the Helm release mock.
+		ns, err := testEnv.CreateNamespace(context.TODO(), "reconcile-delete")
+		g.Expect(err).ToNot(HaveOccurred())
+		t.Cleanup(func() {
+			_ = testEnv.Delete(context.TODO(), ns)
+		})
+
+		// Create HelmChart mock.
+		hc := &sourcev1.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "reconcile-delete",
+				Namespace: ns.Name,
+			},
+			Spec: sourcev1.HelmChartSpec{
+				Chart:   "testdata/test-helmrepo",
+				Version: "0.1.0",
+				SourceRef: sourcev1.LocalHelmChartSourceReference{
+					Kind: sourcev1.HelmRepositoryKind,
+					Name: "reconcile-delete",
+				},
+			},
+		}
+		g.Expect(testEnv.Create(context.TODO(), hc)).To(Succeed())
+		t.Cleanup(func() {
+			_ = testEnv.Delete(context.TODO(), hc)
+		})
+
+		// Create a test Helm release storage mock.
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      "reconcile-delete",
+			Namespace: ns.Namespace,
+			Version:   1,
+			Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
+			Status:    helmrelease.StatusDeployed,
+		})
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "reconcile-delete",
+				Namespace:         ns.Name,
+				Finalizers:        []string{v2.HelmReleaseFinalizer},
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+			Status: v2.HelmReleaseStatus{
+				StorageNamespace: ns.Name,
+				Current:          release.ObservedToInfo(release.ObserveRelease(rls)),
+				HelmChart:        hc.Namespace + "/" + hc.Name,
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client:           testEnv.Client,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
+		}
+
+		// Store the Helm release mock in the test namespace.
+		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		g.Expect(err).ToNot(HaveOccurred())
+
+		store := helmstorage.Init(cfg.Driver)
+		g.Expect(store.Create(rls)).To(Succeed())
+
+		// Reconcile the actual deletion of the Helm release.
+		res, err := r.reconcileDelete(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(res.IsZero()).To(BeTrue())
+
+		// Verify Helm release has been uninstalled.
+		_, err = store.History(rls.Name)
+		g.Expect(err).To(MatchError(helmdriver.ErrReleaseNotFound))
+
+		// Verify Helm chart has been removed.
+		err = testEnv.Get(context.TODO(), client.ObjectKey{
+			Namespace: hc.Namespace,
+			Name:      hc.Name,
+		}, &sourcev1.HelmChart{})
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+	})
+
+	t.Run("removes finalizer for suspended resource with DeletionTimestamp", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Finalizers:        []string{v2.HelmReleaseFinalizer, "other-finalizer"},
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+			Spec: v2.HelmReleaseSpec{
+				Suspend: true,
+			},
+		}
+
+		res, err := (&HelmReleaseReconciler{}).reconcileDelete(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(res.IsZero()).To(BeTrue())
+
+		g.Expect(obj.GetFinalizers()).To(ConsistOf("other-finalizer"))
+	})
+
+	t.Run("does not remove finalizer when DeletionTimestamp is not set", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Finalizers: []string{v2.HelmReleaseFinalizer},
+			},
+			Spec: v2.HelmReleaseSpec{
+				Suspend: true,
+			},
+		}
+
+		res, err := (&HelmReleaseReconciler{}).reconcileDelete(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(res.Requeue).To(BeTrue())
+
+		g.Expect(obj.GetFinalizers()).To(ConsistOf(v2.HelmReleaseFinalizer))
+	})
+}
+
+func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
+	t.Run("uninstalls Helm release", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Create a test namespace for storing the Helm release mock.
+		ns, err := testEnv.CreateNamespace(context.TODO(), "reconcile-release-deletion")
+		g.Expect(err).ToNot(HaveOccurred())
+		t.Cleanup(func() {
+			_ = testEnv.Delete(context.TODO(), ns)
+		})
+
+		// Create a test Helm release storage mock.
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      "reconcile-delete",
+			Namespace: ns.Namespace,
+			Version:   1,
+			Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
+			Status:    helmrelease.StatusDeployed,
+		})
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "reconcile-delete",
+				Namespace:         ns.Name,
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+			Status: v2.HelmReleaseStatus{
+				StorageNamespace: ns.Name,
+				Current:          release.ObservedToInfo(release.ObserveRelease(rls)),
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client:           testEnv.Client,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
+		}
+
+		// Store the Helm release mock in the test namespace.
+		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		g.Expect(err).ToNot(HaveOccurred())
+
+		store := helmstorage.Init(cfg.Driver)
+		g.Expect(store.Create(rls)).To(Succeed())
+
+		// Reconcile the actual deletion of the Helm release.
+		err = r.reconcileReleaseDeletion(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify status of Helm release has been updated.
+		g.Expect(obj.Status.StorageNamespace).To(BeEmpty())
+		g.Expect(obj.Status.Current).To(BeNil())
+
+		// Verify Helm release has been uninstalled.
+		_, err = store.History(rls.Name)
+		g.Expect(err).To(MatchError(helmdriver.ErrReleaseNotFound))
+	})
+
+	t.Run("skip uninstalling Helm release when KubeConfig Secret is missing", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Create a test namespace for storing the Helm release mock.
+		ns, err := testEnv.CreateNamespace(context.TODO(), "reconcile-release-deletion")
+		g.Expect(err).ToNot(HaveOccurred())
+		t.Cleanup(func() {
+			_ = testEnv.Delete(context.TODO(), ns)
+		})
+
+		// Create a test Helm release storage mock.
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      "reconcile-delete",
+			Namespace: ns.Namespace,
+			Version:   1,
+			Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
+			Status:    helmrelease.StatusDeployed,
+		})
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "reconcile-delete",
+				Namespace:         ns.Name,
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+			Status: v2.HelmReleaseStatus{
+				StorageNamespace: ns.Name,
+				Current:          release.ObservedToInfo(release.ObserveRelease(rls)),
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client:           testEnv.Client,
+			GetClusterConfig: GetTestClusterConfig,
+		}
+
+		// Store the Helm release mock in the test namespace.
+		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		g.Expect(err).ToNot(HaveOccurred())
+
+		store := helmstorage.Init(cfg.Driver)
+		g.Expect(store.Create(rls)).To(Succeed())
+
+		// Reconcile the actual deletion of the Helm release.
+		obj.Spec.KubeConfig = &meta.KubeConfigReference{
+			SecretRef: meta.SecretKeyReference{
+				Name: "missing-secret",
+			},
+		}
+		err = r.reconcileReleaseDeletion(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify status of Helm release has not been updated.
+		g.Expect(obj.Status.StorageNamespace).ToNot(BeEmpty())
+		g.Expect(obj.Status.Current).ToNot(BeNil())
+
+		// Verify Helm release has not been uninstalled.
+		_, err = store.History(rls.Name)
+		g.Expect(err).ToNot(HaveOccurred())
+	})
+
+	t.Run("error when REST client getter construction fails", func(t *testing.T) {
+		g := NewWithT(t)
+
+		mockErr := errors.New("mock error")
+		r := &HelmReleaseReconciler{
+			Client: testEnv.Client,
+			GetClusterConfig: func() (*rest.Config, error) {
+				return nil, mockErr
+			},
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "reconcile-delete",
+				Namespace:         "mock",
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+			Status: v2.HelmReleaseStatus{
+				StorageNamespace: "mock",
+			},
+		}
+
+		// Reconcile the actual deletion of the Helm release.
+		err := r.reconcileReleaseDeletion(context.TODO(), obj)
+		g.Expect(errors.Is(err, mockErr)).To(BeTrue())
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallFailedReason,
+				"failed to build REST client getter to uninstall release"),
+		}))
+
+		// Verify status of Helm release has not been updated.
+		g.Expect(obj.Status.StorageNamespace).ToNot(BeEmpty())
+	})
+
+	t.Run("skip uninstalling Helm release when ServiceAccount is missing", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Create a test namespace for storing the Helm release mock.
+		ns, err := testEnv.CreateNamespace(context.TODO(), "reconcile-release-deletion")
+		g.Expect(err).ToNot(HaveOccurred())
+		t.Cleanup(func() {
+			_ = testEnv.Delete(context.TODO(), ns)
+		})
+
+		// Create a test Helm release storage mock.
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      "reconcile-delete",
+			Namespace: ns.Namespace,
+			Version:   1,
+			Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
+			Status:    helmrelease.StatusDeployed,
+		})
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "reconcile-delete",
+				Namespace:         ns.Name,
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+			Status: v2.HelmReleaseStatus{
+				StorageNamespace: ns.Name,
+				Current:          release.ObservedToInfo(release.ObserveRelease(rls)),
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client:           testEnv.Client,
+			GetClusterConfig: GetTestClusterConfig,
+		}
+
+		// Store the Helm release mock in the test namespace.
+		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		g.Expect(err).ToNot(HaveOccurred())
+
+		store := helmstorage.Init(cfg.Driver)
+		g.Expect(store.Create(rls)).To(Succeed())
+
+		// Reconcile the actual deletion of the Helm release.
+		obj.Spec.ServiceAccountName = "missing-sa"
+		err = r.reconcileReleaseDeletion(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify status of Helm release has not been updated.
+		g.Expect(obj.Status.StorageNamespace).ToNot(BeEmpty())
+		g.Expect(obj.Status.Current).ToNot(BeNil())
+
+		// Verify Helm release has not been uninstalled.
+		_, err = store.History(rls.Name)
+		g.Expect(err).ToNot(HaveOccurred())
+	})
+
+	t.Run("error when ServiceAccount existence check fails", func(t *testing.T) {
+		g := NewWithT(t)
+
+		var (
+			serviceAccount = "missing-sa"
+			namespace      = "mock"
+			mockErr        = errors.New("mock error")
+		)
+
+		c := fake.NewClientBuilder().WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, client client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				if key.Name == serviceAccount && key.Namespace == namespace {
+					return mockErr
+				}
+				return client.Get(ctx, key, obj, opts...)
+			},
+		})
+
+		r := &HelmReleaseReconciler{
+			Client:           c.Build(),
+			GetClusterConfig: GetTestClusterConfig,
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "reconcile-delete",
+				Namespace:         namespace,
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+			Spec: v2.HelmReleaseSpec{
+				ServiceAccountName: serviceAccount,
+			},
+			Status: v2.HelmReleaseStatus{
+				StorageNamespace: namespace,
+			},
+		}
+
+		// Reconcile the actual deletion of the Helm release.
+		err := r.reconcileReleaseDeletion(context.TODO(), obj)
+		g.Expect(errors.Is(err, mockErr)).To(BeTrue())
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallFailedReason,
+				"failed to confirm ServiceAccount '%s' can be used to uninstall release", serviceAccount),
+		}))
+
+		// Verify status of Helm release has not been updated.
+		g.Expect(obj.Status.StorageNamespace).ToNot(BeEmpty())
+	})
+
+	t.Run("error when Helm release uninstallation fails", func(t *testing.T) {
+		g := NewWithT(t)
+
+		r := &HelmReleaseReconciler{
+			Client: testEnv.Client,
+			GetClusterConfig: func() (*rest.Config, error) {
+				return &rest.Config{
+					Host: "https://failing-mock.local",
+				}, nil
+			},
+			EventRecorder: record.NewFakeRecorder(32),
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "reconcile-delete",
+				Namespace:         "mock",
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+			Status: v2.HelmReleaseStatus{
+				StorageNamespace: "mock",
+				Current:          &v2.HelmReleaseInfo{},
+			},
+		}
+
+		err := r.reconcileReleaseDeletion(context.TODO(), obj)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallFailedReason, "Kubernetes cluster unreachable"),
+			*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallFailedReason, "Kubernetes cluster unreachable"),
+		}))
+	})
+
+	t.Run("ignores ErrNoCurrent when uninstalling Helm release", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "reconcile-delete",
+				Namespace:         "mock",
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+			Status: v2.HelmReleaseStatus{
+				StorageNamespace: "mock",
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client:           testEnv.Client,
+			GetClusterConfig: GetTestClusterConfig,
+		}
+
+		// Reconcile the actual deletion of the Helm release.
+		err := r.reconcileReleaseDeletion(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify status of Helm release been updated.
+		g.Expect(obj.Status.StorageNamespace).To(BeEmpty())
+	})
+
+	t.Run("error when DeletionTimestamp is not set", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "reconcile-delete",
+				Namespace: "mock",
+			},
+		}
+
+		err := (&HelmReleaseReconciler{}).reconcileReleaseDeletion(context.TODO(), obj)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("deletion timestamp is not set"))
+	})
+
+	t.Run("skip uninstalling Helm release when StorageNamespace is missing", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "reconcile-delete",
+				Namespace:         "mock",
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+		}
+
+		err := (&HelmReleaseReconciler{}).reconcileReleaseDeletion(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+	})
+}
 
 func TestHelmReleaseReconciler_reconcileChartTemplate(t *testing.T) {
 	t.Run("attempts to reconcile chart template", func(t *testing.T) {

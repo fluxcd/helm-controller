@@ -18,17 +18,19 @@ package controller
 
 import (
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/fluxcd/pkg/runtime/testenv"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	// +kubebuilder:scaffold:imports
@@ -74,4 +76,9 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(code)
+}
+
+// GetTestClusterConfig returns a copy of the test cluster config.
+func GetTestClusterConfig() (*rest.Config, error) {
+	return rest.CopyConfig(testEnv.GetConfig()), nil
 }
