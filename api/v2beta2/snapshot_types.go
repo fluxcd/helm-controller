@@ -25,6 +25,11 @@ import (
 // Snapshot captures a point-in-time copy of the status information for a Helm release,
 // as managed by the controller.
 type Snapshot struct {
+	// APIVersion is the API version of the Snapshot.
+	// Provisional: when the calculation method of the Digest field is changed,
+	// this field will be used to distinguish between the old and new methods.
+	// +optional
+	APIVersion string `json:"apiVersion,omitempty"`
 	// Digest is the checksum of the release object in storage.
 	// It has the format of `<algo>:<checksum>`.
 	// +required

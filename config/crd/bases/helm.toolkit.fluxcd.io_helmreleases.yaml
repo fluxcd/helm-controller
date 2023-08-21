@@ -1802,6 +1802,12 @@ spec:
                 description: Current holds the latest observed Snapshot for the current
                   release.
                 properties:
+                  apiVersion:
+                    description: 'APIVersion is the API version of the Snapshot. Provisional:
+                      when the calculation method of the Digest field is changed,
+                      this field will be used to distinguish between the old and new
+                      methods.'
+                    type: string
                   chartName:
                     description: ChartName is the chart name of the release object
                       in storage.
@@ -1923,6 +1929,12 @@ spec:
                 description: Previous holds the latest observed Snapshot for the previous
                   (succesful) release.
                 properties:
+                  apiVersion:
+                    description: 'APIVersion is the API version of the Snapshot. Provisional:
+                      when the calculation method of the Digest field is changed,
+                      this field will be used to distinguish between the old and new
+                      methods.'
+                    type: string
                   chartName:
                     description: ChartName is the chart name of the release object
                       in storage.

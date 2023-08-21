@@ -1914,6 +1914,20 @@ as managed by the controller.</p>
 <tbody>
 <tr>
 <td>
+<code>apiVersion</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>APIVersion is the API version of the Snapshot.
+Provisional: when the calculation method of the Digest field is changed,
+this field will be used to distinguish between the old and new methods.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>digest</code><br>
 <em>
 string
