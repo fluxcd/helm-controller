@@ -59,7 +59,7 @@ import (
 // propagated to the Ready condition on the Request.Object.
 //
 // The caller is assumed to have verified the integrity of Request.Object using
-// e.g. action.VerifyReleaseInfo before calling Reconcile.
+// e.g. action.VerifySnapshot before calling Reconcile.
 type Test struct {
 	configFactory *action.ConfigFactory
 	eventRecorder record.EventRecorder
@@ -198,7 +198,7 @@ func observeTest(obj *v2.HelmRelease) storage.ObserveFunc {
 		if cur := obj.GetCurrent(); cur != nil {
 			obs := release.ObserveRelease(rls)
 			if obs.Targets(cur.Name, cur.Namespace, cur.Version) {
-				obj.Status.Current = release.ObservedToInfo(obs)
+				obj.Status.Current = release.ObservedToSnapshot(obs)
 				obj.GetCurrent().SetTestHooks(release.TestHooksFromRelease(rls))
 			}
 		}

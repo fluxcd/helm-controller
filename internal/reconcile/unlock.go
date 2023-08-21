@@ -53,7 +53,7 @@ import (
 // propagated to the Ready condition on the Request.Object.
 //
 // The caller is assumed to have verified the integrity of Request.Object using
-// e.g. action.VerifyReleaseInfo before calling Reconcile.
+// e.g. action.VerifySnapshot before calling Reconcile.
 type Unlock struct {
 	configFactory *action.ConfigFactory
 	eventRecorder record.EventRecorder
@@ -171,7 +171,7 @@ func observeUnlock(obj *v2.HelmRelease) storage.ObserveFunc {
 		if cur := obj.GetCurrent(); cur != nil {
 			obs := release.ObserveRelease(rls)
 			if obs.Targets(cur.Name, cur.Namespace, cur.Version) {
-				obj.Status.Current = release.ObservedToInfo(obs)
+				obj.Status.Current = release.ObservedToSnapshot(obs)
 			}
 		}
 	}

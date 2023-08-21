@@ -70,10 +70,10 @@ func TestUnlock_Reconcile(t *testing.T) {
 		expectConditions []metav1.Condition
 		// expectCurrent is the expected Current release information in the
 		// HelmRelease after unlock.
-		expectCurrent func(releases []*helmrelease.Release) *v2.HelmReleaseInfo
+		expectCurrent func(releases []*helmrelease.Release) *v2.Snapshot
 		// expectPrevious returns the expected Previous release information of
 		// the HelmRelease after unlock.
-		expectPrevious func(releases []*helmrelease.Release) *v2.HelmReleaseInfo
+		expectPrevious func(releases []*helmrelease.Release) *v2.Snapshot
 		// expectFailures is the expected Failures count of the HelmRelease.
 		expectFailures int64
 		// expectInstallFailures is the expected InstallFailures count of the
@@ -98,15 +98,15 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
+					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
 			expectConditions: []metav1.Condition{
 				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "Unlocked release"),
 				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "Unlocked release"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
+			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
+				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
 			},
 		},
 		{
@@ -130,7 +130,7 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
+					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
 			wantErr: mockUpdateErr,
@@ -138,8 +138,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "Unlock of release"),
 				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "Unlock of release"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
+			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
+				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
 			},
 			expectFailures: 1,
 		},
@@ -158,7 +158,7 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: &v2.HelmReleaseInfo{
+					Current: &v2.Snapshot{
 						Name:      mockReleaseName,
 						Namespace: releases[0].Namespace,
 						Version:   1,
@@ -167,8 +167,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				return &v2.HelmReleaseInfo{
+			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
+				return &v2.Snapshot{
 					Name:      mockReleaseName,
 					Namespace: releases[0].Namespace,
 					Version:   1,
@@ -199,7 +199,7 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: &v2.HelmReleaseInfo{
+					Current: &v2.Snapshot{
 						Name:      mockReleaseName,
 						Namespace: releases[0].Namespace,
 						Version:   releases[0].Version - 1,
@@ -207,8 +207,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 					},
 				}
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				return &v2.HelmReleaseInfo{
+			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
+				return &v2.Snapshot{
 					Name:      mockReleaseName,
 					Namespace: releases[0].Namespace,
 					Version:   releases[0].Version - 1,
@@ -220,7 +220,7 @@ func TestUnlock_Reconcile(t *testing.T) {
 			name: "unlock without latest",
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: &v2.HelmReleaseInfo{
+					Current: &v2.Snapshot{
 						Name:    mockReleaseName,
 						Version: 1,
 						Status:  helmrelease.StatusFailed.String(),
@@ -228,8 +228,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				return &v2.HelmReleaseInfo{
+			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
+				return &v2.Snapshot{
 					Name:    mockReleaseName,
 					Version: 1,
 					Status:  helmrelease.StatusFailed.String(),
@@ -257,7 +257,7 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: &v2.HelmReleaseInfo{
+					Current: &v2.Snapshot{
 						Name:    mockReleaseName,
 						Version: 1,
 						Status:  helmrelease.StatusFailed.String(),
@@ -266,8 +266,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			wantErr:          mockQueryErr,
 			expectConditions: []metav1.Condition{},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				return &v2.HelmReleaseInfo{
+			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
+				return &v2.Snapshot{
 					Name:    mockReleaseName,
 					Version: 1,
 					Status:  helmrelease.StatusFailed.String(),
@@ -371,7 +371,7 @@ func TestUnlock_failure(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: release.ObservedToInfo(release.ObserveRelease(cur)),
+				Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
 			},
 		}
 		status = helmrelease.StatusPendingInstall
@@ -422,7 +422,7 @@ func TestUnlock_success(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: release.ObservedToInfo(release.ObserveRelease(cur)),
+				Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
 			},
 		}
 		status = helmrelease.StatusPendingInstall
@@ -466,7 +466,7 @@ func Test_observeUnlock(t *testing.T) {
 
 		obj := &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: &v2.HelmReleaseInfo{
+				Current: &v2.Snapshot{
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
@@ -480,7 +480,7 @@ func Test_observeUnlock(t *testing.T) {
 			Version:   1,
 			Status:    helmrelease.StatusFailed,
 		})
-		expect := release.ObservedToInfo(release.ObserveRelease(rls))
+		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
 		observeUnlock(obj)(rls)
 
 		g.Expect(obj.GetPrevious()).To(BeNil())

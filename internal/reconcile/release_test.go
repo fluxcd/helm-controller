@@ -53,7 +53,7 @@ func Test_observeRelease(t *testing.T) {
 			Version:   1,
 			Status:    helmrelease.StatusPendingInstall,
 		})
-		expect := release.ObservedToInfo(release.ObserveRelease(mock))
+		expect := release.ObservedToSnapshot(release.ObserveRelease(mock))
 
 		observeRelease(obj)(mock)
 
@@ -65,7 +65,7 @@ func Test_observeRelease(t *testing.T) {
 	t.Run("release with current", func(t *testing.T) {
 		g := NewWithT(t)
 
-		current := &v2.HelmReleaseInfo{
+		current := &v2.Snapshot{
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   1,
@@ -81,7 +81,7 @@ func Test_observeRelease(t *testing.T) {
 			Version:   current.Version + 1,
 			Status:    helmrelease.StatusPendingInstall,
 		})
-		expect := release.ObservedToInfo(release.ObserveRelease(mock))
+		expect := release.ObservedToSnapshot(release.ObserveRelease(mock))
 
 		observeRelease(obj)(mock)
 		g.Expect(obj.GetPrevious()).ToNot(BeNil())
@@ -93,7 +93,7 @@ func Test_observeRelease(t *testing.T) {
 	t.Run("release with current with different name", func(t *testing.T) {
 		g := NewWithT(t)
 
-		current := &v2.HelmReleaseInfo{
+		current := &v2.Snapshot{
 			Name:      otherReleaseName,
 			Namespace: otherReleaseNamespace,
 			Version:   3,
@@ -109,7 +109,7 @@ func Test_observeRelease(t *testing.T) {
 			Version:   1,
 			Status:    helmrelease.StatusPendingInstall,
 		})
-		expect := release.ObservedToInfo(release.ObserveRelease(mock))
+		expect := release.ObservedToSnapshot(release.ObserveRelease(mock))
 
 		observeRelease(obj)(mock)
 		g.Expect(obj.GetPrevious()).To(BeNil())
@@ -120,13 +120,13 @@ func Test_observeRelease(t *testing.T) {
 	t.Run("release with update to previous", func(t *testing.T) {
 		g := NewWithT(t)
 
-		previous := &v2.HelmReleaseInfo{
+		previous := &v2.Snapshot{
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   1,
 			Status:    helmrelease.StatusDeployed.String(),
 		}
-		current := &v2.HelmReleaseInfo{
+		current := &v2.Snapshot{
 			Name:      previous.Name,
 			Namespace: previous.Namespace,
 			Version:   previous.Version + 1,
@@ -144,7 +144,7 @@ func Test_observeRelease(t *testing.T) {
 			Version:   previous.Version,
 			Status:    helmrelease.StatusSuperseded,
 		})
-		expect := release.ObservedToInfo(release.ObserveRelease(mock))
+		expect := release.ObservedToSnapshot(release.ObserveRelease(mock))
 
 		observeRelease(obj)(mock)
 		g.Expect(obj.GetPrevious()).ToNot(BeNil())

@@ -99,10 +99,10 @@ func TestTest_Reconcile(t *testing.T) {
 		expectConditions []metav1.Condition
 		// expectCurrent is the expected Current release information in the
 		// HelmRelease after install.
-		expectCurrent func(releases []*helmrelease.Release) *v2.HelmReleaseInfo
+		expectCurrent func(releases []*helmrelease.Release) *v2.Snapshot
 		// expectPrevious returns the expected Previous release information of
 		// the HelmRelease after install.
-		expectPrevious func(releases []*helmrelease.Release) *v2.HelmReleaseInfo
+		expectPrevious func(releases []*helmrelease.Release) *v2.Snapshot
 		// expectFailures is the expected Failures count of the HelmRelease.
 		expectFailures int64
 		// expectInstallFailures is the expected InstallFailures count of the
@@ -127,7 +127,7 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
+					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -136,8 +136,8 @@ func TestTest_Reconcile(t *testing.T) {
 				*conditions.TrueCondition(v2.TestSuccessCondition, v2.TestSucceededReason,
 					"1 test hook completed successfully"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				info := release.ObservedToInfo(release.ObserveRelease(releases[0]))
+			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
+				info := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
 				info.SetTestHooks(release.TestHooksFromRelease(releases[0]))
 				return info
 			},
@@ -157,7 +157,7 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
+					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -166,8 +166,8 @@ func TestTest_Reconcile(t *testing.T) {
 				*conditions.TrueCondition(v2.TestSuccessCondition, v2.TestSucceededReason,
 					"no test hooks"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				info := release.ObservedToInfo(release.ObserveRelease(releases[0]))
+			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
+				info := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
 				info.SetTestHooks(release.TestHooksFromRelease(releases[0]))
 				return info
 			},
@@ -187,7 +187,7 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current:         release.ObservedToInfo(release.ObserveRelease(releases[0])),
+					Current:         release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					InstallFailures: 0,
 				}
 			},
@@ -197,8 +197,8 @@ func TestTest_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestFailedReason,
 					"timed out waiting for the condition"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				info := release.ObservedToInfo(release.ObserveRelease(releases[0]))
+			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
+				info := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
 				info.SetTestHooks(release.TestHooksFromRelease(releases[0]))
 				return info
 			},
@@ -243,7 +243,7 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToInfo(release.ObserveRelease(releases[0])),
+					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -252,8 +252,8 @@ func TestTest_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestFailedReason,
 					ErrReleaseMismatch.Error()),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.HelmReleaseInfo {
-				return release.ObservedToInfo(release.ObserveRelease(releases[0]))
+			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
+				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
 			},
 			expectFailures: 1,
 			wantErr:        ErrReleaseMismatch,
@@ -352,7 +352,7 @@ func Test_observeTest(t *testing.T) {
 
 		obj := &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: &v2.HelmReleaseInfo{
+				Current: &v2.Snapshot{
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
@@ -365,7 +365,7 @@ func Test_observeTest(t *testing.T) {
 			Version:   1,
 		}, testutil.ReleaseWithHooks(testHookFixtures))
 
-		expect := release.ObservedToInfo(release.ObserveRelease(rls))
+		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
 		expect.SetTestHooks(release.TestHooksFromRelease(rls))
 
 		observeTest(obj)(rls)
@@ -376,7 +376,7 @@ func Test_observeTest(t *testing.T) {
 	t.Run("test with different current version", func(t *testing.T) {
 		g := NewWithT(t)
 
-		current := &v2.HelmReleaseInfo{
+		current := &v2.Snapshot{
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   1,
@@ -424,7 +424,7 @@ func TestTest_failure(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: release.ObservedToInfo(release.ObserveRelease(cur)),
+				Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
 			},
 		}
 		err = errors.New("test error")
@@ -495,7 +495,7 @@ func TestTest_failure(t *testing.T) {
 		}
 
 		obj := obj.DeepCopy()
-		obj.Status.Current.SetTestHooks(map[string]*v2.HelmReleaseTestHook{})
+		obj.Status.Current.SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
 		r.failure(req, nil, err)
 
@@ -512,7 +512,7 @@ func TestTest_failure(t *testing.T) {
 
 		obj := obj.DeepCopy()
 		obj.Spec.Test = &v2.Test{IgnoreFailures: true}
-		obj.Status.Current.SetTestHooks(map[string]*v2.HelmReleaseTestHook{})
+		obj.Status.Current.SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
 		r.failure(req, nil, err)
 
@@ -532,7 +532,7 @@ func TestTest_success(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: release.ObservedToInfo(release.ObserveRelease(cur)),
+				Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
 			},
 		}
 	)
@@ -544,7 +544,7 @@ func TestTest_success(t *testing.T) {
 		}
 
 		obj := obj.DeepCopy()
-		obj.Status.Current.SetTestHooks(map[string]*v2.HelmReleaseTestHook{
+		obj.Status.Current.SetTestHooks(map[string]*v2.TestHookStatus{
 			"test": {
 				Phase: helmrelease.HookPhaseSucceeded.String(),
 			},
@@ -585,7 +585,7 @@ func TestTest_success(t *testing.T) {
 		}
 
 		obj := obj.DeepCopy()
-		obj.Status.Current.SetTestHooks(map[string]*v2.HelmReleaseTestHook{})
+		obj.Status.Current.SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
 		r.success(req)
 

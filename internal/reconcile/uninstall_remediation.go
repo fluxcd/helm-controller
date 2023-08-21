@@ -66,7 +66,7 @@ var (
 // to remediate a failed release, and Uninstall to uninstall a release.
 //
 // The caller is assumed to have verified the integrity of Request.Object using
-// e.g. action.VerifyReleaseInfo before calling Reconcile.
+// e.g. action.VerifySnapshot before calling Reconcile.
 type UninstallRemediation struct {
 	configFactory *action.ConfigFactory
 	eventRecorder record.EventRecorder

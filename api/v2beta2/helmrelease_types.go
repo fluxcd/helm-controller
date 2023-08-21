@@ -17,7 +17,6 @@ limitations under the License.
 package v2beta2
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -828,109 +827,6 @@ func (in Uninstall) GetDeletionPropagation() string {
 	return *in.DeletionPropagation
 }
 
-// HelmReleaseInfo holds the status information for a Helm release as performed
-// by the controller.
-type HelmReleaseInfo struct {
-	// Digest is the checksum of the release object in storage.
-	// It has the format of `<algo>:<checksum>`.
-	// +required
-	Digest string `json:"digest"`
-	// Name is the name of the release.
-	// +required
-	Name string `json:"name"`
-	// Namespace is the namespace the release is deployed to.
-	// +required
-	Namespace string `json:"namespace"`
-	// Version is the version of the release object in storage.
-	// +required
-	Version int `json:"version"`
-	// Status is the current state of the release.
-	// +required
-	Status string `json:"status"`
-	// ChartName is the chart name of the release object in storage.
-	// +required
-	ChartName string `json:"chartName"`
-	// ChartVersion is the chart version of the release object in
-	// storage.
-	// +required
-	ChartVersion string `json:"chartVersion"`
-	// ConfigDigest is the checksum of the config (better known as
-	// "values") of the release object in storage.
-	// It has the format of `<algo>:<checksum>`.
-	// +required
-	ConfigDigest string `json:"configDigest"`
-	// FirstDeployed is when the release was first deployed.
-	// +required
-	FirstDeployed metav1.Time `json:"firstDeployed"`
-	// LastDeployed is when the release was last deployed.
-	// +required
-	LastDeployed metav1.Time `json:"lastDeployed"`
-	// Deleted is when the release was deleted.
-	// +optional
-	Deleted metav1.Time `json:"deleted,omitempty"`
-	// TestHooks is the list of test hooks for the release as observed to be
-	// run by the controller.
-	// +optional
-	TestHooks *map[string]*HelmReleaseTestHook `json:"testHooks,omitempty"`
-}
-
-// FullReleaseName returns the full name of the release in the format
-// of '<namespace>/<name>.<version>
-func (in *HelmReleaseInfo) FullReleaseName() string {
-	return fmt.Sprintf("%s/%s.%d", in.Namespace, in.Name, in.Version)
-}
-
-// VersionedChartName returns the full name of the chart in the format of
-// '<name>@<version>'.
-func (in *HelmReleaseInfo) VersionedChartName() string {
-	return fmt.Sprintf("%s@%s", in.ChartName, in.ChartVersion)
-}
-
-// HasBeenTested returns true if TestHooks is not nil. This includes an empty
-// map, which indicates the chart has no tests.
-func (in *HelmReleaseInfo) HasBeenTested() bool {
-	return in != nil && in.TestHooks != nil
-}
-
-// GetTestHooks returns the TestHooks for the release if not nil.
-func (in *HelmReleaseInfo) GetTestHooks() map[string]*HelmReleaseTestHook {
-	if in == nil {
-		return nil
-	}
-	return *in.TestHooks
-}
-
-// HasTestInPhase returns true if any of the TestHooks is in the given phase.
-func (in *HelmReleaseInfo) HasTestInPhase(phase string) bool {
-	if in != nil {
-		for _, h := range in.GetTestHooks() {
-			if h.Phase == phase {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// SetTestHooks sets the TestHooks for the release.
-func (in *HelmReleaseInfo) SetTestHooks(hooks map[string]*HelmReleaseTestHook) {
-	in.TestHooks = &hooks
-}
-
-// HelmReleaseTestHook holds the status information for a test hook as observed
-// to be run by the controller.
-type HelmReleaseTestHook struct {
-	// LastStarted is the time the test hook was last started.
-	// +optional
-	LastStarted metav1.Time `json:"lastStarted,omitempty"`
-	// LastCompleted is the time the test hook last completed.
-	// +optional
-	LastCompleted metav1.Time `json:"lastCompleted,omitempty"`
-	// Phase the test hook was observed to be in.
-	// +optional
-	Phase string `json:"phase,omitempty"`
-}
-
 // HelmReleaseStatus defines the observed state of a HelmRelease.
 type HelmReleaseStatus struct {
 	// ObservedGeneration is the last observed generation.
@@ -959,15 +855,14 @@ type HelmReleaseStatus struct {
 	// +optional
 	StorageNamespace string `json:"storageNamespace,omitempty"`
 
-	// Current holds the latest observed HelmReleaseInfo for the current
-	// release.
+	// Current holds the latest observed Snapshot for the current release.
 	// +optional
-	Current *HelmReleaseInfo `json:"current,omitempty"`
+	Current *Snapshot `json:"current,omitempty"`
 
-	// Previous holds the latest observed HelmReleaseInfo for the previous
-	// release.
+	// Previous holds the latest observed Snapshot for the previous
+	// (succesful) release.
 	// +optional
-	Previous *HelmReleaseInfo `json:"previous,omitempty"`
+	Previous *Snapshot `json:"previous,omitempty"`
 
 	// Failures is the reconciliation failure count against the latest desired
 	// state. It is reset after a successful reconciliation.
@@ -1085,7 +980,7 @@ func (in *HelmRelease) GetUninstall() Uninstall {
 }
 
 // GetCurrent returns HelmReleaseStatus.Current.
-func (in HelmRelease) GetCurrent() *HelmReleaseInfo {
+func (in HelmRelease) GetCurrent() *Snapshot {
 	if in.HasCurrent() {
 		return in.Status.Current
 	}
@@ -1098,7 +993,7 @@ func (in HelmRelease) HasCurrent() bool {
 }
 
 // GetPrevious returns HelmReleaseStatus.Previous.
-func (in HelmRelease) GetPrevious() *HelmReleaseInfo {
+func (in HelmRelease) GetPrevious() *Snapshot {
 	if in.HasPrevious() {
 		return in.Status.Previous
 	}

@@ -1799,8 +1799,8 @@ spec:
                   type: object
                 type: array
               current:
-                description: Current holds the latest observed HelmReleaseInfo for
-                  the current release.
+                description: Current holds the latest observed Snapshot for the current
+                  release.
                 properties:
                   chartName:
                     description: ChartName is the chart name of the release object
@@ -1843,8 +1843,8 @@ spec:
                     type: string
                   testHooks:
                     additionalProperties:
-                      description: HelmReleaseTestHook holds the status information
-                        for a test hook as observed to be run by the controller.
+                      description: TestHookStatus holds the status information for
+                        a test hook as observed to be run by the controller.
                       properties:
                         lastCompleted:
                           description: LastCompleted is the time the test hook last
@@ -1920,8 +1920,8 @@ spec:
                 format: int64
                 type: integer
               previous:
-                description: Previous holds the latest observed HelmReleaseInfo for
-                  the previous release.
+                description: Previous holds the latest observed Snapshot for the previous
+                  (succesful) release.
                 properties:
                   chartName:
                     description: ChartName is the chart name of the release object
@@ -1964,8 +1964,8 @@ spec:
                     type: string
                   testHooks:
                     additionalProperties:
-                      description: HelmReleaseTestHook holds the status information
-                        for a test hook as observed to be run by the controller.
+                      description: TestHookStatus holds the status information for
+                        a test hook as observed to be run by the controller.
                       properties:
                         lastCompleted:
                           description: LastCompleted is the time the test hook last

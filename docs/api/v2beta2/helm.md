@@ -903,175 +903,6 @@ trusted public keys.</p>
 </table>
 </div>
 </div>
-<h3 id="helm.toolkit.fluxcd.io/v2beta2.HelmReleaseInfo">HelmReleaseInfo
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2beta2.HelmReleaseStatus">HelmReleaseStatus</a>)
-</p>
-<p>HelmReleaseInfo holds the status information for a Helm release as performed
-by the controller.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>digest</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Digest is the checksum of the release object in storage.
-It has the format of <code>&lt;algo&gt;:&lt;checksum&gt;</code>.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>name</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Name is the name of the release.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>namespace</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Namespace is the namespace the release is deployed to.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>version</code><br>
-<em>
-int
-</em>
-</td>
-<td>
-<p>Version is the version of the release object in storage.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>status</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Status is the current state of the release.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>chartName</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>ChartName is the chart name of the release object in storage.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>chartVersion</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>ChartVersion is the chart version of the release object in
-storage.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>configDigest</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>ConfigDigest is the checksum of the config (better known as
-&ldquo;values&rdquo;) of the release object in storage.
-It has the format of <code>&lt;algo&gt;:&lt;checksum&gt;</code>.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>firstDeployed</code><br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
-</em>
-</td>
-<td>
-<p>FirstDeployed is when the release was first deployed.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>lastDeployed</code><br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
-</em>
-</td>
-<td>
-<p>LastDeployed is when the release was last deployed.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>deleted</code><br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Deleted is when the release was deleted.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>testHooks</code><br>
-<em>
-<a href="#helm.toolkit.fluxcd.io/v2beta2.HelmReleaseTestHook">
-HelmReleaseTestHook
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>TestHooks is the list of test hooks for the release as observed to be
-run by the controller.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
 <h3 id="helm.toolkit.fluxcd.io/v2beta2.HelmReleaseSpec">HelmReleaseSpec
 </h3>
 <p>
@@ -1468,30 +1299,29 @@ Current release.</p>
 <td>
 <code>current</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2beta2.HelmReleaseInfo">
-HelmReleaseInfo
+<a href="#helm.toolkit.fluxcd.io/v2beta2.Snapshot">
+Snapshot
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Current holds the latest observed HelmReleaseInfo for the current
-release.</p>
+<p>Current holds the latest observed Snapshot for the current release.</p>
 </td>
 </tr>
 <tr>
 <td>
 <code>previous</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2beta2.HelmReleaseInfo">
-HelmReleaseInfo
+<a href="#helm.toolkit.fluxcd.io/v2beta2.Snapshot">
+Snapshot
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Previous holds the latest observed HelmReleaseInfo for the previous
-release.</p>
+<p>Previous holds the latest observed Snapshot for the previous
+(succesful) release.</p>
 </td>
 </tr>
 <tr>
@@ -1586,68 +1416,6 @@ github.com/fluxcd/pkg/apis/meta.ReconcileRequestStatus
 <p>
 (Members of <code>ReconcileRequestStatus</code> are embedded into this type.)
 </p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<h3 id="helm.toolkit.fluxcd.io/v2beta2.HelmReleaseTestHook">HelmReleaseTestHook
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2beta2.HelmReleaseInfo">HelmReleaseInfo</a>)
-</p>
-<p>HelmReleaseTestHook holds the status information for a test hook as observed
-to be run by the controller.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>lastStarted</code><br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>LastStarted is the time the test hook was last started.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>lastCompleted</code><br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>LastCompleted is the time the test hook last completed.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>phase</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Phase the test hook was observed to be in.</p>
 </td>
 </tr>
 </tbody>
@@ -2126,6 +1894,175 @@ rollback action when it fails.</p>
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2beta2.Snapshot">Snapshot
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.HelmReleaseStatus">HelmReleaseStatus</a>)
+</p>
+<p>Snapshot captures a point-in-time copy of the status information for a Helm release,
+as managed by the controller.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>digest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Digest is the checksum of the release object in storage.
+It has the format of <code>&lt;algo&gt;:&lt;checksum&gt;</code>.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name is the name of the release.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>namespace</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Namespace is the namespace the release is deployed to.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>version</code><br>
+<em>
+int
+</em>
+</td>
+<td>
+<p>Version is the version of the release object in storage.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Status is the current state of the release.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>chartName</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>ChartName is the chart name of the release object in storage.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>chartVersion</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>ChartVersion is the chart version of the release object in
+storage.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>configDigest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>ConfigDigest is the checksum of the config (better known as
+&ldquo;values&rdquo;) of the release object in storage.
+It has the format of <code>&lt;algo&gt;:&lt;checksum&gt;</code>.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>firstDeployed</code><br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<p>FirstDeployed is when the release was first deployed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastDeployed</code><br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<p>LastDeployed is when the release was last deployed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>deleted</code><br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Deleted is when the release was deleted.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>testHooks</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.TestHookStatus">
+TestHookStatus
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TestHooks is the list of test hooks for the release as observed to be
+run by the controller.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="helm.toolkit.fluxcd.io/v2beta2.Test">Test
 </h3>
 <p>
@@ -2196,6 +2133,68 @@ Filter
 </td>
 <td>
 <p>Filters is a list of tests to run or exclude from running.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2beta2.TestHookStatus">TestHookStatus
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.Snapshot">Snapshot</a>)
+</p>
+<p>TestHookStatus holds the status information for a test hook as observed
+to be run by the controller.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>lastStarted</code><br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastStarted is the time the test hook was last started.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastCompleted</code><br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastCompleted is the time the test hook last completed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>phase</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Phase the test hook was observed to be in.</p>
 </td>
 </tr>
 </tbody>

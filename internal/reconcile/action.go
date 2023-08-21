@@ -150,7 +150,7 @@ func rollbackOrUninstall(cfg *action.ConfigFactory, recorder record.EventRecorde
 		case v2.RollbackRemediationStrategy:
 			// Verify the previous release is still in storage and unmodified
 			// before instructing to roll back to it.
-			if _, err := action.VerifyReleaseInfo(cfg.Build(nil), req.Object.GetPrevious()); err != nil {
+			if _, err := action.VerifySnapshot(cfg.Build(nil), req.Object.GetPrevious()); err != nil {
 				switch err {
 				case action.ErrReleaseNotFound, action.ErrReleaseDisappeared,
 					action.ErrReleaseNotObserved, action.ErrReleaseDigest:

@@ -32,7 +32,7 @@ func init() {
 func benchmarkNewObservedRelease(rel release.Release, b *testing.B) {
 	b.ReportAllocs()
 	for n := 0; n < b.N; n++ {
-		ObservedToInfo(ObserveRelease(&rel))
+		ObservedToSnapshot(ObserveRelease(&rel))
 	}
 }
 

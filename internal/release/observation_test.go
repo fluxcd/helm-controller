@@ -81,7 +81,7 @@ func TestIgnoreHookTestEvents(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			obs := ObservedRelease{
+			obs := Observation{
 				Hooks: tt.hooks,
 			}
 			IgnoreHookTestEvents(&obs)
@@ -91,10 +91,10 @@ func TestIgnoreHookTestEvents(t *testing.T) {
 	}
 }
 
-func TestObservedRelease_Targets(t *testing.T) {
+func TestObservation_Targets(t *testing.T) {
 	tests := []struct {
 		name            string
-		obs             ObservedRelease
+		obs             Observation
 		targetName      string
 		targetNamespace string
 		targetVersion   int
@@ -102,7 +102,7 @@ func TestObservedRelease_Targets(t *testing.T) {
 	}{
 		{
 			name: "matching name, namespace and version",
-			obs: ObservedRelease{
+			obs: Observation{
 				Name:      "foo",
 				Namespace: "bar",
 				Version:   2,
@@ -114,7 +114,7 @@ func TestObservedRelease_Targets(t *testing.T) {
 		},
 		{
 			name: "matching name and namespace with version set to 0",
-			obs: ObservedRelease{
+			obs: Observation{
 				Name:      "foo",
 				Namespace: "bar",
 				Version:   2,
@@ -126,7 +126,7 @@ func TestObservedRelease_Targets(t *testing.T) {
 		},
 		{
 			name: "name mismatch",
-			obs: ObservedRelease{
+			obs: Observation{
 				Name:      "baz",
 				Namespace: "bar",
 				Version:   2,
@@ -137,7 +137,7 @@ func TestObservedRelease_Targets(t *testing.T) {
 		},
 		{
 			name: "namespace mismatch",
-			obs: ObservedRelease{
+			obs: Observation{
 				Name:      "foo",
 				Namespace: "baz",
 				Version:   2,
@@ -148,7 +148,7 @@ func TestObservedRelease_Targets(t *testing.T) {
 		},
 		{
 			name: "matching name, namespace and version",
-			obs: ObservedRelease{
+			obs: Observation{
 				Name:      "foo",
 				Namespace: "bar",
 				Version:   2,
@@ -167,10 +167,10 @@ func TestObservedRelease_Targets(t *testing.T) {
 	}
 }
 
-func TestObservedRelease_Encode(t *testing.T) {
+func TestObservation_Encode(t *testing.T) {
 	g := NewWithT(t)
 
-	o := ObservedRelease{
+	o := Observation{
 		Name:      "foo",
 		Namespace: "bar",
 		Version:   2,
@@ -206,12 +206,12 @@ func TestObserveRelease(t *testing.T) {
 		name    string
 		release *helmrelease.Release
 		filters []DataFilter
-		want    ObservedRelease
+		want    Observation
 	}{
 		{
 			name:    "observes release",
 			release: smallRelease,
-			want: ObservedRelease{
+			want: Observation{
 				Name:          smallRelease.Name,
 				Namespace:     smallRelease.Namespace,
 				Version:       smallRelease.Version,
@@ -227,7 +227,7 @@ func TestObserveRelease(t *testing.T) {
 			name:    "observes with filters overwrite",
 			release: midRelease,
 			filters: []DataFilter{},
-			want: ObservedRelease{
+			want: Observation{
 				Name:          midRelease.Name,
 				Namespace:     midRelease.Namespace,
 				Version:       midRelease.Version,
@@ -248,7 +248,7 @@ func TestObserveRelease(t *testing.T) {
 		{
 			name:    "observes config",
 			release: testReleaseWithConfig,
-			want: ObservedRelease{
+			want: Observation{
 				Name:          testReleaseWithConfig.Name,
 				Namespace:     testReleaseWithConfig.Namespace,
 				Version:       testReleaseWithConfig.Version,
@@ -264,7 +264,7 @@ func TestObserveRelease(t *testing.T) {
 		{
 			name:    "observes labels",
 			release: testReleaseWithLabels,
-			want: ObservedRelease{
+			want: Observation{
 				Name:          testReleaseWithLabels.Name,
 				Namespace:     testReleaseWithLabels.Namespace,
 				Version:       testReleaseWithLabels.Version,
@@ -281,7 +281,7 @@ func TestObserveRelease(t *testing.T) {
 		{
 			name:    "empty release",
 			release: &helmrelease.Release{},
-			want:    ObservedRelease{},
+			want:    Observation{},
 		},
 	}
 	for _, tt := range tests {
@@ -293,7 +293,7 @@ func TestObserveRelease(t *testing.T) {
 	}
 }
 
-func TestObservedToInfo(t *testing.T) {
+func TestObservedToSnapshot(t *testing.T) {
 	g := NewWithT(t)
 
 	obs := ObserveRelease(testutil.BuildRelease(&helmrelease.MockReleaseOptions{
@@ -303,7 +303,7 @@ func TestObservedToInfo(t *testing.T) {
 		Chart:     testutil.BuildChart(),
 	}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})))
 
-	got := ObservedToInfo(obs)
+	got := ObservedToSnapshot(obs)
 
 	g.Expect(got.Name).To(Equal(obs.Name))
 	g.Expect(got.Namespace).To(Equal(obs.Namespace))
@@ -360,7 +360,7 @@ func TestTestHooksFromRelease(t *testing.T) {
 		Chart:     testutil.BuildChart(),
 	}, testutil.ReleaseWithHooks(hooks))
 
-	g.Expect(TestHooksFromRelease(rls)).To(testutil.Equal(map[string]*v2.HelmReleaseTestHook{
+	g.Expect(TestHooksFromRelease(rls)).To(testutil.Equal(map[string]*v2.TestHookStatus{
 		hooks[0].Name: {},
 		hooks[1].Name: {
 			LastStarted:   metav1.Time{Time: hooks[1].LastRun.StartedAt.Time},

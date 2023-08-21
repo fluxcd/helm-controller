@@ -102,7 +102,7 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 			},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: ns.Name,
-				Current:          release.ObservedToInfo(release.ObserveRelease(rls)),
+				Current:          release.ObservedToSnapshot(release.ObserveRelease(rls)),
 				HelmChart:        hc.Namespace + "/" + hc.Name,
 			},
 		}
@@ -209,7 +209,7 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 			},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: ns.Name,
-				Current:          release.ObservedToInfo(release.ObserveRelease(rls)),
+				Current:          release.ObservedToSnapshot(release.ObserveRelease(rls)),
 			},
 		}
 
@@ -269,7 +269,7 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 			},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: ns.Name,
-				Current:          release.ObservedToInfo(release.ObserveRelease(rls)),
+				Current:          release.ObservedToSnapshot(release.ObserveRelease(rls)),
 			},
 		}
 
@@ -367,7 +367,7 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 			},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: ns.Name,
-				Current:          release.ObservedToInfo(release.ObserveRelease(rls)),
+				Current:          release.ObservedToSnapshot(release.ObserveRelease(rls)),
 			},
 		}
 
@@ -470,7 +470,7 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 			},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: "mock",
-				Current:          &v2.HelmReleaseInfo{},
+				Current:          &v2.Snapshot{},
 			},
 		}
 

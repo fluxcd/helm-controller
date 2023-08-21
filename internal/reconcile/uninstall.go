@@ -66,7 +66,7 @@ import (
 // release.
 //
 // The caller is assumed to have verified the integrity of Request.Object using
-// e.g. action.VerifyReleaseInfo before calling Reconcile.
+// e.g. action.VerifySnapshot before calling Reconcile.
 type Uninstall struct {
 	configFactory *action.ConfigFactory
 	eventRecorder record.EventRecorder
@@ -199,7 +199,7 @@ func observeUninstall(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rls *helmrelease.Release) {
 		if cur := obj.GetCurrent(); cur != nil {
 			if obs := release.ObserveRelease(rls); obs.Targets(cur.Name, cur.Namespace, cur.Version) {
-				obj.Status.Current = release.ObservedToInfo(obs)
+				obj.Status.Current = release.ObservedToSnapshot(obs)
 			}
 		}
 	}

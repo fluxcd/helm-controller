@@ -28,13 +28,13 @@ func TestDigest(t *testing.T) {
 	tests := []struct {
 		name string
 		algo digest.Algorithm
-		rel  ObservedRelease
+		rel  Observation
 		exp  digest.Digest
 	}{
 		{
 			name: "SHA256",
 			algo: digest.SHA256,
-			rel: ObservedRelease{
+			rel: Observation{
 				Name: "foo",
 			},
 			exp: "sha256:d0bc0774bd4b6d4aaa3c19e6a951352fe10a1a1a4e280ee06e85e972c572a74e",

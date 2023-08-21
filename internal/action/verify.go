@@ -77,17 +77,17 @@ func IsInstalled(config *helmaction.Configuration, releaseName string) (bool, er
 	return true, nil
 }
 
-// VerifyReleaseInfo verifies the data of the given v2beta2.HelmReleaseInfo
+// VerifySnapshot verifies the data of the given v2beta2.Snapshot
 // matches the release object in the Helm storage. It returns the verified
 // release, or an error of type ErrReleaseNotFound, ErrReleaseDisappeared,
 // ErrReleaseDigest or ErrReleaseNotObserved indicating the reason for the
 // verification failure.
-func VerifyReleaseInfo(config *helmaction.Configuration, info *v2.HelmReleaseInfo) (rls *helmrelease.Release, err error) {
-	if info == nil {
+func VerifySnapshot(config *helmaction.Configuration, snapshot *v2.Snapshot) (rls *helmrelease.Release, err error) {
+	if snapshot == nil {
 		return nil, ErrReleaseNotFound
 	}
 
-	rls, err = config.Releases.Get(info.Name, info.Version)
+	rls, err = config.Releases.Get(snapshot.Name, snapshot.Version)
 	if err != nil {
 		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
 			return nil, ErrReleaseDisappeared
@@ -95,23 +95,23 @@ func VerifyReleaseInfo(config *helmaction.Configuration, info *v2.HelmReleaseInf
 		return nil, err
 	}
 
-	if err = VerifyReleaseObject(info, rls); err != nil {
+	if err = VerifyReleaseObject(snapshot, rls); err != nil {
 		return nil, err
 	}
 	return rls, nil
 }
 
-// VerifyLastStorageItem verifies the data of the given v2beta2.HelmReleaseInfo
+// VerifyLastStorageItem verifies the data of the given v2beta2.Snapshot
 // matches the last release object in the Helm storage. It returns the verified
 // release, or an error of type ErrReleaseNotFound, ErrReleaseDisappeared,
 // ErrReleaseDigest or ErrReleaseNotObserved indicating the reason for the
 // verification failure.
-func VerifyLastStorageItem(config *helmaction.Configuration, info *v2.HelmReleaseInfo) (rls *helmrelease.Release, err error) {
-	if info == nil {
+func VerifyLastStorageItem(config *helmaction.Configuration, snapshot *v2.Snapshot) (rls *helmrelease.Release, err error) {
+	if snapshot == nil {
 		return nil, ErrReleaseNotFound
 	}
 
-	rls, err = config.Releases.Last(info.Name)
+	rls, err = config.Releases.Last(snapshot.Name)
 	if err != nil {
 		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
 			return nil, ErrReleaseDisappeared
@@ -119,18 +119,18 @@ func VerifyLastStorageItem(config *helmaction.Configuration, info *v2.HelmReleas
 		return nil, err
 	}
 
-	if err = VerifyReleaseObject(info, rls); err != nil {
+	if err = VerifyReleaseObject(snapshot, rls); err != nil {
 		return nil, err
 	}
 	return rls, nil
 }
 
-// VerifyReleaseObject verifies the data of the given v2beta2.HelmReleaseInfo
+// VerifyReleaseObject verifies the data of the given v2beta2.Snapshot
 // matches the given Helm release object. It returns an error of type
 // ErrReleaseDigest or ErrReleaseNotObserved indicating the reason for the
 // verification failure, or nil.
-func VerifyReleaseObject(info *v2.HelmReleaseInfo, rls *helmrelease.Release) error {
-	relDig, err := digest.Parse(info.Digest)
+func VerifyReleaseObject(snapshot *v2.Snapshot, rls *helmrelease.Release) error {
+	relDig, err := digest.Parse(snapshot.Digest)
 	if err != nil {
 		return ErrReleaseDigest
 	}
@@ -152,7 +152,7 @@ func VerifyReleaseObject(info *v2.HelmReleaseInfo, rls *helmrelease.Release) err
 // chart metadata, and the provided values match the Current.ConfigDigest.
 // It returns either an error of type ErrReleaseNotFound, ErrChartChanged or
 // ErrConfigDigest, or nil.
-func VerifyRelease(rls *helmrelease.Release, info *v2.HelmReleaseInfo, chrt *helmchart.Metadata, vals helmchartutil.Values) error {
+func VerifyRelease(rls *helmrelease.Release, snapshot *v2.Snapshot, chrt *helmchart.Metadata, vals helmchartutil.Values) error {
 	if rls == nil {
 		return ErrReleaseNotFound
 	}
@@ -163,7 +163,7 @@ func VerifyRelease(rls *helmrelease.Release, info *v2.HelmReleaseInfo, chrt *hel
 		}
 	}
 
-	if info == nil || !chartutil.VerifyValues(digest.Digest(info.ConfigDigest), vals) {
+	if snapshot == nil || !chartutil.VerifyValues(digest.Digest(snapshot.ConfigDigest), vals) {
 		return ErrConfigDigest
 	}
 	return nil

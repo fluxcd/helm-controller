@@ -57,7 +57,7 @@ func TestReleaseTargetChanged(t *testing.T) {
 			chartName: defaultChartName,
 			spec:      v2.HelmReleaseSpec{},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.HelmReleaseInfo{
+				Current: &v2.Snapshot{
 					Name:      defaultName,
 					Namespace: defaultNamespace,
 					ChartName: defaultChartName,
@@ -73,7 +73,7 @@ func TestReleaseTargetChanged(t *testing.T) {
 				ReleaseName: defaultReleaseName,
 			},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.HelmReleaseInfo{
+				Current: &v2.Snapshot{
 					Name:      defaultReleaseName,
 					Namespace: defaultNamespace,
 					ChartName: defaultChartName,
@@ -97,7 +97,7 @@ func TestReleaseTargetChanged(t *testing.T) {
 				StorageNamespace: defaultStorageNamespace,
 			},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.HelmReleaseInfo{
+				Current: &v2.Snapshot{
 					Name:      defaultName,
 					Namespace: defaultNamespace,
 					ChartName: defaultChartName,
@@ -113,7 +113,7 @@ func TestReleaseTargetChanged(t *testing.T) {
 				TargetNamespace: defaultTargetNamespace,
 			},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.HelmReleaseInfo{
+				Current: &v2.Snapshot{
 					Name:      defaultName,
 					Namespace: defaultNamespace,
 					ChartName: defaultChartName,
@@ -129,7 +129,7 @@ func TestReleaseTargetChanged(t *testing.T) {
 				ReleaseName: defaultReleaseName,
 			},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.HelmReleaseInfo{
+				Current: &v2.Snapshot{
 					Name:      defaultName,
 					Namespace: defaultNamespace,
 					ChartName: defaultChartName,
@@ -143,7 +143,7 @@ func TestReleaseTargetChanged(t *testing.T) {
 			chartName: "other-chart",
 			spec:      v2.HelmReleaseSpec{},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.HelmReleaseInfo{
+				Current: &v2.Snapshot{
 					Name:      defaultName,
 					Namespace: defaultNamespace,
 					ChartName: defaultChartName,
@@ -159,7 +159,7 @@ func TestReleaseTargetChanged(t *testing.T) {
 				TargetNamespace: "target-namespace-exceeding-max-characters",
 			},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.HelmReleaseInfo{
+				Current: &v2.Snapshot{
 					Name:      "target-namespace-exceeding-max-character-eceb26601388",
 					Namespace: "target-namespace-exceeding-max-characters",
 					ChartName: defaultChartName,
@@ -175,7 +175,7 @@ func TestReleaseTargetChanged(t *testing.T) {
 				TargetNamespace: "target-namespace-exceeding-max-characters",
 			},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.HelmReleaseInfo{
+				Current: &v2.Snapshot{
 					Name:      defaultName,
 					Namespace: "target-namespace-exceeding-max-characters",
 					ChartName: defaultChartName,
@@ -266,7 +266,7 @@ func TestIsInstalled(t *testing.T) {
 	}
 }
 
-func TestVerifyReleaseInfo(t *testing.T) {
+func TestVerifySnapshot(t *testing.T) {
 	mock := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 		Name:      "release",
 		Version:   1,
@@ -279,44 +279,44 @@ func TestVerifyReleaseInfo(t *testing.T) {
 		Status:    helmrelease.StatusSuperseded,
 		Namespace: "default",
 	})
-	mockInfo := release.ObservedToInfo(release.ObserveRelease(mock))
+	mockInfo := release.ObservedToSnapshot(release.ObserveRelease(mock))
 	mockGetErr := errors.New("mock get error")
 
 	tests := []struct {
 		name     string
-		info     *v2.HelmReleaseInfo
+		snapshot *v2.Snapshot
 		release  *helmrelease.Release
 		getError error
 		want     *helmrelease.Release
 		wantErr  error
 	}{
 		{
-			name:    "valid release",
-			info:    mockInfo,
-			release: mock,
-			want:    mock,
+			name:     "valid release",
+			snapshot: mockInfo,
+			release:  mock,
+			want:     mock,
 		},
 		{
-			name:    "invalid release",
-			info:    mockInfo,
-			release: otherMock,
-			wantErr: ErrReleaseNotObserved,
+			name:     "invalid release",
+			snapshot: mockInfo,
+			release:  otherMock,
+			wantErr:  ErrReleaseNotObserved,
 		},
 		{
-			name:    "release not found",
-			info:    mockInfo,
-			release: nil,
-			wantErr: ErrReleaseDisappeared,
+			name:     "release not found",
+			snapshot: mockInfo,
+			release:  nil,
+			wantErr:  ErrReleaseDisappeared,
 		},
 		{
-			name:    "no release info",
-			info:    nil,
-			release: nil,
-			wantErr: ErrReleaseNotFound,
+			name:     "no release snapshot",
+			snapshot: nil,
+			release:  nil,
+			wantErr:  ErrReleaseNotFound,
 		},
 		{
 			name:     "driver get error",
-			info:     mockInfo,
+			snapshot: mockInfo,
 			getError: mockGetErr,
 			wantErr:  mockGetErr,
 		},
@@ -335,7 +335,7 @@ func TestVerifyReleaseInfo(t *testing.T) {
 				GetErr: tt.getError,
 			}
 
-			rls, err := VerifyReleaseInfo(&helmaction.Configuration{Releases: s}, tt.info)
+			rls, err := VerifySnapshot(&helmaction.Configuration{Releases: s}, tt.snapshot)
 			if tt.wantErr != nil {
 				g.Expect(err).To(HaveOccurred())
 				g.Expect(err).To(Equal(tt.wantErr))
@@ -362,12 +362,12 @@ func TestVerifyLastStorageItem(t *testing.T) {
 		Status:    helmrelease.StatusDeployed,
 		Namespace: "default",
 	})
-	mockInfo := release.ObservedToInfo(release.ObserveRelease(mockTwo))
+	mockInfo := release.ObservedToSnapshot(release.ObserveRelease(mockTwo))
 	mockQueryErr := errors.New("mock query error")
 
 	tests := []struct {
 		name       string
-		info       *v2.HelmReleaseInfo
+		snapshot   *v2.Snapshot
 		releases   []*helmrelease.Release
 		queryError error
 		want       *helmrelease.Release
@@ -375,31 +375,31 @@ func TestVerifyLastStorageItem(t *testing.T) {
 	}{
 		{
 			name:     "valid last release",
-			info:     mockInfo,
+			snapshot: mockInfo,
 			releases: []*helmrelease.Release{mockOne, mockTwo},
 			want:     mockTwo,
 		},
 		{
 			name:     "invalid last release",
-			info:     mockInfo,
+			snapshot: mockInfo,
 			releases: []*helmrelease.Release{mockOne},
 			wantErr:  ErrReleaseNotObserved,
 		},
 		{
 			name:     "no last release",
-			info:     mockInfo,
+			snapshot: mockInfo,
 			releases: []*helmrelease.Release{},
 			wantErr:  ErrReleaseDisappeared,
 		},
 		{
-			name:     "no release info",
-			info:     nil,
+			name:     "no release snapshot",
+			snapshot: nil,
 			releases: nil,
 			wantErr:  ErrReleaseNotFound,
 		},
 		{
 			name:       "driver query error",
-			info:       mockInfo,
+			snapshot:   mockInfo,
 			queryError: mockQueryErr,
 			wantErr:    mockQueryErr,
 		},
@@ -418,7 +418,7 @@ func TestVerifyLastStorageItem(t *testing.T) {
 				QueryErr: tt.queryError,
 			}
 
-			rls, err := VerifyLastStorageItem(&helmaction.Configuration{Releases: s}, tt.info)
+			rls, err := VerifyLastStorageItem(&helmaction.Configuration{Releases: s}, tt.snapshot)
 			if tt.wantErr != nil {
 				g.Expect(err).To(HaveOccurred())
 				g.Expect(err).To(Equal(tt.wantErr))
@@ -439,29 +439,29 @@ func TestVerifyReleaseObject(t *testing.T) {
 		Status:    helmrelease.StatusSuperseded,
 		Namespace: "default",
 	})
-	mockInfo := release.ObservedToInfo(release.ObserveRelease(mockRls))
-	mockInfoIllegal := mockInfo.DeepCopy()
-	mockInfoIllegal.Digest = "illegal"
+	mockSnapshot := release.ObservedToSnapshot(release.ObserveRelease(mockRls))
+	mockSnapshotIllegal := mockSnapshot.DeepCopy()
+	mockSnapshotIllegal.Digest = "illegal"
 
 	tests := []struct {
-		name    string
-		info    *v2.HelmReleaseInfo
-		rls     *helmrelease.Release
-		wantErr error
+		name     string
+		snapshot *v2.Snapshot
+		rls      *helmrelease.Release
+		wantErr  error
 	}{
 		{
-			name: "valid digest",
-			info: mockInfo,
-			rls:  mockRls,
+			name:     "valid digest",
+			snapshot: mockSnapshot,
+			rls:      mockRls,
 		},
 		{
-			name:    "illegal digest",
-			info:    mockInfoIllegal,
-			wantErr: ErrReleaseDigest,
+			name:     "illegal digest",
+			snapshot: mockSnapshotIllegal,
+			wantErr:  ErrReleaseDigest,
 		},
 		{
-			name: "invalid digest",
-			info: mockInfo,
+			name:     "invalid digest",
+			snapshot: mockSnapshot,
 			rls: testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 				Name:      "release",
 				Version:   1,
@@ -475,7 +475,7 @@ func TestVerifyReleaseObject(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			got := VerifyReleaseObject(tt.info, tt.rls)
+			got := VerifyReleaseObject(tt.snapshot, tt.rls)
 
 			if tt.wantErr != nil {
 				g.Expect(got).To(HaveOccurred())
@@ -495,43 +495,43 @@ func TestVerifyRelease(t *testing.T) {
 		Status:    helmrelease.StatusSuperseded,
 		Namespace: "default",
 	})
-	mockInfo := release.ObservedToInfo(release.ObserveRelease(mockRls))
+	mockSnapshot := release.ObservedToSnapshot(release.ObserveRelease(mockRls))
 
 	tests := []struct {
-		name    string
-		rls     *helmrelease.Release
-		info    *v2.HelmReleaseInfo
-		chrt    *helmchart.Metadata
-		vals    chartutil.Values
-		wantErr error
+		name     string
+		rls      *helmrelease.Release
+		snapshot *v2.Snapshot
+		chrt     *helmchart.Metadata
+		vals     chartutil.Values
+		wantErr  error
 	}{
 		{
-			name: "equal",
-			rls:  mockRls,
-			info: mockInfo,
-			chrt: mockRls.Chart.Metadata,
-			vals: mockRls.Config,
+			name:     "equal",
+			rls:      mockRls,
+			snapshot: mockSnapshot,
+			chrt:     mockRls.Chart.Metadata,
+			vals:     mockRls.Config,
 		},
 		{
-			name:    "no release",
-			rls:     nil,
-			info:    mockInfo,
-			chrt:    mockRls.Chart.Metadata,
-			vals:    mockRls.Config,
-			wantErr: ErrReleaseNotFound,
+			name:     "no release",
+			rls:      nil,
+			snapshot: mockSnapshot,
+			chrt:     mockRls.Chart.Metadata,
+			vals:     mockRls.Config,
+			wantErr:  ErrReleaseNotFound,
 		},
 		{
-			name:    "no release info",
-			rls:     mockRls,
-			info:    nil,
-			chrt:    mockRls.Chart.Metadata,
-			vals:    mockRls.Config,
-			wantErr: ErrConfigDigest,
+			name:     "no release snapshot",
+			rls:      mockRls,
+			snapshot: nil,
+			chrt:     mockRls.Chart.Metadata,
+			vals:     mockRls.Config,
+			wantErr:  ErrConfigDigest,
 		},
 		{
-			name: "chart meta diff",
-			rls:  mockRls,
-			info: mockInfo,
+			name:     "chart meta diff",
+			rls:      mockRls,
+			snapshot: mockSnapshot,
 			chrt: &helmchart.Metadata{
 				Name:    "some-other-chart",
 				Version: "1.0.0",
@@ -540,10 +540,10 @@ func TestVerifyRelease(t *testing.T) {
 			wantErr: ErrChartChanged,
 		},
 		{
-			name: "chart values diff",
-			rls:  mockRls,
-			info: mockInfo,
-			chrt: mockRls.Chart.Metadata,
+			name:     "chart values diff",
+			rls:      mockRls,
+			snapshot: mockSnapshot,
+			chrt:     mockRls.Chart.Metadata,
 			vals: chartutil.Values{
 				"some": "other",
 			},
@@ -554,7 +554,7 @@ func TestVerifyRelease(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			got := VerifyRelease(tt.rls, tt.info, tt.chrt, tt.vals)
+			got := VerifyRelease(tt.rls, tt.snapshot, tt.chrt, tt.vals)
 
 			if tt.wantErr != nil {
 				g.Expect(got).To(HaveOccurred())

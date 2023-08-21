@@ -36,14 +36,14 @@ var (
 	}
 )
 
-// DataFilter allows for filtering data from the returned ObservedRelease while
+// DataFilter allows for filtering data from the returned Observation while
 // making an observation.
-type DataFilter func(rel *ObservedRelease)
+type DataFilter func(rel *Observation)
 
 // IgnoreHookTestEvents ignores test event hooks. For example, to exclude it
 // while generating a digest for the object. To prevent manual test triggers
 // from a user to interfere with the checksum.
-func IgnoreHookTestEvents(rel *ObservedRelease) {
+func IgnoreHookTestEvents(rel *Observation) {
 	if len(rel.Hooks) > 0 {
 		var hooks []helmrelease.Hook
 		for i := range rel.Hooks {
@@ -56,11 +56,11 @@ func IgnoreHookTestEvents(rel *ObservedRelease) {
 	}
 }
 
-// ObservedRelease is a copy of a Helm release object, as observed to be written
+// Observation is a copy of a Helm release object, as observed to be written
 // to the storage by a storage.Observer. The object is detached from the Helm
 // storage object, and mutations to it do not change the underlying release
 // object.
-type ObservedRelease struct {
+type Observation struct {
 	// Name of the release.
 	Name string `json:"name"`
 	// Version of the release, at times also called revision.
@@ -85,12 +85,12 @@ type ObservedRelease struct {
 
 // Targets returns if the release matches the given name, namespace and
 // version. If the version is 0, it matches any version.
-func (o ObservedRelease) Targets(name, namespace string, version int) bool {
+func (o Observation) Targets(name, namespace string, version int) bool {
 	return o.Name == name && o.Namespace == namespace && (version == 0 || o.Version == version)
 }
 
-// Encode JSON encodes the ObservedRelease and writes it into the given writer.
-func (o ObservedRelease) Encode(w io.Writer) error {
+// Encode JSON encodes the Observation and writes it into the given writer.
+func (o Observation) Encode(w io.Writer) error {
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(o); err != nil {
 		return err
@@ -99,19 +99,19 @@ func (o ObservedRelease) Encode(w io.Writer) error {
 }
 
 // ObserveRelease deep copies the values from the provided release.Release
-// into a new ObservedRelease while omitting all chart data except metadata.
+// into a new Observation while omitting all chart data except metadata.
 // If no filters are provided, it defaults to DefaultDataFilters. To not use
 // any filters, pass an explicit empty slice.
-func ObserveRelease(rel *helmrelease.Release, filter ...DataFilter) ObservedRelease {
+func ObserveRelease(rel *helmrelease.Release, filter ...DataFilter) Observation {
 	if rel == nil {
-		return ObservedRelease{}
+		return Observation{}
 	}
 
 	if filter == nil {
 		filter = DefaultDataFilters
 	}
 
-	obsRel := ObservedRelease{
+	obsRel := Observation{
 		Name:      rel.Name,
 		Version:   rel.Version,
 		Config:    nil,
@@ -160,11 +160,11 @@ func ObserveRelease(rel *helmrelease.Release, filter ...DataFilter) ObservedRele
 	return obsRel
 }
 
-// ObservedToInfo returns a v2beta2.HelmReleaseInfo constructed from the
-// ObservedRelease data. Calculating the (config) digest using the
+// ObservedToSnapshot returns a v2beta2.Snapshot constructed from the
+// Observation data. Calculating the (config) digest using the
 // digest.Canonical algorithm.
-func ObservedToInfo(rls ObservedRelease) *v2.HelmReleaseInfo {
-	return &v2.HelmReleaseInfo{
+func ObservedToSnapshot(rls Observation) *v2.Snapshot {
+	return &v2.Snapshot{
 		Digest:        Digest(digest.Canonical, rls).String(),
 		Name:          rls.Name,
 		Namespace:     rls.Namespace,
@@ -179,14 +179,14 @@ func ObservedToInfo(rls ObservedRelease) *v2.HelmReleaseInfo {
 	}
 }
 
-// TestHooksFromRelease returns the list of v2beta2.HelmReleaseTestHook for the
+// TestHooksFromRelease returns the list of v2beta2.TestHookStatus for the
 // given release, indexed by name.
-func TestHooksFromRelease(rls *helmrelease.Release) map[string]*v2.HelmReleaseTestHook {
-	hooks := make(map[string]*v2.HelmReleaseTestHook)
+func TestHooksFromRelease(rls *helmrelease.Release) map[string]*v2.TestHookStatus {
+	hooks := make(map[string]*v2.TestHookStatus)
 	for k, v := range GetTestHooks(rls) {
-		var h *v2.HelmReleaseTestHook
+		var h *v2.TestHookStatus
 		if v != nil {
-			h = &v2.HelmReleaseTestHook{
+			h = &v2.TestHookStatus{
 				LastStarted:   metav1.NewTime(v.LastRun.StartedAt.Time),
 				LastCompleted: metav1.NewTime(v.LastRun.CompletedAt.Time),
 				Phase:         v.LastRun.Phase.String(),

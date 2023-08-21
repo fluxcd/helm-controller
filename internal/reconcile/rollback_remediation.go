@@ -61,7 +61,7 @@ import (
 // propagated to the Ready condition on the Request.Object.
 //
 // The caller is assumed to have verified the integrity of Request.Object using
-// e.g. action.VerifyReleaseInfo before calling Reconcile.
+// e.g. action.VerifySnapshot before calling Reconcile.
 type RollbackRemediation struct {
 	configFactory *action.ConfigFactory
 	eventRecorder record.EventRecorder
@@ -184,7 +184,7 @@ func observeRollback(obj *v2.HelmRelease) storage.ObserveFunc {
 		obs := release.ObserveRelease(rls)
 		if cur == nil || !obs.Targets(cur.Name, cur.Namespace, 0) || obs.Version >= cur.Version {
 			// Overwrite current with newer release, or update it.
-			obj.Status.Current = release.ObservedToInfo(obs)
+			obj.Status.Current = release.ObservedToSnapshot(obs)
 		}
 	}
 }
