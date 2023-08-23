@@ -21,14 +21,14 @@ require (
 	github.com/fluxcd/pkg/apis/kustomize v1.1.1
 	github.com/fluxcd/pkg/apis/meta v1.1.2
 	github.com/fluxcd/pkg/runtime v0.42.0
-	github.com/fluxcd/pkg/ssa v0.30.0
-	github.com/fluxcd/source-controller/api v1.0.1
+	github.com/fluxcd/pkg/ssa v0.32.0
+	github.com/fluxcd/source-controller/api v1.1.0
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/go-retryablehttp v0.7.4
 	github.com/onsi/gomega v1.27.10
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/go-digest/blake3 v0.0.0-20230801144141-122dc6384261
+	github.com/opencontainers/go-digest/blake3 v0.0.0-20230815154656-802ce17c4f59
 	github.com/spf13/pflag v1.0.5
 	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v3 v3.12.3
@@ -148,7 +148,7 @@ require (
 	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/net v0.13.0 // indirect
 	golang.org/x/oauth2 v0.5.0 // indirect
-	golang.org/x/sync v0.2.0 // indirect
+	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/term v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
