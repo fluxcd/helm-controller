@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.36.0
+
+**Release date:** 2023-08-23
+
+This prerelease introduces a `--interval-jitter-percentage` flag to the
+controller to distribute the load more evenly when multiple objects are set up
+with the same interval. The default of this flag is set to `5`, which means
+that the interval will be jittered by a +/- 5% random value (e.g. if the
+interval is 10 minutes, the actual reconciliation interval will be between 9.5
+and 10.5 minutes).
+
+In addition, the controller now stops exporting an object's metrics as soon as
+it has been deleted.
+
+Lastly, dependencies have been updated, such as an update of Helm to `v3.12.3`
+and Kubernetes related dependencies to `v0.27.4`.
+
+Improvements:
+- Update dependencies
+  [#748](https://github.com/fluxcd/helm-controller/pull/748)
+- controller: jitter requeue interval
+  [#751](https://github.com/fluxcd/helm-controller/pull/751)
+- Delete stale metrics on delete
+  [#753](https://github.com/fluxcd/helm-controller/pull/753)
+- Update Helm to v3.12.3
+  [#754](https://github.com/fluxcd/helm-controller/pull/754)
+- Update Source API to v1.1.0
+  [#758](https://github.com/fluxcd/helm-controller/pull/758)
+
+Fixes:
+- chore: fix typo reconciliation
+  [#736](https://github.com/fluxcd/helm-controller/pull/736)
+
 ## 0.35.0
 
 **Release date:** 2023-07-04
