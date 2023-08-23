@@ -15,7 +15,7 @@ replace (
 )
 
 require (
-	github.com/fluxcd/helm-controller/api v0.35.0
+	github.com/fluxcd/helm-controller/api v0.36.0
 	github.com/fluxcd/pkg/apis/acl v0.1.0
 	github.com/fluxcd/pkg/apis/event v0.5.2
 	github.com/fluxcd/pkg/apis/kustomize v1.1.1
