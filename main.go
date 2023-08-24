@@ -94,6 +94,7 @@ func main() {
 		oomWatchMemoryThreshold   uint8
 		oomWatchMaxMemoryPath     string
 		oomWatchCurrentMemoryPath string
+		helmStorageDriver         string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080",
@@ -120,6 +121,8 @@ func main() {
 		"The path to the cgroup memory limit file. Requires feature gate 'OOMWatch' to be enabled. If not set, the path will be automatically detected.")
 	flag.StringVar(&oomWatchCurrentMemoryPath, "oom-watch-current-memory-path", "",
 		"The path to the cgroup current memory usage file. Requires feature gate 'OOMWatch' to be enabled. If not set, the path will be automatically detected.")
+	flag.StringVar(&helmStorageDriver, "helm-storage-driver", "",
+		"The Helm storage driver to store release information. If not set, it will default to secret.")
 
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
@@ -150,6 +153,14 @@ func main() {
 	watchNamespace := ""
 	if !watchOptions.AllNamespaces {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
+	}
+
+	if helmStorageDriver == "" {
+		helmDriverEnv, exists := os.LookupEnv("HELM_DRIVER")
+		if !exists {
+			helmDriverEnv = "secret"
+		}
+		helmStorageDriver = helmDriverEnv
 	}
 
 	watchSelector, err := helper.GetWatchSelector(watchOptions)
@@ -250,6 +261,7 @@ func main() {
 		PollingOpts:         pollingOpts,
 		StatusPoller:        polling.NewStatusPoller(mgr.GetClient(), mgr.GetRESTMapper(), pollingOpts),
 		ControllerName:      controllerName,
+		HelmStorageDriver:   helmStorageDriver,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		DependencyRequeueInterval: requeueDependency,
 		HTTPRetry:                 httpRetry,
