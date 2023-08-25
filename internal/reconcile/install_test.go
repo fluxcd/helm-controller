@@ -151,7 +151,9 @@ func TestInstall_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			chart: testutil.BuildChart(),
@@ -172,13 +174,15 @@ func TestInstall_Reconcile(t *testing.T) {
 			name: "install with stale current",
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(testutil.BuildRelease(&helmrelease.MockReleaseOptions{
-						Name:      mockReleaseName,
-						Namespace: "other",
-						Version:   1,
-						Status:    helmrelease.StatusUninstalled,
-						Chart:     testutil.BuildChart(),
-					}))),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+							Name:      mockReleaseName,
+							Namespace: "other",
+							Version:   1,
+							Status:    helmrelease.StatusUninstalled,
+							Chart:     testutil.BuildChart(),
+						}))),
+					},
 				}
 			},
 			chart: testutil.BuildChart(),
@@ -353,7 +357,9 @@ func TestInstall_success(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				History: v2.ReleaseHistory{
+					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				},
 			},
 		}
 	)
@@ -372,8 +378,8 @@ func TestInstall_success(t *testing.T) {
 		r.success(req)
 
 		expectMsg := fmt.Sprintf(fmtInstallSuccess,
-			fmt.Sprintf("%s/%s.%d", mockReleaseNamespace, mockReleaseName, obj.Status.Current.Version),
-			fmt.Sprintf("%s@%s", obj.Status.Current.ChartName, obj.Status.Current.ChartVersion))
+			fmt.Sprintf("%s/%s.%d", mockReleaseNamespace, mockReleaseName, obj.GetCurrent().Version),
+			fmt.Sprintf("%s@%s", obj.GetCurrent().ChartName, obj.GetCurrent().ChartVersion))
 
 		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason, expectMsg),
@@ -385,8 +391,8 @@ func TestInstall_success(t *testing.T) {
 				Message: expectMsg,
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.Status.Current.ChartVersion,
-						eventMetaGroupKey(eventv1.MetaTokenKey):    obj.Status.Current.ConfigDigest,
+						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.GetCurrent().ChartVersion,
+						eventMetaGroupKey(eventv1.MetaTokenKey):    obj.GetCurrent().ConfigDigest,
 					},
 				},
 			},
@@ -413,8 +419,8 @@ func TestInstall_success(t *testing.T) {
 		g.Expect(cond).ToNot(BeNil())
 
 		expectMsg := fmt.Sprintf(fmtTestPending,
-			fmt.Sprintf("%s/%s.%d", mockReleaseNamespace, mockReleaseName, obj.Status.Current.Version),
-			fmt.Sprintf("%s@%s", obj.Status.Current.ChartName, obj.Status.Current.ChartVersion))
+			fmt.Sprintf("%s/%s.%d", mockReleaseNamespace, mockReleaseName, obj.GetCurrent().Version),
+			fmt.Sprintf("%s@%s", obj.GetCurrent().ChartName, obj.GetCurrent().ChartVersion))
 		g.Expect(cond.Message).To(Equal(expectMsg))
 	})
 }

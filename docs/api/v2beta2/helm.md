@@ -1297,31 +1297,16 @@ Current release.</p>
 </tr>
 <tr>
 <td>
-<code>current</code><br>
+<code>history</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2beta2.Snapshot">
-Snapshot
+<a href="#helm.toolkit.fluxcd.io/v2beta2.ReleaseHistory">
+ReleaseHistory
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Current holds the latest observed Snapshot for the current release.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>previous</code><br>
-<em>
-<a href="#helm.toolkit.fluxcd.io/v2beta2.Snapshot">
-Snapshot
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Previous holds the latest observed Snapshot for the previous
-(succesful) release.</p>
+<p>History holds the history of Helm releases performed for this HelmRelease.</p>
 </td>
 </tr>
 <tr>
@@ -1769,6 +1754,60 @@ Kustomize
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2beta2.ReleaseHistory">ReleaseHistory
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.HelmReleaseStatus">HelmReleaseStatus</a>)
+</p>
+<p>ReleaseHistory holds the latest observed Snapshot for the current release,
+and the previous (successful) release. The previous release is only
+populated if the current release is not the first release, and if the
+previous release was successful. This is to prevent the previous release
+from being populated with a failed release.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>current</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.Snapshot">
+Snapshot
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Current holds the latest observed Snapshot for the current release.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>previous</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.Snapshot">
+Snapshot
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Previous holds the latest observed Snapshot for the previous
+(successful) release.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="helm.toolkit.fluxcd.io/v2beta2.Remediation">Remediation
 </h3>
 <p>Remediation defines a consistent interface for InstallRemediation and
@@ -1898,7 +1937,7 @@ rollback action when it fails.</p>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2beta2.HelmReleaseStatus">HelmReleaseStatus</a>)
+<a href="#helm.toolkit.fluxcd.io/v2beta2.ReleaseHistory">ReleaseHistory</a>)
 </p>
 <p>Snapshot captures a point-in-time copy of the status information for a Helm release,
 as managed by the controller.</p>

@@ -184,7 +184,7 @@ func observeRollback(obj *v2.HelmRelease) storage.ObserveFunc {
 		obs := release.ObserveRelease(rls)
 		if cur == nil || !obs.Targets(cur.Name, cur.Namespace, 0) || obs.Version >= cur.Version {
 			// Overwrite current with newer release, or update it.
-			obj.Status.Current = release.ObservedToSnapshot(obs)
+			obj.Status.History.Current = release.ObservedToSnapshot(obs)
 		}
 	}
 }

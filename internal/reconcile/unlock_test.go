@@ -98,7 +98,9 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -130,7 +132,9 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			wantErr: mockUpdateErr,
@@ -158,11 +162,13 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: &v2.Snapshot{
-						Name:      mockReleaseName,
-						Namespace: releases[0].Namespace,
-						Version:   1,
-						Status:    helmrelease.StatusFailed.String(),
+					History: v2.ReleaseHistory{
+						Current: &v2.Snapshot{
+							Name:      mockReleaseName,
+							Namespace: releases[0].Namespace,
+							Version:   1,
+							Status:    helmrelease.StatusFailed.String(),
+						},
 					},
 				}
 			},
@@ -199,11 +205,13 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: &v2.Snapshot{
-						Name:      mockReleaseName,
-						Namespace: releases[0].Namespace,
-						Version:   releases[0].Version - 1,
-						Status:    helmrelease.StatusPendingInstall.String(),
+					History: v2.ReleaseHistory{
+						Current: &v2.Snapshot{
+							Name:      mockReleaseName,
+							Namespace: releases[0].Namespace,
+							Version:   releases[0].Version - 1,
+							Status:    helmrelease.StatusPendingInstall.String(),
+						},
 					},
 				}
 			},
@@ -220,10 +228,12 @@ func TestUnlock_Reconcile(t *testing.T) {
 			name: "unlock without latest",
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: &v2.Snapshot{
-						Name:    mockReleaseName,
-						Version: 1,
-						Status:  helmrelease.StatusFailed.String(),
+					History: v2.ReleaseHistory{
+						Current: &v2.Snapshot{
+							Name:    mockReleaseName,
+							Version: 1,
+							Status:  helmrelease.StatusFailed.String(),
+						},
 					},
 				}
 			},
@@ -257,10 +267,12 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: &v2.Snapshot{
-						Name:    mockReleaseName,
-						Version: 1,
-						Status:  helmrelease.StatusFailed.String(),
+					History: v2.ReleaseHistory{
+						Current: &v2.Snapshot{
+							Name:    mockReleaseName,
+							Version: 1,
+							Status:  helmrelease.StatusFailed.String(),
+						},
 					},
 				}
 			},
@@ -371,7 +383,9 @@ func TestUnlock_failure(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				History: v2.ReleaseHistory{
+					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				},
 			},
 		}
 		status = helmrelease.StatusPendingInstall
@@ -422,7 +436,9 @@ func TestUnlock_success(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				History: v2.ReleaseHistory{
+					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				},
 			},
 		}
 		status = helmrelease.StatusPendingInstall
@@ -466,11 +482,13 @@ func Test_observeUnlock(t *testing.T) {
 
 		obj := &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: &v2.Snapshot{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-					Version:   1,
-					Status:    helmrelease.StatusPendingRollback.String(),
+				History: v2.ReleaseHistory{
+					Current: &v2.Snapshot{
+						Name:      mockReleaseName,
+						Namespace: mockReleaseNamespace,
+						Version:   1,
+						Status:    helmrelease.StatusPendingRollback.String(),
+					},
 				},
 			},
 		}

@@ -60,7 +60,9 @@ func Test_NextAction(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			chart:  testutil.BuildChart(),
@@ -75,13 +77,15 @@ func Test_NextAction(t *testing.T) {
 			name: "disappeared release from storage requires install",
 			status: func(_ []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(testutil.BuildRelease(&helmrelease.MockReleaseOptions{
-						Name:      mockReleaseName,
-						Namespace: mockReleaseNamespace,
-						Version:   1,
-						Status:    helmrelease.StatusDeployed,
-						Chart:     testutil.BuildChart(),
-					}))),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+							Name:      mockReleaseName,
+							Namespace: mockReleaseNamespace,
+							Version:   1,
+							Status:    helmrelease.StatusDeployed,
+							Chart:     testutil.BuildChart(),
+						}))),
+					},
 				}
 			},
 			want: &Install{},
@@ -114,7 +118,9 @@ func Test_NextAction(t *testing.T) {
 				cur := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
 				cur.Digest = "sha256:invalid"
 				return v2.HelmReleaseStatus{
-					Current: cur,
+					History: v2.ReleaseHistory{
+						Current: cur,
+					},
 				}
 			},
 			chart:  testutil.BuildChart(),
@@ -137,7 +143,9 @@ func Test_NextAction(t *testing.T) {
 				// Digest for empty string is always mismatch
 				cur.Digest = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 				return v2.HelmReleaseStatus{
-					Current: cur,
+					History: v2.ReleaseHistory{
+						Current: cur,
+					},
 				}
 			},
 			chart:  testutil.BuildChart(),
@@ -157,7 +165,9 @@ func Test_NextAction(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			chart:  testutil.BuildChart(),
@@ -182,7 +192,9 @@ func Test_NextAction(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			chart:  testutil.BuildChart(),
@@ -227,8 +239,10 @@ func Test_NextAction(t *testing.T) {
 				cur.SetTestHooks(release.TestHooksFromRelease(releases[1]))
 
 				return v2.HelmReleaseStatus{
-					Current:  cur,
-					Previous: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current:  cur,
+						Previous: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			chart:  testutil.BuildChart(),
@@ -266,7 +280,9 @@ func Test_NextAction(t *testing.T) {
 				cur.SetTestHooks(release.TestHooksFromRelease(releases[0]))
 
 				return v2.HelmReleaseStatus{
-					Current: cur,
+					History: v2.ReleaseHistory{
+						Current: cur,
+					},
 				}
 			},
 			chart:  testutil.BuildChart(),
@@ -307,7 +323,9 @@ func Test_NextAction(t *testing.T) {
 				cur.SetTestHooks(release.TestHooksFromRelease(releases[0]))
 
 				return v2.HelmReleaseStatus{
-					Current: cur,
+					History: v2.ReleaseHistory{
+						Current: cur,
+					},
 				}
 			},
 		},
@@ -341,7 +359,9 @@ func Test_NextAction(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			want: &Test{},
@@ -375,8 +395,10 @@ func Test_NextAction(t *testing.T) {
 			values: map[string]interface{}{},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current:         release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
-					Previous:        release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current:  release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+						Previous: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 					UpgradeFailures: 1,
 				}
 			},
@@ -404,7 +426,9 @@ func Test_NextAction(t *testing.T) {
 			values: map[string]interface{}{},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current:         release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 					InstallFailures: 1,
 				}
 			},
@@ -425,7 +449,9 @@ func Test_NextAction(t *testing.T) {
 			values: map[string]interface{}{},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current:         release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 					InstallFailures: 1,
 				}
 			},
@@ -446,7 +472,9 @@ func Test_NextAction(t *testing.T) {
 			values: map[string]interface{}{},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current:         release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 					UpgradeFailures: 1,
 				}
 			},
@@ -481,8 +509,10 @@ func Test_NextAction(t *testing.T) {
 			values: map[string]interface{}{},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current:  release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
-					Previous: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current:  release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+						Previous: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			want: &Upgrade{},
@@ -512,8 +542,10 @@ func Test_NextAction(t *testing.T) {
 				prev.Version = 1
 				return v2.HelmReleaseStatus{
 					UpgradeFailures: 1,
-					Current:         release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
-					Previous:        release.ObservedToSnapshot(release.ObserveRelease(&prev)),
+					History: v2.ReleaseHistory{
+						Current:  release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+						Previous: release.ObservedToSnapshot(release.ObserveRelease(&prev)),
+					},
 				}
 			},
 			want: &Upgrade{},
@@ -540,7 +572,9 @@ func Test_NextAction(t *testing.T) {
 			values: map[string]interface{}{},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			want: &Install{},
@@ -567,7 +601,9 @@ func Test_NextAction(t *testing.T) {
 			values: map[string]interface{}{},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current:         release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 					InstallFailures: 3,
 				}
 			},
@@ -602,8 +638,10 @@ func Test_NextAction(t *testing.T) {
 			values: map[string]interface{}{},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current:         release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
-					Previous:        release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current:  release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+						Previous: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 					UpgradeFailures: 3,
 				}
 			},
@@ -624,7 +662,9 @@ func Test_NextAction(t *testing.T) {
 			values: map[string]interface{}{},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			want: &Install{},
@@ -642,7 +682,9 @@ func Test_NextAction(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			chart:  testutil.BuildChart(testutil.ChartWithName("other-name")),
@@ -662,7 +704,9 @@ func Test_NextAction(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			chart:  testutil.BuildChart(),

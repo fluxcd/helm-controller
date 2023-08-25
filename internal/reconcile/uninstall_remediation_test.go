@@ -102,7 +102,9 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -133,7 +135,9 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -176,7 +180,9 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -215,7 +221,9 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -269,7 +277,9 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -376,7 +386,9 @@ func TestUninstallRemediation_failure(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				History: v2.ReleaseHistory{
+					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				},
 			},
 		}
 		err = errors.New("uninstall error")
@@ -454,7 +466,9 @@ func TestUninstallRemediation_success(t *testing.T) {
 
 	obj := &v2.HelmRelease{
 		Status: v2.HelmReleaseStatus{
-			Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+			History: v2.ReleaseHistory{
+				Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+			},
 		},
 	}
 

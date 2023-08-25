@@ -57,10 +57,12 @@ func TestReleaseTargetChanged(t *testing.T) {
 			chartName: defaultChartName,
 			spec:      v2.HelmReleaseSpec{},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.Snapshot{
-					Name:      defaultName,
-					Namespace: defaultNamespace,
-					ChartName: defaultChartName,
+				History: v2.ReleaseHistory{
+					Current: &v2.Snapshot{
+						Name:      defaultName,
+						Namespace: defaultNamespace,
+						ChartName: defaultChartName,
+					},
 				},
 				StorageNamespace: defaultNamespace,
 			},
@@ -73,10 +75,12 @@ func TestReleaseTargetChanged(t *testing.T) {
 				ReleaseName: defaultReleaseName,
 			},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.Snapshot{
-					Name:      defaultReleaseName,
-					Namespace: defaultNamespace,
-					ChartName: defaultChartName,
+				History: v2.ReleaseHistory{
+					Current: &v2.Snapshot{
+						Name:      defaultReleaseName,
+						Namespace: defaultNamespace,
+						ChartName: defaultChartName,
+					},
 				},
 			},
 			want: false,
@@ -86,7 +90,9 @@ func TestReleaseTargetChanged(t *testing.T) {
 			spec: v2.HelmReleaseSpec{},
 			status: v2.HelmReleaseStatus{
 				StorageNamespace: defaultNamespace,
-				Current:          nil,
+				History: v2.ReleaseHistory{
+					Current: nil,
+				},
 			},
 			want: false,
 		},
@@ -97,10 +103,12 @@ func TestReleaseTargetChanged(t *testing.T) {
 				StorageNamespace: defaultStorageNamespace,
 			},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.Snapshot{
-					Name:      defaultName,
-					Namespace: defaultNamespace,
-					ChartName: defaultChartName,
+				History: v2.ReleaseHistory{
+					Current: &v2.Snapshot{
+						Name:      defaultName,
+						Namespace: defaultNamespace,
+						ChartName: defaultChartName,
+					},
 				},
 				StorageNamespace: defaultNamespace,
 			},
@@ -113,10 +121,12 @@ func TestReleaseTargetChanged(t *testing.T) {
 				TargetNamespace: defaultTargetNamespace,
 			},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.Snapshot{
-					Name:      defaultName,
-					Namespace: defaultNamespace,
-					ChartName: defaultChartName,
+				History: v2.ReleaseHistory{
+					Current: &v2.Snapshot{
+						Name:      defaultName,
+						Namespace: defaultNamespace,
+						ChartName: defaultChartName,
+					},
 				},
 				StorageNamespace: defaultNamespace,
 			},
@@ -129,10 +139,12 @@ func TestReleaseTargetChanged(t *testing.T) {
 				ReleaseName: defaultReleaseName,
 			},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.Snapshot{
-					Name:      defaultName,
-					Namespace: defaultNamespace,
-					ChartName: defaultChartName,
+				History: v2.ReleaseHistory{
+					Current: &v2.Snapshot{
+						Name:      defaultName,
+						Namespace: defaultNamespace,
+						ChartName: defaultChartName,
+					},
 				},
 				StorageNamespace: defaultNamespace,
 			},
@@ -143,10 +155,12 @@ func TestReleaseTargetChanged(t *testing.T) {
 			chartName: "other-chart",
 			spec:      v2.HelmReleaseSpec{},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.Snapshot{
-					Name:      defaultName,
-					Namespace: defaultNamespace,
-					ChartName: defaultChartName,
+				History: v2.ReleaseHistory{
+					Current: &v2.Snapshot{
+						Name:      defaultName,
+						Namespace: defaultNamespace,
+						ChartName: defaultChartName,
+					},
 				},
 				StorageNamespace: defaultNamespace,
 			},
@@ -159,10 +173,12 @@ func TestReleaseTargetChanged(t *testing.T) {
 				TargetNamespace: "target-namespace-exceeding-max-characters",
 			},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.Snapshot{
-					Name:      "target-namespace-exceeding-max-character-eceb26601388",
-					Namespace: "target-namespace-exceeding-max-characters",
-					ChartName: defaultChartName,
+				History: v2.ReleaseHistory{
+					Current: &v2.Snapshot{
+						Name:      "target-namespace-exceeding-max-character-eceb26601388",
+						Namespace: "target-namespace-exceeding-max-characters",
+						ChartName: defaultChartName,
+					},
 				},
 				StorageNamespace: defaultNamespace,
 			},
@@ -175,10 +191,12 @@ func TestReleaseTargetChanged(t *testing.T) {
 				TargetNamespace: "target-namespace-exceeding-max-characters",
 			},
 			status: v2.HelmReleaseStatus{
-				Current: &v2.Snapshot{
-					Name:      defaultName,
-					Namespace: "target-namespace-exceeding-max-characters",
-					ChartName: defaultChartName,
+				History: v2.ReleaseHistory{
+					Current: &v2.Snapshot{
+						Name:      defaultName,
+						Namespace: "target-namespace-exceeding-max-characters",
+						ChartName: defaultChartName,
+					},
 				},
 				StorageNamespace: defaultNamespace,
 			},

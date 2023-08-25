@@ -855,14 +855,9 @@ type HelmReleaseStatus struct {
 	// +optional
 	StorageNamespace string `json:"storageNamespace,omitempty"`
 
-	// Current holds the latest observed Snapshot for the current release.
+	// History holds the history of Helm releases performed for this HelmRelease.
 	// +optional
-	Current *Snapshot `json:"current,omitempty"`
-
-	// Previous holds the latest observed Snapshot for the previous
-	// (succesful) release.
-	// +optional
-	Previous *Snapshot `json:"previous,omitempty"`
+	History ReleaseHistory `json:"history,omitempty"`
 
 	// Failures is the reconciliation failure count against the latest desired
 	// state. It is reset after a successful reconciliation.
@@ -907,6 +902,22 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 		return split[0], split[1]
 	}
 	return "", ""
+}
+
+// ReleaseHistory holds the latest observed Snapshot for the current release,
+// and the previous (successful) release. The previous release is only
+// populated if the current release is not the first release, and if the
+// previous release was successful. This is to prevent the previous release
+// from being populated with a failed release.
+type ReleaseHistory struct {
+	// Current holds the latest observed Snapshot for the current release.
+	// +optional
+	Current *Snapshot `json:"current,omitempty"`
+
+	// Previous holds the latest observed Snapshot for the previous
+	// (successful) release.
+	// +optional
+	Previous *Snapshot `json:"previous,omitempty"`
 }
 
 const (
@@ -979,35 +990,38 @@ func (in *HelmRelease) GetUninstall() Uninstall {
 	return *in.Spec.Uninstall
 }
 
-// GetCurrent returns HelmReleaseStatus.Current.
+// GetCurrent returns the current Helm release as observed by the controller.
 func (in HelmRelease) GetCurrent() *Snapshot {
 	if in.HasCurrent() {
-		return in.Status.Current
+		return in.Status.History.Current
 	}
 	return nil
 }
 
-// HasCurrent returns true if the HelmRelease has a HelmReleaseStatus.Current.
+// HasCurrent returns true if the HelmRelease has a current observed Helm
+// release.
 func (in HelmRelease) HasCurrent() bool {
-	return in.Status.Current != nil
+	return in.Status.History.Current != nil
 }
 
-// GetPrevious returns HelmReleaseStatus.Previous.
+// GetPrevious returns the previous successful Helm release made by the
+// controller.
 func (in HelmRelease) GetPrevious() *Snapshot {
 	if in.HasPrevious() {
-		return in.Status.Previous
+		return in.Status.History.Previous
 	}
 	return nil
 }
 
-// HasPrevious returns true if the HelmRelease has a HelmReleaseStatus.Previous.
+// HasPrevious returns true if the HelmRelease has a previous successful Helm
+// release.
 func (in HelmRelease) HasPrevious() bool {
-	return in.Status.Previous != nil
+	return in.Status.History.Previous != nil
 }
 
 // GetActiveRemediation returns the active Remediation for the HelmRelease.
 func (in HelmRelease) GetActiveRemediation() Remediation {
-	if in.Status.Previous != nil {
+	if in.HasPrevious() {
 		return in.GetUpgrade().GetRemediation()
 	}
 	return in.GetInstall().GetRemediation()

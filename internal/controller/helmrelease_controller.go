@@ -224,7 +224,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		if err := r.checkDependencies(ctx, obj); err != nil {
 			msg := fmt.Sprintf("dependencies do not meet ready condition (%s): retrying in %s",
 				err.Error(), r.requeueDependency.String())
-			r.Eventf(obj, obj.Status.Current.ChartVersion, corev1.EventTypeWarning, err.Error())
+			r.Eventf(obj, obj.GetCurrent().ChartVersion, corev1.EventTypeWarning, err.Error())
 			log.Info(msg)
 			conditions.MarkFalse(obj, meta.ReadyCondition, v2.DependencyNotReadyReason, err.Error())
 			// Exponential backoff would cause execution to be prolonged too much,
@@ -287,7 +287,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		if err = r.reconcileUninstall(ctx, getter, obj); err != nil && !errors.Is(err, intreconcile.ErrNoCurrent) {
 			return ctrl.Result{}, err
 		}
-		obj.Status.Current = nil
+		obj.Status.History = v2.ReleaseHistory{}
 		obj.Status.StorageNamespace = ""
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -438,7 +438,7 @@ func (r *HelmReleaseReconciler) reconcileReleaseDeletion(ctx context.Context, ob
 	}
 
 	// Truncate the current release details in the status.
-	obj.Status.Current = nil
+	obj.Status.History = v2.ReleaseHistory{}
 	obj.Status.StorageNamespace = ""
 
 	return nil

@@ -127,7 +127,9 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -157,7 +159,9 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -187,7 +191,9 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current:         release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 					InstallFailures: 0,
 				}
 			},
@@ -243,7 +249,9 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -352,10 +360,12 @@ func Test_observeTest(t *testing.T) {
 
 		obj := &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: &v2.Snapshot{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-					Version:   1,
+				History: v2.ReleaseHistory{
+					Current: &v2.Snapshot{
+						Name:      mockReleaseName,
+						Namespace: mockReleaseNamespace,
+						Version:   1,
+					},
 				},
 			},
 		}
@@ -383,7 +393,9 @@ func Test_observeTest(t *testing.T) {
 		}
 		obj := &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: current,
+				History: v2.ReleaseHistory{
+					Current: current,
+				},
 			},
 		}
 		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
@@ -424,7 +436,9 @@ func TestTest_failure(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				History: v2.ReleaseHistory{
+					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				},
 			},
 		}
 		err = errors.New("test error")
@@ -495,7 +509,7 @@ func TestTest_failure(t *testing.T) {
 		}
 
 		obj := obj.DeepCopy()
-		obj.Status.Current.SetTestHooks(map[string]*v2.TestHookStatus{})
+		obj.GetCurrent().SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
 		r.failure(req, nil, err)
 
@@ -512,7 +526,7 @@ func TestTest_failure(t *testing.T) {
 
 		obj := obj.DeepCopy()
 		obj.Spec.Test = &v2.Test{IgnoreFailures: true}
-		obj.Status.Current.SetTestHooks(map[string]*v2.TestHookStatus{})
+		obj.GetCurrent().SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
 		r.failure(req, nil, err)
 
@@ -532,7 +546,9 @@ func TestTest_success(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				History: v2.ReleaseHistory{
+					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				},
 			},
 		}
 	)
@@ -544,7 +560,7 @@ func TestTest_success(t *testing.T) {
 		}
 
 		obj := obj.DeepCopy()
-		obj.Status.Current.SetTestHooks(map[string]*v2.TestHookStatus{
+		obj.GetCurrent().SetTestHooks(map[string]*v2.TestHookStatus{
 			"test": {
 				Phase: helmrelease.HookPhaseSucceeded.String(),
 			},
@@ -585,7 +601,7 @@ func TestTest_success(t *testing.T) {
 		}
 
 		obj := obj.DeepCopy()
-		obj.Status.Current.SetTestHooks(map[string]*v2.TestHookStatus{})
+		obj.GetCurrent().SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
 		r.success(req)
 

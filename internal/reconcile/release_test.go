@@ -72,7 +72,9 @@ func Test_observeRelease(t *testing.T) {
 		}
 		obj := &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: current,
+				History: v2.ReleaseHistory{
+					Current: current,
+				},
 			},
 		}
 		mock := helmrelease.Mock(&helmrelease.MockReleaseOptions{
@@ -100,7 +102,9 @@ func Test_observeRelease(t *testing.T) {
 		}
 		obj := &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: current,
+				History: v2.ReleaseHistory{
+					Current: current,
+				},
 			},
 		}
 		mock := helmrelease.Mock(&helmrelease.MockReleaseOptions{
@@ -134,8 +138,10 @@ func Test_observeRelease(t *testing.T) {
 		}
 		obj := &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current:  current,
-				Previous: previous,
+				History: v2.ReleaseHistory{
+					Current:  current,
+					Previous: previous,
+				},
 			},
 		}
 		mock := helmrelease.Mock(&helmrelease.MockReleaseOptions{

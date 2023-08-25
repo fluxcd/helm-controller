@@ -58,15 +58,15 @@ func observeRelease(obj *v2.HelmRelease) storage.ObserveFunc {
 		if cur != nil && obs.Targets(cur.Name, cur.Namespace, 0) && cur.Version < obs.Version {
 			// Add current to previous when we observe the first write of a
 			// newer release.
-			obj.Status.Previous = obj.GetCurrent()
+			obj.Status.History.Previous = obj.Status.History.Current
 		}
 		if cur == nil || !obs.Targets(cur.Name, cur.Namespace, 0) || obs.Version >= cur.Version {
 			// Overwrite current with newer release, or update it.
-			obj.Status.Current = release.ObservedToSnapshot(obs)
+			obj.Status.History.Current = release.ObservedToSnapshot(obs)
 		}
 		if prev := obj.GetPrevious(); prev != nil && obs.Targets(prev.Name, prev.Namespace, prev.Version) {
 			// Write latest state of previous (e.g. status updates) to status.
-			obj.Status.Previous = release.ObservedToSnapshot(obs)
+			obj.Status.History.Previous = release.ObservedToSnapshot(obs)
 		}
 	}
 }

@@ -105,7 +105,9 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(),
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -135,7 +137,9 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(testutil.ChartWithFailingHook()),
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -175,7 +179,9 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(),
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -213,7 +219,9 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(),
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.ReleaseHistory{
+						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -247,7 +255,9 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(),
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: nil,
+					History: v2.ReleaseHistory{
+						Current: nil,
+					},
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -281,11 +291,13 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(),
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					Current: &v2.Snapshot{
-						Name:      mockReleaseName,
-						Namespace: releases[0].Namespace,
-						Version:   1,
-						Status:    helmrelease.StatusDeployed.String(),
+					History: v2.ReleaseHistory{
+						Current: &v2.Snapshot{
+							Name:      mockReleaseName,
+							Namespace: releases[0].Namespace,
+							Version:   1,
+							Status:    helmrelease.StatusDeployed.String(),
+						},
 					},
 				}
 			},
@@ -468,7 +480,9 @@ func TestUpgrade_success(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				History: v2.ReleaseHistory{
+					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				},
 			},
 		}
 	)
@@ -487,8 +501,8 @@ func TestUpgrade_success(t *testing.T) {
 		r.success(req)
 
 		expectMsg := fmt.Sprintf(fmtUpgradeSuccess,
-			fmt.Sprintf("%s/%s.%d", mockReleaseNamespace, mockReleaseName, obj.Status.Current.Version),
-			fmt.Sprintf("%s@%s", obj.Status.Current.ChartName, obj.Status.Current.ChartVersion))
+			fmt.Sprintf("%s/%s.%d", mockReleaseNamespace, mockReleaseName, obj.GetCurrent().Version),
+			fmt.Sprintf("%s@%s", obj.GetCurrent().ChartName, obj.GetCurrent().ChartVersion))
 
 		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, expectMsg),
@@ -500,8 +514,8 @@ func TestUpgrade_success(t *testing.T) {
 				Message: expectMsg,
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.Status.Current.ChartVersion,
-						eventMetaGroupKey(eventv1.MetaTokenKey):    obj.Status.Current.ConfigDigest,
+						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.GetCurrent().ChartVersion,
+						eventMetaGroupKey(eventv1.MetaTokenKey):    obj.GetCurrent().ConfigDigest,
 					},
 				},
 			},
@@ -528,8 +542,8 @@ func TestUpgrade_success(t *testing.T) {
 		g.Expect(cond).ToNot(BeNil())
 
 		expectMsg := fmt.Sprintf(fmtTestPending,
-			fmt.Sprintf("%s/%s.%d", mockReleaseNamespace, mockReleaseName, obj.Status.Current.Version),
-			fmt.Sprintf("%s@%s", obj.Status.Current.ChartName, obj.Status.Current.ChartVersion))
+			fmt.Sprintf("%s/%s.%d", mockReleaseNamespace, mockReleaseName, obj.GetCurrent().Version),
+			fmt.Sprintf("%s@%s", obj.GetCurrent().ChartName, obj.GetCurrent().ChartVersion))
 		g.Expect(cond.Message).To(Equal(expectMsg))
 	})
 }

@@ -198,7 +198,7 @@ func observeTest(obj *v2.HelmRelease) storage.ObserveFunc {
 		if cur := obj.GetCurrent(); cur != nil {
 			obs := release.ObserveRelease(rls)
 			if obs.Targets(cur.Name, cur.Namespace, cur.Version) {
-				obj.Status.Current = release.ObservedToSnapshot(obs)
+				obj.Status.History.Current = release.ObservedToSnapshot(obs)
 				obj.GetCurrent().SetTestHooks(release.TestHooksFromRelease(rls))
 			}
 		}

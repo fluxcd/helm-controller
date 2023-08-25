@@ -199,7 +199,7 @@ func observeUninstall(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rls *helmrelease.Release) {
 		if cur := obj.GetCurrent(); cur != nil {
 			if obs := release.ObserveRelease(rls); obs.Targets(cur.Name, cur.Namespace, cur.Version) {
-				obj.Status.Current = release.ObservedToSnapshot(obs)
+				obj.Status.History.Current = release.ObservedToSnapshot(obs)
 			}
 		}
 	}
