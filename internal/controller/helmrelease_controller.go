@@ -715,7 +715,7 @@ func (r *HelmReleaseReconciler) handleHelmActionResult(ctx context.Context,
 		err = fmt.Errorf("Helm %s failed: %w", action, err)
 		msg := err.Error()
 		if actionErr := (*runner.ActionError)(nil); errors.As(err, &actionErr) {
-			msg = msg + "\n\nLast Helm logs:\n\n" + actionErr.CapturedLogs
+			msg = strings.TrimSpace(msg) + "\n\nLast Helm logs:\n\n" + actionErr.CapturedLogs
 		}
 		newCondition := metav1.Condition{
 			Type:    condition,
