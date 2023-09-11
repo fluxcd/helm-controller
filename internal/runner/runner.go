@@ -72,9 +72,10 @@ type Runner struct {
 }
 
 // NewRunner constructs a new Runner configured to run Helm actions with the
-// given genericclioptions.RESTClientGetter, and the release and storage
-// namespace configured to the provided values.
-func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace string, logger logr.Logger) (*Runner, error) {
+// given genericclioptions.RESTClientGetter, the release and storage
+// namespace configured to the provided values, and the Helm storage driver
+// selected to store release information.
+func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace string, helmStorageDriver string, logger logr.Logger) (*Runner, error) {
 	runner := &Runner{
 		logBuffer: NewLogBuffer(NewDebugLog(logger.V(runtimelogger.DebugLevel)), defaultBufferSize),
 	}
@@ -82,7 +83,7 @@ func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace strin
 	// Default to the trace level logger for the Helm action configuration,
 	// to ensure storage logs are captured.
 	cfg := new(action.Configuration)
-	if err := cfg.Init(getter, storageNamespace, "secret", NewDebugLog(logger.V(runtimelogger.TraceLevel))); err != nil {
+	if err := cfg.Init(getter, storageNamespace, helmStorageDriver, NewDebugLog(logger.V(runtimelogger.TraceLevel))); err != nil {
 		return nil, err
 	}
 

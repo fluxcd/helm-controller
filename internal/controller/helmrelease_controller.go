@@ -89,6 +89,7 @@ type HelmReleaseReconciler struct {
 	StatusPoller          *polling.StatusPoller
 	PollingOpts           polling.Options
 	ControllerName        string
+	HelmStorageDriver     string
 
 	httpClient        *retryablehttp.Client
 	requeueDependency time.Duration
@@ -294,7 +295,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	if err != nil {
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, err.Error()), err
 	}
-	run, err := runner.NewRunner(getter, hr.GetStorageNamespace(), log)
+	run, err := runner.NewRunner(getter, hr.GetStorageNamespace(), r.HelmStorageDriver, log)
 	if err != nil {
 		return v2.HelmReleaseNotReady(hr, v2.InitFailedReason, "failed to initialize Helm action runner"), err
 	}
@@ -682,7 +683,7 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, hr *v2.Helm
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			run, err := runner.NewRunner(getter, hr.GetStorageNamespace(), ctrl.LoggerFrom(ctx))
+			run, err := runner.NewRunner(getter, hr.GetStorageNamespace(), r.HelmStorageDriver, ctrl.LoggerFrom(ctx))
 			if err != nil {
 				return ctrl.Result{}, err
 			}
