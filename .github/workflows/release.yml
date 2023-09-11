@@ -29,7 +29,7 @@ jobs:
       packages: write # for pushing and signing container images.
     steps:
       - name: Checkout
-        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       - name: Setup Kustomize
         uses: fluxcd/pkg/actions/kustomize@main
       - name: Prepare
@@ -68,7 +68,7 @@ jobs:
             type=raw,value=${{ steps.prep.outputs.VERSION }}
       - name: Publish images
         id: build-push
-        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 # v4.1.1
+        uses: docker/build-push-action@0a97817b6ade9f46837855d676c4cca3a2471fc9 # v4.2.1
         with:
           sbom: true
           provenance: true
@@ -96,7 +96,7 @@ jobs:
       - name: Create release and SBOM
         id: run-goreleaser
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: goreleaser/goreleaser-action@3fa32b8bb5620a2c1afe798654bbad59f9da4906 # v4.4.0
+        uses: goreleaser/goreleaser-action@5fdedb94abba051217030cc86d4523cf3f02243d # v4.6.0
         with:
           version: latest
           args: release --clean --skip-validate
