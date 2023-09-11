@@ -111,6 +111,11 @@ func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, hr *v2.HelmRel
 // loads it into a chart.Chart, and removes the downloaded artifact.
 // It returns the loaded chart.Chart on success, or an error.
 func (r *HelmReleaseReconciler) loadHelmChart(source *sourcev1b2.HelmChart) (*chart.Chart, error) {
+	artifact := source.GetArtifact()
+	if artifact == nil {
+		return nil, fmt.Errorf("cannot load chart: HelmChart '%s/%s' has no artifact", source.GetNamespace(), source.GetName())
+	}
+
 	f, err := os.CreateTemp("", fmt.Sprintf("%s-%s-*.tgz", source.GetNamespace(), source.GetName()))
 	if err != nil {
 		return nil, err
@@ -118,7 +123,7 @@ func (r *HelmReleaseReconciler) loadHelmChart(source *sourcev1b2.HelmChart) (*ch
 	defer f.Close()
 	defer os.Remove(f.Name())
 
-	artifactURL := source.GetArtifact().URL
+	artifactURL := artifact.URL
 	if hostname := os.Getenv("SOURCE_CONTROLLER_LOCALHOST"); hostname != "" {
 		u, err := url.Parse(artifactURL)
 		if err != nil {
