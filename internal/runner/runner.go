@@ -78,13 +78,22 @@ func NewRunner(getter genericclioptions.RESTClientGetter, storageNamespace strin
 	runner := &Runner{
 		logBuffer: NewLogBuffer(NewDebugLog(logger.V(runtimelogger.DebugLevel)), defaultBufferSize),
 	}
+
+	// Default to the trace level logger for the Helm action configuration,
+	// to ensure storage logs are captured.
 	cfg := new(action.Configuration)
 	if err := cfg.Init(getter, storageNamespace, "secret", NewDebugLog(logger.V(runtimelogger.TraceLevel))); err != nil {
 		return nil, err
 	}
-	// Override the logger used by the Helm actions with the log buffer.
+
+	// Override the logger used by the Helm actions and Kube client with the log buffer,
+	// which provides useful information in the event of an error.
 	cfg.Log = runner.logBuffer.Log
+	if kc, ok := cfg.KubeClient.(*kube.Client); ok {
+		kc.Log = runner.logBuffer.Log
+	}
 	runner.config = cfg
+
 	return runner, nil
 }
 
