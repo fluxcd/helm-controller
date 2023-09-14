@@ -50,20 +50,14 @@ jobs:
         uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
         with:
           registry: ghcr.io
-          username: fluxcdbot
-          password: ${{ secrets.GHCR_TOKEN }}
-      - name: Login to Docker Hub
-        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
-        with:
-          username: fluxcdbot
-          password: ${{ secrets.DOCKER_FLUXCD_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate images meta
         id: meta
         uses: docker/metadata-action@818d4b7b91585d195f67373fd9cb0332e31a7175 # v4.6.0
         with:
           images: |
-            fluxcd/${{ env.CONTROLLER }}
-            ghcr.io/fluxcd/${{ env.CONTROLLER }}
+            ghcr.io/weaveworks/${{ env.CONTROLLER }}
           tags: |
             type=raw,value=${{ steps.prep.outputs.VERSION }}
       - name: Publish images
@@ -84,8 +78,7 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: 1
         run: |
-          cosign sign --yes fluxcd/${{ env.CONTROLLER }}@${{ steps.build-push.outputs.digest }}
-          cosign sign --yes ghcr.io/fluxcd/${{ env.CONTROLLER }}@${{ steps.build-push.outputs.digest }}
+          cosign sign --yes ghcr.io/weaveworks/${{ env.CONTROLLER }}@${{ steps.build-push.outputs.digest }}
       - name: Generate release artifacts
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
@@ -110,7 +103,7 @@ jobs:
           hashes=$(echo -E $ARTIFACTS | jq --raw-output '.[] | {name, "digest": (.extra.Digest // .extra.Checksum)} | select(.digest) | {digest} + {name} | join("  ") | sub("^sha256:";"")' | base64 -w0)
           echo "hashes=$hashes" >> $GITHUB_OUTPUT
           
-          image_url=fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.version }}
+          image_url=ghcr.io/weaveworks/${{ env.CONTROLLER }}:${{ steps.prep.outputs.version }}
           echo "image_url=$image_url" >> $GITHUB_OUTPUT
           
           image_digest=${{ steps.build-push.outputs.digest }}
@@ -129,21 +122,6 @@ jobs:
       base64-subjects: "${{ needs.release.outputs.hashes }}"
       upload-assets: true
 
-  dockerhub-provenance:
-    needs: [release]
-    permissions:
-      actions: read # for detecting the Github Actions environment.
-      id-token: write # for creating OIDC tokens for signing.
-      packages: write # for uploading attestations.
-    if: startsWith(github.ref, 'refs/tags/v')
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.9.0
-    with:
-      image: ${{ needs.release.outputs.image_url }}
-      digest: ${{ needs.release.outputs.image_digest }}
-      registry-username: fluxcdbot
-    secrets:
-      registry-password: ${{ secrets.DOCKER_FLUXCD_PASSWORD }}
-
   ghcr-provenance:
     needs: [release]
     permissions:
@@ -155,6 +133,6 @@ jobs:
     with:
       image: ghcr.io/${{ needs.release.outputs.image_url }}
       digest: ${{ needs.release.outputs.image_digest }}
-      registry-username: fluxcdbot
+      registry-username: ${{ github.actor }}
     secrets:
-      registry-password: ${{ secrets.GHCR_TOKEN }}
+      registry-password: ${{ secrets.GITHUB_TOKEN }}

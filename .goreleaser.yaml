@@ -1,4 +1,4 @@
-project_name: helm-controller
+project_name: weave-assured-helm-controller
 
 builds:
   - skip: true
@@ -10,12 +10,11 @@ release:
   header: |
     ## Changelog
 
-    [{{.Tag}} changelog](https://github.com/fluxcd/{{.ProjectName}}/blob/{{.Tag}}/CHANGELOG.md)
+    [{{.Tag}} changelog](https://github.com/weaveworks/{{.ProjectName}}/blob/{{.Tag}}/CHANGELOG.md)
   footer: |
     ## Container images
     
-    - `docker.io/fluxcd/{{.ProjectName}}:{{.Tag}}`
-    - `ghcr.io/fluxcd/{{.ProjectName}}:{{.Tag}}`
+    - `ghcr.io/weaveworks/{{.ProjectName}}:{{.Tag}}`
     
     Supported architectures: `linux/amd64`, `linux/arm64` and `linux/arm/v7`.
     
