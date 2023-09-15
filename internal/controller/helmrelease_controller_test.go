@@ -23,7 +23,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
 	. "github.com/onsi/gomega"
+	"github.com/opencontainers/go-digest"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
@@ -38,20 +40,610 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/yaml"
 
+	"github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/fluxcd/pkg/runtime/patch"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	sourcev1b2 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
-	"github.com/fluxcd/helm-controller/internal/acl"
+	intacl "github.com/fluxcd/helm-controller/internal/acl"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/kube"
-	"github.com/fluxcd/helm-controller/internal/reconcile"
+	intreconcile "github.com/fluxcd/helm-controller/internal/reconcile"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/testutil"
 )
+
+func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
+	t.Run("confirms dependencies are ready", func(t *testing.T) {
+		g := NewWithT(t)
+
+		dependency := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "dependency",
+				Namespace:  "mock",
+				Generation: 1,
+			},
+			Status: v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.StalledCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+				ObservedGeneration: 1,
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithObjects(dependency).
+				Build(),
+			EventRecorder:     record.NewFakeRecorder(32),
+			requeueDependency: 5 * time.Second,
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "dependant",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				DependsOn: []meta.NamespacedObjectReference{
+					{
+						Name: "dependency",
+					},
+				},
+			},
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), nil, obj)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.FalseCondition(meta.ReadyCondition, meta.DependencyNotReadyReason, "dependency 'mock/dependency' is not ready"),
+		}))
+	})
+
+	t.Run("handles HelmChart get failure", func(t *testing.T) {
+		g := NewWithT(t)
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().WithScheme(NewTestScheme()).Build(),
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart: "mock/chart",
+			},
+		}
+
+		_, err := r.reconcileRelease(context.TODO(), nil, obj)
+		g.Expect(err).To(HaveOccurred())
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.FalseCondition(meta.ReadyCondition, v2.ArtifactFailedReason, "could not get HelmChart object"),
+		}))
+	})
+
+	t.Run("handles ACL error for HelmChart", func(t *testing.T) {
+		g := NewWithT(t)
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().WithScheme(NewTestScheme()).Build(),
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart: "other/chart",
+			},
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), nil, obj)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
+		g.Expect(res.IsZero()).To(BeTrue())
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.StalledCondition, acl.AccessDeniedReason, "cross-namespace references are not allowed"),
+			*conditions.FalseCondition(meta.ReadyCondition, acl.AccessDeniedReason, "cross-namespace references are not allowed"),
+		}))
+	})
+
+	t.Run("waits for HelmChart to be ready", func(t *testing.T) {
+		g := NewWithT(t)
+
+		chart := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  "mock",
+				Generation: 2,
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 2,
+				Artifact:           &sourcev1.Artifact{},
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionFalse,
+					},
+				},
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithObjects(chart).
+				Build(),
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				Interval: metav1.Duration{Duration: 1 * time.Second},
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart: "mock/chart",
+			},
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), nil, obj)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(res.RequeueAfter).To(Equal(obj.Spec.Interval.Duration))
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.FalseCondition(meta.ReadyCondition, "HelmChartNotReady", "HelmChart 'mock/chart' is not ready"),
+		}))
+	})
+
+	t.Run("waits for HelmChart ObservedGeneration to equal Generation", func(t *testing.T) {
+		g := NewWithT(t)
+
+		chart := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  "mock",
+				Generation: 2,
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 1,
+				Artifact:           &sourcev1.Artifact{},
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithObjects(chart).
+				Build(),
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				Interval: metav1.Duration{Duration: 1 * time.Second},
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart: "mock/chart",
+			},
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), nil, obj)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(res.RequeueAfter).To(Equal(obj.Spec.Interval.Duration))
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.FalseCondition(meta.ReadyCondition, "HelmChartNotReady", "HelmChart 'mock/chart' is not ready"),
+		}))
+	})
+
+	t.Run("confirms HelmChart has an Artifact", func(t *testing.T) {
+		g := NewWithT(t)
+
+		chart := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  "mock",
+				Generation: 2,
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 2,
+				Artifact:           nil,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithObjects(chart).
+				Build(),
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				Interval: metav1.Duration{Duration: 1 * time.Second},
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart: "mock/chart",
+			},
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), nil, obj)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(res.RequeueAfter).To(Equal(obj.Spec.Interval.Duration))
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.FalseCondition(meta.ReadyCondition, "HelmChartNotReady", "HelmChart 'mock/chart' is not ready"),
+		}))
+	})
+
+	t.Run("reports values composition failure", func(t *testing.T) {
+		g := NewWithT(t)
+
+		chart := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  "mock",
+				Generation: 2,
+			},
+			Spec: sourcev1b2.HelmChartSpec{
+				Interval: metav1.Duration{Duration: 1 * time.Second},
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 2,
+				Artifact:           &sourcev1.Artifact{},
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithObjects(chart).
+				Build(),
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				ValuesFrom: []v2.ValuesReference{
+					{
+						Kind: "Secret",
+						Name: "missing",
+					},
+				},
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart: "mock/chart",
+			},
+		}
+
+		_, err := r.reconcileRelease(context.TODO(), nil, obj)
+		g.Expect(err).To(HaveOccurred())
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.FalseCondition(meta.ReadyCondition, "ValuesError", "could not resolve Secret chart values reference 'mock/missing' with key 'values.yaml'"),
+		}))
+	})
+
+	t.Run("reports Helm chart load failure", func(t *testing.T) {
+		g := NewWithT(t)
+
+		chart := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  "mock",
+				Generation: 1,
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 1,
+				Artifact: &sourcev1.Artifact{
+					URL: testServer.URL() + "/does-not-exist",
+				},
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithObjects(chart).
+				Build(),
+			httpClient: retryablehttp.NewClient(),
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart: "mock/chart",
+			},
+		}
+
+		_, err := r.reconcileRelease(context.TODO(), nil, obj)
+		g.Expect(err).To(HaveOccurred())
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.FalseCondition(meta.ReadyCondition, v2.ArtifactFailedReason, "failed to download chart"),
+		}))
+	})
+
+	t.Run("uninstalls HelmRelease if target has changed", func(t *testing.T) {
+		g := NewWithT(t)
+
+		chartMock := testutil.BuildChart()
+		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		chart := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  "mock",
+				Generation: 1,
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 1,
+				Artifact:           chartArtifact,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		c := fake.NewClientBuilder().
+			WithScheme(NewTestScheme()).
+			WithObjects(chart).
+			Build()
+
+		r := &HelmReleaseReconciler{
+			Client:           c,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
+			httpClient:       retryablehttp.NewClient(),
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				StorageNamespace: "other",
+			},
+			Status: v2.HelmReleaseStatus{
+				History: v2.ReleaseHistory{
+					Current: &v2.Snapshot{
+						Name:      "mock",
+						Namespace: "mock",
+					},
+				},
+				HelmChart:        "mock/chart",
+				StorageNamespace: "mock",
+			},
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(res.Requeue).To(BeTrue())
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallSucceededReason, "Release mock/mock.0 was not found, assuming it is uninstalled"),
+			*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallSucceededReason, "Release mock/mock.0 was not found, assuming it is uninstalled"),
+		}))
+
+		// Verify history and storage namespace are cleared.
+		g.Expect(obj.Status.History.Current).To(BeNil())
+		g.Expect(obj.Status.StorageNamespace).To(BeEmpty())
+	})
+
+	t.Run("resets failure counts on configuration change", func(t *testing.T) {
+		g := NewWithT(t)
+
+		chartMock := testutil.BuildChart()
+		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		chart := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  "mock",
+				Generation: 1,
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 1,
+				Artifact:           chartArtifact,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "release",
+				Namespace:  "mock",
+				Generation: 2,
+			},
+			Spec: v2.HelmReleaseSpec{
+				// Trigger a failure by setting an invalid storage namespace,
+				// preventing the release from actually being installed.
+				// This allows us to just test the failure count reset, without
+				// having to facilitate a full install.
+				StorageNamespace: "not-exist",
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart:       "mock/chart",
+				InstallFailures: 2,
+				UpgradeFailures: 3,
+				Failures:        5,
+				// Trigger actual failure reset due to change in spec.
+				LastAttemptedGeneration: 1,
+			},
+		}
+
+		c := fake.NewClientBuilder().
+			WithScheme(NewTestScheme()).
+			WithStatusSubresource(&v2.HelmRelease{}).
+			WithObjects(chart, obj).
+			Build()
+
+		r := &HelmReleaseReconciler{
+			Client:           c,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
+			httpClient:       retryablehttp.NewClient(),
+		}
+
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("namespaces \"not-exist\" not found"))
+
+		// Verify failure counts are reset.
+		g.Expect(obj.Status.InstallFailures).To(Equal(int64(0)))
+		g.Expect(obj.Status.UpgradeFailures).To(Equal(int64(0)))
+		g.Expect(obj.Status.Failures).To(Equal(int64(1)))
+	})
+
+	t.Run("sets last attempted values", func(t *testing.T) {
+		g := NewWithT(t)
+
+		chartMock := testutil.BuildChart()
+		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		chart := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  "mock",
+				Generation: 1,
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 1,
+				Artifact:           chartArtifact,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "release",
+				Namespace:  "mock",
+				Generation: 2,
+			},
+			Spec: v2.HelmReleaseSpec{
+				// Trigger a failure by setting an invalid storage namespace,
+				// preventing the release from actually being installed.
+				// This allows us to just test the , without
+				// having to facilitate a full install.
+				StorageNamespace: "not-exist",
+				Values: &apiextensionsv1.JSON{
+					Raw: []byte(`{"foo":"bar"}`),
+				},
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart:          "mock/chart",
+				ObservedGeneration: 2,
+				// Confirm deprecated value is cleared.
+				LastAttemptedValuesChecksum: "b5cbcf5c23cfd945d2cdf0ffaab387a46f2d054f",
+			},
+		}
+
+		c := fake.NewClientBuilder().
+			WithScheme(NewTestScheme()).
+			WithStatusSubresource(&v2.HelmRelease{}).
+			WithObjects(chart, obj).
+			Build()
+
+		r := &HelmReleaseReconciler{
+			Client:           c,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
+			httpClient:       retryablehttp.NewClient(),
+		}
+
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("namespaces \"not-exist\" not found"))
+
+		// Verify attempted values are set.
+		g.Expect(obj.Status.LastAttemptedGeneration).To(Equal(obj.Generation))
+		g.Expect(obj.Status.LastAttemptedRevision).To(Equal(chartMock.Metadata.Version))
+		g.Expect(obj.Status.LastAttemptedConfigDigest).To(Equal("sha256:1dabc4e3cbbd6a0818bd460f3a6c9855bfe95d506c74726bc0f2edb0aecb1f4e"))
+		g.Expect(obj.Status.LastAttemptedValuesChecksum).To(BeEmpty())
+	})
+}
 
 func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 	t.Run("uninstalls Helm release and removes chart", func(t *testing.T) {
@@ -65,16 +657,16 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 		})
 
 		// Create HelmChart mock.
-		hc := &sourcev1.HelmChart{
+		hc := &sourcev1b2.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "reconcile-delete",
 				Namespace: ns.Name,
 			},
-			Spec: sourcev1.HelmChartSpec{
+			Spec: sourcev1b2.HelmChartSpec{
 				Chart:   "testdata/test-helmrepo",
 				Version: "0.1.0",
-				SourceRef: sourcev1.LocalHelmChartSourceReference{
-					Kind: sourcev1.HelmRepositoryKind,
+				SourceRef: sourcev1b2.LocalHelmChartSourceReference{
+					Kind: sourcev1b2.HelmRepositoryKind,
 					Name: "reconcile-delete",
 				},
 			},
@@ -138,7 +730,7 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 		err = testEnv.Get(context.TODO(), client.ObjectKey{
 			Namespace: hc.Namespace,
 			Name:      hc.Name,
-		}, &sourcev1.HelmChart{})
+		}, &sourcev1b2.HelmChart{})
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
@@ -587,7 +1179,7 @@ func TestHelmReleaseReconciler_reconcileUninstall(t *testing.T) {
 		// We do not care about the result of the uninstall, only that it was attempted.
 		err := (&HelmReleaseReconciler{}).reconcileUninstall(context.TODO(), getter, obj)
 		g.Expect(err).To(HaveOccurred())
-		g.Expect(errors.Is(err, reconcile.ErrNoCurrent)).To(BeTrue())
+		g.Expect(errors.Is(err, intreconcile.ErrNoCurrent)).To(BeTrue())
 	})
 
 	t.Run("error on empty storage namespace", func(t *testing.T) {
@@ -949,7 +1541,7 @@ users:
 func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
 	g := NewWithT(t)
 
-	chart := &sourcev1.HelmChart{
+	chart := &sourcev1b2.HelmChart{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "some-namespace",
 			Name:      "some-chart-name",
@@ -959,7 +1551,7 @@ func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
 	tests := []struct {
 		name            string
 		rel             *v2.HelmRelease
-		chart           *sourcev1.HelmChart
+		chart           *sourcev1b2.HelmChart
 		expectChart     bool
 		wantErr         bool
 		disallowCrossNS bool
@@ -1025,9 +1617,9 @@ func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
 				EventRecorder: record.NewFakeRecorder(32),
 			}
 
-			curAllow := acl.AllowCrossNamespaceRef
-			acl.AllowCrossNamespaceRef = !tt.disallowCrossNS
-			t.Cleanup(func() { acl.AllowCrossNamespaceRef = !curAllow })
+			curAllow := intacl.AllowCrossNamespaceRef
+			intacl.AllowCrossNamespaceRef = !tt.disallowCrossNS
+			t.Cleanup(func() { intacl.AllowCrossNamespaceRef = !curAllow })
 
 			got, err := r.getHelmChart(context.TODO(), tt.rel)
 			if tt.wantErr {

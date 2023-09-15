@@ -22,6 +22,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.1.2
 	github.com/fluxcd/pkg/runtime v0.42.0
 	github.com/fluxcd/pkg/ssa v0.32.0
+	github.com/fluxcd/pkg/testserver v0.4.0
 	github.com/fluxcd/source-controller/api v1.1.2
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9

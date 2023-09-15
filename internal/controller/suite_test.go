@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fluxcd/pkg/runtime/testenv"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,6 +29,8 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/fluxcd/pkg/runtime/testenv"
+	"github.com/fluxcd/pkg/testserver"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
@@ -37,7 +38,8 @@ import (
 )
 
 var (
-	testEnv *testenv.Environment
+	testEnv    *testenv.Environment
+	testServer *testserver.HTTPServer
 
 	testCtx = ctrl.SetupSignalHandler()
 )
@@ -60,6 +62,13 @@ func TestMain(m *testing.M) {
 		testenv.WithScheme(NewTestScheme()),
 	)
 
+	var err error
+	if testServer, err = testserver.NewTempHTTPServer(); err != nil {
+		panic(fmt.Sprintf("Failed to create a temporary storage server: %v", err))
+	}
+	fmt.Println("Starting the test storage server")
+	testServer.Start()
+
 	go func() {
 		fmt.Println("Starting the test environment")
 		if err := testEnv.Start(testCtx); err != nil {
@@ -73,6 +82,12 @@ func TestMain(m *testing.M) {
 	fmt.Println("Stopping the test environment")
 	if err := testEnv.Stop(); err != nil {
 		panic(fmt.Sprintf("Failed to stop the test environment: %v", err))
+	}
+
+	fmt.Println("Stopping the test storage server")
+	testServer.Stop()
+	if err := os.RemoveAll(testServer.Root()); err != nil {
+		panic(fmt.Sprintf("Failed to remove storage server dir: %v", err))
 	}
 
 	os.Exit(code)

@@ -43,6 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	aclv1 "github.com/fluxcd/pkg/apis/acl"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/acl"
 	runtimeClient "github.com/fluxcd/pkg/runtime/client"
@@ -224,9 +225,10 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		if err := r.checkDependencies(ctx, obj); err != nil {
 			msg := fmt.Sprintf("dependencies do not meet ready condition (%s): retrying in %s",
 				err.Error(), r.requeueDependency.String())
-			r.Eventf(obj, obj.GetCurrent().ChartVersion, corev1.EventTypeWarning, err.Error())
-			log.Info(msg)
 			conditions.MarkFalse(obj, meta.ReadyCondition, v2.DependencyNotReadyReason, err.Error())
+			r.Eventf(obj, eventv1.EventSeverityInfo, v2.DependencyNotReadyReason, err.Error())
+			log.Info(msg)
+
 			// Exponential backoff would cause execution to be prolonged too much,
 			// instead we requeue on a fixed interval.
 			return ctrl.Result{RequeueAfter: r.requeueDependency}, nil
@@ -239,8 +241,14 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	hc, err := r.getHelmChart(ctx, obj)
 	if err != nil {
 		if acl.IsAccessDenied(err) {
+			conditions.MarkStalled(obj, aclv1.AccessDeniedReason, err.Error())
 			conditions.MarkFalse(obj, meta.ReadyCondition, aclv1.AccessDeniedReason, err.Error())
-			return ctrl.Result{}, err
+			conditions.Delete(obj, meta.ReconcilingCondition)
+
+			// Recovering from this is not possible without a restart of the
+			// controller or a change of spec, both triggering a new
+			// reconciliation.
+			return ctrl.Result{}, reconcile.TerminalError(err)
 		}
 
 		msg := fmt.Sprintf("could not get HelmChart object: %s", err.Error())
@@ -249,7 +257,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	}
 
 	// Check chart readiness.
-	if hc.Generation != hc.Status.ObservedGeneration || !conditions.IsReady(hc) {
+	if hc.Generation != hc.Status.ObservedGeneration || !conditions.IsReady(hc) || hc.GetArtifact() == nil {
 		msg := fmt.Sprintf("HelmChart '%s/%s' is not ready", hc.GetNamespace(), hc.GetName())
 		log.Info(msg)
 		conditions.MarkFalse(obj, meta.ReadyCondition, "HelmChartNotReady", msg)
