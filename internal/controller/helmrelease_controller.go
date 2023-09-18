@@ -79,16 +79,15 @@ type HelmReleaseReconciler struct {
 	client.Client
 	helper.Metrics
 
-	Config                *rest.Config
-	Scheme                *runtime.Scheme
-	EventRecorder         kuberecorder.EventRecorder
-	DefaultServiceAccount string
-	NoCrossNamespaceRef   bool
-	ClientOpts            runtimeClient.Options
-	KubeConfigOpts        runtimeClient.KubeConfigOptions
-	StatusPoller          *polling.StatusPoller
-	PollingOpts           polling.Options
-	ControllerName        string
+	Config              *rest.Config
+	Scheme              *runtime.Scheme
+	EventRecorder       kuberecorder.EventRecorder
+	NoCrossNamespaceRef bool
+	ClientOpts          runtimeClient.Options
+	KubeConfigOpts      runtimeClient.KubeConfigOptions
+	StatusPoller        *polling.StatusPoller
+	PollingOpts         polling.Options
+	ControllerName      string
 
 	httpClient        *retryablehttp.Client
 	requeueDependency time.Duration
@@ -325,7 +324,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 				r.PollingOpts,
 				hr.Spec.KubeConfig,
 				r.KubeConfigOpts,
-				r.DefaultServiceAccount,
+				kube.DefaultServiceAccountName,
 				hr.Spec.ServiceAccountName,
 				hr.GetNamespace(),
 			), r.ControllerName)
