@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.36.1
+
+**Release date:** 2023-09-18
+
+This prerelease addresses a regression in which the captured Helm logs used in
+a failure event would not include Helm's Kubernetes client logs, making it more
+difficult to reason about e.g. timeout errors.
+
+In addition, it contains a fix for the default service account used for the
+(experimental) differ, and dependency updates of several dependencies.
+
+Fixes:
+- runner: address regression in captured Helm logs
+  [#767](https://github.com/fluxcd/helm-controller/pull/767)
+- Check source for nil artifact before loading chart
+  [#768](https://github.com/fluxcd/helm-controller/pull/768)
+- controller: use `DefaultServiceAccount` in differ
+  [#774](https://github.com/fluxcd/helm-controller/pull/774)
+
+Improvements:
+- build(deps): bump the ci group dependencies
+  [#761](https://github.com/fluxcd/helm-controller/pull/761)
+  [#762](https://github.com/fluxcd/helm-controller/pull/762)
+  [#766](https://github.com/fluxcd/helm-controller/pull/766)
+  [#773](https://github.com/fluxcd/helm-controller/pull/773)
+- build(deps): bump github.com/cyphar/filepath-securejoin from 0.2.3 to 0.2.4
+  [#764](https://github.com/fluxcd/helm-controller/pull/764)
+- Update source-controller to v1.1.1
+  [#775](https://github.com/fluxcd/helm-controller/pull/775)
+
 ## 0.36.0
 
 **Release date:** 2023-08-23
