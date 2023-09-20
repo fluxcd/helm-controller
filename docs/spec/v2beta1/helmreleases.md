@@ -1027,7 +1027,7 @@ spec:
 ## Role-based access control
 
 By default, a `HelmRelease` runs under the cluster admin account and can create, modify, delete cluster level objects
-(cluster roles, cluster role binding, CRDs, etc) and namespeced objects (deployments, ingresses, etc).
+(cluster roles, cluster role binding, CRDs, etc) and namespaced objects (deployments, ingresses, etc).
 For certain `HelmReleases` a cluster admin may wish to control what types of Kubernetes objects can
 be reconciled and under which namespace.
 To restrict a `HelmRelease`, one can assign a service account under which the reconciliation is performed.
