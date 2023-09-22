@@ -113,8 +113,8 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.FalseCondition(meta.ReadyCondition, v2.RollbackSucceededReason, "Rolled back to"),
-				*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason, "Rolled back to"),
+				*conditions.FalseCondition(meta.ReadyCondition, v2.RollbackSucceededReason, "succeeded"),
+				*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason, "succeeded"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
 				return release.ObservedToSnapshot(release.ObserveRelease(releases[2]))

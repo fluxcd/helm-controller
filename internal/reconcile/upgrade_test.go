@@ -111,8 +111,8 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason, "Upgraded release"),
-				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "Upgraded release"),
+				*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded"),
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
 				return release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
@@ -261,8 +261,8 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason, "Upgraded release"),
-				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "Upgraded release"),
+				*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded"),
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
 				return release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
@@ -303,9 +303,9 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			},
 			expectConditions: []metav1.Condition{
 				*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason,
-					"Upgraded release"),
+					"Helm upgrade succeeded"),
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason,
-					"Upgraded release"),
+					"Helm upgrade succeeded"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
 				return release.ObservedToSnapshot(release.ObserveRelease(releases[2]))

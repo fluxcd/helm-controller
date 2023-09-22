@@ -109,7 +109,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			expectConditions: []metav1.Condition{
 				*conditions.TrueCondition(v2.RemediatedCondition, v2.UninstallSucceededReason,
-					"Uninstall remediation for release"),
+					"succeeded"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
 				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))

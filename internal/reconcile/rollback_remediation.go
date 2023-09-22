@@ -125,10 +125,10 @@ func (r *RollbackRemediation) Type() ReconcilerType {
 const (
 	// fmtRollbackRemediationFailure is the message format for a rollback
 	// remediation failure.
-	fmtRollbackRemediationFailure = "Rollback to previous release %s with chart %s failed: %s"
+	fmtRollbackRemediationFailure = "Helm rollback to previous release %s with chart %s failed: %s"
 	// fmtRollbackRemediationSuccess is the message format for a successful
 	// rollback remediation.
-	fmtRollbackRemediationSuccess = "Rolled back to previous release %s with chart %s"
+	fmtRollbackRemediationSuccess = "Helm rollback to previous release %s with chart %s succeeded"
 )
 
 // failure records the failure of a Helm rollback action in the status of the

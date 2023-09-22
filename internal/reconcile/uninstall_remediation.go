@@ -132,10 +132,10 @@ func (r *UninstallRemediation) Type() ReconcilerType {
 const (
 	// fmtUninstallRemediationFailure is the message format for an uninstall
 	// remediation failure.
-	fmtUninstallRemediationFailure = "Uninstall remediation for release %s with chart %s failed: %s"
+	fmtUninstallRemediationFailure = "Helm uninstall remediation for release %s with chart %s failed: %s"
 	// fmtUninstallRemediationSuccess is the message format for a successful
 	// uninstall remediation.
-	fmtUninstallRemediationSuccess = "Uninstall remediation for release %s with chart %s succeeded"
+	fmtUninstallRemediationSuccess = "Helm uninstall remediation for release %s with chart %s succeeded"
 )
 
 // success records the success of a Helm uninstall remediation action in the

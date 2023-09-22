@@ -108,9 +108,9 @@ func (r *Install) Type() ReconcilerType {
 
 const (
 	// fmtInstallFailure is the message format for an installation failure.
-	fmtInstallFailure = "Install of release %s/%s with chart %s@%s failed: %s"
+	fmtInstallFailure = "Helm install failed for release %s/%s with chart %s@%s: %s"
 	// fmtInstallSuccess is the message format for a successful installation.
-	fmtInstallSuccess = "Installed release %s with chart %s"
+	fmtInstallSuccess = "Helm install succeeded for release %s with chart %s"
 )
 
 // failure records the failure of a Helm installation action in the status of

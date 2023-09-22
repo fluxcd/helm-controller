@@ -104,8 +104,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "Unlocked release"),
-				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "Unlocked release"),
+				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "Unlocked Helm release"),
+				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "Unlocked Helm release"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
 				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
@@ -139,8 +139,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			wantErr: mockUpdateErr,
 			expectConditions: []metav1.Condition{
-				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "Unlock of release"),
-				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "Unlock of release"),
+				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "in pending-rollback state failed: storage update error"),
+				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "in pending-rollback state failed: storage update error"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
 				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))

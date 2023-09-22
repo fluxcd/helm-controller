@@ -177,7 +177,7 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 				Type:    v2.ReleasedCondition,
 				Status:  metav1.ConditionTrue,
 				Reason:  v2.InstallSucceededReason,
-				Message: "Installed release",
+				Message: "Helm install succeeded",
 			},
 			{
 				Type:    v2.TestSuccessCondition,

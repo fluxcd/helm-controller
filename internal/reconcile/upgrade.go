@@ -108,9 +108,9 @@ func (r *Upgrade) Type() ReconcilerType {
 
 const (
 	// fmtUpgradeFailure is the message format for an upgrade failure.
-	fmtUpgradeFailure = "Upgrade of release %s/%s with chart %s@%s failed: %s"
+	fmtUpgradeFailure = "Helm upgrade failed for release %s/%s with chart %s@%s: %s"
 	// fmtUpgradeSuccess is the message format for a successful upgrade.
-	fmtUpgradeSuccess = "Upgraded release %s with chart %s"
+	fmtUpgradeSuccess = "Helm upgrade succeeded for release %s with chart %s"
 )
 
 // failure records the failure of a Helm upgrade action in the status of the

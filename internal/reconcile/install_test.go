@@ -89,9 +89,9 @@ func TestInstall_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(),
 			expectConditions: []metav1.Condition{
 				*conditions.TrueCondition(meta.ReadyCondition, v2.InstallSucceededReason,
-					"Installed release"),
+					"Helm install succeeded"),
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason,
-					"Installed release"),
+					"Helm install succeeded"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
 				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
@@ -159,9 +159,9 @@ func TestInstall_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(),
 			expectConditions: []metav1.Condition{
 				*conditions.TrueCondition(meta.ReadyCondition, v2.InstallSucceededReason,
-					"Installed release"),
+					"Helm install succeeded"),
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason,
-					"Installed release"),
+					"Helm install succeeded"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
 				return release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
@@ -188,9 +188,9 @@ func TestInstall_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(),
 			expectConditions: []metav1.Condition{
 				*conditions.TrueCondition(meta.ReadyCondition, v2.InstallSucceededReason,
-					"Installed release"),
+					"Helm install succeeded"),
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason,
-					"Installed release"),
+					"Helm install succeeded"),
 			},
 			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
 				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))

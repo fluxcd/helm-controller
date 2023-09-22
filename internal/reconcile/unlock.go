@@ -115,9 +115,9 @@ func (r *Unlock) Type() ReconcilerType {
 
 const (
 	// fmtUnlockFailure is the message format for an unlock failure.
-	fmtUnlockFailure = "Unlock of release %s with chart %s in %s state failed: %s"
+	fmtUnlockFailure = "Unlock of Helm release %s with chart %s in %s state failed: %s"
 	// fmtUnlockSuccess is the message format for a successful unlock.
-	fmtUnlockSuccess = "Unlocked release %s with chart %s in %s state"
+	fmtUnlockSuccess = "Unlocked Helm release %s with chart %s in %s state"
 )
 
 // failure records the failure of an unlock action in the status of the given

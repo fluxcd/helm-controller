@@ -121,11 +121,11 @@ func (r *Test) Type() ReconcilerType {
 
 const (
 	// fmtTestPending is the message format used when awaiting tests to be run.
-	fmtTestPending = "Release %s with chart %s is awaiting tests"
+	fmtTestPending = "Helm release %s with chart %s is awaiting tests"
 	// fmtTestFailure is the message format for a test failure.
-	fmtTestFailure = "Test for release %s with chart %s failed: %s"
+	fmtTestFailure = "Helm test failed for release %s with chart %s: %s"
 	// fmtTestSuccess is the message format for a successful test.
-	fmtTestSuccess = "Tests for release %s with chart %s succeeded: %s"
+	fmtTestSuccess = "Helm test succeeded for release %s with chart %s: %s"
 )
 
 // failure records the failure of a Helm test action in the status of the given
