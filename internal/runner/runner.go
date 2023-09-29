@@ -441,7 +441,7 @@ func setOriginVisitor(namespace, name string) resource.VisitorFunc {
 		if err != nil {
 			return err
 		}
-		if err = mergeLabels(info.Object, originLabels(namespace, name)); err != nil {
+		if err = mergeLabels(info.Object, originLabels(name, namespace)); err != nil {
 			return fmt.Errorf(
 				"%s origin labels could not be updated: %s",
 				resourceString(info), err,
