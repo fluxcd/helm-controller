@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/hashicorp/go-retryablehttp"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
@@ -770,13 +771,13 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, 
 	}
 
 	var reqs []reconcile.Request
-	for _, i := range list.Items {
-		// If the revision of the artifact equals to the last attempted revision,
-		// we should not make a request for this HelmRelease
-		if hc.GetArtifact().HasRevision(i.Status.LastAttemptedRevision) {
+	for _, hr := range list.Items {
+		// If the HelmRelease is ready and the revision of the artifact equals to the
+		// last attempted revision, we should not make a request for this HelmRelease
+		if conditions.IsReady(&hr) && hc.GetArtifact().HasRevision(hr.Status.LastAttemptedRevision) {
 			continue
 		}
-		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&i)})
+		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&hr)})
 	}
 	return reqs
 }
