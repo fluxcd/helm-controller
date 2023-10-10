@@ -28,6 +28,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/yaml"
 
@@ -122,7 +123,7 @@ other: values
 		// v2.ValuesReference. Therefore a static value here suffices, and instead we just
 		// play with the objects presence/absence.
 		objectName := "values"
-		resources := []runtime.Object{}
+		var resources []client.Object
 
 		if createObject {
 			resources = append(resources,
@@ -146,7 +147,7 @@ other: values
 			},
 		}
 
-		c := fake.NewFakeClientWithScheme(scheme, resources...)
+		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(resources...).Build()
 		r := &HelmReleaseReconciler{Client: c}
 		var values *apiextensionsv1.JSON
 		if hrValues != "" {
@@ -221,13 +222,13 @@ other: values
 		hc.ObjectMeta.Name = hr.GetHelmChartName()
 		hc.ObjectMeta.Namespace = hr.Spec.Chart.GetNamespace(hr.Namespace)
 
-		resources := []runtime.Object{
+		resources := []client.Object{
 			valuesConfigMap("values", map[string]string{valuesKey: configData}),
 			valuesSecret("values", map[string][]byte{valuesKey: secretData}),
 			&hc,
 		}
 
-		c := fake.NewFakeClientWithScheme(scheme, resources...)
+		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(resources...).Build()
 		r := &HelmReleaseReconciler{
 			Client:        c,
 			EventRecorder: &DummyRecorder{},
