@@ -46,8 +46,10 @@ func writeToFile(fs filesys.FileSystem, path string, content []byte) error {
 	if err != nil {
 		return err
 	}
-	helmOutput.Write(content)
-	if err := helmOutput.Close(); err != nil {
+	if _, err = helmOutput.Write(content); err != nil {
+		return err
+	}
+	if err = helmOutput.Close(); err != nil {
 		return err
 	}
 	return nil
@@ -58,8 +60,10 @@ func writeFile(fs filesys.FileSystem, path string, content *bytes.Buffer) error 
 	if err != nil {
 		return err
 	}
-	content.WriteTo(helmOutput)
-	if err := helmOutput.Close(); err != nil {
+	if _, err = content.WriteTo(helmOutput); err != nil {
+		return err
+	}
+	if err = helmOutput.Close(); err != nil {
 		return err
 	}
 	return nil
