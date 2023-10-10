@@ -119,14 +119,14 @@ func (k *postRendererKustomize) Run(renderedManifests *bytes.Buffer) (modifiedMa
 	}
 
 	// Add JSON 6902 patches.
-	for _, m := range k.spec.PatchesJSON6902 {
+	for i, m := range k.spec.PatchesJSON6902 {
 		patch, err := json.Marshal(m.Patch)
 		if err != nil {
 			return nil, err
 		}
 		cfg.PatchesJson6902 = append(cfg.PatchesJson6902, kustypes.Patch{
 			Patch:  string(patch),
-			Target: adaptSelector(&m.Target),
+			Target: adaptSelector(&k.spec.PatchesJSON6902[i].Target),
 		})
 	}
 
