@@ -246,7 +246,7 @@ func (r *Runner) applyCRDs(policy v2.CRDsPolicy, chart *chart.Chart, visitorFunc
 		res, err := r.config.KubeClient.Build(bytes.NewBuffer(obj.File.Data), false)
 		if err != nil {
 			r.config.Log("failed to parse CRDs from %s: %s", obj.Name, err)
-			return errors.New(fmt.Sprintf("failed to parse CRDs from %s: %s", obj.Name, err))
+			return fmt.Errorf("failed to parse CRDs from %s: %w", obj.Name, err)
 		}
 		allCrds = append(allCrds, res...)
 	}
@@ -275,7 +275,7 @@ func (r *Runner) applyCRDs(policy v2.CRDsPolicy, chart *chart.Chart, visitorFunc
 					continue
 				}
 				r.config.Log("failed to create CRD %s: %s", crdName, err)
-				return errors.New(fmt.Sprintf("failed to create CRD %s: %s", crdName, err))
+				return fmt.Errorf("failed to create CRD %s: %w", crdName, err)
 			} else {
 				if rr != nil && rr.Created != nil {
 					totalItems = append(totalItems, rr.Created...)
@@ -329,7 +329,7 @@ func (r *Runner) applyCRDs(policy v2.CRDsPolicy, chart *chart.Chart, visitorFunc
 		// Send them to Kube
 		if rr, err := r.config.KubeClient.Update(original, allCrds, true); err != nil {
 			r.config.Log("failed to apply CRD %s", err)
-			return errors.New(fmt.Sprintf("failed to apply CRD %s", err))
+			return fmt.Errorf("failed to apply CRD: %w", err)
 		} else {
 			if rr != nil {
 				if rr.Created != nil {
