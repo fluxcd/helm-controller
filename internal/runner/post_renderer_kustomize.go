@@ -21,10 +21,10 @@ import (
 	"encoding/json"
 	"sync"
 
-	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/resmap"
 	kustypes "sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 
