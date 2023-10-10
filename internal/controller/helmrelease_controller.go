@@ -440,7 +440,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		// Remediate deployment failure if necessary.
 		if !remediation.RetriesExhausted(hr) || remediation.MustRemediateLastFailure() {
 			if util.ReleaseRevision(rel) <= releaseRevision {
-				log.Info(fmt.Sprintf("skipping remediation, no new release revision created"))
+				log.Info("skipping remediation, no new release revision created")
 			} else {
 				var remediationErr error
 				switch remediation.GetStrategy() {
