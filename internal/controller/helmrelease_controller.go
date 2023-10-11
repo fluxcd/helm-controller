@@ -189,7 +189,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Log reconciliation duration
-	durationMsg := fmt.Sprintf("reconciliation finished in %s", time.Now().Sub(start).String())
+	durationMsg := fmt.Sprintf("reconciliation finished in %s", time.Since(start).String())
 	if result.RequeueAfter > 0 {
 		durationMsg = fmt.Sprintf("%s, next run in %s", durationMsg, result.RequeueAfter.String())
 	}
@@ -440,7 +440,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		// Remediate deployment failure if necessary.
 		if !remediation.RetriesExhausted(hr) || remediation.MustRemediateLastFailure() {
 			if util.ReleaseRevision(rel) <= releaseRevision {
-				log.Info(fmt.Sprintf("skipping remediation, no new release revision created"))
+				log.Info("skipping remediation, no new release revision created")
 			} else {
 				var remediationErr error
 				switch remediation.GetStrategy() {
@@ -771,13 +771,13 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, 
 	}
 
 	var reqs []reconcile.Request
-	for _, hr := range list.Items {
+	for i, hr := range list.Items {
 		// If the HelmRelease is ready and the revision of the artifact equals to the
 		// last attempted revision, we should not make a request for this HelmRelease
-		if conditions.IsReady(&hr) && hc.GetArtifact().HasRevision(hr.Status.LastAttemptedRevision) {
+		if conditions.IsReady(&list.Items[i]) && hc.GetArtifact().HasRevision(hr.Status.LastAttemptedRevision) {
 			continue
 		}
-		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&hr)})
+		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
 	}
 	return reqs
 }

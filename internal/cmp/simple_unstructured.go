@@ -106,5 +106,4 @@ func writePathString(path cmp.Path, sb *strings.Builder) {
 			sb.WriteString(fmt.Sprintf("%v", t.String()))
 		}
 	}
-	return
 }

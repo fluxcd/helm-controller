@@ -178,15 +178,13 @@ func TestHelmReleaseReconciler_reconcileChart(t *testing.T) {
 			g.Expect(v2.AddToScheme(scheme.Scheme)).To(Succeed())
 			g.Expect(sourcev1.AddToScheme(scheme.Scheme)).To(Succeed())
 
-			var c client.Client
+			c := fake.NewClientBuilder().WithScheme(scheme.Scheme)
 			if tt.hc != nil {
-				c = fake.NewFakeClientWithScheme(scheme.Scheme, tt.hc)
-			} else {
-				c = fake.NewFakeClientWithScheme(scheme.Scheme)
+				c.WithObjects(tt.hc)
 			}
 
 			r := &HelmReleaseReconciler{
-				Client:              c,
+				Client:              c.Build(),
 				NoCrossNamespaceRef: tt.noCrossNamspaceRef,
 			}
 
@@ -203,7 +201,7 @@ func TestHelmReleaseReconciler_reconcileChart(t *testing.T) {
 
 			if tt.expectGC {
 				objKey := client.ObjectKeyFromObject(tt.hc)
-				err = c.Get(context.TODO(), objKey, tt.hc.DeepCopy())
+				err = r.Get(context.TODO(), objKey, tt.hc.DeepCopy())
 				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			}
 		})
@@ -259,15 +257,13 @@ func TestHelmReleaseReconciler_deleteHelmChart(t *testing.T) {
 			g.Expect(v2.AddToScheme(scheme.Scheme)).To(Succeed())
 			g.Expect(sourcev1.AddToScheme(scheme.Scheme)).To(Succeed())
 
-			var c client.Client
+			c := fake.NewClientBuilder().WithScheme(scheme.Scheme)
 			if tt.hc != nil {
-				c = fake.NewFakeClientWithScheme(scheme.Scheme, tt.hc)
-			} else {
-				c = fake.NewFakeClientWithScheme(scheme.Scheme)
+				c.WithObjects(tt.hc)
 			}
 
 			r := &HelmReleaseReconciler{
-				Client: c,
+				Client: c.Build(),
 			}
 
 			err := r.deleteHelmChart(context.TODO(), tt.hr)

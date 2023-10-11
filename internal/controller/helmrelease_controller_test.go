@@ -43,7 +43,7 @@ func TestHelmReleaseReconciler_composeValues(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		resources  []runtime.Object
+		resources  []client.Object
 		references []v2.ValuesReference
 		values     string
 		want       chartutil.Values
@@ -51,7 +51,7 @@ func TestHelmReleaseReconciler_composeValues(t *testing.T) {
 	}{
 		{
 			name: "merges",
-			resources: []runtime.Object{
+			resources: []client.Object{
 				valuesConfigMap("values", map[string]string{
 					"values.yaml": `flat: value
 nested:
@@ -88,7 +88,7 @@ other: values
 		},
 		{
 			name: "target path",
-			resources: []runtime.Object{
+			resources: []client.Object{
 				valuesSecret("values", map[string][]byte{"single": []byte("value")}),
 			},
 			references: []v2.ValuesReference{
@@ -111,7 +111,7 @@ other: values
 		},
 		{
 			name: "target path with boolean value",
-			resources: []runtime.Object{
+			resources: []client.Object{
 				valuesSecret("values", map[string][]byte{"single": []byte("true")}),
 			},
 			references: []v2.ValuesReference{
@@ -134,7 +134,7 @@ other: values
 		},
 		{
 			name: "target path with set-string behavior",
-			resources: []runtime.Object{
+			resources: []client.Object{
 				valuesSecret("values", map[string][]byte{"single": []byte("\"true\"")}),
 			},
 			references: []v2.ValuesReference{
@@ -201,7 +201,7 @@ other: values
 		},
 		{
 			name: "missing secret key",
-			resources: []runtime.Object{
+			resources: []client.Object{
 				valuesSecret("values", nil),
 			},
 			references: []v2.ValuesReference{
@@ -215,7 +215,7 @@ other: values
 		},
 		{
 			name: "missing config map key",
-			resources: []runtime.Object{
+			resources: []client.Object{
 				valuesConfigMap("values", nil),
 			},
 			references: []v2.ValuesReference{
@@ -238,7 +238,7 @@ other: values
 		},
 		{
 			name: "invalid values",
-			resources: []runtime.Object{
+			resources: []client.Object{
 				valuesConfigMap("values", map[string]string{
 					"values.yaml": `
 invalid`,
@@ -256,7 +256,7 @@ invalid`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := fake.NewFakeClientWithScheme(scheme, tt.resources...)
+			c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.resources...).Build()
 			r := &HelmReleaseReconciler{Client: c}
 			var values *apiextensionsv1.JSON
 			if tt.values != "" {

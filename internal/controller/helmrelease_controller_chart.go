@@ -95,18 +95,6 @@ func (r *HelmReleaseReconciler) reconcileChart(ctx context.Context, hr *v2.HelmR
 	return &helmChart, nil
 }
 
-// getHelmChart retrieves the v1beta2.HelmChart for the given
-// v2beta1.HelmRelease using the name that is advertised in the status
-// object. It returns the v1beta2.HelmChart, or an error.
-func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, hr *v2.HelmRelease) (*sourcev1b2.HelmChart, error) {
-	namespace, name := hr.Status.GetHelmChart()
-	hc := &sourcev1b2.HelmChart{}
-	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, hc); err != nil {
-		return nil, err
-	}
-	return hc, nil
-}
-
 // loadHelmChart attempts to download the artifact from the provided source,
 // loads it into a chart.Chart, and removes the downloaded artifact.
 // It returns the loaded chart.Chart on success, or an error.

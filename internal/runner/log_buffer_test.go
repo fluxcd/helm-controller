@@ -37,7 +37,6 @@ func TestLogBuffer_Log(t *testing.T) {
 			var count int
 			l := NewLogBuffer(func(format string, v ...interface{}) {
 				count++
-				return
 			}, tt.size)
 			for _, v := range tt.fill {
 				l.Log("%s", v)

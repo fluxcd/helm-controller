@@ -21,10 +21,10 @@ import (
 	"encoding/json"
 	"sync"
 
-	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/resmap"
 	kustypes "sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 
@@ -46,8 +46,10 @@ func writeToFile(fs filesys.FileSystem, path string, content []byte) error {
 	if err != nil {
 		return err
 	}
-	helmOutput.Write(content)
-	if err := helmOutput.Close(); err != nil {
+	if _, err = helmOutput.Write(content); err != nil {
+		return err
+	}
+	if err = helmOutput.Close(); err != nil {
 		return err
 	}
 	return nil
@@ -58,8 +60,10 @@ func writeFile(fs filesys.FileSystem, path string, content *bytes.Buffer) error 
 	if err != nil {
 		return err
 	}
-	content.WriteTo(helmOutput)
-	if err := helmOutput.Close(); err != nil {
+	if _, err = content.WriteTo(helmOutput); err != nil {
+		return err
+	}
+	if err = helmOutput.Close(); err != nil {
 		return err
 	}
 	return nil
@@ -119,14 +123,14 @@ func (k *postRendererKustomize) Run(renderedManifests *bytes.Buffer) (modifiedMa
 	}
 
 	// Add JSON 6902 patches.
-	for _, m := range k.spec.PatchesJSON6902 {
+	for i, m := range k.spec.PatchesJSON6902 {
 		patch, err := json.Marshal(m.Patch)
 		if err != nil {
 			return nil, err
 		}
 		cfg.PatchesJson6902 = append(cfg.PatchesJson6902, kustypes.Patch{
 			Patch:  string(patch),
-			Target: adaptSelector(&m.Target),
+			Target: adaptSelector(&k.spec.PatchesJSON6902[i].Target),
 		})
 	}
 
