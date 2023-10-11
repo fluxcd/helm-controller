@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.36.2
+
+**Release date:** 2023-10-11
+
+This prerelease contains an improvement to retry the reconciliation of a
+`HelmRelease` as soon as the chart is available in storage, instead of waiting
+for the next reconciliation interval. Which is particularly useful when the
+source-controller has just been upgraded.
+
+In addition, it fixes a bug in which the controller would not properly label
+Custom Resource Definitions.
+
+Fixes:
+- runner: ensure CRDs are properly labeled
+  [#781](https://github.com/fluxcd/helm-controller/pull/781)
+- fix: retry failed releases when charts are available in storage
+  [#785](https://github.com/fluxcd/helm-controller/pull/785)
+
+Improvements:
+- Address typo in documentation
+  [#777](https://github.com/fluxcd/helm-controller/pull/777)
+- Update CI dependencies
+  [#783](https://github.com/fluxcd/helm-controller/pull/783)
+  [#786](https://github.com/fluxcd/helm-controller/pull/786)
+- Address miscellaneous issues throughout code base
+  [#788](https://github.com/fluxcd/helm-controller/pull/788)
+
 ## 0.36.1
 
 **Release date:** 2023-09-18
