@@ -246,6 +246,22 @@ available by e.g. post-install hooks.</p>
 </tr>
 <tr>
 <td>
+<code>driftDetection</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.DriftDetection">
+DriftDetection
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DriftDetection holds the configuration for detecting and handling
+differences between the manifest in the Helm storage and the resources
+currently existing in the cluster.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>install</code><br>
 <em>
 <a href="#helm.toolkit.fluxcd.io/v2beta2.Install">
@@ -453,6 +469,69 @@ string
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2beta2.DriftDetection">DriftDetection
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>DriftDetection defines the strategy for performing differential analysis and
+provides a way to define rules for ignoring specific changes during this
+process.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>mode</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.DriftDetectionMode">
+DriftDetectionMode
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Mode defines how differences should be handled between the Helm manifest
+and the manifest currently applied to the cluster.
+If not explicitly set, it defaults to DiffModeDisabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ignore</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.IgnoreRule">
+[]IgnoreRule
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ignore contains a list of rules for specifying which changes to ignore
+during diffing.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2beta2.DriftDetectionMode">DriftDetectionMode
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.DriftDetection">DriftDetection</a>)
+</p>
+<p>DriftDetectionMode represents the modes in which a controller can detect and
+handle differences between the manifest in the Helm storage and the resources
+currently existing in the cluster.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2beta2.Filter">Filter
 </h3>
 <p>
@@ -1098,6 +1177,22 @@ available by e.g. post-install hooks.</p>
 </tr>
 <tr>
 <td>
+<code>driftDetection</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.DriftDetection">
+DriftDetection
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DriftDetection holds the configuration for detecting and handling
+differences between the manifest in the Helm storage and the resources
+currently existing in the cluster.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>install</code><br>
 <em>
 <a href="#helm.toolkit.fluxcd.io/v2beta2.Install">
@@ -1444,6 +1539,57 @@ github.com/fluxcd/pkg/apis/meta.ReconcileRequestStatus
 <p>
 (Members of <code>ReconcileRequestStatus</code> are embedded into this type.)
 </p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2beta2.IgnoreRule">IgnoreRule
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.DriftDetection">DriftDetection</a>)
+</p>
+<p>IgnoreRule defines a rule to selectively disregard specific changes during
+the drift detection process.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>paths</code><br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<p>Paths is a list of JSON Pointer (RFC 6901) paths to be excluded from
+consideration in a Kubernetes object.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>target</code><br>
+<em>
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/kustomize#Selector">
+github.com/fluxcd/pkg/apis/kustomize.Selector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Target is a selector for specifying Kubernetes objects to which this
+rule applies.
+If Target is not set, the Paths will be ignored for all Kubernetes
+objects within the manifest of the Helm release.</p>
 </td>
 </tr>
 </tbody>
