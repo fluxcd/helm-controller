@@ -18,16 +18,20 @@ package reconcile
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
+	extjsondiff "github.com/wI2L/jsondiff"
 	helmchart "helm.sh/helm/v3/pkg/chart"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/releaseutil"
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -35,6 +39,7 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
+	"github.com/fluxcd/pkg/ssa/jsondiff"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -199,7 +204,7 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 		g.Expect(obj.Status.InstallFailures).To(BeZero())
 		g.Expect(obj.Status.UpgradeFailures).To(BeZero())
 
-		endState, err := DetermineReleaseState(cfg, req)
+		endState, err := DetermineReleaseState(ctx, cfg, req)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(endState).To(Equal(ReleaseState{Status: ReleaseStatusInSync}))
 	})
@@ -1010,13 +1015,14 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 
 func TestAtomicRelease_actionForState(t *testing.T) {
 	tests := []struct {
-		name     string
-		releases []*helmrelease.Release
-		spec     func(spec *v2.HelmReleaseSpec)
-		status   func(releases []*helmrelease.Release) v2.HelmReleaseStatus
-		state    ReleaseState
-		want     ActionReconciler
-		wantErr  error
+		name      string
+		releases  []*helmrelease.Release
+		spec      func(spec *v2.HelmReleaseSpec)
+		status    func(releases []*helmrelease.Release) v2.HelmReleaseStatus
+		state     ReleaseState
+		want      ActionReconciler
+		wantEvent *corev1.Event
+		wantErr   error
 	}{
 		{
 			name: "in-sync release does not trigger any action",
@@ -1054,6 +1060,97 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			name:  "unmanaged release triggers upgrade",
 			state: ReleaseState{Status: ReleaseStatusUnmanaged},
 			want:  &Upgrade{},
+		},
+		{
+			name: "drifted release triggers upgrade if enabled",
+			state: ReleaseState{Status: ReleaseStatusDrifted, Diff: jsondiff.DiffSet{
+				{
+					Type: jsondiff.DiffTypeCreate,
+					GroupVersionKind: schema.GroupVersionKind{
+						Group:   "apps",
+						Kind:    "Deployment",
+						Version: "v1",
+					},
+					Name:      "mock",
+					Namespace: "something",
+				},
+			}},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.DriftDetection = &v2.DriftDetection{
+					Mode: v2.DriftDetectionEnabled,
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{
+							Name:      mockReleaseName,
+							Namespace: mockReleaseNamespace,
+							Version:   1,
+						},
+					},
+				}
+			},
+			want: &Upgrade{},
+			wantEvent: &corev1.Event{
+				Reason: "DriftDetected",
+				Type:   corev1.EventTypeWarning,
+				Message: fmt.Sprintf(
+					"Cluster state of release %s has drifted from the desired state:\n%s",
+					mockReleaseNamespace+"/"+mockReleaseName+".v1",
+					"Deployment/something/mock removed",
+				),
+			},
+		},
+		{
+			name: "drifted release only triggers event if mode is warn",
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.DriftDetection = &v2.DriftDetection{
+					Mode: v2.DriftDetectionDisabled,
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{
+							Name:      mockReleaseName,
+							Namespace: mockReleaseNamespace,
+							Version:   1,
+						},
+					},
+				}
+			},
+			state: ReleaseState{Status: ReleaseStatusDrifted, Diff: jsondiff.DiffSet{
+				{
+					Type: jsondiff.DiffTypeUpdate,
+					GroupVersionKind: schema.GroupVersionKind{
+						Group:   "apps",
+						Kind:    "Deployment",
+						Version: "v1",
+					},
+					Name:      "mock",
+					Namespace: "something",
+					Patch: extjsondiff.Patch{
+						{
+							Type:     extjsondiff.OperationReplace,
+							Path:     "/spec/replicas",
+							OldValue: 1,
+							Value:    2,
+						},
+					},
+				},
+			}},
+			want:    nil,
+			wantErr: nil,
+			wantEvent: &corev1.Event{
+				Reason: "DriftDetected",
+				Type:   corev1.EventTypeWarning,
+				Message: fmt.Sprintf(
+					"Cluster state of release %s has drifted from the desired state:\n%s",
+					mockReleaseNamespace+"/"+mockReleaseName+".v1",
+					"Deployment/something/mock changed (0 additions, 1 changes, 0 removals)",
+				),
+			},
 		},
 		{
 			name: "out-of-sync release triggers upgrade",
@@ -1276,7 +1373,8 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 				}
 			}
 
-			r := &AtomicRelease{configFactory: cfg}
+			recorder := testutil.NewFakeRecorder(1, false)
+			r := &AtomicRelease{configFactory: cfg, eventRecorder: recorder}
 			got, err := r.actionForState(context.TODO(), &Request{Object: obj}, tt.state)
 
 			if tt.wantErr != nil {
@@ -1291,6 +1389,12 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 				want = BeNil()
 			}
 			g.Expect(got).To(want)
+
+			if tt.wantEvent != nil {
+				g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{*tt.wantEvent}))
+			} else {
+				g.Expect(recorder.GetEvents()).To(BeEmpty())
+			}
 		})
 	}
 }

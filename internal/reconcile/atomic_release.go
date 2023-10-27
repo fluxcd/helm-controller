@@ -23,15 +23,19 @@ import (
 	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
+
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/patch"
-	"k8s.io/client-go/tools/record"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/fluxcd/pkg/ssa/jsondiff"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
+	"github.com/fluxcd/helm-controller/internal/diff"
 	interrors "github.com/fluxcd/helm-controller/internal/errors"
 )
 
@@ -172,7 +176,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 		default:
 			// Determine the next action to run based on the current state.
 			log.V(logger.DebugLevel).Info("determining current state of Helm release")
-			state, err := DetermineReleaseState(r.configFactory, req)
+			state, err := DetermineReleaseState(ctx, r.configFactory, req)
 			if err != nil {
 				conditions.MarkFalse(req.Object, meta.ReadyCondition, "StateError", fmt.Sprintf("Could not determine release state: %s", err.Error()))
 				return fmt.Errorf("cannot determine release state: %w", err)
@@ -313,6 +317,24 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		}
 
 		return NewUpgrade(r.configFactory, r.eventRecorder), nil
+	case ReleaseStatusDrifted:
+		log.Info(msgWithReason("detected changes in cluster state", diff.SummarizeDiffSetBrief(state.Diff)))
+		for _, change := range state.Diff {
+			if change.Type == jsondiff.DiffTypeCreate || change.Type == jsondiff.DiffTypeUpdate {
+				log.V(logger.DebugLevel).Info(fmt.Sprintf("observed change in cluster state"), "diff", change)
+			}
+		}
+
+		r.eventRecorder.Eventf(req.Object, corev1.EventTypeWarning, "DriftDetected",
+			"Cluster state of release %s has drifted from the desired state:\n%s",
+			req.Object.Status.History.Latest().FullReleaseName(), diff.SummarizeDiffSet(state.Diff),
+		)
+
+		if req.Object.GetDriftDetection().GetMode() == v2.DriftDetectionEnabled {
+			return NewUpgrade(r.configFactory, r.eventRecorder), nil
+		}
+
+		return nil, nil
 	case ReleaseStatusUntested:
 		log.Info(msgWithReason("release has not been tested", state.Reason))
 		return NewTest(r.configFactory, r.eventRecorder), nil
