@@ -62,9 +62,9 @@ func (l *logLine) String() string {
 		return ""
 	}
 
-	msg := fmt.Sprintf("%s %s", l.ts.Format(time.RFC3339Nano), l.msg)
+	msg := fmt.Sprintf("%s: %s", l.ts.Format(time.RFC3339Nano), l.msg)
 	if c := l.count; c > 0 {
-		msg += fmt.Sprintf("\n%s %s", l.lastTS.Format(time.RFC3339Nano), l.msg)
+		msg += fmt.Sprintf("\n%s: %s", l.lastTS.Format(time.RFC3339Nano), l.msg)
 	}
 	if c := l.count - 1; c > 0 {
 		var dup = "line"

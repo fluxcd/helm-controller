@@ -34,7 +34,7 @@ func TestLogBuffer_Log(t *testing.T) {
 		wantCount int
 		want      string
 	}{
-		{name: "log", size: 2, fill: []string{"a", "b", "c"}, wantCount: 3, want: fmt.Sprintf("%[1]s b\n%[1]s c", stubNowTS().Format(time.RFC3339Nano))},
+		{name: "log", size: 2, fill: []string{"a", "b", "c"}, wantCount: 3, want: fmt.Sprintf("%[1]s: b\n%[1]s: c", stubNowTS().Format(time.RFC3339Nano))},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -115,11 +115,11 @@ func TestLogBuffer_String(t *testing.T) {
 		want string
 	}{
 		{name: "empty buffer", fill: []string{}, want: ""},
-		{name: "filled buffer", size: 2, fill: []string{"a", "b", "c"}, want: fmt.Sprintf("%[1]s b\n%[1]s c", stubNowTS().Format(time.RFC3339Nano))},
-		{name: "duplicate buffer items", fill: []string{"b", "b"}, want: fmt.Sprintf("%[1]s b\n%[1]s b", stubNowTS().Format(time.RFC3339Nano))},
-		{name: "duplicate buffer items", fill: []string{"b", "b", "b"}, want: fmt.Sprintf("%[1]s b\n%[1]s b (1 duplicate line omitted)", stubNowTS().Format(time.RFC3339Nano))},
-		{name: "duplicate buffer items", fill: []string{"b", "b", "b", "b"}, want: fmt.Sprintf("%[1]s b\n%[1]s b (2 duplicate lines omitted)", stubNowTS().Format(time.RFC3339Nano))},
-		{name: "duplicate buffer items", fill: []string{"a", "b", "b", "b", "c", "c"}, want: fmt.Sprintf("%[1]s a\n%[1]s b\n%[1]s b (1 duplicate line omitted)\n%[1]s c\n%[1]s c", stubNowTS().Format(time.RFC3339Nano))},
+		{name: "filled buffer", size: 2, fill: []string{"a", "b", "c"}, want: fmt.Sprintf("%[1]s: b\n%[1]s: c", stubNowTS().Format(time.RFC3339Nano))},
+		{name: "duplicate buffer items", fill: []string{"b", "b"}, want: fmt.Sprintf("%[1]s: b\n%[1]s: b", stubNowTS().Format(time.RFC3339Nano))},
+		{name: "duplicate buffer items", fill: []string{"b", "b", "b"}, want: fmt.Sprintf("%[1]s: b\n%[1]s: b (1 duplicate line omitted)", stubNowTS().Format(time.RFC3339Nano))},
+		{name: "duplicate buffer items", fill: []string{"b", "b", "b", "b"}, want: fmt.Sprintf("%[1]s: b\n%[1]s: b (2 duplicate lines omitted)", stubNowTS().Format(time.RFC3339Nano))},
+		{name: "duplicate buffer items", fill: []string{"a", "b", "b", "b", "c", "c"}, want: fmt.Sprintf("%[1]s: a\n%[1]s: b\n%[1]s: b (1 duplicate line omitted)\n%[1]s: c\n%[1]s: c", stubNowTS().Format(time.RFC3339Nano))},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
