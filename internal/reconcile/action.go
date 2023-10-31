@@ -48,29 +48,27 @@ func NextAction(ctx context.Context, cfg *action.ConfigFactory, recorder record.
 	config := cfg.Build(nil)
 	cur := req.Object.GetCurrent().DeepCopy()
 
-	// If we do not have a current release, we should either install or upgrade
-	// the release depending on the state of the storage.
-	if cur == nil {
+	// Verify the current release is still in storage and unmodified.
+	rls, err := action.VerifyLastStorageItem(config, cur)
+	switch err {
+	case nil:
+		// Noop
+	case action.ErrReleaseNotFound:
+		// If we do not have a current release, we should either install or upgrade
+		// the release depending on the state of the storage.
 		ok, err := action.IsInstalled(config, req.Object.GetReleaseName())
 		if err != nil {
 			return nil, fmt.Errorf("cannot confirm if release is already installed: %w", err)
 		}
 
 		if ok {
-			log.Info("found existing release in storage without it being observed as installed")
+			log.Info("found existing release in storage that is not owned by this HelmRelease")
 			return NewUpgrade(cfg, recorder), nil
 		}
 
-		log.Info("no existing release found in storage")
+		log.Info("no release found in storage")
 		return NewInstall(cfg, recorder), nil
-	}
-
-	// Verify the current release is still in storage and unmodified.
-	rls, err := action.VerifyLastStorageItem(config, cur)
-	switch err {
-	case nil:
-		// Noop
-	case action.ErrReleaseNotFound, action.ErrReleaseDisappeared:
+	case action.ErrReleaseDisappeared:
 		log.Info(fmt.Sprintf("unable to verify last release in storage: %s", err.Error()))
 		return NewInstall(cfg, recorder), nil
 	case action.ErrReleaseNotObserved, action.ErrReleaseDigest:
