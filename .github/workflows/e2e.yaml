@@ -169,7 +169,7 @@ jobs:
           kubectl -n helm-system apply -f config/testdata/$test_name
           echo -n ">>> Waiting for expected conditions"
           count=0
-          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="False" and .TestSuccess=="False" and .Ready=="False"' )" ]; do
+          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="True" and .TestSuccess=="False" and .Ready=="False"' )" ]; do
             echo -n '.'
             sleep 5
             count=$((count + 1))
@@ -213,7 +213,7 @@ jobs:
           fi
 
           kubectl -n helm-system delete -f config/testdata/$test_name
-      - name: Run install fail with remedition test
+      - name: Run install fail with remediation test
         run: |
           test_name=install-fail-remediate
           kubectl -n helm-system apply -f config/testdata/$test_name
@@ -230,21 +230,22 @@ jobs:
           done
           echo ' done'
 
-          # Ensure release does not exist (was uninstalled).
-          HISTORY=$(helm -n helm-system history $test_name 2>&1; exit 0)
-          if [ "$HISTORY" != 'Error: release: not found' ]; then
-            echo -e "Unexpected release history: $HISTORY"
+          # Ensure release was uninstalled.
+          RELEASE_STATUS=$(helm -n helm-system history $test_name -o json | jq -r 'if length == 1 then .[0].status else empty end')
+          if [ "$RELEASE_STATUS" != "uninstalled" ]; then
+            echo -e "Unexpected release status: $RELEASE_STATUS"
             exit 1
           fi
 
           kubectl -n helm-system delete -f config/testdata/$test_name
+          helm -n helm-system delete $test_name
       - name: Run install fail with retry test
         run: |
           test_name=install-fail-retry
           kubectl -n helm-system apply -f config/testdata/$test_name
           echo -n ">>> Waiting for expected conditions"
           count=0
-          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.installFailures == 2 and ( .status.conditions | map( { (.type): .status } ) | add | .Released=="False" and .Ready=="False" )' )" ]; do
+          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.installFailures == 2 and ( .status.conditions | map( { (.type): .status } ) | add | .Released=="False" and .Ready=="False" and .Stalled=="True" )' )" ]; do
             echo -n '.'
             sleep 5
             count=$((count + 1))
@@ -290,7 +291,7 @@ jobs:
           kubectl -n helm-system apply -f config/testdata/$test_name/upgrade.yaml
           echo -n ">>> Waiting for expected conditions"
           count=0
-          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="False" and .Ready=="False"' )" ]; do
+          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="False" and .Ready=="False" and .Stalled=="True"' )" ]; do
             echo -n '.'
             sleep 5
             count=$((count + 1))
@@ -336,7 +337,7 @@ jobs:
           kubectl -n helm-system apply -f config/testdata/$test_name/upgrade.yaml
           echo -n ">>> Waiting for expected conditions"
           count=0
-          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="False" and .TestSuccess=="False" and .Ready=="False"' )" ]; do
+          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="True" and .TestSuccess=="False" and .Ready=="False" and .Stalled=="True"' )" ]; do
             echo -n '.'
             sleep 5
             count=$((count + 1))
@@ -558,7 +559,7 @@ jobs:
             exit 1
           fi
           kubectl -n helm-system delete -f config/testdata/post-renderer-kustomize
-      - name: Boostrap CRDs Upgrade Tests
+      - name: Bootstrap CRDs Upgrade Tests
         if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') }}
         run: |
           REF=${{ github.ref }}

@@ -3,7 +3,7 @@ kind: HelmRelease
 metadata:
   name: upgrade-fail-retry
 spec:
-  interval: 5m
+  interval: 30s
   chart:
     spec:
       chart: podinfo
@@ -11,7 +11,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: podinfo
-      interval: 1m
+      interval: 10m
   values:
     resources:
       requests:

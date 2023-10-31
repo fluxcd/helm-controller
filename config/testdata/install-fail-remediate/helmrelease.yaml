@@ -3,7 +3,7 @@ kind: HelmRelease
 metadata:
   name: install-fail-remediate
 spec:
-  interval: 5m
+  interval: 30s
   chart:
     spec:
       chart: podinfo
@@ -11,10 +11,12 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: podinfo
-      interval: 1m
+      interval: 10m
   install:
     remediation:
       remediateLastFailure: true
+  uninstall:
+    keepHistory: true
   values:
     resources:
       requests:
