@@ -44,7 +44,7 @@ var (
 // process until it ends up in a state as desired by the Request.Object,
 // or no retries remain.
 func NextAction(ctx context.Context, cfg *action.ConfigFactory, recorder record.EventRecorder, req *Request) (ActionReconciler, error) {
-	log := ctrl.LoggerFrom(ctx).V(logger.DebugLevel)
+	log := ctrl.LoggerFrom(ctx).V(logger.InfoLevel)
 	config := cfg.Build(nil)
 	cur := req.Object.GetCurrent().DeepCopy()
 
@@ -55,9 +55,13 @@ func NextAction(ctx context.Context, cfg *action.ConfigFactory, recorder record.
 		if err != nil {
 			return nil, fmt.Errorf("cannot confirm if release is already installed: %w", err)
 		}
+
 		if ok {
+			log.Info("found existing release in storage without it being observed as installed")
 			return NewUpgrade(cfg, recorder), nil
 		}
+
+		log.Info("no existing release found in storage")
 		return NewInstall(cfg, recorder), nil
 	}
 
@@ -67,10 +71,10 @@ func NextAction(ctx context.Context, cfg *action.ConfigFactory, recorder record.
 	case nil:
 		// Noop
 	case action.ErrReleaseNotFound, action.ErrReleaseDisappeared:
-		log.Info(err.Error())
+		log.Info(fmt.Sprintf("unable to verify last release in storage: %s", err.Error()))
 		return NewInstall(cfg, recorder), nil
 	case action.ErrReleaseNotObserved, action.ErrReleaseDigest:
-		log.Info(err.Error())
+		log.Info(fmt.Sprintf("verification of last release in storage failed: %s", err.Error()))
 		return NewUpgrade(cfg, recorder), nil
 	default:
 		return nil, fmt.Errorf("cannot verify current release in storage: %w", err)
@@ -79,7 +83,7 @@ func NextAction(ctx context.Context, cfg *action.ConfigFactory, recorder record.
 	// If the release is in a pending state, the release process likely failed
 	// unexpectedly. Unlock the release and e.g. retry again.
 	if rls.Info.Status.IsPending() {
-		log.Info("observed release is in stale pending state")
+		log.Info("observed release is in a stale pending state")
 		return NewUnlock(cfg, recorder), nil
 	}
 
@@ -92,9 +96,11 @@ func NextAction(ctx context.Context, cfg *action.ConfigFactory, recorder record.
 			// If the chart version and/or values have changed, the failure count(s)
 			// are reset. This short circuits any remediation attempt to force an
 			// upgrade with the new configuration instead.
+			log.Info("observed release in a failed state is out of sync with desired state")
 			return NewUpgrade(cfg, recorder), nil
 		}
-		return rollbackOrUninstall(cfg, recorder, req)
+		log.Info("observed release is in a failed state")
+		return rollbackOrUninstall(ctx, cfg, recorder, req)
 	}
 
 	// Short circuit if we are out of retries.
@@ -105,12 +111,14 @@ func NextAction(ctx context.Context, cfg *action.ConfigFactory, recorder record.
 	// Act on the state of the release.
 	switch rls.Info.Status {
 	case helmrelease.StatusUninstalled, helmrelease.StatusSuperseded:
+		log.Info(fmt.Sprintf("observed release is in a %s state", rls.Info.Status))
 		return NewInstall(cfg, recorder), nil
 	case helmrelease.StatusDeployed:
 		// Confirm the current release matches the desired config.
 		if err = action.VerifyRelease(rls, cur, req.Chart.Metadata, req.Values); err != nil {
 			switch err {
 			case action.ErrChartChanged, action.ErrConfigDigest:
+				log.Info(fmt.Sprintf("observed release is out of sync with desired state: %s", err.Error()))
 				return NewUpgrade(cfg, recorder), nil
 			default:
 				// Error out on any other error as we cannot determine what
@@ -125,12 +133,14 @@ func NextAction(ctx context.Context, cfg *action.ConfigFactory, recorder record.
 		if testSpec := req.Object.GetTest(); testSpec.Enable {
 			// Confirm the release has been tested if enabled.
 			if !req.Object.GetCurrent().HasBeenTested() {
+				log.Info("observed release has not been tested")
 				return NewTest(cfg, recorder), nil
 			}
 			// Act on any observed test failure.
 			if !remediation.MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures) &&
 				req.Object.GetCurrent().HasTestInPhase(helmrelease.HookPhaseFailed.String()) {
-				return rollbackOrUninstall(cfg, recorder, req)
+				log.Info("observed release has failed tests")
+				return rollbackOrUninstall(ctx, cfg, recorder, req)
 			}
 		}
 	}
@@ -143,7 +153,7 @@ func NextAction(ctx context.Context, cfg *action.ConfigFactory, recorder record.
 // must be rolled back, the target revision is verified to be in storage
 // before returning the RollbackRemediation. If the verification fails,
 // Upgrade is returned as a remediation action to ensure continuity.
-func rollbackOrUninstall(cfg *action.ConfigFactory, recorder record.EventRecorder, req *Request) (ActionReconciler, error) {
+func rollbackOrUninstall(ctx context.Context, cfg *action.ConfigFactory, recorder record.EventRecorder, req *Request) (ActionReconciler, error) {
 	remediation := req.Object.GetActiveRemediation()
 	if !remediation.RetriesExhausted(req.Object) || remediation.MustRemediateLastFailure() {
 		switch remediation.GetStrategy() {
@@ -157,6 +167,9 @@ func rollbackOrUninstall(cfg *action.ConfigFactory, recorder record.EventRecorde
 					// If the rollback target is not found or is in any other
 					// way corrupt, the most correct remediation is to reattempt
 					// the upgrade.
+					ctrl.LoggerFrom(ctx).V(logger.InfoLevel).Info(
+						fmt.Sprintf("unable to verify previous release in storage: %s", err.Error()),
+					)
 					return NewUpgrade(cfg, recorder), nil
 				default:
 					return nil, err

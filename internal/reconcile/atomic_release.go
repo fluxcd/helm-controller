@@ -125,7 +125,7 @@ func (cleanReleaseStrategy) MustStop(current ReconcilerType, _ ReconcilerTypeSet
 }
 
 func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
-	log := ctrl.LoggerFrom(ctx).V(logger.DebugLevel)
+	log := ctrl.LoggerFrom(ctx).V(logger.InfoLevel)
 
 	var (
 		previous ReconcilerTypeSet
@@ -152,7 +152,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 
 			// Nothing to do...
 			if next == nil {
-				log.Info("release in-sync")
+				log.Info("release in-sync with desired state")
 
 				// If we are in-sync, we are no longer reconciling
 				conditions.Delete(req.Object, meta.ReconcilingCondition)
@@ -165,7 +165,9 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 
 			// If we are not allowed to run the next action, we are done for now...
 			if !r.strategy.MustContinue(next.Type(), previous) {
-				log.Info("instructed to stop before running %s action reconciler %s", next.Type(), next.Name())
+				log.V(logger.DebugLevel).Info(
+					fmt.Sprintf("instructed to stop before running %s action reconciler %s", next.Type(), next.Name()),
+				)
 				conditions.Delete(req.Object, meta.ReconcilingCondition)
 				return nil
 			}
@@ -180,6 +182,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			}
 
 			// Run the action sub-reconciler.
+			log.Info(fmt.Sprintf("running '%s' %s action with timeout of %s", next.Name(), next.Type(), timeoutForAction(next, req.Object).String()))
 			if err = next.Reconcile(ctx, req); err != nil {
 				if conditions.IsReady(req.Object) {
 					conditions.MarkFalse(req.Object, meta.ReadyCondition, "ReconcileError", err.Error())
@@ -189,7 +192,9 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 
 			// If we must stop after running the action, we are done for now...
 			if r.strategy.MustStop(next.Type(), previous) {
-				log.Info("instructed to stop after running %s action reconciler %s", next.Type(), next.Name())
+				log.V(logger.DebugLevel).Info(fmt.Sprintf(
+					"instructed to stop after running %s action reconciler %s", next.Type(), next.Name()),
+				)
 				conditions.Delete(req.Object, meta.ReconcilingCondition)
 				return nil
 			}
