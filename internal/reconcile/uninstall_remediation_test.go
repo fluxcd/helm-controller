@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/releaseutil"
@@ -330,7 +329,6 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 
 			cfg, err := action.NewConfigFactory(getter,
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
-				action.WithDebugLog(logr.Discard()),
 			)
 			g.Expect(err).ToNot(HaveOccurred())
 

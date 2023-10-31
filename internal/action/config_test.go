@@ -20,8 +20,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
+	helmaction "helm.sh/helm/v3/pkg/action"
 	helmkube "helm.sh/helm/v3/pkg/kube"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
@@ -57,7 +57,9 @@ func TestNewConfigFactory(t *testing.T) {
 			getter: &kube.MemoryRESTClientGetter{},
 			opts: []ConfigFactoryOption{
 				WithDriver(helmdriver.NewMemory()),
-				WithDebugLog(logr.Discard()),
+				WithStorageLog(func(format string, v ...interface{}) {
+					// noop
+				}),
 			},
 			wantErr: nil,
 		},
@@ -164,25 +166,60 @@ func TestWithDriver(t *testing.T) {
 	g.Expect(factory.Driver).To(Equal(driver))
 }
 
-func TestDebugLog(t *testing.T) {
-	t.Run("sets log on client", func(t *testing.T) {
+func TestStorageLog(t *testing.T) {
+	g := NewWithT(t)
+
+	factory := &ConfigFactory{}
+	log := helmaction.DebugLog(func(format string, v ...interface{}) {
+		// noop
+	})
+	g.Expect(WithStorageLog(log)(factory)).NotTo(HaveOccurred())
+	g.Expect(factory.StorageLog).ToNot(BeNil())
+}
+
+func TestConfigFactory_NewStorage(t *testing.T) {
+	t.Run("without observers", func(t *testing.T) {
 		g := NewWithT(t)
 
 		factory := &ConfigFactory{
-			KubeClient: helmkube.New(&kube.MemoryRESTClientGetter{}),
+			Driver: helmdriver.NewMemory(),
 		}
-		log := logr.Discard()
 
-		g.Expect(WithDebugLog(log)(factory)).NotTo(HaveOccurred())
-		g.Expect(factory.KubeClient.Log).To(Not(BeNil()))
+		s := factory.NewStorage()
+		g.Expect(s).ToNot(BeNil())
+		g.Expect(s.Driver).To(BeAssignableToTypeOf(factory.Driver))
 	})
 
-	t.Run("error without client", func(t *testing.T) {
+	t.Run("with observers", func(t *testing.T) {
 		g := NewWithT(t)
 
-		err := WithDebugLog(logr.Discard())(&ConfigFactory{})
-		g.Expect(err).To(HaveOccurred())
-		g.Expect(err).To(Equal(errors.New("failed to set debug log: no Kubernetes client configured")))
+		factory := &ConfigFactory{
+			Driver: helmdriver.NewMemory(),
+		}
+
+		obsFunc := func(rel *helmrelease.Release) {}
+		s := factory.NewStorage(obsFunc)
+		g.Expect(s).ToNot(BeNil())
+		g.Expect(s.Driver).To(BeAssignableToTypeOf(&storage.Observer{}))
+	})
+
+	t.Run("with storage log", func(t *testing.T) {
+		g := NewWithT(t)
+
+		var called bool
+		log := func(fmt string, v ...interface{}) {
+			called = true
+		}
+
+		factory := &ConfigFactory{
+			Driver:     helmdriver.NewMemory(),
+			StorageLog: log,
+		}
+
+		s := factory.NewStorage()
+		g.Expect(s).ToNot(BeNil())
+		s.Log("test")
+		g.Expect(called).To(BeTrue())
 	})
 }
 

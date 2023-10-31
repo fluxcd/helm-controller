@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
 	"helm.sh/helm/v3/pkg/chart"
 	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
@@ -234,7 +233,6 @@ func TestInstall_Reconcile(t *testing.T) {
 
 			cfg, err := action.NewConfigFactory(getter,
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
-				action.WithDebugLog(logr.Discard()),
 			)
 			g.Expect(err).ToNot(HaveOccurred())
 

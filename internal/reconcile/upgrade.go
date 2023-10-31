@@ -67,7 +67,7 @@ func NewUpgrade(cfg *action.ConfigFactory, recorder record.EventRecorder) *Upgra
 func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	var (
 		cur    = req.Object.GetCurrent().DeepCopy()
-		logBuf = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.InfoLevel)), 10)
+		logBuf = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
 		cfg    = r.configFactory.Build(logBuf.Log, observeRelease(req.Object))
 	)
 

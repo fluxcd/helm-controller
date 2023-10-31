@@ -50,6 +50,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/conditions"
 	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/jitter"
+	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
@@ -317,7 +318,10 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	obj.Status.LastAttemptedValuesChecksum = ""
 
 	// Construct config factory for any further Helm actions.
-	cfg, err := action.NewConfigFactory(getter, action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace))
+	cfg, err := action.NewConfigFactory(getter,
+		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
+		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
+	)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "FactoryError", err.Error())
 		return ctrl.Result{}, err
@@ -329,6 +333,9 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		Chart:  loadedChart,
 		Values: values,
 	}); err != nil {
+		if errors.Is(err, intreconcile.ErrNoRetriesRemain) {
+			err = reconcile.TerminalError(err)
+		}
 		return ctrl.Result{}, err
 	}
 	return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}), nil
@@ -463,7 +470,10 @@ func (r *HelmReleaseReconciler) reconcileChartTemplate(ctx context.Context, obj 
 
 func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter genericclioptions.RESTClientGetter, obj *v2.HelmRelease) error {
 	// Construct config factory for current release.
-	cfg, err := action.NewConfigFactory(getter, action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace))
+	cfg, err := action.NewConfigFactory(getter,
+		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
+		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
+	)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "ConfigFactoryErr", err.Error())
 		return err

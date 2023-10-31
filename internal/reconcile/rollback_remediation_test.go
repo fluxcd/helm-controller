@@ -20,12 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/go-logr/logr"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+
 	. "github.com/onsi/gomega"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmreleaseutil "helm.sh/helm/v3/pkg/releaseutil"
@@ -329,7 +329,6 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 
 			cfg, err := action.NewConfigFactory(getter,
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
-				action.WithDebugLog(logr.Discard()),
 			)
 			g.Expect(err).ToNot(HaveOccurred())
 

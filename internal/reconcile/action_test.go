@@ -20,7 +20,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
 	helmchart "helm.sh/helm/v3/pkg/chart"
 	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
@@ -738,7 +737,7 @@ func Test_NextAction(t *testing.T) {
 
 			cfg, err := action.NewConfigFactory(&kube.MemoryRESTClientGetter{},
 				action.WithStorage(helmdriver.MemoryDriverName, mockReleaseNamespace),
-				action.WithDebugLog(logr.Discard()))
+			)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			if len(tt.releases) > 0 {

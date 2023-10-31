@@ -18,11 +18,11 @@ package reconcile
 
 import (
 	"context"
-	"github.com/fluxcd/pkg/runtime/patch"
 	"testing"
 	"time"
 
-	"github.com/go-logr/logr"
+	"github.com/fluxcd/pkg/runtime/patch"
+
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
@@ -143,7 +143,6 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 
 		cfg, err := action.NewConfigFactory(getter,
 			action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
-			action.WithDebugLog(logr.Discard()),
 		)
 		g.Expect(err).ToNot(HaveOccurred())
 

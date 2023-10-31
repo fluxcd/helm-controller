@@ -79,7 +79,7 @@ func NewRollbackRemediation(configFactory *action.ConfigFactory, eventRecorder r
 func (r *RollbackRemediation) Reconcile(ctx context.Context, req *Request) error {
 	var (
 		cur    = req.Object.GetCurrent().DeepCopy()
-		logBuf = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.InfoLevel)), 10)
+		logBuf = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
 		cfg    = r.configFactory.Build(logBuf.Log, observeRollback(req.Object))
 	)
 

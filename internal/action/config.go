@@ -19,14 +19,11 @@ package action
 import (
 	"fmt"
 
-	"github.com/go-logr/logr"
 	helmaction "helm.sh/helm/v3/pkg/action"
 	helmkube "helm.sh/helm/v3/pkg/kube"
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-
-	"github.com/fluxcd/pkg/runtime/logger"
 
 	"github.com/fluxcd/helm-controller/internal/storage"
 )
@@ -38,7 +35,7 @@ const (
 
 // ConfigFactory is a factory for the Helm action configuration of a (series
 // of) Helm action(s). It allows for sharing Kubernetes client(s) and the
-// Helm storage driver between actions.
+// Helm storage driver between actions, where possible.
 //
 // To get a Helm action.Configuration for an action, use the Build method on an
 // initialized factory.
@@ -51,6 +48,8 @@ type ConfigFactory struct {
 	KubeClient *helmkube.Client
 	// Driver to use for the Helm action.
 	Driver helmdriver.Driver
+	// StorageLog is the logger to use for the Helm storage driver.
+	StorageLog helmaction.DebugLog
 }
 
 // ConfigFactoryOption is a function that configures a ConfigFactory.
@@ -122,31 +121,45 @@ func WithDriver(driver helmdriver.Driver) ConfigFactoryOption {
 	}
 }
 
-// WithDebugLog sets the debug log on the ConfigFactory.KubeClient.
-// If no ConfigFactory.KubeClient is configured, it returns an error.
-func WithDebugLog(log logr.Logger) ConfigFactoryOption {
+// WithStorageLog sets the ConfigFactory.StorageLog.
+func WithStorageLog(log helmaction.DebugLog) ConfigFactoryOption {
 	return func(f *ConfigFactory) error {
-		if f.KubeClient == nil {
-			return fmt.Errorf("failed to set debug log: no Kubernetes client configured")
-		}
-		f.KubeClient.Log = NewDebugLog(log.V(logger.DebugLevel))
+		f.StorageLog = log
 		return nil
 	}
+}
+
+// NewStorage returns a new Helm storage.Storage configured with any
+// observer(s) and the Driver configured on the ConfigFactory.
+func (c *ConfigFactory) NewStorage(observers ...storage.ObserveFunc) *helmstorage.Storage {
+	driver := c.Driver
+	if len(observers) > 0 {
+		driver = storage.NewObserver(driver, observers...)
+	}
+	s := helmstorage.Init(driver)
+	if c.StorageLog != nil {
+		s.Log = c.StorageLog
+	}
+	return s
 }
 
 // Build returns a new Helm action.Configuration configured with the receiver
 // values, and the provided logger and observer(s).
 func (c *ConfigFactory) Build(log helmaction.DebugLog, observers ...storage.ObserveFunc) *helmaction.Configuration {
-	driver := func() helmdriver.Driver {
-		if len(observers) > 0 {
-			return storage.NewObserver(c.Driver, observers...)
-		}
-		return c.Driver
+	client := c.KubeClient
+	if log != nil {
+		// As Helm emits important information to the log of the client, we
+		// need to configure it with the same logger as the action.Configuration.
+		// This is not ideal, as we would like to re-use the client between
+		// actions, but otherwise this would not be thread-safe.
+		client = helmkube.New(c.Getter)
+		client.Log = log
 	}
+
 	return &helmaction.Configuration{
 		RESTClientGetter: c.Getter,
-		Releases:         helmstorage.Init(driver()),
-		KubeClient:       c.KubeClient,
+		Releases:         c.NewStorage(observers...),
+		KubeClient:       client,
 		Log:              log,
 	}
 }
