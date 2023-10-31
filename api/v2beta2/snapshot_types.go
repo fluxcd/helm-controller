@@ -76,7 +76,7 @@ type Snapshot struct {
 // FullReleaseName returns the full name of the release in the format
 // of '<namespace>/<name>.<version>
 func (in *Snapshot) FullReleaseName() string {
-	return fmt.Sprintf("%s/%s.%d", in.Namespace, in.Name, in.Version)
+	return fmt.Sprintf("%s/%s.v%d", in.Namespace, in.Name, in.Version)
 }
 
 // VersionedChartName returns the full name of the chart in the format of

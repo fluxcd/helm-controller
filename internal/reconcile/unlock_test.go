@@ -399,7 +399,7 @@ func TestUnlock_failure(t *testing.T) {
 	r.failure(req, status, err)
 
 	expectMsg := fmt.Sprintf(fmtUnlockFailure,
-		fmt.Sprintf("%s/%s.%d", cur.Namespace, cur.Name, cur.Version),
+		fmt.Sprintf("%s/%s.v%d", cur.Namespace, cur.Name, cur.Version),
 		fmt.Sprintf("%s@%s", cur.Chart.Name(), cur.Chart.Metadata.Version),
 		status, err.Error())
 
@@ -451,7 +451,7 @@ func TestUnlock_success(t *testing.T) {
 	r.success(req, status)
 
 	expectMsg := fmt.Sprintf(fmtUnlockSuccess,
-		fmt.Sprintf("%s/%s.%d", cur.Namespace, cur.Name, cur.Version),
+		fmt.Sprintf("%s/%s.v%d", cur.Namespace, cur.Name, cur.Version),
 		fmt.Sprintf("%s@%s", cur.Chart.Name(), cur.Chart.Metadata.Version),
 		status)
 

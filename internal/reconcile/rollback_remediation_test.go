@@ -404,7 +404,7 @@ func TestRollbackRemediation_failure(t *testing.T) {
 		r.failure(req, nil, err)
 
 		expectMsg := fmt.Sprintf(fmtRollbackRemediationFailure,
-			fmt.Sprintf("%s/%s.%d", prev.Namespace, prev.Name, prev.Version),
+			fmt.Sprintf("%s/%s.v%d", prev.Namespace, prev.Name, prev.Version),
 			fmt.Sprintf("%s@%s", prev.Chart.Name(), prev.Chart.Metadata.Version),
 			strings.TrimSpace(err.Error()))
 
@@ -473,7 +473,7 @@ func TestRollbackRemediation_success(t *testing.T) {
 	r.success(req)
 
 	expectMsg := fmt.Sprintf(fmtRollbackRemediationSuccess,
-		fmt.Sprintf("%s/%s.%d", prev.Namespace, prev.Name, prev.Version),
+		fmt.Sprintf("%s/%s.v%d", prev.Namespace, prev.Name, prev.Version),
 		fmt.Sprintf("%s@%s", prev.Chart.Name(), prev.Chart.Metadata.Version))
 
 	g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{

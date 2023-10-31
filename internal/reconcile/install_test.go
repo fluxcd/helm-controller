@@ -376,7 +376,7 @@ func TestInstall_success(t *testing.T) {
 		r.success(req)
 
 		expectMsg := fmt.Sprintf(fmtInstallSuccess,
-			fmt.Sprintf("%s/%s.%d", mockReleaseNamespace, mockReleaseName, obj.GetCurrent().Version),
+			fmt.Sprintf("%s/%s.v%d", mockReleaseNamespace, mockReleaseName, obj.GetCurrent().Version),
 			fmt.Sprintf("%s@%s", obj.GetCurrent().ChartName, obj.GetCurrent().ChartVersion))
 
 		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
@@ -417,7 +417,7 @@ func TestInstall_success(t *testing.T) {
 		g.Expect(cond).ToNot(BeNil())
 
 		expectMsg := fmt.Sprintf(fmtTestPending,
-			fmt.Sprintf("%s/%s.%d", mockReleaseNamespace, mockReleaseName, obj.GetCurrent().Version),
+			fmt.Sprintf("%s/%s.v%d", mockReleaseNamespace, mockReleaseName, obj.GetCurrent().Version),
 			fmt.Sprintf("%s@%s", obj.GetCurrent().ChartName, obj.GetCurrent().ChartVersion))
 		g.Expect(cond.Message).To(Equal(expectMsg))
 	})

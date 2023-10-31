@@ -91,7 +91,7 @@ func (r *Test) Reconcile(ctx context.Context, req *Request) error {
 	// accepting results, we need to confirm this is actually the release we
 	// have recorded as Current.
 	if rls != nil && !release.ObserveRelease(rls).Targets(cur.Name, cur.Namespace, cur.Version) {
-		err = fmt.Errorf("%w: tested release %s/%s.%d != current release %s/%s.%d",
+		err = fmt.Errorf("%w: tested release %s/%s.v%d != current release %s/%s.v%d",
 			ErrReleaseMismatch, rls.Namespace, rls.Name, rls.Version, cur.Namespace, cur.Name, cur.Version)
 	}
 

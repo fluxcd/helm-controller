@@ -454,7 +454,7 @@ func TestTest_failure(t *testing.T) {
 		r.failure(req, nil, err)
 
 		expectMsg := fmt.Sprintf(fmtTestFailure,
-			fmt.Sprintf("%s/%s.%d", cur.Namespace, cur.Name, cur.Version),
+			fmt.Sprintf("%s/%s.v%d", cur.Namespace, cur.Name, cur.Version),
 			fmt.Sprintf("%s@%s", cur.Chart.Name(), cur.Chart.Metadata.Version),
 			err.Error())
 
@@ -570,7 +570,7 @@ func TestTest_success(t *testing.T) {
 		r.success(req)
 
 		expectMsg := fmt.Sprintf(fmtTestSuccess,
-			fmt.Sprintf("%s/%s.%d", cur.Namespace, cur.Name, cur.Version),
+			fmt.Sprintf("%s/%s.v%d", cur.Namespace, cur.Name, cur.Version),
 			fmt.Sprintf("%s@%s", cur.Chart.Name(), cur.Chart.Metadata.Version),
 			"2 test hooks completed successfully")
 

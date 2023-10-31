@@ -97,7 +97,7 @@ func (r *UninstallRemediation) Reconcile(ctx context.Context, req *Request) erro
 	// accepting results, we need to confirm this is actually the release we
 	// have recorded as Current.
 	if res != nil && !release.ObserveRelease(res.Release).Targets(cur.Name, cur.Namespace, cur.Version) {
-		err = fmt.Errorf("%w: uninstalled release %s/%s.%d != current release %s",
+		err = fmt.Errorf("%w: uninstalled release %s/%s.v%d != current release %s",
 			ErrReleaseMismatch, res.Release.Namespace, res.Release.Name, res.Release.Version, cur.FullReleaseName())
 	}
 

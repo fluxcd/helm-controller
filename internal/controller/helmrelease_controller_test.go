@@ -491,8 +491,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
-			*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallSucceededReason, "Release mock/mock.0 was not found, assuming it is uninstalled"),
-			*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallSucceededReason, "Release mock/mock.0 was not found, assuming it is uninstalled"),
+			*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallSucceededReason, "Release mock/mock.v0 was not found, assuming it is uninstalled"),
+			*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallSucceededReason, "Release mock/mock.v0 was not found, assuming it is uninstalled"),
 		}))
 
 		// Verify history and storage namespace are cleared.
