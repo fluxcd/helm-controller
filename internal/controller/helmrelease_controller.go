@@ -328,7 +328,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	}
 
 	// Off we go!
-	if err = intreconcile.NewAtomicRelease(patchHelper, cfg, r.EventRecorder).Reconcile(ctx, &intreconcile.Request{
+	if err = intreconcile.NewAtomicRelease(patchHelper, cfg, r.EventRecorder, r.FieldManager).Reconcile(ctx, &intreconcile.Request{
 		Object: obj,
 		Chart:  loadedChart,
 		Values: values,

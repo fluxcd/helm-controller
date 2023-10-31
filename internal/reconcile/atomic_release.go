@@ -80,16 +80,18 @@ type AtomicRelease struct {
 	configFactory *action.ConfigFactory
 	eventRecorder record.EventRecorder
 	strategy      releaseStrategy
+	fieldManager  string
 }
 
 // NewAtomicRelease returns a new AtomicRelease reconciler configured with the
 // provided values.
-func NewAtomicRelease(patchHelper *patch.SerialPatcher, cfg *action.ConfigFactory, recorder record.EventRecorder) *AtomicRelease {
+func NewAtomicRelease(patchHelper *patch.SerialPatcher, cfg *action.ConfigFactory, recorder record.EventRecorder, fieldManager string) *AtomicRelease {
 	return &AtomicRelease{
 		patchHelper:   patchHelper,
 		eventRecorder: recorder,
 		configFactory: cfg,
 		strategy:      &cleanReleaseStrategy{},
+		fieldManager:  fieldManager,
 	}
 }
 
@@ -188,7 +190,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			conditions.MarkTrue(req.Object, meta.ReconcilingCondition, "Progressing", "Running '%s' %s action with timeout of %s",
 				next.Name(), next.Type(), timeoutForAction(next, req.Object).String())
 			// Patch the object to reflect the new condition.
-			if err = r.patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner("helm-controller")); err != nil {
+			if err = r.patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner(r.fieldManager)); err != nil {
 				return err
 			}
 
@@ -214,7 +216,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			previous = append(previous, next.Type())
 
 			// Patch the release to reflect progress.
-			if err = r.patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner("helm-controller")); err != nil {
+			if err = r.patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner(r.fieldManager)); err != nil {
 				return err
 			}
 		}

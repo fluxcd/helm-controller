@@ -163,7 +163,7 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 			Chart:  testutil.BuildChart(testutil.ChartWithTestHook()),
 			Values: nil,
 		}
-		g.Expect(NewAtomicRelease(patchHelper, cfg, recorder).Reconcile(context.TODO(), req)).ToNot(HaveOccurred())
+		g.Expect(NewAtomicRelease(patchHelper, cfg, recorder, "helm-controller").Reconcile(context.TODO(), req)).ToNot(HaveOccurred())
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			{
