@@ -135,7 +135,18 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				// If the context is canceled, we still need to persist any
+				// last observation before returning. If the patch fails, we
+				// log the error and return the original context cancellation
+				// error.
+				if err := r.patchHelper.Patch(ctx, req.Object); err != nil {
+					log.Error(err, "failed to patch HelmRelease after context cancellation")
+				}
+				cancel()
+			}
+			return fmt.Errorf("atomic release canceled: %w", ctx.Err())
 		default:
 			// Determine the next action to run based on the current state.
 			log.Info("determining next Helm action based on current state")
