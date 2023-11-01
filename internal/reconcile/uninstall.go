@@ -104,6 +104,18 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 		return nil
 	}
 
+	// When the release is already uninstalled and the user requested to keep
+	// the history, we can assume the release is uninstalled while taking note
+	// that we did not do it.
+	// This can happen when the release was uninstalled as part of a
+	// remediation, with a subsequent uninstall request due to the object
+	// being deleted.
+	if err != nil && req.Object.GetUninstall().KeepHistory && strings.Contains(err.Error(), "is already deleted") {
+		conditions.MarkFalse(req.Object, v2.ReleasedCondition, v2.UninstallSucceededReason,
+			"Release %s was already uninstalled", cur.FullReleaseName())
+		return nil
+	}
+
 	// The Helm uninstall action does always target the latest release. Before
 	// accepting results, we need to confirm this is actually the release we
 	// have recorded as Current.
@@ -115,7 +127,12 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	// The Helm uninstall action may return without an error while the update
 	// to the storage failed. Detect this and return an error.
 	if err == nil && cur.Digest == req.Object.GetCurrent().Digest {
-		err = fmt.Errorf("uninstall completed with error: %w", ErrNoStorageUpdate)
+		// An exception is made for the case where the release was already marked
+		// as uninstalled, which would only result in the release object getting
+		// removed from the storage.
+		if s := helmrelease.Status(cur.Status); s != helmrelease.StatusUninstalled {
+			err = fmt.Errorf("uninstall completed with error: %w", ErrNoStorageUpdate)
+		}
 	}
 
 	// Handle any error.
