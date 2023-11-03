@@ -38,7 +38,7 @@ var (
 	ErrReleaseNotObserved = errors.New("release not observed to be made for object")
 	ErrReleaseDigest      = errors.New("release digest verification error")
 	ErrChartChanged       = errors.New("release chart changed")
-	ErrConfigDigest       = errors.New("release config digest verification error")
+	ErrConfigDigest       = errors.New("release config values changed")
 )
 
 // ReleaseTargetChanged returns true if the given release and/or chart
@@ -157,10 +157,8 @@ func VerifyRelease(rls *helmrelease.Release, snapshot *v2.Snapshot, chrt *helmch
 		return ErrReleaseNotFound
 	}
 
-	if chrt != nil {
-		if _, eq := chartutil.DiffMeta(*rls.Chart.Metadata, *chrt); !eq {
-			return ErrChartChanged
-		}
+	if chrt != nil && (rls.Chart.Metadata.Name != chrt.Name || rls.Chart.Metadata.Version != chrt.Version) {
+		return ErrChartChanged
 	}
 
 	if snapshot == nil || !chartutil.VerifyValues(digest.Digest(snapshot.ConfigDigest), vals) {
