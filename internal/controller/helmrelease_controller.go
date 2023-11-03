@@ -151,13 +151,6 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	defer func() {
-		// Always record metrics.
-		r.Metrics.RecordSuspend(ctx, obj, obj.Spec.Suspend)
-		r.Metrics.RecordReadiness(ctx, obj)
-		r.Metrics.RecordDuration(ctx, obj, start)
-	}()
-
 	// Initialize the patch helper with the current version of the object.
 	patchHelper := patch.NewSerialPatcher(obj, r.Client)
 
@@ -180,9 +173,10 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			}
 		}
 
-		// Always record readiness and duration metrics.
-		defer r.Metrics.RecordDuration(ctx, obj, start)
-		defer r.Metrics.RecordReadiness(ctx, obj)
+		// Always record suspend, readiness and duration metrics.
+		r.Metrics.RecordSuspend(ctx, obj, obj.Spec.Suspend)
+		r.Metrics.RecordReadiness(ctx, obj)
+		r.Metrics.RecordDuration(ctx, obj, start)
 	}()
 
 	// Examine if the object is under deletion.
