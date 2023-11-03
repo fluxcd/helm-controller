@@ -166,11 +166,10 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 
 		if err := patchHelper.Patch(ctx, obj, patchOpts...); err != nil {
-			if retErr != nil {
-				retErr = apierrutil.NewAggregate([]error{retErr, err})
-			} else {
-				retErr = err
+			if !obj.DeletionTimestamp.IsZero() {
+				err = apierrutil.FilterOut(err, func(e error) bool { return apierrors.IsNotFound(e) })
 			}
+			retErr = apierrutil.Reduce(apierrutil.NewAggregate([]error{retErr, err}))
 		}
 
 		// Always record suspend, readiness and duration metrics.
