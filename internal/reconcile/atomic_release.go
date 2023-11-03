@@ -151,7 +151,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			return fmt.Errorf("atomic release canceled: %w", ctx.Err())
 		default:
 			// Determine the next action to run based on the current state.
-			log.Info("determining next Helm action based on current state")
+			log.V(logger.DebugLevel).Info("determining next Helm action based on current state")
 			if next, err = NextAction(ctx, r.configFactory, r.eventRecorder, req); err != nil {
 				log.Error(err, "cannot determine next action")
 				if errors.Is(err, ErrNoRetriesRemain) {
@@ -187,8 +187,18 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 
 			// Mark the release as reconciling before we attempt to run the action.
 			// This to show continuous progress, as Helm actions can be long-running.
-			conditions.MarkTrue(req.Object, meta.ReconcilingCondition, "Progressing", "Running '%s' %s action with timeout of %s",
+			reconcilingMsg := fmt.Sprintf("Running '%s' %s action with timeout of %s",
 				next.Name(), next.Type(), timeoutForAction(next, req.Object).String())
+			conditions.MarkTrue(req.Object, meta.ReconcilingCondition, "Progressing", reconcilingMsg)
+
+			// If the next action is a release action, we can mark the release
+			// as progressing in terms of readiness as well. Doing this for any
+			// other action type is not useful, as it would potentially
+			// overwrite more important failure state from an earlier action.
+			if next.Type() == ReconcilerTypeRelease {
+				conditions.MarkUnknown(req.Object, meta.ReadyCondition, "Progressing", reconcilingMsg)
+			}
+
 			// Patch the object to reflect the new condition.
 			if err = r.patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner(r.fieldManager)); err != nil {
 				return err
