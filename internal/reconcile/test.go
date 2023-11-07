@@ -155,7 +155,7 @@ func (r *Test) failure(req *Request, buffer *action.LogBuffer, err error) {
 	if req.Object.GetCurrent().HasBeenTested() {
 		// Count the failure of the test for the active remediation strategy if enabled.
 		remediation := req.Object.GetActiveRemediation()
-		if !remediation.MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures) {
+		if remediation != nil && !remediation.MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures) {
 			remediation.IncrementFailureCount(req.Object)
 		}
 	}

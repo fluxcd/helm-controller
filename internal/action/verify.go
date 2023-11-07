@@ -64,6 +64,23 @@ func ReleaseTargetChanged(obj *v2.HelmRelease, chartName string) bool {
 	}
 }
 
+// LastRelease returns the last release object in the Helm storage with the
+// given name.
+// It returns an error of type ErrReleaseNotFound if there is no
+// release with the given name.
+// When the release name is too long, it will be shortened to the maximum
+// allowed length using the release.ShortenName function.
+func LastRelease(config *helmaction.Configuration, releaseName string) (*helmrelease.Release, error) {
+	rls, err := config.Releases.Last(release.ShortenName(releaseName))
+	if err != nil {
+		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
+			return nil, ErrReleaseNotFound
+		}
+		return nil, err
+	}
+	return rls, nil
+}
+
 // IsInstalled returns true if there is any release in the Helm storage with the
 // given name. It returns any error other than driver.ErrReleaseNotFound.
 func IsInstalled(config *helmaction.Configuration, releaseName string) (bool, error) {
@@ -102,8 +119,8 @@ func VerifySnapshot(config *helmaction.Configuration, snapshot *v2.Snapshot) (rl
 }
 
 // VerifyLastStorageItem verifies the data of the given v2beta2.Snapshot
-// matches the last release object in the Helm storage. It returns the verified
-// release, or an error of type ErrReleaseNotFound, ErrReleaseDisappeared,
+// matches the last release object in the Helm storage. It returns the release
+// and any verification error of type ErrReleaseNotFound, ErrReleaseDisappeared,
 // ErrReleaseDigest or ErrReleaseNotObserved indicating the reason for the
 // verification failure.
 func VerifyLastStorageItem(config *helmaction.Configuration, snapshot *v2.Snapshot) (rls *helmrelease.Release, err error) {

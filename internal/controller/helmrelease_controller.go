@@ -326,7 +326,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		Chart:  loadedChart,
 		Values: values,
 	}); err != nil {
-		if errors.Is(err, intreconcile.ErrNoRetriesRemain) {
+		if errors.Is(err, intreconcile.ErrExceededMaxRetries) {
 			err = reconcile.TerminalError(err)
 		}
 		return ctrl.Result{}, err

@@ -17,7 +17,6 @@ limitations under the License.
 package reconcile
 
 import (
-	"context"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -26,7 +25,6 @@ import (
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
-	"k8s.io/client-go/tools/record"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -35,7 +33,7 @@ import (
 	"github.com/fluxcd/helm-controller/internal/testutil"
 )
 
-func Test_NextAction(t *testing.T) {
+func Test_DetermineReleaseState(t *testing.T) {
 	tests := []struct {
 		name     string
 		releases []*helmrelease.Release
@@ -43,11 +41,11 @@ func Test_NextAction(t *testing.T) {
 		status   func(releases []*helmrelease.Release) v2.HelmReleaseStatus
 		chart    *helmchart.Chart
 		values   helmchartutil.Values
-		want     ActionReconciler
+		want     ReleaseState
 		wantErr  bool
 	}{
 		{
-			name: "up-to-date release returns no action",
+			name: "in-sync release",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
@@ -66,14 +64,19 @@ func Test_NextAction(t *testing.T) {
 			},
 			chart:  testutil.BuildChart(),
 			values: map[string]interface{}{"foo": "bar"},
+			want: ReleaseState{
+				Status: ReleaseStatusInSync,
+			},
 		},
 		{
-			name:     "no release in storage requires install",
+			name:     "no release in storage",
 			releases: nil,
-			want:     &Install{},
+			want: ReleaseState{
+				Status: ReleaseStatusAbsent,
+			},
 		},
 		{
-			name: "disappeared release from storage requires install",
+			name: "release disappeared from storage",
 			status: func(_ []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
 					History: v2.ReleaseHistory{
@@ -87,10 +90,12 @@ func Test_NextAction(t *testing.T) {
 					},
 				}
 			},
-			want: &Install{},
+			want: ReleaseState{
+				Status: ReleaseStatusAbsent,
+			},
 		},
 		{
-			name: "existing release without current requires upgrade",
+			name: "existing release without current",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
@@ -100,10 +105,12 @@ func Test_NextAction(t *testing.T) {
 					Chart:     testutil.BuildChart(),
 				}),
 			},
-			want: &Upgrade{},
+			want: ReleaseState{
+				Status: ReleaseStatusUnmanaged,
+			},
 		},
 		{
-			name: "release digest parse error requires upgrade",
+			name: "release digest parse error",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
@@ -124,10 +131,12 @@ func Test_NextAction(t *testing.T) {
 			},
 			chart:  testutil.BuildChart(),
 			values: map[string]interface{}{"foo": "bar"},
-			want:   &Upgrade{},
+			want: ReleaseState{
+				Status: ReleaseStatusUnmanaged,
+			},
 		},
 		{
-			name: "release digest mismatch requires upgrade",
+			name: "release digest mismatch",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
@@ -149,10 +158,12 @@ func Test_NextAction(t *testing.T) {
 			},
 			chart:  testutil.BuildChart(),
 			values: map[string]interface{}{"foo": "bar"},
-			want:   &Upgrade{},
+			want: ReleaseState{
+				Status: ReleaseStatusUnmanaged,
+			},
 		},
 		{
-			name: "verified release with pending state requires unlock",
+			name: "release in pending state",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
@@ -162,19 +173,14 @@ func Test_NextAction(t *testing.T) {
 					Chart:     testutil.BuildChart(),
 				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
 			},
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
-					},
-				}
-			},
 			chart:  testutil.BuildChart(),
 			values: map[string]interface{}{"foo": "bar"},
-			want:   &Unlock{},
+			want: ReleaseState{
+				Status: ReleaseStatusLocked,
+			},
 		},
 		{
-			name: "deployed release requires test when enabled",
+			name: "untested release",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
@@ -198,10 +204,12 @@ func Test_NextAction(t *testing.T) {
 			},
 			chart:  testutil.BuildChart(),
 			values: map[string]interface{}{"foo": "bar"},
-			want:   &Test{},
+			want: ReleaseState{
+				Status: ReleaseStatusUntested,
+			},
 		},
 		{
-			name: "failure test requires rollback when enabled",
+			name: "failed test",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
@@ -227,11 +235,6 @@ func Test_NextAction(t *testing.T) {
 				spec.Test = &v2.Test{
 					Enable: true,
 				}
-				spec.Upgrade = &v2.Upgrade{
-					Remediation: &v2.UpgradeRemediation{
-						Retries: 1,
-					},
-				}
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				cur := release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
@@ -239,57 +242,19 @@ func Test_NextAction(t *testing.T) {
 
 				return v2.HelmReleaseStatus{
 					History: v2.ReleaseHistory{
-						Current:  cur,
-						Previous: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
-					},
-				}
-			},
-			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "bar"},
-			want:   &RollbackRemediation{},
-		},
-		{
-			name: "failure test requires uninstall when enabled",
-			releases: []*helmrelease.Release{
-				testutil.BuildRelease(
-					&helmrelease.MockReleaseOptions{
-						Name:      mockReleaseName,
-						Namespace: mockReleaseNamespace,
-						Version:   2,
-						Status:    helmrelease.StatusDeployed,
-						Chart:     testutil.BuildChart(),
-					},
-					testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"}),
-					testutil.ReleaseWithHookExecution("failure-tests", []helmrelease.HookEvent{helmrelease.HookTest},
-						helmrelease.HookPhaseFailed),
-				),
-			},
-			spec: func(spec *v2.HelmReleaseSpec) {
-				spec.Test = &v2.Test{
-					Enable: true,
-				}
-				spec.Install = &v2.Install{
-					Remediation: &v2.InstallRemediation{
-						Retries: 1,
-					},
-				}
-			},
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				cur := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
-				cur.SetTestHooks(release.TestHooksFromRelease(releases[0]))
-
-				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
 						Current: cur,
 					},
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
 				}
 			},
 			chart:  testutil.BuildChart(),
 			values: map[string]interface{}{"foo": "bar"},
-			want:   &UninstallRemediation{},
+			want: ReleaseState{
+				Status: ReleaseStatusFailed,
+			},
 		},
 		{
-			name: "failure test is ignored when ignore failures is set",
+			name: "failed test with ignore failures set",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(
 					&helmrelease.MockReleaseOptions{
@@ -311,11 +276,6 @@ func Test_NextAction(t *testing.T) {
 					Enable:         true,
 					IgnoreFailures: true,
 				}
-				spec.Install = &v2.Install{
-					Remediation: &v2.InstallRemediation{
-						Retries: 1,
-					},
-				}
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				cur := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
@@ -325,11 +285,15 @@ func Test_NextAction(t *testing.T) {
 					History: v2.ReleaseHistory{
 						Current: cur,
 					},
+					LastAttemptedReleaseAction: v2.ReleaseActionInstall,
 				}
+			},
+			want: ReleaseState{
+				Status: ReleaseStatusInSync,
 			},
 		},
 		{
-			name: "failure test is ignored when not made by controller",
+			name: "failed test is ignored when not made by controller",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(
 					&helmrelease.MockReleaseOptions{
@@ -350,11 +314,6 @@ func Test_NextAction(t *testing.T) {
 				spec.Test = &v2.Test{
 					Enable: true,
 				}
-				spec.Install = &v2.Install{
-					Remediation: &v2.InstallRemediation{
-						Retries: 1,
-					},
-				}
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
@@ -363,10 +322,12 @@ func Test_NextAction(t *testing.T) {
 					},
 				}
 			},
-			want: &Test{},
+			want: ReleaseState{
+				Status: ReleaseStatusUntested,
+			},
 		},
 		{
-			name: "failure release requires rollback when enabled",
+			name: "failed release",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
@@ -382,127 +343,6 @@ func Test_NextAction(t *testing.T) {
 					Status:    helmrelease.StatusFailed,
 					Chart:     testutil.BuildChart(),
 				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
-			},
-			spec: func(spec *v2.HelmReleaseSpec) {
-				spec.Upgrade = &v2.Upgrade{
-					Remediation: &v2.UpgradeRemediation{
-						Retries: 1,
-					},
-				}
-			},
-			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{},
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current:  release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
-						Previous: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
-					},
-					UpgradeFailures: 1,
-				}
-			},
-			want: &RollbackRemediation{},
-		},
-		{
-			name: "failure release requires uninstall when enabled",
-			releases: []*helmrelease.Release{
-				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-					Version:   1,
-					Status:    helmrelease.StatusFailed,
-					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
-			},
-			spec: func(spec *v2.HelmReleaseSpec) {
-				spec.Install = &v2.Install{
-					Remediation: &v2.InstallRemediation{
-						Retries: 1,
-					},
-				}
-			},
-			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{},
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
-					},
-					InstallFailures: 1,
-				}
-			},
-			want: &UninstallRemediation{},
-		},
-		{
-			name: "failure release is ignored when no remediation strategy is configured",
-			releases: []*helmrelease.Release{
-				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-					Version:   1,
-					Status:    helmrelease.StatusFailed,
-					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
-			},
-			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{},
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
-					},
-					InstallFailures: 1,
-				}
-			},
-			wantErr: true,
-		},
-		{
-			name: "failure release without install failure count requires upgrade",
-			releases: []*helmrelease.Release{
-				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-					Version:   1,
-					Status:    helmrelease.StatusFailed,
-					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
-			},
-			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{},
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
-					},
-					UpgradeFailures: 1,
-				}
-			},
-			want: &Upgrade{},
-		},
-		{
-			name: "failure release without upgrade failure count requires upgrade",
-			releases: []*helmrelease.Release{
-				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-					Version:   1,
-					Status:    helmrelease.StatusSuperseded,
-					Chart:     testutil.BuildChart(),
-				}),
-				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-					Version:   2,
-					Status:    helmrelease.StatusFailed,
-					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
-			},
-			spec: func(spec *v2.HelmReleaseSpec) {
-				spec.Upgrade = &v2.Upgrade{
-					Remediation: &v2.UpgradeRemediation{
-						Retries: 1,
-					},
-				}
 			},
 			chart:  testutil.BuildChart(),
 			values: map[string]interface{}{},
@@ -514,140 +354,12 @@ func Test_NextAction(t *testing.T) {
 					},
 				}
 			},
-			want: &Upgrade{},
+			want: ReleaseState{
+				Status: ReleaseStatusFailed,
+			},
 		},
 		{
-			name: "failure release with disappeared previous release requires upgrade",
-			releases: []*helmrelease.Release{
-				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-					Version:   2,
-					Status:    helmrelease.StatusFailed,
-					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
-			},
-			spec: func(spec *v2.HelmReleaseSpec) {
-				spec.Upgrade = &v2.Upgrade{
-					Remediation: &v2.UpgradeRemediation{
-						Retries: 1,
-					},
-				}
-			},
-			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{},
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				prev := *releases[0]
-				prev.Version = 1
-				return v2.HelmReleaseStatus{
-					UpgradeFailures: 1,
-					History: v2.ReleaseHistory{
-						Current:  release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
-						Previous: release.ObservedToSnapshot(release.ObserveRelease(&prev)),
-					},
-				}
-			},
-			want: &Upgrade{},
-		},
-		{
-			name: "superseded release requires install",
-			releases: []*helmrelease.Release{
-				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-					Version:   1,
-					Status:    helmrelease.StatusSuperseded,
-					Chart:     testutil.BuildChart(),
-				}),
-			},
-			spec: func(spec *v2.HelmReleaseSpec) {
-				spec.Upgrade = &v2.Upgrade{
-					Remediation: &v2.UpgradeRemediation{
-						Retries: 1,
-					},
-				}
-			},
-			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{},
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
-					},
-				}
-			},
-			want: &Install{},
-		},
-		{
-			name: "exhausted install retries",
-			releases: []*helmrelease.Release{
-				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-					Version:   1,
-					Status:    helmrelease.StatusFailed,
-					Chart:     testutil.BuildChart(),
-				}),
-			},
-			spec: func(spec *v2.HelmReleaseSpec) {
-				spec.Install = &v2.Install{
-					Remediation: &v2.InstallRemediation{
-						Retries: 2,
-					},
-				}
-			},
-			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{},
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
-					},
-					InstallFailures: 3,
-				}
-			},
-			wantErr: true,
-		},
-		{
-			name: "exhausted upgrade retries",
-			releases: []*helmrelease.Release{
-				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-					Version:   1,
-					Status:    helmrelease.StatusSuperseded,
-					Chart:     testutil.BuildChart(),
-				}),
-				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-					Version:   2,
-					Status:    helmrelease.StatusDeployed,
-					Chart:     testutil.BuildChart(),
-				}),
-			},
-			spec: func(spec *v2.HelmReleaseSpec) {
-				spec.Upgrade = &v2.Upgrade{
-					Remediation: &v2.UpgradeRemediation{
-						Retries: 2,
-					},
-				}
-			},
-			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{},
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current:  release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
-						Previous: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
-					},
-					UpgradeFailures: 3,
-				}
-			},
-			wantErr: true,
-		},
-		{
-			name: "uninstalled release requires install",
+			name: "uninstalled release",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
@@ -666,10 +378,27 @@ func Test_NextAction(t *testing.T) {
 					},
 				}
 			},
-			want: &Install{},
+			want: ReleaseState{
+				Status: ReleaseStatusAbsent,
+			},
 		},
 		{
-			name: "chart change requires upgrade",
+			name: "uninstalled release without current",
+			releases: []*helmrelease.Release{
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   1,
+					Status:    helmrelease.StatusUninstalled,
+					Chart:     testutil.BuildChart(),
+				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+			},
+			want: ReleaseState{
+				Status: ReleaseStatusAbsent,
+			},
+		},
+		{
+			name: "chart changed",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
@@ -688,10 +417,12 @@ func Test_NextAction(t *testing.T) {
 			},
 			chart:  testutil.BuildChart(testutil.ChartWithName("other-name")),
 			values: map[string]interface{}{"foo": "bar"},
-			want:   &Upgrade{},
+			want: ReleaseState{
+				Status: ReleaseStatusOutOfSync,
+			},
 		},
 		{
-			name: "values diff requires upgrade",
+			name: "values changed",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
@@ -710,11 +441,10 @@ func Test_NextAction(t *testing.T) {
 			},
 			chart:  testutil.BuildChart(),
 			values: map[string]interface{}{"bar": "foo"},
-			want:   &Upgrade{},
+			want: ReleaseState{
+				Status: ReleaseStatusOutOfSync,
+			},
 		},
-		// {
-		//	name: "manifestTmpl diff requires upgrade (or apply?) when enabled",
-		// },
 	}
 
 	for _, tt := range tests {
@@ -747,8 +477,7 @@ func Test_NextAction(t *testing.T) {
 				}
 			}
 
-			recorder := new(record.FakeRecorder)
-			got, err := NextAction(context.TODO(), cfg, recorder, &Request{
+			got, err := DetermineReleaseState(cfg, &Request{
 				Object: obj,
 				Chart:  tt.chart,
 				Values: tt.values,
@@ -759,13 +488,9 @@ func Test_NextAction(t *testing.T) {
 				return
 			}
 
-			want := BeAssignableToTypeOf(tt.want)
-			if tt.want == nil {
-				want = BeNil()
-			}
-
-			g.Expect(got).To(want)
 			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(got.Status).To(Equal(tt.want.Status))
+			g.Expect(got.Reason).To(ContainSubstring(tt.want.Reason))
 		})
 	}
 }

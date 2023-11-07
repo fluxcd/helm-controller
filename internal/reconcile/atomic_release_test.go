@@ -22,8 +22,10 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/runtime/patch"
-
 	. "github.com/onsi/gomega"
+	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmstorage "helm.sh/helm/v3/pkg/storage"
+	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -33,6 +35,8 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
+	"github.com/fluxcd/helm-controller/internal/kube"
+	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/testutil"
 )
 
@@ -192,6 +196,287 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 		g.Expect(obj.Status.InstallFailures).To(BeZero())
 		g.Expect(obj.Status.UpgradeFailures).To(BeZero())
 
-		g.Expect(NextAction(context.TODO(), cfg, recorder, req)).To(And(Succeed(), BeNil()))
+		endState, err := DetermineReleaseState(cfg, req)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(endState).To(Equal(ReleaseState{Status: ReleaseStatusInSync}))
 	})
+}
+
+func TestAtomicRelease_actionForState(t *testing.T) {
+	tests := []struct {
+		name     string
+		releases []*helmrelease.Release
+		spec     func(spec *v2.HelmReleaseSpec)
+		status   func(releases []*helmrelease.Release) v2.HelmReleaseStatus
+		state    ReleaseState
+		want     ActionReconciler
+		wantErr  error
+	}{
+		{
+			name:  "in-sync release does not trigger any action",
+			state: ReleaseState{Status: ReleaseStatusInSync},
+			want:  nil,
+		},
+		{
+			name:  "locked release triggers unlock action",
+			state: ReleaseState{Status: ReleaseStatusLocked},
+			want:  &Unlock{},
+		},
+		{
+			name:  "absent release triggers install action",
+			state: ReleaseState{Status: ReleaseStatusAbsent},
+			want:  &Install{},
+		},
+		{
+			name:  "absent release without remaining retries returns error",
+			state: ReleaseState{Status: ReleaseStatusAbsent},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					InstallFailures: 1,
+				}
+			},
+			wantErr: ErrExceededMaxRetries,
+		},
+		{
+			name:  "unmanaged release triggers upgrade",
+			state: ReleaseState{Status: ReleaseStatusUnmanaged},
+			want:  &Upgrade{},
+		},
+		{
+			name: "out-of-sync release triggers upgrade",
+			state: ReleaseState{
+				Status: ReleaseStatusOutOfSync,
+			},
+			want: &Upgrade{},
+		},
+		{
+			name: "out-of-sync release with no remaining retries returns error",
+			state: ReleaseState{
+				Status: ReleaseStatusOutOfSync,
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					UpgradeFailures: 1,
+				}
+			},
+			wantErr: ErrExceededMaxRetries,
+		},
+		{
+			name:  "untested release triggers test action",
+			state: ReleaseState{Status: ReleaseStatusUntested},
+			want:  &Test{},
+		},
+		{
+			name:  "failed release without active remediation triggers upgrade",
+			state: ReleaseState{Status: ReleaseStatusFailed},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					LastAttemptedReleaseAction: "",
+					InstallFailures:            1,
+				}
+			},
+			want: &Upgrade{},
+		},
+		{
+			name:  "failed release without failure count triggers upgrade",
+			state: ReleaseState{Status: ReleaseStatusFailed},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
+					UpgradeFailures:            0,
+				}
+			},
+			want: &Upgrade{},
+		},
+		{
+			name:  "failed release with exhausted retries returns error",
+			state: ReleaseState{Status: ReleaseStatusFailed},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
+					UpgradeFailures:            1,
+				}
+			},
+			wantErr: ErrExceededMaxRetries,
+		},
+		{
+			name:  "failed release with active install remediation triggers uninstall",
+			state: ReleaseState{Status: ReleaseStatusFailed},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Install = &v2.Install{
+					Remediation: &v2.InstallRemediation{
+						Retries: 3,
+					},
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					LastAttemptedReleaseAction: v2.ReleaseActionInstall,
+					InstallFailures:            2,
+				}
+			},
+			want: &UninstallRemediation{},
+		},
+		{
+			name:  "failed release with active upgrade remediation triggers rollback",
+			state: ReleaseState{Status: ReleaseStatusFailed},
+			releases: []*helmrelease.Release{
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   1,
+					Status:    helmrelease.StatusSuperseded,
+					Chart:     testutil.BuildChart(),
+				}),
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   2,
+					Status:    helmrelease.StatusFailed,
+					Chart:     testutil.BuildChart(),
+				}),
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Upgrade = &v2.Upgrade{
+					Remediation: &v2.UpgradeRemediation{
+						Retries: 2,
+					},
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.ReleaseHistory{
+						Previous: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
+					UpgradeFailures:            1,
+				}
+			},
+			want: &RollbackRemediation{},
+		},
+		{
+			name:  "failed release with active upgrade remediation and unverified previous triggers upgrade",
+			state: ReleaseState{Status: ReleaseStatusFailed},
+			releases: []*helmrelease.Release{
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   2,
+					Status:    helmrelease.StatusSuperseded,
+					Chart:     testutil.BuildChart(),
+				}),
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Upgrade = &v2.Upgrade{
+					Remediation: &v2.UpgradeRemediation{
+						Retries: 2,
+					},
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.ReleaseHistory{
+						Previous: release.ObservedToSnapshot(release.ObserveRelease(
+							testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+								Name:      mockReleaseName,
+								Namespace: mockReleaseNamespace,
+								Version:   1,
+								Status:    helmrelease.StatusSuperseded,
+								Chart:     testutil.BuildChart(),
+							}),
+						)),
+					},
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
+					UpgradeFailures:            1,
+				}
+			},
+			want: &Upgrade{},
+		},
+		{
+			name: "unknown remediation strategy returns error",
+			state: ReleaseState{
+				Status: ReleaseStatusFailed,
+			},
+			releases: []*helmrelease.Release{
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   1,
+					Status:    helmrelease.StatusSuperseded,
+					Chart:     testutil.BuildChart(),
+				}),
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				strategy := v2.RemediationStrategy("invalid")
+				spec.Upgrade = &v2.Upgrade{
+					Remediation: &v2.UpgradeRemediation{
+						Strategy: &strategy,
+						Retries:  2,
+					},
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.ReleaseHistory{
+						Previous: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
+					UpgradeFailures:            1,
+				}
+			},
+			wantErr: ErrUnknownRemediationStrategy,
+		},
+		{
+			name:    "invalid release status returns error",
+			state:   ReleaseState{Status: "invalid"},
+			wantErr: ErrUnknownReleaseStatus,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			obj := &v2.HelmRelease{
+				Spec: v2.HelmReleaseSpec{
+					ReleaseName:      mockReleaseName,
+					TargetNamespace:  mockReleaseNamespace,
+					StorageNamespace: mockReleaseNamespace,
+				},
+			}
+			if tt.spec != nil {
+				tt.spec(&obj.Spec)
+			}
+			if tt.status != nil {
+				obj.Status = tt.status(tt.releases)
+			}
+
+			cfg, err := action.NewConfigFactory(&kube.MemoryRESTClientGetter{},
+				action.WithStorage(helmdriver.MemoryDriverName, mockReleaseNamespace),
+			)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			if len(tt.releases) > 0 {
+				store := helmstorage.Init(cfg.Driver)
+				for _, i := range tt.releases {
+					g.Expect(store.Create(i)).To(Succeed())
+				}
+			}
+
+			r := &AtomicRelease{configFactory: cfg}
+			got, err := r.actionForState(context.TODO(), &Request{Object: obj}, tt.state)
+
+			if tt.wantErr != nil {
+				g.Expect(got).To(BeNil())
+				g.Expect(err).To(MatchError(tt.wantErr))
+				return
+			}
+			g.Expect(err).ToNot(HaveOccurred())
+
+			want := BeAssignableToTypeOf(tt.want)
+			if tt.want == nil {
+				want = BeNil()
+			}
+			g.Expect(got).To(want)
+		})
+	}
 }

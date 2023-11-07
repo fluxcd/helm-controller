@@ -193,7 +193,8 @@ func TestTest_Reconcile(t *testing.T) {
 					History: v2.ReleaseHistory{
 						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
-					InstallFailures: 0,
+					LastAttemptedReleaseAction: v2.ReleaseActionInstall,
+					InstallFailures:            0,
 				}
 			},
 			expectConditions: []metav1.Condition{
@@ -507,6 +508,7 @@ func TestTest_failure(t *testing.T) {
 		}
 
 		obj := obj.DeepCopy()
+		obj.Status.LastAttemptedReleaseAction = v2.ReleaseActionInstall
 		obj.GetCurrent().SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
 		r.failure(req, nil, err)

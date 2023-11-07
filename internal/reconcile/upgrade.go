@@ -73,6 +73,9 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 
 	defer summarize(req)
 
+	// Mark upgrade attempt on object.
+	req.Object.Status.LastAttemptedReleaseAction = v2.ReleaseActionUpgrade
+
 	// Run the Helm upgrade action.
 	_, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values)
 	if err != nil {
@@ -90,7 +93,7 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 		// without a new release in storage there is nothing to remediate,
 		// and the action can be retried immediately without causing
 		// storage drift.
-		req.Object.GetActiveRemediation().IncrementFailureCount(req.Object)
+		req.Object.GetUpgrade().GetRemediation().IncrementFailureCount(req.Object)
 		return nil
 	}
 

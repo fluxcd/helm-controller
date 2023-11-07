@@ -55,6 +55,7 @@ func observeRelease(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rls *helmrelease.Release) {
 		cur := obj.GetCurrent().DeepCopy()
 		obs := release.ObserveRelease(rls)
+
 		if cur != nil && obs.Targets(cur.Name, cur.Namespace, 0) && cur.Version < obs.Version {
 			// Add current to previous when we observe the first write of a
 			// newer release.

@@ -32,6 +32,7 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
+	interrors "github.com/fluxcd/helm-controller/internal/errors"
 )
 
 // OwnedConditions is a list of Condition types owned by the HelmRelease object.
@@ -43,6 +44,20 @@ var OwnedConditions = []string{
 	meta.ReadyCondition,
 	meta.StalledCondition,
 }
+
+var (
+	// ErrExceededMaxRetries is returned when there are no remaining retry
+	// attempts for the provided release config.
+	ErrExceededMaxRetries = errors.New("exceeded maximum retries")
+
+	// ErrUnknownReleaseStatus is returned when the release status is unknown
+	// and cannot be acted upon.
+	ErrUnknownReleaseStatus = errors.New("unknown release status")
+
+	// ErrUnknownRemediationStrategy is returned when the remediation strategy
+	// is unknown.
+	ErrUnknownRemediationStrategy = errors.New("unknown remediation strategy")
+)
 
 // AtomicRelease is an ActionReconciler which implements an atomic release
 // strategy similar to Helm's `--atomic`, but with more advanced state
@@ -65,7 +80,7 @@ var OwnedConditions = []string{
 // The status conditions are summarized into a Ready condition when no actions
 // to be run remain, to ensure any transient error is cleared.
 //
-// Any returned error other than ErrNoRetriesRemain should be retried by the
+// Any returned error other than ErrExceededMaxRetries should be retried by the
 // caller as soon as possible, preferably with a backoff strategy.
 //
 // The caller is expected to patch the object one last time with the
@@ -132,7 +147,6 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 	var (
 		previous ReconcilerTypeSet
 		next     ActionReconciler
-		err      error
 	)
 	for {
 		select {
@@ -151,26 +165,35 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			return fmt.Errorf("atomic release canceled: %w", ctx.Err())
 		default:
 			// Determine the next action to run based on the current state.
+			log.V(logger.DebugLevel).Info("determining current state of Helm release")
+			state, err := DetermineReleaseState(r.configFactory, req)
+			if err != nil {
+				conditions.MarkFalse(req.Object, meta.ReadyCondition, "StateError", fmt.Sprintf("Could not determine release state: %s", err.Error()))
+				return fmt.Errorf("cannot determine release state: %w", err)
+			}
+
+			// Conditionally reset the history if we are in a state where we
+			// need to start over.
+			if state.MustResetHistory() {
+				req.Object.Status.History = v2.ReleaseHistory{}
+			}
+
+			// Determine the next action to run based on the current state.
 			log.V(logger.DebugLevel).Info("determining next Helm action based on current state")
-			if next, err = NextAction(ctx, r.configFactory, r.eventRecorder, req); err != nil {
-				log.Error(err, "cannot determine next action")
-				if errors.Is(err, ErrNoRetriesRemain) {
-					conditions.MarkStalled(req.Object, "NoRemainingRetries", "Attempted %d times but failed",
-						req.Object.GetActiveRemediation().GetFailureCount(req.Object))
-				} else {
-					conditions.MarkFalse(req.Object, meta.ReadyCondition, "ActionPlanError", fmt.Sprintf("Could not determine Helm action: %s", err.Error()))
+			if next, err = r.actionForState(ctx, req, state); err != nil {
+				if errors.Is(err, ErrExceededMaxRetries) {
+					conditions.MarkStalled(req.Object, "RetriesExceeded", "Attempted %d times but failed to %s",
+						req.Object.GetActiveRemediation().GetFailureCount(req.Object), req.Object.Status.LastAttemptedReleaseAction)
 				}
 				return err
 			}
 
-			// Nothing to do...
+			// If there is no next action, we are done.
 			if next == nil {
-				log.Info("release in-sync with desired state")
-
-				// If we are in-sync, we are no longer reconciling
 				conditions.Delete(req.Object, meta.ReconcilingCondition)
 
-				// Always summarize; this ensures we e.g. restore transient errors written to Ready
+				// Always summarize; this ensures we restore transient errors
+				// written to Ready.
 				summarize(req)
 
 				return nil
@@ -233,12 +256,107 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 	}
 }
 
+// actionForState determines the next action to run based on the current state.
+func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state ReleaseState) (ActionReconciler, error) {
+	log := ctrl.LoggerFrom(ctx)
+
+	switch state.Status {
+	case ReleaseStatusInSync:
+		log.Info("release in-sync with desired state")
+		return nil, nil
+	case ReleaseStatusLocked:
+		log.Info(msgWithReason("release locked", state.Reason))
+		return NewUnlock(r.configFactory, r.eventRecorder), nil
+	case ReleaseStatusAbsent:
+		log.Info(msgWithReason("release not installed", state.Reason))
+
+		if req.Object.GetInstall().GetRemediation().RetriesExhausted(req.Object) {
+			return nil, fmt.Errorf("%w: cannot install release", ErrExceededMaxRetries)
+		}
+
+		return NewInstall(r.configFactory, r.eventRecorder), nil
+	case ReleaseStatusUnmanaged:
+		log.Info(msgWithReason("release not managed by object", state.Reason))
+		return NewUpgrade(r.configFactory, r.eventRecorder), nil
+	case ReleaseStatusOutOfSync:
+		log.Info(msgWithReason("release out-of-sync with desired state", state.Reason))
+
+		if req.Object.GetUpgrade().GetRemediation().RetriesExhausted(req.Object) {
+			return nil, fmt.Errorf("%w: cannot upgrade release", ErrExceededMaxRetries)
+		}
+
+		return NewUpgrade(r.configFactory, r.eventRecorder), nil
+	case ReleaseStatusUntested:
+		log.Info(msgWithReason("release has not been tested", state.Reason))
+		return NewTest(r.configFactory, r.eventRecorder), nil
+	case ReleaseStatusFailed:
+		log.Info(msgWithReason("release is in a failed state", state.Reason))
+
+		remediation := req.Object.GetActiveRemediation()
+
+		// If there is no active remediation strategy, we can only attempt to
+		// upgrade the release to see if that fixes the problem.
+		if remediation == nil {
+			log.V(logger.DebugLevel).Info("no active remediation strategy")
+			return NewUpgrade(r.configFactory, r.eventRecorder), nil
+		}
+
+		// If there is no failure count, the conditions under which the failure
+		// occurred must have changed.
+		// Attempt to upgrade the release to see if the problem is resolved.
+		// This ensures that after a configuration change, the release is
+		// attempted again.
+		if remediation.GetFailureCount(req.Object) <= 0 {
+			log.Info("release conditions have changed since last failure")
+			return NewUpgrade(r.configFactory, r.eventRecorder), nil
+		}
+
+		// We have exhausted the number of retries for the remediation
+		// strategy.
+		if remediation.RetriesExhausted(req.Object) && !remediation.MustRemediateLastFailure() {
+			return nil, fmt.Errorf("%w: cannot remediate failed release", ErrExceededMaxRetries)
+		}
+
+		switch remediation.GetStrategy() {
+		case v2.RollbackRemediationStrategy:
+			// Verify the previous release is still in storage and unmodified
+			// before instructing to roll back to it.
+			if _, err := action.VerifySnapshot(r.configFactory.Build(nil), req.Object.GetPrevious()); err != nil {
+				if interrors.IsOneOf(err, action.ErrReleaseNotFound, action.ErrReleaseDisappeared, action.ErrReleaseNotObserved, action.ErrReleaseDigest) {
+					// If the rollback target is not found or is in any other
+					// way corrupt, the most correct remediation is to
+					// reattempt the upgrade.
+					log.Info(msgWithReason("unable to verify previous release in storage to roll back to", err.Error()))
+					return NewUpgrade(r.configFactory, r.eventRecorder), nil
+				}
+
+				// This may be a temporary error, return it to retry.
+				return nil, fmt.Errorf("cannot verify previous release to roll back to: %w", err)
+			}
+			return NewRollbackRemediation(r.configFactory, r.eventRecorder), nil
+		case v2.UninstallRemediationStrategy:
+			return NewUninstallRemediation(r.configFactory, r.eventRecorder), nil
+		default:
+			return nil, fmt.Errorf("%w: %s", ErrUnknownRemediationStrategy, remediation.GetStrategy())
+		}
+	default:
+		return nil, fmt.Errorf("%w: %s", ErrUnknownReleaseStatus, state.Status)
+	}
+}
+
 func (r *AtomicRelease) Name() string {
 	return "atomic-release"
 }
 
 func (r *AtomicRelease) Type() ReconcilerType {
 	return ReconcilerTypeRelease
+}
+
+func msgWithReason(msg, reason string) string {
+	if reason != "" {
+		return fmt.Sprintf("%s: %s", msg, reason)
+	}
+	return msg
 }
 
 func inStringSlice(ss []string, str string) (pos int, ok bool) {
