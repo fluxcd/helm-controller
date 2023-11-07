@@ -827,6 +827,16 @@ func (in Uninstall) GetDeletionPropagation() string {
 	return *in.DeletionPropagation
 }
 
+// ReleaseAction is the action to perform a Helm release.
+type ReleaseAction string
+
+const (
+	// ReleaseActionInstall represents a Helm install action.
+	ReleaseActionInstall ReleaseAction = "install"
+	// ReleaseActionUpgrade represents a Helm upgrade action.
+	ReleaseActionUpgrade ReleaseAction = "upgrade"
+)
+
 // HelmReleaseStatus defines the observed state of a HelmRelease.
 type HelmReleaseStatus struct {
 	// ObservedGeneration is the last observed generation.
@@ -858,6 +868,12 @@ type HelmReleaseStatus struct {
 	// History holds the history of Helm releases performed for this HelmRelease.
 	// +optional
 	History ReleaseHistory `json:"history,omitempty"`
+
+	// LastAttemptedReleaseAction is the last release action performed for this
+	// HelmRelease. It is used to determine the active remediation strategy.
+	// +kubebuilder:validation:Enum=install;upgrade
+	// +optional
+	LastAttemptedReleaseAction ReleaseAction `json:"lastAttemptedReleaseAction,omitempty"`
 
 	// Failures is the reconciliation failure count against the latest desired
 	// state. It is reset after a successful reconciliation.
@@ -1019,12 +1035,17 @@ func (in HelmRelease) HasPrevious() bool {
 	return in.Status.History.Previous != nil
 }
 
-// GetActiveRemediation returns the active Remediation for the HelmRelease.
+// GetActiveRemediation returns the active Remediation configuration for the
+// HelmRelease.
 func (in HelmRelease) GetActiveRemediation() Remediation {
-	if in.HasPrevious() {
+	switch in.Status.LastAttemptedReleaseAction {
+	case ReleaseActionInstall:
+		return in.GetInstall().GetRemediation()
+	case ReleaseActionUpgrade:
 		return in.GetUpgrade().GetRemediation()
+	default:
+		return nil
 	}
-	return in.GetInstall().GetRemediation()
 }
 
 // GetRequeueAfter returns the duration after which the HelmRelease

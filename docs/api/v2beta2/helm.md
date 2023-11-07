@@ -1311,6 +1311,21 @@ ReleaseHistory
 </tr>
 <tr>
 <td>
+<code>lastAttemptedReleaseAction</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.ReleaseAction">
+ReleaseAction
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastAttemptedReleaseAction is the last release action performed for this
+HelmRelease. It is used to determine the active remediation strategy.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>failures</code><br>
 <em>
 int64
@@ -1754,6 +1769,13 @@ Kustomize
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2beta2.ReleaseAction">ReleaseAction
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.HelmReleaseStatus">HelmReleaseStatus</a>)
+</p>
+<p>ReleaseAction is the action to perform a Helm release.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2beta2.ReleaseHistory">ReleaseHistory
 </h3>
 <p>

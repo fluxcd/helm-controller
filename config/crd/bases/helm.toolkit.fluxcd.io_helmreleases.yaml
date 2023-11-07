@@ -2002,6 +2002,14 @@ spec:
                   attempted to reconcile.
                 format: int64
                 type: integer
+              lastAttemptedReleaseAction:
+                description: LastAttemptedReleaseAction is the last release action
+                  performed for this HelmRelease. It is used to determine the active
+                  remediation strategy.
+                enum:
+                - install
+                - upgrade
+                type: string
               lastAttemptedRevision:
                 description: LastAttemptedRevision is the Source revision of the last
                   reconciliation attempt.
