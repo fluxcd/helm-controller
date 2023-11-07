@@ -259,8 +259,17 @@ func templateVerificationToSourceVerification(template *v2.HelmChartTemplateVeri
 		return nil
 	}
 
-	return &sourcev1b2.OCIRepositoryVerification{
-		Provider:  template.Provider,
-		SecretRef: template.SecretRef,
+	verification := &sourcev1b2.OCIRepositoryVerification{
+		Provider:          template.Provider,
+		SecretRef:         template.SecretRef,
+		MatchOIDCIdentity: []sourcev1b2.OIDCIdentityMatch{},
 	}
+	for _, match := range template.MatchOIDCIdentity {
+		verification.MatchOIDCIdentity = append(verification.MatchOIDCIdentity, sourcev1b2.OIDCIdentityMatch{
+			Issuer:  match.Issuer,
+			Subject: match.Subject,
+		})
+	}
+
+	return verification
 }
