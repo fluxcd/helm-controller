@@ -145,6 +145,34 @@ spec:
                           which are not bundled in the umbrella chart artifact, are
                           not verified.
                         properties:
+                          matchOIDCIdentity:
+                            description: MatchOIDCIdentity specifies the identity
+                              matching criteria to use while verifying an OCI artifact
+                              which was signed using Cosign keyless signing. The artifact's
+                              identity is deemed to be verified if any of the specified
+                              matchers match against the identity.
+                            items:
+                              description: OIDCIdentityMatch specifies options for
+                                verifying the certificate identity, i.e. the issuer
+                                and the subject of the certificate.
+                              properties:
+                                issuer:
+                                  description: Issuer specifies the regex pattern
+                                    to match against to verify the OIDC issuer in
+                                    the Fulcio certificate. The pattern must be a
+                                    valid Go regular expression.
+                                  type: string
+                                subject:
+                                  description: Subject specifies the regex pattern
+                                    to match against to verify the identity subject
+                                    in the Fulcio certificate. The pattern must be
+                                    a valid Go regular expression.
+                                  type: string
+                              required:
+                              - issuer
+                              - subject
+                              type: object
+                            type: array
                           provider:
                             default: cosign
                             description: Provider specifies the technology used to

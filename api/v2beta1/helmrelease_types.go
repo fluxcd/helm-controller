@@ -348,6 +348,28 @@ type HelmChartTemplateVerification struct {
 	// trusted public keys.
 	// +optional
 	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
+
+	// MatchOIDCIdentity specifies the identity matching criteria to use
+	// while verifying an OCI artifact which was signed using Cosign keyless
+	// signing. The artifact's identity is deemed to be verified if any of the
+	// specified matchers match against the identity.
+	// +optional
+	MatchOIDCIdentity []OIDCIdentityMatch `json:"matchOIDCIdentity,omitempty"`
+}
+
+// OIDCIdentityMatch specifies options for verifying the certificate identity,
+// i.e. the issuer and the subject of the certificate.
+type OIDCIdentityMatch struct {
+	// Issuer specifies the regex pattern to match against to verify
+	// the OIDC issuer in the Fulcio certificate. The pattern must be a
+	// valid Go regular expression.
+	// +required
+	Issuer string `json:"issuer"`
+	// Subject specifies the regex pattern to match against to verify
+	// the identity subject in the Fulcio certificate. The pattern must
+	// be a valid Go regular expression.
+	// +required
+	Subject string `json:"subject"`
 }
 
 // DeploymentAction defines a consistent interface for Install and Upgrade.
