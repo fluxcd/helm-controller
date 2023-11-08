@@ -182,14 +182,6 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "unlock without current",
-			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
-				return v2.HelmReleaseStatus{}
-			},
-			wantErr:          ErrNoCurrent,
-			expectConditions: []metav1.Condition{},
-		},
-		{
 			name: "unlock with stale current",
 			releases: func(namespace string) []*helmrelease.Release {
 				return []*helmrelease.Release{
@@ -249,8 +241,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 			name: "unlock with storage query error",
 			driver: func(driver helmdriver.Driver) helmdriver.Driver {
 				return &storage.Failing{
-					Driver: driver,
-					GetErr: mockQueryErr,
+					Driver:   driver,
+					QueryErr: mockQueryErr,
 				}
 			},
 			releases: func(namespace string) []*helmrelease.Release {

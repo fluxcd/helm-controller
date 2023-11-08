@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 
@@ -66,26 +65,17 @@ func NewUnlock(cfg *action.ConfigFactory, recorder record.EventRecorder) *Unlock
 }
 
 func (r *Unlock) Reconcile(_ context.Context, req *Request) error {
-	var (
-		cur = req.Object.GetCurrent().DeepCopy()
-	)
-
 	defer summarize(req)
-
-	// We can only unlock a release if we have a current.
-	if cur == nil {
-		return fmt.Errorf("%w: required for unlock", ErrNoCurrent)
-	}
 
 	// Build action configuration to gain access to Helm storage.
 	cfg := r.configFactory.Build(nil, observeUnlock(req.Object))
 
 	// Retrieve last release object.
-	rls, err := cfg.Releases.Get(cur.Name, cur.Version)
+	rls, err := action.LastRelease(cfg, req.Object.GetReleaseName())
 	if err != nil {
 		// Ignore not found error. Assume caller will decide what to do
 		// when it re-assess state to determine the next action.
-		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
+		if errors.Is(err, action.ErrReleaseNotFound) {
 			return nil
 		}
 		// Return any other error to retry.
