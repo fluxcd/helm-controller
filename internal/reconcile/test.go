@@ -72,9 +72,8 @@ func NewTest(cfg *action.ConfigFactory, recorder record.EventRecorder) *Test {
 
 func (r *Test) Reconcile(ctx context.Context, req *Request) error {
 	var (
-		cur    = req.Object.Status.History.Latest().DeepCopy()
-		logBuf = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
-		cfg    = r.configFactory.Build(logBuf.Log, observeTest(req.Object))
+		cur = req.Object.Status.History.Latest().DeepCopy()
+		cfg = r.configFactory.Build(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), observeTest(req.Object))
 	)
 
 	defer summarize(req)
@@ -97,7 +96,7 @@ func (r *Test) Reconcile(ctx context.Context, req *Request) error {
 
 	// Something went wrong.
 	if err != nil {
-		r.failure(req, logBuf, err)
+		r.failure(req, err)
 
 		// If we failed to observe anything happened at all, we want to retry
 		// and return the error to indicate this.
@@ -133,7 +132,7 @@ const (
 // counter. In addition, it emits a warning event for the Request.Object.
 // The active remediation failure count is only incremented if test failures
 // are not ignored.
-func (r *Test) failure(req *Request, buffer *action.LogBuffer, err error) {
+func (r *Test) failure(req *Request, err error) {
 	// Compose failure message.
 	cur := req.Object.Status.History.Latest()
 	msg := fmt.Sprintf(fmtTestFailure, cur.FullReleaseName(), cur.VersionedChartName(), strings.TrimSpace(err.Error()))
@@ -149,7 +148,7 @@ func (r *Test) failure(req *Request, buffer *action.LogBuffer, err error) {
 		eventMeta(cur.ChartVersion, cur.ConfigDigest),
 		corev1.EventTypeWarning,
 		v2.TestFailedReason,
-		eventMessageWithLog(msg, buffer),
+		msg,
 	)
 
 	if req.Object.Status.History.Latest().HasBeenTested() {

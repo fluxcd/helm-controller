@@ -453,7 +453,7 @@ func TestTest_failure(t *testing.T) {
 		}
 
 		req := &Request{Object: obj.DeepCopy()}
-		r.failure(req, nil, err)
+		r.failure(req, err)
 
 		expectMsg := fmt.Sprintf(fmtTestFailure,
 			fmt.Sprintf("%s/%s.v%d", cur.Namespace, cur.Name, cur.Version),
@@ -481,25 +481,6 @@ func TestTest_failure(t *testing.T) {
 		}))
 	})
 
-	t.Run("records failure with logs", func(t *testing.T) {
-		g := NewWithT(t)
-
-		recorder := testutil.NewFakeRecorder(10, false)
-		r := &Test{
-			eventRecorder: recorder,
-		}
-		req := &Request{Object: obj.DeepCopy()}
-		r.failure(req, mockLogBuffer(5, 10), err)
-
-		expectSubStr := "Last Helm logs"
-		g.Expect(conditions.IsFalse(req.Object, v2.TestSuccessCondition)).To(BeTrue())
-		g.Expect(conditions.GetMessage(req.Object, v2.TestSuccessCondition)).ToNot(ContainSubstring(expectSubStr))
-
-		events := recorder.GetEvents()
-		g.Expect(events).To(HaveLen(1))
-		g.Expect(events[0].Message).To(ContainSubstring(expectSubStr))
-	})
-
 	t.Run("increases remediation failure count", func(t *testing.T) {
 		g := NewWithT(t)
 
@@ -512,7 +493,7 @@ func TestTest_failure(t *testing.T) {
 		obj.Status.LastAttemptedReleaseAction = v2.ReleaseActionInstall
 		obj.Status.History.Latest().SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
-		r.failure(req, nil, err)
+		r.failure(req, err)
 
 		g.Expect(req.Object.Status.InstallFailures).To(Equal(int64(1)))
 	})
@@ -529,7 +510,7 @@ func TestTest_failure(t *testing.T) {
 		obj.Spec.Test = &v2.Test{IgnoreFailures: true}
 		obj.Status.History.Latest().SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
-		r.failure(req, nil, err)
+		r.failure(req, err)
 
 		g.Expect(req.Object.Status.InstallFailures).To(BeZero())
 	})
