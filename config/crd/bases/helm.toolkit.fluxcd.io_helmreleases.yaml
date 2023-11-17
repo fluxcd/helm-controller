@@ -1227,7 +1227,7 @@ spec:
               maxHistory:
                 description: MaxHistory is the number of revisions saved by Helm for
                   this HelmRelease. Use '0' for an unlimited number of revisions;
-                  defaults to '10'.
+                  defaults to '5'.
                 type: integer
               persistentClient:
                 description: "PersistentClient tells the controller to use a persistent

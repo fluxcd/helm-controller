@@ -208,7 +208,7 @@ int
 <td>
 <em>(Optional)</em>
 <p>MaxHistory is the number of revisions saved by Helm for this HelmRelease.
-Use &lsquo;0&rsquo; for an unlimited number of revisions; defaults to &lsquo;10&rsquo;.</p>
+Use &lsquo;0&rsquo; for an unlimited number of revisions; defaults to &lsquo;5&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -1060,7 +1060,7 @@ int
 <td>
 <em>(Optional)</em>
 <p>MaxHistory is the number of revisions saved by Helm for this HelmRelease.
-Use &lsquo;0&rsquo; for an unlimited number of revisions; defaults to &lsquo;10&rsquo;.</p>
+Use &lsquo;0&rsquo; for an unlimited number of revisions; defaults to &lsquo;5&rsquo;.</p>
 </td>
 </tr>
 <tr>

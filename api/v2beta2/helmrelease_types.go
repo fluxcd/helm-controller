@@ -132,7 +132,7 @@ type HelmReleaseSpec struct {
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
 	// MaxHistory is the number of revisions saved by Helm for this HelmRelease.
-	// Use '0' for an unlimited number of revisions; defaults to '10'.
+	// Use '0' for an unlimited number of revisions; defaults to '5'.
 	// +optional
 	MaxHistory *int `json:"maxHistory,omitempty"`
 
@@ -1075,10 +1075,10 @@ func (in HelmRelease) GetTimeout() metav1.Duration {
 	return *in.Spec.Timeout
 }
 
-// GetMaxHistory returns the configured MaxHistory, or the default of 10.
+// GetMaxHistory returns the configured MaxHistory, or the default of 5.
 func (in HelmRelease) GetMaxHistory() int {
 	if in.Spec.MaxHistory == nil {
-		return 10
+		return 5
 	}
 	return *in.Spec.MaxHistory
 }
