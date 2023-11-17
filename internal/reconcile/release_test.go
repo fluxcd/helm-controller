@@ -206,7 +206,7 @@ func Test_summarize(t *testing.T) {
 				{
 					Type:               v2.TestSuccessCondition,
 					Status:             metav1.ConditionUnknown,
-					Reason:             "Pending",
+					Reason:             "AwaitingTests",
 					Message:            "Release is awaiting tests",
 					ObservedGeneration: 1,
 				},
@@ -219,8 +219,8 @@ func Test_summarize(t *testing.T) {
 			expect: []metav1.Condition{
 				{
 					Type:               meta.ReadyCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             "Pending",
+					Status:             metav1.ConditionUnknown,
+					Reason:             "AwaitingTests",
 					Message:            "Release is awaiting tests",
 					ObservedGeneration: 1,
 				},
@@ -234,7 +234,7 @@ func Test_summarize(t *testing.T) {
 				{
 					Type:               v2.TestSuccessCondition,
 					Status:             metav1.ConditionUnknown,
-					Reason:             "Pending",
+					Reason:             "AwaitingTests",
 					Message:            "Release is awaiting tests",
 					ObservedGeneration: 1,
 				},
