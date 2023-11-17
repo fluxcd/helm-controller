@@ -204,8 +204,8 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 
 			// Mark the release as reconciling before we attempt to run the action.
 			// This to show continuous progress, as Helm actions can be long-running.
-			reconcilingMsg := fmt.Sprintf("Running '%s' %s action with timeout of %s",
-				next.Name(), next.Type(), timeoutForAction(next, req.Object).String())
+			reconcilingMsg := fmt.Sprintf("Running '%s' action with timeout of %s",
+				next.Name(), timeoutForAction(next, req.Object).String())
 			conditions.MarkTrue(req.Object, meta.ReconcilingCondition, "Progressing", reconcilingMsg)
 
 			// If the next action is a release action, we can mark the release
@@ -222,7 +222,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			}
 
 			// Run the action sub-reconciler.
-			log.Info(fmt.Sprintf("running '%s' %s action with timeout of %s", next.Name(), next.Type(), timeoutForAction(next, req.Object).String()))
+			log.Info(fmt.Sprintf("running '%s' action with timeout of %s", next.Name(), timeoutForAction(next, req.Object).String()))
 			if err = next.Reconcile(ctx, req); err != nil {
 				if conditions.IsReady(req.Object) {
 					conditions.MarkFalse(req.Object, meta.ReadyCondition, "ReconcileError", err.Error())
