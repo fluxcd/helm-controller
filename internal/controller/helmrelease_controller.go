@@ -415,6 +415,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 
 		// If new release revision is successful and tests are enabled, run them.
 		if err == nil && hr.Spec.GetTest().Enable {
+			r.event(ctx, hr, revision, eventv1.EventSeverityInfo, "Helm test has started")
 			_, testErr := run.Test(hr)
 			testErr = r.handleHelmActionResult(ctx, &hr, revision, testErr, "test",
 				v2.TestSuccessCondition, v2.TestSucceededReason, v2.TestFailedReason)
