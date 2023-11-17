@@ -20,12 +20,11 @@ import (
 	"errors"
 	"sort"
 
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	helmrelease "helm.sh/helm/v3/pkg/release"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -34,41 +33,71 @@ import (
 )
 
 var (
-	// ErrNoCurrent is returned when the HelmRelease has no current release
+	// ErrNoLatest is returned when the HelmRelease has no latest release
 	// but this is required by the ActionReconciler.
-	ErrNoCurrent = errors.New("no current release")
+	ErrNoLatest = errors.New("no latest release")
 	// ErrNoPrevious is returned when the HelmRelease has no previous release
 	// but this is required by the ActionReconciler.
 	ErrNoPrevious = errors.New("no previous release")
 	// ErrReleaseMismatch is returned when the resulting release after running
-	// an action does not match the expected current and/or previous release.
+	// an action does not match the expected latest and/or previous release.
 	// This can happen for actions where targeting a release by version is not
 	// possible, for example while running tests.
 	ErrReleaseMismatch = errors.New("release mismatch")
 )
 
-// observeRelease returns a storage.ObserveFunc which updates the Status.Current
-// and Status.Previous fields of the HelmRelease object. It can be used to
-// record Helm install and upgrade actions as - and while - they are written to
-// the Helm storage.
-func observeRelease(obj *v2.HelmRelease) storage.ObserveFunc {
-	return func(rls *helmrelease.Release) {
-		cur := obj.GetCurrent().DeepCopy()
-		obs := release.ObserveRelease(rls)
+// observedReleases is a map of Helm releases as observed to be written to the
+// Helm storage. The key is the version of the release.
+type observedReleases map[int]release.Observation
 
-		if cur != nil && obs.Targets(cur.Name, cur.Namespace, 0) && cur.Version < obs.Version {
-			// Add current to previous when we observe the first write of a
-			// newer release.
-			obj.Status.History.Previous = obj.Status.History.Current
+// sortedVersions returns the versions of the observed releases in descending
+// order.
+func (r observedReleases) sortedVersions() (versions []int) {
+	for ver := range r {
+		versions = append(versions, ver)
+	}
+	sort.Sort(sort.Reverse(sort.IntSlice(versions)))
+	return
+}
+
+// recordOnObject records the observed releases on the HelmRelease object.
+func (r observedReleases) recordOnObject(obj *v2.HelmRelease) {
+	switch len(r) {
+	case 0:
+		return
+	case 1:
+		var obs release.Observation
+		for _, o := range r {
+			obs = o
 		}
-		if cur == nil || !obs.Targets(cur.Name, cur.Namespace, 0) || obs.Version >= cur.Version {
-			// Overwrite current with newer release, or update it.
-			obj.Status.History.Current = release.ObservedToSnapshot(obs)
+		obj.Status.History = append(v2.Snapshots{release.ObservedToSnapshot(obs)}, obj.Status.History...)
+	default:
+		versions := r.sortedVersions()
+
+		obj.Status.History = append(v2.Snapshots{release.ObservedToSnapshot(r[versions[0]])}, obj.Status.History...)
+
+		for _, ver := range versions[1:] {
+			for i := range obj.Status.History {
+				snap := obj.Status.History[i]
+				if snap.Targets(r[ver].Name, r[ver].Namespace, r[ver].Version) {
+					newSnap := release.ObservedToSnapshot(r[ver])
+					newSnap.SetTestHooks(snap.GetTestHooks())
+					obj.Status.History[i] = newSnap
+					return
+				}
+			}
 		}
-		if prev := obj.GetPrevious(); prev != nil && obs.Targets(prev.Name, prev.Namespace, prev.Version) {
-			// Write latest state of previous (e.g. status updates) to status.
-			obj.Status.History.Previous = release.ObservedToSnapshot(obs)
-		}
+	}
+}
+
+// observeRelease returns a storage.ObserveFunc that stores the observed
+// releases in the given observedReleases map.
+// It can be used for Helm actions that modify multiple releases in the
+// Helm storage, such as install and upgrade.
+func observeRelease(observed observedReleases) storage.ObserveFunc {
+	return func(rls *helmrelease.Release) {
+		obs := release.ObserveRelease(rls)
+		observed[obs.Version] = obs
 	}
 }
 

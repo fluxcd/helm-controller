@@ -66,12 +66,9 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 		// expectedConditions are the conditions that are expected to be set on
 		// the HelmRelease after running rollback.
 		expectConditions []metav1.Condition
-		// expectCurrent is the expected Current release information in the
-		// HelmRelease after uninstall.
-		expectCurrent func(releases []*helmrelease.Release) *v2.Snapshot
-		// expectPrevious returns the expected Previous release information of
-		// the HelmRelease after uninstall.
-		expectPrevious func(releases []*helmrelease.Release) *v2.Snapshot
+		// expectHistory is the expected History of the HelmRelease after
+		// uninstall.
+		expectHistory func(releases []*helmrelease.Release) v2.Snapshots
 		// expectFailures is the expected Failures count of the HelmRelease.
 		expectFailures int64
 		// expectInstallFailures is the expected InstallFailures count of the
@@ -101,8 +98,8 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -110,8 +107,10 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 				*conditions.TrueCondition(v2.RemediatedCondition, v2.UninstallSucceededReason,
 					"succeeded"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 		},
 		{
@@ -134,8 +133,8 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -143,8 +142,10 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason,
 					"uninstallation completed with 1 error(s): 1 error occurred:\n\t* timed out waiting for the condition"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 			expectFailures: 1,
 		},
@@ -179,8 +180,8 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -188,8 +189,10 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason,
 					ErrNoStorageUpdate.Error()),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 			expectFailures: 1,
 			wantErr:        ErrNoStorageUpdate,
@@ -220,16 +223,18 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
 			expectConditions: []metav1.Condition{
 				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason, mockDeleteErr.Error()),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 			expectFailures: 1,
 		},
@@ -247,7 +252,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{},
-			wantErr:          ErrNoCurrent,
+			wantErr:          ErrNoLatest,
 		},
 		{
 			name: "uninstall with stale current",
@@ -276,8 +281,8 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -285,8 +290,10 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason,
 					ErrReleaseMismatch.Error()),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 			expectFailures: 1,
 			wantErr:        ErrReleaseMismatch,
@@ -356,16 +363,10 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			releases, _ = store.History(mockReleaseName)
 			releaseutil.SortByRevision(releases)
 
-			if tt.expectCurrent != nil {
-				g.Expect(obj.GetCurrent()).To(testutil.Equal(tt.expectCurrent(releases)))
+			if tt.expectHistory != nil {
+				g.Expect(obj.Status.History).To(testutil.Equal(tt.expectHistory(releases)))
 			} else {
-				g.Expect(obj.GetCurrent()).To(BeNil(), "expected current to be nil")
-			}
-
-			if tt.expectPrevious != nil {
-				g.Expect(obj.GetPrevious()).To(testutil.Equal(tt.expectPrevious(releases)))
-			} else {
-				g.Expect(obj.GetPrevious()).To(BeNil(), "expected previous to be nil")
+				g.Expect(obj.Status.History).To(BeEmpty(), "expected history to be empty")
 			}
 
 			g.Expect(obj.Status.Failures).To(Equal(tt.expectFailures))
@@ -384,8 +385,8 @@ func TestUninstallRemediation_failure(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				History: v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(cur)),
 				},
 			},
 		}
@@ -464,8 +465,8 @@ func TestUninstallRemediation_success(t *testing.T) {
 
 	obj := &v2.HelmRelease{
 		Status: v2.HelmReleaseStatus{
-			History: v2.ReleaseHistory{
-				Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+			History: v2.Snapshots{
+				release.ObservedToSnapshot(release.ObserveRelease(cur)),
 			},
 		},
 	}

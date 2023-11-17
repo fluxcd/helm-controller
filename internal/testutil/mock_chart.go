@@ -129,6 +129,13 @@ func ChartWithName(name string) ChartOption {
 	}
 }
 
+// ChartWithVersion sets the version of the chart.
+func ChartWithVersion(version string) ChartOption {
+	return func(opts *ChartOptions) {
+		opts.Metadata.Version = version
+	}
+}
+
 // ChartWithFailingHook appends a failing hook to the chart.
 func ChartWithFailingHook() ChartOption {
 	return func(opts *ChartOptions) {

@@ -474,8 +474,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				StorageNamespace: "other",
 			},
 			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current: &v2.Snapshot{
+				History: v2.Snapshots{
+					{
 						Name:      "mock",
 						Namespace: "mock",
 					},
@@ -496,7 +496,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}))
 
 		// Verify history and storage namespace are cleared.
-		g.Expect(obj.Status.History.Current).To(BeNil())
+		g.Expect(obj.Status.History).To(BeNil())
 		g.Expect(obj.Status.StorageNamespace).To(BeEmpty())
 	})
 
@@ -694,8 +694,8 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 			},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: ns.Name,
-				History: v2.ReleaseHistory{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(rls)),
+				History: v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(rls)),
 				},
 				HelmChart: hc.Namespace + "/" + hc.Name,
 			},
@@ -803,8 +803,8 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 			},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: ns.Name,
-				History: v2.ReleaseHistory{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(rls)),
+				History: v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(rls)),
 				},
 			},
 		}
@@ -831,7 +831,7 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 
 		// Verify status of Helm release has been updated.
 		g.Expect(obj.Status.StorageNamespace).To(BeEmpty())
-		g.Expect(obj.Status.History).To(Equal(v2.ReleaseHistory{}))
+		g.Expect(obj.Status.History).To(BeNil())
 
 		// Verify Helm release has been uninstalled.
 		_, err = store.History(rls.Name)
@@ -865,8 +865,8 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 			},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: ns.Name,
-				History: v2.ReleaseHistory{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(rls)),
+				History: v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(rls)),
 				},
 			},
 		}
@@ -897,7 +897,7 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 
 		// Verify status of Helm release has not been updated.
 		g.Expect(obj.Status.StorageNamespace).ToNot(BeEmpty())
-		g.Expect(obj.GetCurrent()).ToNot(BeNil())
+		g.Expect(obj.Status.History.Latest()).ToNot(BeNil())
 
 		// Verify Helm release has not been uninstalled.
 		_, err = store.History(rls.Name)
@@ -965,8 +965,8 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 			},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: ns.Name,
-				History: v2.ReleaseHistory{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(rls)),
+				History: v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(rls)),
 				},
 			},
 		}
@@ -993,7 +993,7 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 
 		// Verify status of Helm release has not been updated.
 		g.Expect(obj.Status.StorageNamespace).ToNot(BeEmpty())
-		g.Expect(obj.GetCurrent()).ToNot(BeNil())
+		g.Expect(obj.Status.History.Latest()).ToNot(BeNil())
 
 		// Verify Helm release has not been uninstalled.
 		_, err = store.History(rls.Name)
@@ -1070,8 +1070,8 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 			},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: "mock",
-				History: v2.ReleaseHistory{
-					Current: &v2.Snapshot{},
+				History: v2.Snapshots{
+					{},
 				},
 			},
 		}
@@ -1084,7 +1084,7 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 		}))
 	})
 
-	t.Run("ignores ErrNoCurrent when uninstalling Helm release", func(t *testing.T) {
+	t.Run("ignores ErrNoLatest when uninstalling Helm release", func(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
@@ -1179,7 +1179,7 @@ func TestHelmReleaseReconciler_reconcileUninstall(t *testing.T) {
 		// We do not care about the result of the uninstall, only that it was attempted.
 		err := (&HelmReleaseReconciler{}).reconcileUninstall(context.TODO(), getter, obj)
 		g.Expect(err).To(HaveOccurred())
-		g.Expect(errors.Is(err, intreconcile.ErrNoCurrent)).To(BeTrue())
+		g.Expect(errors.Is(err, intreconcile.ErrNoLatest)).To(BeTrue())
 	})
 
 	t.Run("error on empty storage namespace", func(t *testing.T) {

@@ -34,25 +34,19 @@ import (
 	"github.com/fluxcd/helm-controller/internal/storage"
 )
 
-// Unlock is an ActionReconciler which attempts to unlock the Status.Current
-// of a Request.Object in the Helm storage if stuck in a pending state, by
+// Unlock is an ActionReconciler which attempts to unlock the latest release
+// for a Request.Object in the Helm storage if stuck in a pending state, by
 // setting the status to release.StatusFailed and persisting it.
 //
-// This write to the Helm storage is observed, and updates the Status.Current
+// This write to the Helm storage is observed, and updates the Status.History
 // field if the persisted object targets the same release version.
 //
 // Any pending state marks the v2beta2.HelmRelease object with
 // ReleasedCondition=False, even if persisting the object to the Helm storage
 // fails.
 //
-// If the Request.Object does not have a Status.Current, an ErrNoCurrent error
-// is returned.
-//
 // At the end of the reconciliation, the Status.Conditions are summarized and
 // propagated to the Ready condition on the Request.Object.
-//
-// The caller is assumed to have verified the integrity of Request.Object using
-// e.g. action.VerifySnapshot before calling Reconcile.
 type Unlock struct {
 	configFactory *action.ConfigFactory
 	eventRecorder record.EventRecorder
@@ -83,14 +77,15 @@ func (r *Unlock) Reconcile(_ context.Context, req *Request) error {
 	}
 
 	// Ensure the release is in a pending state.
+	cur := release.ObservedToSnapshot(release.ObserveRelease(rls))
 	if status := rls.Info.Status; status.IsPending() {
 		// Update pending status to failed and persist.
 		rls.SetStatus(helmrelease.StatusFailed, fmt.Sprintf("Release unlocked from stale '%s' state", status.String()))
 		if err = cfg.Releases.Update(rls); err != nil {
-			r.failure(req, status, err)
+			r.failure(req, cur, status, err)
 			return err
 		}
-		r.success(req, status)
+		r.success(req, cur, status)
 	}
 	return nil
 }
@@ -113,9 +108,8 @@ const (
 // failure records the failure of an unlock action in the status of the given
 // Request.Object by marking ReleasedCondition=False and increasing the failure
 // counter. In addition, it emits a warning event for the Request.Object.
-func (r *Unlock) failure(req *Request, status helmrelease.Status, err error) {
+func (r *Unlock) failure(req *Request, cur *v2.Snapshot, status helmrelease.Status, err error) {
 	// Compose failure message.
-	cur := req.Object.GetCurrent()
 	msg := fmt.Sprintf(fmtUnlockFailure, cur.FullReleaseName(), cur.VersionedChartName(), status.String(), strings.TrimSpace(err.Error()))
 
 	// Mark unlock failure on object.
@@ -134,9 +128,8 @@ func (r *Unlock) failure(req *Request, status helmrelease.Status, err error) {
 
 // success records the success of an unlock action in the status of the given
 // Request.Object by marking ReleasedCondition=False and emitting an event.
-func (r *Unlock) success(req *Request, status helmrelease.Status) {
+func (r *Unlock) success(req *Request, cur *v2.Snapshot, status helmrelease.Status) {
 	// Compose success message.
-	cur := req.Object.GetCurrent()
 	msg := fmt.Sprintf(fmtUnlockSuccess, cur.FullReleaseName(), cur.VersionedChartName(), status.String())
 
 	// Mark unlock success on object.
@@ -152,16 +145,17 @@ func (r *Unlock) success(req *Request, status helmrelease.Status) {
 	)
 }
 
-// observeUnlock returns a storage.ObserveFunc that can be used to observe and
-// record the result of an unlock action in the status of the given release.
-// It updates the Status.Current field of the release if it equals the target
-// of the unlock action.
+// observeUnlock returns a storage.ObserveFunc to track unlocking actions on
+// a HelmRelease.
+// It updates the snapshot of a release when an unlock action is observed for
+// that release.
 func observeUnlock(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rls *helmrelease.Release) {
-		if cur := obj.GetCurrent(); cur != nil {
-			obs := release.ObserveRelease(rls)
-			if obs.Targets(cur.Name, cur.Namespace, cur.Version) {
-				obj.Status.History.Current = release.ObservedToSnapshot(obs)
+		for i := range obj.Status.History {
+			snap := obj.Status.History[i]
+			if snap.Targets(rls.Name, rls.Namespace, rls.Version) {
+				obj.Status.History[i] = release.ObservedToSnapshot(release.ObserveRelease(rls))
+				return
 			}
 		}
 	}

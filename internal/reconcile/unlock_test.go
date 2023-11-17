@@ -67,12 +67,9 @@ func TestUnlock_Reconcile(t *testing.T) {
 		// expectedConditions are the conditions that are expected to be set on
 		// the HelmRelease after running rollback.
 		expectConditions []metav1.Condition
-		// expectCurrent is the expected Current release information in the
-		// HelmRelease after unlock.
-		expectCurrent func(releases []*helmrelease.Release) *v2.Snapshot
-		// expectPrevious returns the expected Previous release information of
-		// the HelmRelease after unlock.
-		expectPrevious func(releases []*helmrelease.Release) *v2.Snapshot
+		// expectHistory is the expected History of the HelmRelease after
+		// unlock.
+		expectHistory func(releases []*helmrelease.Release) v2.Snapshots
 		// expectFailures is the expected Failures count of the HelmRelease.
 		expectFailures int64
 		// expectInstallFailures is the expected InstallFailures count of the
@@ -97,8 +94,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -106,8 +103,10 @@ func TestUnlock_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "Unlocked Helm release"),
 				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "Unlocked Helm release"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 		},
 		{
@@ -131,8 +130,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -141,8 +140,10 @@ func TestUnlock_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "in pending-rollback state failed: storage update error"),
 				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "in pending-rollback state failed: storage update error"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 			expectFailures: 1,
 		},
@@ -161,8 +162,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: &v2.Snapshot{
+					History: v2.Snapshots{
+						&v2.Snapshot{
 							Name:      mockReleaseName,
 							Namespace: releases[0].Namespace,
 							Version:   1,
@@ -172,12 +173,14 @@ func TestUnlock_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return &v2.Snapshot{
-					Name:      mockReleaseName,
-					Namespace: releases[0].Namespace,
-					Version:   1,
-					Status:    helmrelease.StatusFailed.String(),
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					&v2.Snapshot{
+						Name:      mockReleaseName,
+						Namespace: releases[0].Namespace,
+						Version:   1,
+						Status:    helmrelease.StatusFailed.String(),
+					},
 				}
 			},
 		},
@@ -196,8 +199,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: &v2.Snapshot{
+					History: v2.Snapshots{
+						&v2.Snapshot{
 							Name:      mockReleaseName,
 							Namespace: releases[0].Namespace,
 							Version:   releases[0].Version - 1,
@@ -206,12 +209,14 @@ func TestUnlock_Reconcile(t *testing.T) {
 					},
 				}
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return &v2.Snapshot{
-					Name:      mockReleaseName,
-					Namespace: releases[0].Namespace,
-					Version:   releases[0].Version - 1,
-					Status:    helmrelease.StatusPendingInstall.String(),
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					&v2.Snapshot{
+						Name:      mockReleaseName,
+						Namespace: releases[0].Namespace,
+						Version:   releases[0].Version - 1,
+						Status:    helmrelease.StatusPendingInstall.String(),
+					},
 				}
 			},
 		},
@@ -219,8 +224,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 			name: "unlock without latest",
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: &v2.Snapshot{
+					History: v2.Snapshots{
+						&v2.Snapshot{
 							Name:    mockReleaseName,
 							Version: 1,
 							Status:  helmrelease.StatusFailed.String(),
@@ -229,11 +234,13 @@ func TestUnlock_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return &v2.Snapshot{
-					Name:    mockReleaseName,
-					Version: 1,
-					Status:  helmrelease.StatusFailed.String(),
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					&v2.Snapshot{
+						Name:    mockReleaseName,
+						Version: 1,
+						Status:  helmrelease.StatusFailed.String(),
+					},
 				}
 			},
 		},
@@ -258,8 +265,8 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: &v2.Snapshot{
+					History: v2.Snapshots{
+						&v2.Snapshot{
 							Name:    mockReleaseName,
 							Version: 1,
 							Status:  helmrelease.StatusFailed.String(),
@@ -269,11 +276,13 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 			wantErr:          mockQueryErr,
 			expectConditions: []metav1.Condition{},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return &v2.Snapshot{
-					Name:    mockReleaseName,
-					Version: 1,
-					Status:  helmrelease.StatusFailed.String(),
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					&v2.Snapshot{
+						Name:    mockReleaseName,
+						Version: 1,
+						Status:  helmrelease.StatusFailed.String(),
+					},
 				}
 			},
 		},
@@ -342,16 +351,10 @@ func TestUnlock_Reconcile(t *testing.T) {
 			releases, _ = store.History(mockReleaseName)
 			helmreleaseutil.SortByRevision(releases)
 
-			if tt.expectCurrent != nil {
-				g.Expect(obj.GetCurrent()).To(testutil.Equal(tt.expectCurrent(releases)))
+			if tt.expectHistory != nil {
+				g.Expect(obj.Status.History).To(testutil.Equal(tt.expectHistory(releases)))
 			} else {
-				g.Expect(obj.GetCurrent()).To(BeNil(), "expected current to be nil")
-			}
-
-			if tt.expectPrevious != nil {
-				g.Expect(obj.GetPrevious()).To(testutil.Equal(tt.expectPrevious(releases)))
-			} else {
-				g.Expect(obj.GetPrevious()).To(BeNil(), "expected previous to be nil")
+				g.Expect(obj.Status.History).To(BeEmpty(), "expected history to be empty")
 			}
 
 			g.Expect(obj.Status.Failures).To(Equal(tt.expectFailures))
@@ -371,13 +374,7 @@ func TestUnlock_failure(t *testing.T) {
 			Chart:     testutil.BuildChart(),
 			Version:   4,
 		})
-		obj = &v2.HelmRelease{
-			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
-				},
-			},
-		}
+		obj    = &v2.HelmRelease{}
 		status = helmrelease.StatusPendingInstall
 		err    = fmt.Errorf("unlock error")
 	)
@@ -388,7 +385,7 @@ func TestUnlock_failure(t *testing.T) {
 	}
 
 	req := &Request{Object: obj}
-	r.failure(req, status, err)
+	r.failure(req, release.ObservedToSnapshot(release.ObserveRelease(cur)), status, err)
 
 	expectMsg := fmt.Sprintf(fmtUnlockFailure,
 		fmt.Sprintf("%s/%s.v%d", cur.Namespace, cur.Name, cur.Version),
@@ -424,13 +421,7 @@ func TestUnlock_success(t *testing.T) {
 			Chart:     testutil.BuildChart(),
 			Version:   4,
 		})
-		obj = &v2.HelmRelease{
-			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
-				},
-			},
-		}
+		obj    = &v2.HelmRelease{}
 		status = helmrelease.StatusPendingInstall
 	)
 
@@ -440,7 +431,7 @@ func TestUnlock_success(t *testing.T) {
 	}
 
 	req := &Request{Object: obj}
-	r.success(req, status)
+	r.success(req, release.ObservedToSnapshot(release.ObserveRelease(cur)), status)
 
 	expectMsg := fmt.Sprintf(fmtUnlockSuccess,
 		fmt.Sprintf("%s/%s.v%d", cur.Namespace, cur.Name, cur.Version),
@@ -472,8 +463,8 @@ func Test_observeUnlock(t *testing.T) {
 
 		obj := &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current: &v2.Snapshot{
+				History: v2.Snapshots{
+					{
 						Name:      mockReleaseName,
 						Namespace: mockReleaseNamespace,
 						Version:   1,
@@ -491,8 +482,9 @@ func Test_observeUnlock(t *testing.T) {
 		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
 		observeUnlock(obj)(rls)
 
-		g.Expect(obj.GetPrevious()).To(BeNil())
-		g.Expect(obj.GetCurrent()).To(Equal(expect))
+		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
+			expect,
+		}))
 	})
 
 	t.Run("unlock without current", func(t *testing.T) {
@@ -507,7 +499,6 @@ func Test_observeUnlock(t *testing.T) {
 		})
 		observeUnlock(obj)(rls)
 
-		g.Expect(obj.GetPrevious()).To(BeNil())
-		g.Expect(obj.GetCurrent()).To(BeNil())
+		g.Expect(obj.Status.History).To(BeEmpty())
 	})
 }

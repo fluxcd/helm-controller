@@ -38,23 +38,20 @@ import (
 )
 
 // RollbackRemediation is an ActionReconciler which attempts to roll back
-// a Request.Object to the version specified in Status.Previous.
+// a Request.Object to a previous successful deployed release in the
+// Status.History.
 //
 // The writes to the Helm storage during the rollback are observed, and update
-// the Status.Current field. On an upgrade reattempt, the UpgradeReconciler
-// will move the Status.Current field to Status.Previous, effectively updating
-// the previous version to the version which was rolled back to. Ensuring
-// repetitive failures continue to be able to roll back to a version existing
-// in the storage when the history is pruned.
+// the Status.History field.
 //
 // After a successful rollback, the object is marked with Remediated=True and
 // an event is emitted. When the rollback fails, the object is marked with
 // Remediated=False and a warning event is emitted.
 //
-// When the Request.Object does not have a Status.Previous, it returns an
-// error of type ErrNoPrevious. In addition, it returns ErrReleaseMismatch
-// if the name and/or namespace of Status.Current and Status.Previous point
-// towards a different release. Any other returned error indicates the caller
+// When the Request.Object does not have a (successful) previous deployed
+// release, it returns an error of type ErrNoPrevious. In addition, it
+// returns ErrReleaseMismatch if the name and/or namespace of the latest and
+// previous release do not match. Any other returned error indicates the caller
 // should retry as it did not cause a change to the Helm storage.
 //
 // At the end of the reconciliation, the Status.Conditions are summarized and
@@ -78,7 +75,7 @@ func NewRollbackRemediation(configFactory *action.ConfigFactory, eventRecorder r
 
 func (r *RollbackRemediation) Reconcile(ctx context.Context, req *Request) error {
 	var (
-		cur    = req.Object.GetCurrent().DeepCopy()
+		cur    = req.Object.Status.History.Latest().DeepCopy()
 		logBuf = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
 		cfg    = r.configFactory.Build(logBuf.Log, observeRollback(req.Object))
 	)
@@ -86,12 +83,12 @@ func (r *RollbackRemediation) Reconcile(ctx context.Context, req *Request) error
 	defer summarize(req)
 
 	// Previous is required to determine what version to roll back to.
-	if !req.Object.HasPrevious() {
+	prev := req.Object.Status.History.Previous(req.Object.GetUpgrade().GetRemediation().MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures))
+	if prev == nil {
 		return fmt.Errorf("%w: required to rollback", ErrNoPrevious)
 	}
 
 	// Confirm previous and current point to the same release.
-	prev := req.Object.GetPrevious()
 	if prev.Name != cur.Name || prev.Namespace != cur.Namespace {
 		return fmt.Errorf("%w: previous release name or namespace %s does not match current %s",
 			ErrReleaseMismatch, prev.FullReleaseName(), cur.FullReleaseName())
@@ -99,18 +96,18 @@ func (r *RollbackRemediation) Reconcile(ctx context.Context, req *Request) error
 
 	// Run the Helm rollback action.
 	if err := action.Rollback(cfg, req.Object, prev.Name, action.RollbackToVersion(prev.Version)); err != nil {
-		r.failure(req, logBuf, err)
+		r.failure(req, prev, logBuf, err)
 
 		// Return error if we did not store a release, as this does not
 		// affect state and the caller should e.g. retry.
-		if newCur := req.Object.GetCurrent(); newCur == nil || (cur != nil && newCur.Digest == cur.Digest) {
+		if newCur := req.Object.Status.History.Latest(); newCur == nil || (cur != nil && newCur.Digest == cur.Digest) {
 			return err
 		}
 
 		return nil
 	}
 
-	r.success(req)
+	r.success(req, prev)
 	return nil
 }
 
@@ -134,9 +131,8 @@ const (
 // failure records the failure of a Helm rollback action in the status of the
 // given Request.Object by marking Remediated=False and emitting a warning
 // event.
-func (r *RollbackRemediation) failure(req *Request, buffer *action.LogBuffer, err error) {
+func (r *RollbackRemediation) failure(req *Request, prev *v2.Snapshot, buffer *action.LogBuffer, err error) {
 	// Compose failure message.
-	prev := req.Object.GetPrevious()
 	msg := fmt.Sprintf(fmtRollbackRemediationFailure, prev.FullReleaseName(), prev.VersionedChartName(), strings.TrimSpace(err.Error()))
 
 	// Mark remediation failure on object.
@@ -156,9 +152,8 @@ func (r *RollbackRemediation) failure(req *Request, buffer *action.LogBuffer, er
 
 // success records the success of a Helm rollback action in the status of the
 // given Request.Object by marking Remediated=True and emitting an event.
-func (r *RollbackRemediation) success(req *Request) {
+func (r *RollbackRemediation) success(req *Request, prev *v2.Snapshot) {
 	// Compose success message.
-	prev := req.Object.GetPrevious()
 	msg := fmt.Sprintf(fmtRollbackRemediationSuccess, prev.FullReleaseName(), prev.VersionedChartName())
 
 	// Mark remediation success on object.
@@ -174,17 +169,27 @@ func (r *RollbackRemediation) success(req *Request) {
 	)
 }
 
-// observeRollback returns a storage.ObserveFunc that can be used to observe
-// and record the result of a rollback action in the status of the given release.
-// It updates the Status.Current field of the release if it equals the target
-// of the rollback action, and version >= Current.Version.
+// observeRollback returns a storage.ObserveFunc to track the rollback history
+// of a HelmRelease.
+// It observes the rollback action of a Helm release by comparing the release
+// history with the recorded snapshots.
+// If the rolled-back release matches a snapshot, it updates the snapshot with
+// the observed release data.
+// If no matching snapshot is found, it creates a new snapshot and prepends it
+// to the release history.
 func observeRollback(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rls *helmrelease.Release) {
-		cur := obj.GetCurrent().DeepCopy()
-		obs := release.ObserveRelease(rls)
-		if cur == nil || !obs.Targets(cur.Name, cur.Namespace, 0) || obs.Version >= cur.Version {
-			// Overwrite current with newer release, or update it.
-			obj.Status.History.Current = release.ObservedToSnapshot(obs)
+		for i := range obj.Status.History {
+			snap := obj.Status.History[i]
+			if snap.Targets(rls.Name, rls.Namespace, rls.Version) {
+				newSnap := release.ObservedToSnapshot(release.ObserveRelease(rls))
+				newSnap.SetTestHooks(snap.GetTestHooks())
+				obj.Status.History[i] = newSnap
+				return
+			}
 		}
+
+		obs := release.ObserveRelease(rls)
+		obj.Status.History = append(v2.Snapshots{release.ObservedToSnapshot(obs)}, obj.Status.History...)
 	}
 }

@@ -66,14 +66,11 @@ func TestInstall_Reconcile(t *testing.T) {
 		// wantErr is the error that is expected to be returned.
 		wantErr error
 		// expectedConditions are the conditions that are expected to be set on
-		// the HelmRelease after running rollback.
-		expectConditions []metav1.Condition
-		// expectCurrent is the expected Current release information in the
-		// HelmRelease after install.
-		expectCurrent func(releases []*helmrelease.Release) *v2.Snapshot
-		// expectPrevious returns the expected Previous release information of
 		// the HelmRelease after install.
-		expectPrevious func(releases []*helmrelease.Release) *v2.Snapshot
+		expectConditions []metav1.Condition
+		// expectHistory is the expected History of the HelmRelease after
+		// install.
+		expectHistory func(releases []*helmrelease.Release) v2.Snapshots
 		// expectFailures is the expected Failures count of the HelmRelease.
 		expectFailures int64
 		// expectInstallFailures is the expected InstallFailures count of the
@@ -92,8 +89,10 @@ func TestInstall_Reconcile(t *testing.T) {
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason,
 					"Helm install succeeded"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 		},
 		{
@@ -105,8 +104,10 @@ func TestInstall_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.InstallFailedReason,
 					"failed post-install"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 			expectFailures:        1,
 			expectInstallFailures: 1,
@@ -150,8 +151,8 @@ func TestInstall_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -162,19 +163,18 @@ func TestInstall_Reconcile(t *testing.T) {
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason,
 					"Helm install succeeded"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
-			},
-			expectPrevious: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+				}
 			},
 		},
 		{
 			name: "install with stale current",
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 							Name:      mockReleaseName,
 							Namespace: "other",
 							Version:   1,
@@ -191,8 +191,10 @@ func TestInstall_Reconcile(t *testing.T) {
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason,
 					"Helm install succeeded"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 		},
 	}
@@ -262,16 +264,10 @@ func TestInstall_Reconcile(t *testing.T) {
 			releases, _ = store.History(mockReleaseName)
 			releaseutil.SortByRevision(releases)
 
-			if tt.expectCurrent != nil {
-				g.Expect(obj.GetCurrent()).To(testutil.Equal(tt.expectCurrent(releases)))
+			if tt.expectHistory != nil {
+				g.Expect(obj.Status.History).To(testutil.Equal(tt.expectHistory(releases)))
 			} else {
-				g.Expect(obj.GetCurrent()).To(BeNil(), "expected current to be nil")
-			}
-
-			if tt.expectPrevious != nil {
-				g.Expect(obj.GetPrevious()).To(testutil.Equal(tt.expectPrevious(releases)))
-			} else {
-				g.Expect(obj.GetPrevious()).To(BeNil(), "expected previous to be nil")
+				g.Expect(obj.Status.History).To(BeEmpty(), "expected history to be empty")
 			}
 
 			g.Expect(obj.Status.Failures).To(Equal(tt.expectFailures))
@@ -355,8 +351,8 @@ func TestInstall_success(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				History: v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(cur)),
 				},
 			},
 		}
@@ -376,8 +372,8 @@ func TestInstall_success(t *testing.T) {
 		r.success(req)
 
 		expectMsg := fmt.Sprintf(fmtInstallSuccess,
-			fmt.Sprintf("%s/%s.v%d", mockReleaseNamespace, mockReleaseName, obj.GetCurrent().Version),
-			fmt.Sprintf("%s@%s", obj.GetCurrent().ChartName, obj.GetCurrent().ChartVersion))
+			fmt.Sprintf("%s/%s.v%d", mockReleaseNamespace, mockReleaseName, obj.Status.History.Latest().Version),
+			fmt.Sprintf("%s@%s", obj.Status.History.Latest().ChartName, obj.Status.History.Latest().ChartVersion))
 
 		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason, expectMsg),
@@ -389,8 +385,8 @@ func TestInstall_success(t *testing.T) {
 				Message: expectMsg,
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.GetCurrent().ChartVersion,
-						eventMetaGroupKey(eventv1.MetaTokenKey):    obj.GetCurrent().ConfigDigest,
+						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.Status.History.Latest().ChartVersion,
+						eventMetaGroupKey(eventv1.MetaTokenKey):    obj.Status.History.Latest().ConfigDigest,
 					},
 				},
 			},
@@ -417,8 +413,8 @@ func TestInstall_success(t *testing.T) {
 		g.Expect(cond).ToNot(BeNil())
 
 		expectMsg := fmt.Sprintf(fmtTestPending,
-			fmt.Sprintf("%s/%s.v%d", mockReleaseNamespace, mockReleaseName, obj.GetCurrent().Version),
-			fmt.Sprintf("%s@%s", obj.GetCurrent().ChartName, obj.GetCurrent().ChartVersion))
+			fmt.Sprintf("%s/%s.v%d", mockReleaseNamespace, mockReleaseName, obj.Status.History.Latest().Version),
+			fmt.Sprintf("%s@%s", obj.Status.History.Latest().ChartName, obj.Status.History.Latest().ChartVersion))
 		g.Expect(cond.Message).To(Equal(expectMsg))
 	})
 }

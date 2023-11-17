@@ -37,9 +37,8 @@ import (
 // Upgrade is an ActionReconciler which attempts to upgrade a Helm release
 // based on the given Request data.
 //
-// The writes to the Helm storage during the installation process are
-// observed, and updates the Status.Current (and possibly Status.Previous)
-// field(s).
+// The writes to the Helm storage during the upgrade process are observed,
+// and update the Status.History field.
 //
 // On upgrade success, the object is marked with Released=True and emits an
 // event. In addition, the object is marked with TestSuccess=False if tests
@@ -66,9 +65,9 @@ func NewUpgrade(cfg *action.ConfigFactory, recorder record.EventRecorder) *Upgra
 
 func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	var (
-		cur    = req.Object.GetCurrent().DeepCopy()
-		logBuf = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
-		cfg    = r.configFactory.Build(logBuf.Log, observeRelease(req.Object))
+		logBuf      = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
+		obsReleases = make(observedReleases)
+		cfg         = r.configFactory.Build(logBuf.Log, observeRelease(obsReleases))
 	)
 
 	defer summarize(req)
@@ -78,12 +77,16 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 
 	// Run the Helm upgrade action.
 	_, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values)
+
+	// Record the history of releases observed during the upgrade.
+	obsReleases.recordOnObject(req.Object)
+
 	if err != nil {
 		r.failure(req, logBuf, err)
 
 		// Return error if we did not store a release, as this does not
 		// affect state and the caller should e.g. retry.
-		if newCur := req.Object.GetCurrent(); newCur == nil || (cur != nil && newCur.Digest == cur.Digest) {
+		if len(obsReleases) == 0 {
 			return err
 		}
 
@@ -151,7 +154,7 @@ func (r *Upgrade) failure(req *Request, buffer *action.LogBuffer, err error) {
 // release.
 func (r *Upgrade) success(req *Request) {
 	// Compose success message.
-	cur := req.Object.GetCurrent()
+	cur := req.Object.Status.History.Latest()
 	msg := fmt.Sprintf(fmtUpgradeSuccess, cur.FullReleaseName(), cur.VersionedChartName())
 
 	// Mark upgrade success on object.

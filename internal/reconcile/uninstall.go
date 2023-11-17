@@ -41,15 +41,15 @@ import (
 // based on the given Request data.
 //
 // The writes to the Helm storage during the uninstallation are observed, and
-// update the Status.Current field.
+// update the Status.History field.
 //
 // After a successful uninstall, the object is marked with Released=False and
 // an event is emitted. When the uninstallation fails, the object is marked
 // with Released=False and a warning event is emitted.
 //
-// When the Request.Object does not have a Status.Current, it returns an
-// error of type ErrNoCurrent. If the uninstallation targeted a different
-// release (version) than Status.Current, it returns an error of type
+// When the Request.Object does not have a latest release, it returns an
+// error of type ErrNoLatest. If the uninstallation targeted a different
+// release (version) than the latest release, it returns an error of type
 // ErrReleaseMismatch. In addition, it returns ErrNoStorageUpdate if the
 // uninstallation completed without updating the Helm storage. In which case
 // the resources for the release will be removed from the cluster, but the
@@ -80,7 +80,7 @@ func NewUninstall(cfg *action.ConfigFactory, recorder record.EventRecorder) *Uni
 
 func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	var (
-		cur    = req.Object.GetCurrent().DeepCopy()
+		cur    = req.Object.Status.History.Latest().DeepCopy()
 		logBuf = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
 		cfg    = r.configFactory.Build(logBuf.Log, observeUninstall(req.Object))
 	)
@@ -89,7 +89,7 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 
 	// Require current to run uninstall.
 	if cur == nil {
-		return fmt.Errorf("%w: required to uninstall", ErrNoCurrent)
+		return fmt.Errorf("%w: required to uninstall", ErrNoLatest)
 	}
 
 	// Run the Helm uninstall action.
@@ -118,7 +118,7 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 
 	// The Helm uninstall action does always target the latest release. Before
 	// accepting results, we need to confirm this is actually the release we
-	// have recorded as Current.
+	// have recorded as latest.
 	if res != nil && !release.ObserveRelease(res.Release).Targets(cur.Name, cur.Namespace, cur.Version) {
 		err = fmt.Errorf("%w: uninstalled release %s/%s.v%d != current release %s",
 			ErrReleaseMismatch, res.Release.Namespace, res.Release.Name, res.Release.Version, cur.FullReleaseName())
@@ -126,7 +126,7 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 
 	// The Helm uninstall action may return without an error while the update
 	// to the storage failed. Detect this and return an error.
-	if err == nil && cur.Digest == req.Object.GetCurrent().Digest {
+	if err == nil && cur.Digest == req.Object.Status.History.Latest().Digest {
 		// An exception is made for the case where the release was already marked
 		// as uninstalled, which would only result in the release object getting
 		// removed from the storage.
@@ -138,7 +138,7 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	// Handle any error.
 	if err != nil {
 		r.failure(req, logBuf, err)
-		if req.Object.GetCurrent().Digest == cur.Digest {
+		if req.Object.Status.History.Latest().Digest == cur.Digest {
 			return err
 		}
 		return nil
@@ -169,7 +169,7 @@ const (
 // event.
 func (r *Uninstall) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Compose success message.
-	cur := req.Object.GetCurrent()
+	cur := req.Object.Status.History.Latest()
 	msg := fmt.Sprintf(fmtUninstallFailure, cur.FullReleaseName(), cur.VersionedChartName(), strings.TrimSpace(err.Error()))
 
 	// Mark remediation failure on object.
@@ -191,7 +191,7 @@ func (r *Uninstall) failure(req *Request, buffer *action.LogBuffer, err error) {
 // event.
 func (r *Uninstall) success(req *Request) {
 	// Compose success message.
-	cur := req.Object.GetCurrent()
+	cur := req.Object.Status.History.Latest()
 	msg := fmt.Sprintf(fmtUninstallSuccess, cur.FullReleaseName(), cur.VersionedChartName())
 
 	// Mark remediation success on object.
@@ -208,15 +208,26 @@ func (r *Uninstall) success(req *Request) {
 	)
 }
 
-// observeUninstall returns a storage.ObserveFunc that can be used to observe
-// and record the result of an uninstall action in the status of the given
-// release. It updates the Status.Current field of the release if it equals the
-// uninstallation target, and version = Current.Version.
+// observeUninstall returns a storage.ObserveFunc to track uninstallations of a
+// HelmRelease.
+// It compares the release history snapshots with the uninstalled release
+// information.
+// If a matching snapshot for the uninstalled release is found, it updates the
+// snapshot with the observed release data.
 func observeUninstall(obj *v2.HelmRelease) storage.ObserveFunc {
+	// NB: One could argue that we should only update the latest release in
+	// the history.
+	// But like during rollback, Helm may supersede any previous releases.
+	// As such, we need to update all releases we have in our history.
+	// xref: https://github.com/helm/helm/pull/12564
 	return func(rls *helmrelease.Release) {
-		if cur := obj.GetCurrent(); cur != nil {
-			if obs := release.ObserveRelease(rls); obs.Targets(cur.Name, cur.Namespace, cur.Version) {
-				obj.Status.History.Current = release.ObservedToSnapshot(obs)
+		for i := range obj.Status.History {
+			snap := obj.Status.History[i]
+			if snap.Targets(rls.Name, rls.Namespace, rls.Version) {
+				newSnap := release.ObservedToSnapshot(release.ObserveRelease(rls))
+				newSnap.SetTestHooks(snap.GetTestHooks())
+				obj.Status.History[i] = newSnap
+				return
 			}
 		}
 	}

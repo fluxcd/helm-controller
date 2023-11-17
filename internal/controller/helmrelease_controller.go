@@ -286,10 +286,11 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	// fail due to resources already existing.
 	if action.ReleaseTargetChanged(obj, loadedChart.Name()) {
 		log.Info("release target configuration changed: running uninstall for current release")
-		if err = r.reconcileUninstall(ctx, getter, obj); err != nil && !errors.Is(err, intreconcile.ErrNoCurrent) {
+		if err = r.reconcileUninstall(ctx, getter, obj); err != nil && !errors.Is(err, intreconcile.ErrNoLatest) {
 			return ctrl.Result{}, err
 		}
-		obj.Status.History = v2.ReleaseHistory{}
+		obj.Status.ClearHistory()
+		obj.Status.ClearFailures()
 		obj.Status.StorageNamespace = ""
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -299,9 +300,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 
 	// Reset the failure count if the chart or values have changed.
 	if action.MustResetFailures(obj, loadedChart.Metadata, values) {
-		obj.Status.InstallFailures = 0
-		obj.Status.UpgradeFailures = 0
-		obj.Status.Failures = 0
+		obj.Status.ClearFailures()
 	}
 
 	// Set last attempt values.
@@ -438,7 +437,7 @@ func (r *HelmReleaseReconciler) reconcileReleaseDeletion(ctx context.Context, ob
 	}
 
 	// Attempt to uninstall the release.
-	if err = r.reconcileUninstall(ctx, getter, obj); err != nil && !errors.Is(err, intreconcile.ErrNoCurrent) {
+	if err = r.reconcileUninstall(ctx, getter, obj); err != nil && !errors.Is(err, intreconcile.ErrNoLatest) {
 		return err
 	}
 	if err == nil {
@@ -446,7 +445,7 @@ func (r *HelmReleaseReconciler) reconcileReleaseDeletion(ctx context.Context, ob
 	}
 
 	// Truncate the current release details in the status.
-	obj.Status.History = v2.ReleaseHistory{}
+	obj.Status.ClearHistory()
 	obj.Status.StorageNamespace = ""
 
 	return nil

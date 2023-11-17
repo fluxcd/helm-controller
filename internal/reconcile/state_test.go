@@ -57,8 +57,8 @@ func Test_DetermineReleaseState(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -79,8 +79,8 @@ func Test_DetermineReleaseState(t *testing.T) {
 			name: "release disappeared from storage",
 			status: func(_ []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 							Name:      mockReleaseName,
 							Namespace: mockReleaseNamespace,
 							Version:   1,
@@ -124,8 +124,8 @@ func Test_DetermineReleaseState(t *testing.T) {
 				cur := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
 				cur.Digest = "sha256:invalid"
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: cur,
+					History: v2.Snapshots{
+						cur,
 					},
 				}
 			},
@@ -151,8 +151,8 @@ func Test_DetermineReleaseState(t *testing.T) {
 				// Digest for empty string is always mismatch
 				cur.Digest = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: cur,
+					History: v2.Snapshots{
+						cur,
 					},
 				}
 			},
@@ -197,8 +197,8 @@ func Test_DetermineReleaseState(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -241,8 +241,8 @@ func Test_DetermineReleaseState(t *testing.T) {
 				cur.SetTestHooks(release.TestHooksFromRelease(releases[1]))
 
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: cur,
+					History: v2.Snapshots{
+						cur,
 					},
 					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
 				}
@@ -282,8 +282,8 @@ func Test_DetermineReleaseState(t *testing.T) {
 				cur.SetTestHooks(release.TestHooksFromRelease(releases[0]))
 
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: cur,
+					History: v2.Snapshots{
+						cur,
 					},
 					LastAttemptedReleaseAction: v2.ReleaseActionInstall,
 				}
@@ -317,8 +317,8 @@ func Test_DetermineReleaseState(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -348,9 +348,9 @@ func Test_DetermineReleaseState(t *testing.T) {
 			values: map[string]interface{}{},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current:  release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
-						Previous: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -373,8 +373,8 @@ func Test_DetermineReleaseState(t *testing.T) {
 			values: map[string]interface{}{},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -410,8 +410,8 @@ func Test_DetermineReleaseState(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -434,8 +434,8 @@ func Test_DetermineReleaseState(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},

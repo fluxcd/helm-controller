@@ -43,11 +43,12 @@ var (
 
 // ReleaseTargetChanged returns true if the given release and/or chart
 // name have been mutated in such a way that it no longer has the same release
-// target as the Status.Current, by comparing the (storage) namespace, and
-// release and chart names. This can be used to e.g. trigger a garbage
-// collection of the old release before installing the new one.
+// target as recorded in the Status.History of the object, by comparing the
+// (storage) namespace, and release and chart names.
+// This can be used to e.g. trigger a garbage collection of the old release
+// before installing the new one.
 func ReleaseTargetChanged(obj *v2.HelmRelease, chartName string) bool {
-	cur := obj.GetCurrent()
+	cur := obj.Status.History.Latest()
 	switch {
 	case obj.Status.StorageNamespace == "", cur == nil:
 		return false
@@ -166,7 +167,7 @@ func VerifyReleaseObject(snapshot *v2.Snapshot, rls *helmrelease.Release) error 
 }
 
 // VerifyRelease verifies that the data of the given release matches the given
-// chart metadata, and the provided values match the Current.ConfigDigest.
+// chart metadata, and the provided values match the Snapshot.ConfigDigest.
 // It returns either an error of type ErrReleaseNotFound, ErrChartChanged or
 // ErrConfigDigest, or nil.
 func VerifyRelease(rls *helmrelease.Release, snapshot *v2.Snapshot, chrt *helmchart.Metadata, vals helmchartutil.Values) error {

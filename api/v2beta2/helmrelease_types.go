@@ -858,16 +858,17 @@ type HelmReleaseStatus struct {
 	HelmChart string `json:"helmChart,omitempty"`
 
 	// StorageNamespace is the namespace of the Helm release storage for the
-	// Current release.
+	// current release.
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Optional
 	// +optional
 	StorageNamespace string `json:"storageNamespace,omitempty"`
 
-	// History holds the history of Helm releases performed for this HelmRelease.
+	// History holds the history of Helm releases performed for this HelmRelease
+	// up to the last successfully completed release.
 	// +optional
-	History ReleaseHistory `json:"history,omitempty"`
+	History Snapshots `json:"history,omitempty"`
 
 	// LastAttemptedReleaseAction is the last release action performed for this
 	// HelmRelease. It is used to determine the active remediation strategy.
@@ -909,6 +910,18 @@ type HelmReleaseStatus struct {
 	meta.ReconcileRequestStatus `json:",inline"`
 }
 
+// ClearHistory clears the History.
+func (in *HelmReleaseStatus) ClearHistory() {
+	in.History = nil
+}
+
+// ClearFailures clears the failure counters.
+func (in *HelmReleaseStatus) ClearFailures() {
+	in.Failures = 0
+	in.InstallFailures = 0
+	in.UpgradeFailures = 0
+}
+
 // GetHelmChart returns the namespace and name of the HelmChart.
 func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 	if in.HelmChart == "" {
@@ -918,22 +931,6 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 		return split[0], split[1]
 	}
 	return "", ""
-}
-
-// ReleaseHistory holds the latest observed Snapshot for the current release,
-// and the previous (successful) release. The previous release is only
-// populated if the current release is not the first release, and if the
-// previous release was successful. This is to prevent the previous release
-// from being populated with a failed release.
-type ReleaseHistory struct {
-	// Current holds the latest observed Snapshot for the current release.
-	// +optional
-	Current *Snapshot `json:"current,omitempty"`
-
-	// Previous holds the latest observed Snapshot for the previous
-	// (successful) release.
-	// +optional
-	Previous *Snapshot `json:"previous,omitempty"`
 }
 
 const (
@@ -1004,35 +1001,6 @@ func (in *HelmRelease) GetUninstall() Uninstall {
 		return Uninstall{}
 	}
 	return *in.Spec.Uninstall
-}
-
-// GetCurrent returns the current Helm release as observed by the controller.
-func (in HelmRelease) GetCurrent() *Snapshot {
-	if in.HasCurrent() {
-		return in.Status.History.Current
-	}
-	return nil
-}
-
-// HasCurrent returns true if the HelmRelease has a current observed Helm
-// release.
-func (in HelmRelease) HasCurrent() bool {
-	return in.Status.History.Current != nil
-}
-
-// GetPrevious returns the previous successful Helm release made by the
-// controller.
-func (in HelmRelease) GetPrevious() *Snapshot {
-	if in.HasPrevious() {
-		return in.Status.History.Previous
-	}
-	return nil
-}
-
-// HasPrevious returns true if the HelmRelease has a previous successful Helm
-// release.
-func (in HelmRelease) HasPrevious() bool {
-	return in.Status.History.Previous != nil
 }
 
 // GetActiveRemediation returns the active Remediation configuration for the

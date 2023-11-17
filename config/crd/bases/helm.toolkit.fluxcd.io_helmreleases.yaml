@@ -1809,185 +1809,95 @@ spec:
                 type: string
               history:
                 description: History holds the history of Helm releases performed
-                  for this HelmRelease.
-                properties:
-                  current:
-                    description: Current holds the latest observed Snapshot for the
-                      current release.
-                    properties:
-                      apiVersion:
-                        description: 'APIVersion is the API version of the Snapshot.
-                          Provisional: when the calculation method of the Digest field
-                          is changed, this field will be used to distinguish between
-                          the old and new methods.'
-                        type: string
-                      chartName:
-                        description: ChartName is the chart name of the release object
-                          in storage.
-                        type: string
-                      chartVersion:
-                        description: ChartVersion is the chart version of the release
-                          object in storage.
-                        type: string
-                      configDigest:
-                        description: ConfigDigest is the checksum of the config (better
-                          known as "values") of the release object in storage. It
-                          has the format of `<algo>:<checksum>`.
-                        type: string
-                      deleted:
-                        description: Deleted is when the release was deleted.
-                        format: date-time
-                        type: string
-                      digest:
-                        description: Digest is the checksum of the release object
-                          in storage. It has the format of `<algo>:<checksum>`.
-                        type: string
-                      firstDeployed:
-                        description: FirstDeployed is when the release was first deployed.
-                        format: date-time
-                        type: string
-                      lastDeployed:
-                        description: LastDeployed is when the release was last deployed.
-                        format: date-time
-                        type: string
-                      name:
-                        description: Name is the name of the release.
-                        type: string
-                      namespace:
-                        description: Namespace is the namespace the release is deployed
-                          to.
-                        type: string
-                      status:
-                        description: Status is the current state of the release.
-                        type: string
-                      testHooks:
-                        additionalProperties:
-                          description: TestHookStatus holds the status information
-                            for a test hook as observed to be run by the controller.
-                          properties:
-                            lastCompleted:
-                              description: LastCompleted is the time the test hook
-                                last completed.
-                              format: date-time
-                              type: string
-                            lastStarted:
-                              description: LastStarted is the time the test hook was
-                                last started.
-                              format: date-time
-                              type: string
-                            phase:
-                              description: Phase the test hook was observed to be
-                                in.
-                              type: string
-                          type: object
-                        description: TestHooks is the list of test hooks for the release
-                          as observed to be run by the controller.
+                  for this HelmRelease up to the last successfully completed release.
+                items:
+                  description: Snapshot captures a point-in-time copy of the status
+                    information for a Helm release, as managed by the controller.
+                  properties:
+                    apiVersion:
+                      description: 'APIVersion is the API version of the Snapshot.
+                        Provisional: when the calculation method of the Digest field
+                        is changed, this field will be used to distinguish between
+                        the old and new methods.'
+                      type: string
+                    chartName:
+                      description: ChartName is the chart name of the release object
+                        in storage.
+                      type: string
+                    chartVersion:
+                      description: ChartVersion is the chart version of the release
+                        object in storage.
+                      type: string
+                    configDigest:
+                      description: ConfigDigest is the checksum of the config (better
+                        known as "values") of the release object in storage. It has
+                        the format of `<algo>:<checksum>`.
+                      type: string
+                    deleted:
+                      description: Deleted is when the release was deleted.
+                      format: date-time
+                      type: string
+                    digest:
+                      description: Digest is the checksum of the release object in
+                        storage. It has the format of `<algo>:<checksum>`.
+                      type: string
+                    firstDeployed:
+                      description: FirstDeployed is when the release was first deployed.
+                      format: date-time
+                      type: string
+                    lastDeployed:
+                      description: LastDeployed is when the release was last deployed.
+                      format: date-time
+                      type: string
+                    name:
+                      description: Name is the name of the release.
+                      type: string
+                    namespace:
+                      description: Namespace is the namespace the release is deployed
+                        to.
+                      type: string
+                    status:
+                      description: Status is the current state of the release.
+                      type: string
+                    testHooks:
+                      additionalProperties:
+                        description: TestHookStatus holds the status information for
+                          a test hook as observed to be run by the controller.
+                        properties:
+                          lastCompleted:
+                            description: LastCompleted is the time the test hook last
+                              completed.
+                            format: date-time
+                            type: string
+                          lastStarted:
+                            description: LastStarted is the time the test hook was
+                              last started.
+                            format: date-time
+                            type: string
+                          phase:
+                            description: Phase the test hook was observed to be in.
+                            type: string
                         type: object
-                      version:
-                        description: Version is the version of the release object
-                          in storage.
-                        type: integer
-                    required:
-                    - chartName
-                    - chartVersion
-                    - configDigest
-                    - digest
-                    - firstDeployed
-                    - lastDeployed
-                    - name
-                    - namespace
-                    - status
-                    - version
-                    type: object
-                  previous:
-                    description: Previous holds the latest observed Snapshot for the
-                      previous (successful) release.
-                    properties:
-                      apiVersion:
-                        description: 'APIVersion is the API version of the Snapshot.
-                          Provisional: when the calculation method of the Digest field
-                          is changed, this field will be used to distinguish between
-                          the old and new methods.'
-                        type: string
-                      chartName:
-                        description: ChartName is the chart name of the release object
-                          in storage.
-                        type: string
-                      chartVersion:
-                        description: ChartVersion is the chart version of the release
-                          object in storage.
-                        type: string
-                      configDigest:
-                        description: ConfigDigest is the checksum of the config (better
-                          known as "values") of the release object in storage. It
-                          has the format of `<algo>:<checksum>`.
-                        type: string
-                      deleted:
-                        description: Deleted is when the release was deleted.
-                        format: date-time
-                        type: string
-                      digest:
-                        description: Digest is the checksum of the release object
-                          in storage. It has the format of `<algo>:<checksum>`.
-                        type: string
-                      firstDeployed:
-                        description: FirstDeployed is when the release was first deployed.
-                        format: date-time
-                        type: string
-                      lastDeployed:
-                        description: LastDeployed is when the release was last deployed.
-                        format: date-time
-                        type: string
-                      name:
-                        description: Name is the name of the release.
-                        type: string
-                      namespace:
-                        description: Namespace is the namespace the release is deployed
-                          to.
-                        type: string
-                      status:
-                        description: Status is the current state of the release.
-                        type: string
-                      testHooks:
-                        additionalProperties:
-                          description: TestHookStatus holds the status information
-                            for a test hook as observed to be run by the controller.
-                          properties:
-                            lastCompleted:
-                              description: LastCompleted is the time the test hook
-                                last completed.
-                              format: date-time
-                              type: string
-                            lastStarted:
-                              description: LastStarted is the time the test hook was
-                                last started.
-                              format: date-time
-                              type: string
-                            phase:
-                              description: Phase the test hook was observed to be
-                                in.
-                              type: string
-                          type: object
-                        description: TestHooks is the list of test hooks for the release
-                          as observed to be run by the controller.
-                        type: object
-                      version:
-                        description: Version is the version of the release object
-                          in storage.
-                        type: integer
-                    required:
-                    - chartName
-                    - chartVersion
-                    - configDigest
-                    - digest
-                    - firstDeployed
-                    - lastDeployed
-                    - name
-                    - namespace
-                    - status
-                    - version
-                    type: object
-                type: object
+                      description: TestHooks is the list of test hooks for the release
+                        as observed to be run by the controller.
+                      type: object
+                    version:
+                      description: Version is the version of the release object in
+                        storage.
+                      type: integer
+                  required:
+                  - chartName
+                  - chartVersion
+                  - configDigest
+                  - digest
+                  - firstDeployed
+                  - lastDeployed
+                  - name
+                  - namespace
+                  - status
+                  - version
+                  type: object
+                type: array
               installFailures:
                 description: InstallFailures is the install failure count against
                   the latest desired state. It is reset after a successful reconciliation.
@@ -2030,7 +1940,7 @@ spec:
                 type: integer
               storageNamespace:
                 description: StorageNamespace is the namespace of the Helm release
-                  storage for the Current release.
+                  storage for the current release.
                 maxLength: 63
                 minLength: 1
                 type: string

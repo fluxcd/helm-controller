@@ -41,16 +41,16 @@ var (
 // UninstallRemediation is an ActionReconciler which attempts to remediate a
 // failed Helm release for the given Request data by uninstalling it.
 //
-// The writes to the Helm storage during the uninstallation are observed, and
-// update the Status.Current field.
+// The writes to the Helm storage during the rollback are observed, and update
+// the Status.History field.
 //
 // After a successful uninstall, the object is marked with Remediated=True and
 // an event is emitted. When the uninstallation fails, the object is marked
 // with Remediated=False and a warning event is emitted.
 //
-// When the Request.Object does not have a Status.Current, it returns an
-// error of type ErrNoCurrent. If the uninstallation targeted a different
-// release (version) than Status.Current, it returns an error of type
+// When the Request.Object does not have a latest release, it returns an
+// error of type ErrNoLatest. If the uninstallation targeted a different
+// release (version) than the latest release, it returns an error of type
 // ErrReleaseMismatch. In addition, it returns ErrNoStorageUpdate if the
 // uninstallation completed without updating the Helm storage. In which case
 // the resources for the release will be removed from the cluster, but the
@@ -80,14 +80,14 @@ func NewUninstallRemediation(cfg *action.ConfigFactory, recorder record.EventRec
 
 func (r *UninstallRemediation) Reconcile(ctx context.Context, req *Request) error {
 	var (
-		cur    = req.Object.GetCurrent().DeepCopy()
+		cur    = req.Object.Status.History.Latest().DeepCopy()
 		logBuf = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
 		cfg    = r.configFactory.Build(logBuf.Log, observeUninstall(req.Object))
 	)
 
 	// Require current to run uninstall.
 	if cur == nil {
-		return fmt.Errorf("%w: required to uninstall", ErrNoCurrent)
+		return fmt.Errorf("%w: required to uninstall", ErrNoLatest)
 	}
 
 	// Run the Helm uninstall action.
@@ -95,7 +95,7 @@ func (r *UninstallRemediation) Reconcile(ctx context.Context, req *Request) erro
 
 	// The Helm uninstall action does always target the latest release. Before
 	// accepting results, we need to confirm this is actually the release we
-	// have recorded as Current.
+	// have recorded as latest.
 	if res != nil && !release.ObserveRelease(res.Release).Targets(cur.Name, cur.Namespace, cur.Version) {
 		err = fmt.Errorf("%w: uninstalled release %s/%s.v%d != current release %s",
 			ErrReleaseMismatch, res.Release.Namespace, res.Release.Name, res.Release.Version, cur.FullReleaseName())
@@ -103,14 +103,14 @@ func (r *UninstallRemediation) Reconcile(ctx context.Context, req *Request) erro
 
 	// The Helm uninstall action may return without an error while the update
 	// to the storage failed. Detect this and return an error.
-	if err == nil && cur.Digest == req.Object.GetCurrent().Digest {
+	if err == nil && cur.Digest == req.Object.Status.History.Latest().Digest {
 		err = fmt.Errorf("uninstall completed with error: %w", ErrNoStorageUpdate)
 	}
 
 	// Handle any error.
 	if err != nil {
 		r.failure(req, logBuf, err)
-		if cur.Digest == req.Object.GetCurrent().Digest {
+		if cur.Digest == req.Object.Status.History.Latest().Digest {
 			return err
 		}
 		return nil
@@ -143,7 +143,7 @@ const (
 // a warning event.
 func (r *UninstallRemediation) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Compose success message.
-	cur := req.Object.GetCurrent()
+	cur := req.Object.Status.History.Latest()
 	msg := fmt.Sprintf(fmtUninstallRemediationFailure, cur.FullReleaseName(), cur.VersionedChartName(), strings.TrimSpace(err.Error()))
 
 	// Mark uninstall failure on object.
@@ -166,7 +166,7 @@ func (r *UninstallRemediation) failure(req *Request, buffer *action.LogBuffer, e
 // an event.
 func (r *UninstallRemediation) success(req *Request) {
 	// Compose success message.
-	cur := req.Object.GetCurrent()
+	cur := req.Object.Status.History.Latest()
 	msg := fmt.Sprintf(fmtUninstallRemediationSuccess, cur.FullReleaseName(), cur.VersionedChartName())
 
 	// Mark remediation success on object.

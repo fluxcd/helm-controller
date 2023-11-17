@@ -71,14 +71,6 @@ type ReleaseState struct {
 	Reason string
 }
 
-// MustResetHistory returns true if the release state indicates that the
-// history on the v2beta2.HelmRelease object must be reset.
-// This is the case when the release in storage has been mutated in such a way
-// that it no longer can be used to roll back to, or perform a diff against.
-func (s ReleaseState) MustResetHistory() bool {
-	return s.Status == ReleaseStatusLocked || s.Status == ReleaseStatusUnmanaged || s.Status == ReleaseStatusAbsent
-}
-
 // DetermineReleaseState determines the state of the Helm release as compared
 // to the v2beta2.HelmRelease object. It returns a ReleaseState that indicates
 // the status of the release, and an error if the state could not be determined.
@@ -98,8 +90,7 @@ func DetermineReleaseState(cfg *action.ConfigFactory, req *Request) (ReleaseStat
 	}
 
 	// Confirm we have a release object to compare against.
-	cur := req.Object.GetCurrent()
-	if cur == nil {
+	if req.Object.Status.History.Len() == 0 {
 		if rls.Info.Status == helmrelease.StatusUninstalled {
 			return ReleaseState{Status: ReleaseStatusAbsent, Reason: "found uninstalled release in storage"}, nil
 		}
@@ -108,13 +99,14 @@ func DetermineReleaseState(cfg *action.ConfigFactory, req *Request) (ReleaseStat
 
 	// Verify the release object against the state we observed during our
 	// last reconciliation.
+	cur := req.Object.Status.History.Latest()
 	if err := action.VerifyReleaseObject(cur, rls); err != nil {
 		if interrors.IsOneOf(err, action.ErrReleaseDigest, action.ErrReleaseNotObserved) {
 			// The release object has been mutated in such a way that we are
 			// unable to determine the state of the release.
-			// Effectively, this means that the release is no longer managed
-			// by the object, and we should e.g. perform an upgrade to bring
-			// the release back in sync and under management.
+			// Effectively, this means that the object no longer manages the
+			// release, and we should e.g. perform an upgrade to bring
+			// the release back in-sync and under management.
 			return ReleaseState{Status: ReleaseStatusUnmanaged, Reason: err.Error()}, nil
 		}
 		return ReleaseState{Status: ReleaseStatusUnknown}, fmt.Errorf("failed to verify release object: %w", err)
@@ -143,13 +135,13 @@ func DetermineReleaseState(cfg *action.ConfigFactory, req *Request) (ReleaseStat
 		// users running e.g. `helm test`.
 		if testSpec := req.Object.GetTest(); testSpec.Enable {
 			// Confirm the release has been tested if enabled.
-			if !req.Object.GetCurrent().HasBeenTested() {
+			if !cur.HasBeenTested() {
 				return ReleaseState{Status: ReleaseStatusUntested}, nil
 			}
 
 			// Act on any observed test failure.
-			remedation := req.Object.GetActiveRemediation()
-			if remedation != nil && !remedation.MustIgnoreTestFailures(testSpec.IgnoreFailures) && req.Object.GetCurrent().HasTestInPhase(helmrelease.HookPhaseFailed.String()) {
+			remediation := req.Object.GetActiveRemediation()
+			if remediation != nil && !remediation.MustIgnoreTestFailures(testSpec.IgnoreFailures) && cur.HasTestInPhase(helmrelease.HookPhaseFailed.String()) {
 				return ReleaseState{Status: ReleaseStatusFailed, Reason: "release has test in failed phase"}, nil
 			}
 		}

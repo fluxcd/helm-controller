@@ -18,9 +18,85 @@ package v2beta2
 
 import (
 	"fmt"
+	"sort"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+const (
+	// snapshotStatusDeployed indicates that the release the snapshot was taken
+	// from is currently deployed.
+	snapshotStatusDeployed = "deployed"
+	// snapshotStatusSuperseded indicates that the release the snapshot was taken
+	// from has been superseded by a newer release.
+	snapshotStatusSuperseded = "superseded"
+
+	// snapshotTestPhaseFailed indicates that the test of the release the snapshot
+	// was taken from has failed.
+	snapshotTestPhaseFailed = "Failed"
+)
+
+// Snapshots is a list of Snapshot objects.
+type Snapshots []*Snapshot
+
+// Len returns the number of Snapshots.
+func (in Snapshots) Len() int {
+	return len(in)
+}
+
+// SortByVersion sorts the Snapshots by version, in descending order.
+func (in Snapshots) SortByVersion() {
+	sort.Slice(in, func(i, j int) bool {
+		return in[i].Version > in[j].Version
+	})
+}
+
+// Latest returns the most recent Snapshot.
+func (in Snapshots) Latest() *Snapshot {
+	if len(in) == 0 {
+		return nil
+	}
+	in.SortByVersion()
+	return in[0]
+}
+
+// Previous returns the most recent Snapshot before the Latest that has a
+// status of "deployed" or "superseded", or nil if there is no such Snapshot.
+// Unless ignoreTests is true, Snapshots with a test in the "Failed" phase are
+// ignored.
+func (in Snapshots) Previous(ignoreTests bool) *Snapshot {
+	if len(in) < 2 {
+		return nil
+	}
+	in.SortByVersion()
+	for i := range in[1:] {
+		s := in[i+1]
+		if s.Status == snapshotStatusDeployed || s.Status == snapshotStatusSuperseded {
+			if ignoreTests || !s.HasTestInPhase(snapshotTestPhaseFailed) {
+				return s
+			}
+		}
+	}
+	return nil
+}
+
+// Truncate removes all Snapshots up to the Previous deployed Snapshot.
+// If there is no previous-deployed Snapshot, no Snapshots are removed.
+func (in *Snapshots) Truncate(ignoreTests bool) {
+	if in.Len() < 2 {
+		return
+	}
+	in.SortByVersion()
+	for i := range (*in)[1:] {
+		s := (*in)[i+1]
+		if s.Status == snapshotStatusDeployed || s.Status == snapshotStatusSuperseded {
+			if ignoreTests || !s.HasTestInPhase(snapshotTestPhaseFailed) {
+				*in = (*in)[:i+2]
+				return
+			}
+		}
+	}
+}
 
 // Snapshot captures a point-in-time copy of the status information for a Helm release,
 // as managed by the controller.
@@ -76,12 +152,18 @@ type Snapshot struct {
 // FullReleaseName returns the full name of the release in the format
 // of '<namespace>/<name>.<version>
 func (in *Snapshot) FullReleaseName() string {
+	if in == nil {
+		return ""
+	}
 	return fmt.Sprintf("%s/%s.v%d", in.Namespace, in.Name, in.Version)
 }
 
 // VersionedChartName returns the full name of the chart in the format of
 // '<name>@<version>'.
 func (in *Snapshot) VersionedChartName() string {
+	if in == nil {
+		return ""
+	}
 	return fmt.Sprintf("%s@%s", in.ChartName, in.ChartVersion)
 }
 
@@ -93,7 +175,7 @@ func (in *Snapshot) HasBeenTested() bool {
 
 // GetTestHooks returns the TestHooks for the release if not nil.
 func (in *Snapshot) GetTestHooks() map[string]*TestHookStatus {
-	if in == nil {
+	if in == nil || in.TestHooks == nil {
 		return nil
 	}
 	return *in.TestHooks
@@ -113,7 +195,18 @@ func (in *Snapshot) HasTestInPhase(phase string) bool {
 
 // SetTestHooks sets the TestHooks for the release.
 func (in *Snapshot) SetTestHooks(hooks map[string]*TestHookStatus) {
+	if in == nil || hooks == nil {
+		return
+	}
 	in.TestHooks = &hooks
+}
+
+// Targets returns true if the Snapshot targets the given release data.
+func (in *Snapshot) Targets(name, namespace string, version int) bool {
+	if in != nil {
+		return in.Name == name && in.Namespace == namespace && in.Version == version
+	}
+	return false
 }
 
 // TestHookStatus holds the status information for a test hook as observed

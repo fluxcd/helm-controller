@@ -81,7 +81,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		r := &HelmChartTemplate{
 			client:        testEnv,
 			eventRecorder: recorder,
-			fieldManager:  "helm-controller",
+			fieldManager:  testFieldManager,
 		}
 
 		ts := metav1.Now()
@@ -134,7 +134,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		r := &HelmChartTemplate{
 			client:        testEnv,
 			eventRecorder: record.NewFakeRecorder(32),
-			fieldManager:  "helm-controller",
+			fieldManager:  testFieldManager,
 		}
 
 		obj := &v2.HelmRelease{
@@ -182,7 +182,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		r := &HelmChartTemplate{
 			client:        testEnv,
 			eventRecorder: recorder,
-			fieldManager:  "helm-controller",
+			fieldManager:  testFieldManager,
 		}
 
 		releaseName := "not-found"
@@ -254,7 +254,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		r := &HelmChartTemplate{
 			client:        testEnv,
 			eventRecorder: recorder,
-			fieldManager:  "helm-controller",
+			fieldManager:  testFieldManager,
 		}
 
 		obj := &v2.HelmRelease{
@@ -325,7 +325,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		r := &HelmChartTemplate{
 			client:        testEnv,
 			eventRecorder: recorder,
-			fieldManager:  "helm-controller",
+			fieldManager:  testFieldManager,
 		}
 
 		obj := &v2.HelmRelease{
@@ -368,7 +368,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		r := &HelmChartTemplate{
 			client:        testEnv,
 			eventRecorder: recorder,
-			fieldManager:  "helm-controller",
+			fieldManager:  testFieldManager,
 		}
 
 		releaseName := "owner-labels"

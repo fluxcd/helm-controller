@@ -36,11 +36,11 @@ import (
 )
 
 // Test is an ActionReconciler which attempts to perform a Helm test for
-// the Status.Current release of the Request.Object.
+// the latest release of the Request.Object.
 //
 // The writes to the Helm storage during testing are observed, which causes the
-// Status.Current.TestHooks field of the object to be updated with the results
-// when the action targets the same release as current.
+// TestHooks field of the latest Snapshot in the Status.History to be updated
+// if it matches the target of the test.
 //
 // When all test hooks for the release succeed, the object is marked with
 // TestSuccess=True and an event is emitted. When one of the test hooks fails,
@@ -49,9 +49,9 @@ import (
 // ignored, the failure count for the active remediation strategy is
 // incremented.
 //
-// When the Request.Object does not have a Status.Current, it returns an
-// error of type ErrNoCurrent. In addition, it returns ErrReleaseMismatch
-// if the test ran for a different release target than Status.Current.
+// When the Request.Object does not have a latest release, it returns an
+// error of type ErrNoLatest. In addition, it returns ErrReleaseMismatch
+// if the test ran for a different release target than the latest release.
 // Any other returned error indicates the caller should retry as it did not cause
 // a change to the Helm storage.
 //
@@ -72,7 +72,7 @@ func NewTest(cfg *action.ConfigFactory, recorder record.EventRecorder) *Test {
 
 func (r *Test) Reconcile(ctx context.Context, req *Request) error {
 	var (
-		cur    = req.Object.GetCurrent().DeepCopy()
+		cur    = req.Object.Status.History.Latest().DeepCopy()
 		logBuf = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
 		cfg    = r.configFactory.Build(logBuf.Log, observeTest(req.Object))
 	)
@@ -81,7 +81,7 @@ func (r *Test) Reconcile(ctx context.Context, req *Request) error {
 
 	// We only accept test results for the current release.
 	if cur == nil {
-		return fmt.Errorf("%w: required for test", ErrNoCurrent)
+		return fmt.Errorf("%w: required for test", ErrNoLatest)
 	}
 
 	// Run the Helm test action.
@@ -89,7 +89,7 @@ func (r *Test) Reconcile(ctx context.Context, req *Request) error {
 
 	// The Helm test action does always target the latest release. Before
 	// accepting results, we need to confirm this is actually the release we
-	// have recorded as Current.
+	// have recorded as latest.
 	if rls != nil && !release.ObserveRelease(rls).Targets(cur.Name, cur.Namespace, cur.Version) {
 		err = fmt.Errorf("%w: tested release %s/%s.v%d != current release %s/%s.v%d",
 			ErrReleaseMismatch, rls.Namespace, rls.Name, rls.Version, cur.Namespace, cur.Name, cur.Version)
@@ -101,7 +101,7 @@ func (r *Test) Reconcile(ctx context.Context, req *Request) error {
 
 		// If we failed to observe anything happened at all, we want to retry
 		// and return the error to indicate this.
-		if !req.Object.GetCurrent().HasBeenTested() {
+		if !req.Object.Status.History.Latest().HasBeenTested() {
 			return err
 		}
 		return nil
@@ -135,7 +135,7 @@ const (
 // are not ignored.
 func (r *Test) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Compose failure message.
-	cur := req.Object.GetCurrent()
+	cur := req.Object.Status.History.Latest()
 	msg := fmt.Sprintf(fmtTestFailure, cur.FullReleaseName(), cur.VersionedChartName(), strings.TrimSpace(err.Error()))
 
 	// Mark test failure on object.
@@ -152,7 +152,7 @@ func (r *Test) failure(req *Request, buffer *action.LogBuffer, err error) {
 		eventMessageWithLog(msg, buffer),
 	)
 
-	if req.Object.GetCurrent().HasBeenTested() {
+	if req.Object.Status.History.Latest().HasBeenTested() {
 		// Count the failure of the test for the active remediation strategy if enabled.
 		remediation := req.Object.GetActiveRemediation()
 		if remediation != nil && !remediation.MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures) {
@@ -165,7 +165,7 @@ func (r *Test) failure(req *Request, buffer *action.LogBuffer, err error) {
 // Request.Object by marking TestSuccess=True and emitting an event.
 func (r *Test) success(req *Request) {
 	// Compose success message.
-	cur := req.Object.GetCurrent()
+	cur := req.Object.Status.History.Latest()
 	var hookMsg = "no test hooks"
 	if l := len(cur.GetTestHooks()); l > 0 {
 		h := "hook"
@@ -189,18 +189,20 @@ func (r *Test) success(req *Request) {
 	)
 }
 
-// observeTest returns a storage.ObserveFunc that can be used to observe
-// and record the result of a Helm test action in the status of the given
-// release. It updates the Status.Current and TestHooks fields of the release
-// if it equals the test target, and version = Current.Version.
+// observeTest returns a storage.ObserveFunc to track test results of a
+// HelmRelease.
+// It only accepts test results for the latest release and updates the
+// latest snapshot with the observed test results.
 func observeTest(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rls *helmrelease.Release) {
-		if cur := obj.GetCurrent(); cur != nil {
-			obs := release.ObserveRelease(rls)
-			if obs.Targets(cur.Name, cur.Namespace, cur.Version) {
-				obj.Status.History.Current = release.ObservedToSnapshot(obs)
-				obj.GetCurrent().SetTestHooks(release.TestHooksFromRelease(rls))
-			}
+		// Only accept test results for the latest release.
+		if !obj.Status.History.Latest().Targets(rls.Name, rls.Namespace, rls.Version) {
+			return
 		}
+
+		// Update the latest snapshot with the test result.
+		tested := release.ObservedToSnapshot(release.ObserveRelease(rls))
+		tested.SetTestHooks(release.TestHooksFromRelease(rls))
+		obj.Status.History[0] = tested
 	}
 }

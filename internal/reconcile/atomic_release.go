@@ -61,12 +61,12 @@ var (
 
 // AtomicRelease is an ActionReconciler which implements an atomic release
 // strategy similar to Helm's `--atomic`, but with more advanced state
-// determination. It determines the NextAction to take based on the current
+// determination. It determines the next action to take based on the current
 // state of the Request.Object and other data, and the state of the Helm
 // release.
 //
 // This process will continue until an action is called multiple times, no
-// action remains, or a remediation action is called. In which case the process
+// action remains, or a remediation action is called. In which case, the process
 // will stop to be resumed at a later time or be checked upon again, by e.g. a
 // requeue.
 //
@@ -172,12 +172,6 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 				return fmt.Errorf("cannot determine release state: %w", err)
 			}
 
-			// Conditionally reset the history if we are in a state where we
-			// need to start over.
-			if state.MustResetHistory() {
-				req.Object.Status.History = v2.ReleaseHistory{}
-			}
-
 			// Determine the next action to run based on the current state.
 			log.V(logger.DebugLevel).Info("determining next Helm action based on current state")
 			if next, err = r.actionForState(ctx, req, state); err != nil {
@@ -263,6 +257,17 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 	switch state.Status {
 	case ReleaseStatusInSync:
 		log.Info("release in-sync with desired state")
+
+		// Remove all history up to the previous release action.
+		// We need to continue to hold on to the previous release result
+		// to ensure we can e.g. roll back when tests are enabled without
+		// any further changes to the release.
+		ignoreFailures := req.Object.GetTest().IgnoreFailures
+		if remediation := req.Object.GetActiveRemediation(); remediation != nil {
+			ignoreFailures = remediation.MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures)
+		}
+		req.Object.Status.History.Truncate(ignoreFailures)
+
 		return nil, nil
 	case ReleaseStatusLocked:
 		log.Info(msgWithReason("release locked", state.Reason))
@@ -277,6 +282,10 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		return NewInstall(r.configFactory, r.eventRecorder), nil
 	case ReleaseStatusUnmanaged:
 		log.Info(msgWithReason("release not managed by object", state.Reason))
+
+		// Clear the history as we can no longer rely on it.
+		req.Object.Status.ClearHistory()
+
 		return NewUpgrade(r.configFactory, r.eventRecorder), nil
 	case ReleaseStatusOutOfSync:
 		log.Info(msgWithReason("release out-of-sync with desired state", state.Reason))
@@ -317,11 +326,16 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 			return nil, fmt.Errorf("%w: cannot remediate failed release", ErrExceededMaxRetries)
 		}
 
+		// Reset the history up to the point where the failure occurred.
+		// This ensures we do not accumulate a long history of failures.
+		req.Object.Status.History.Truncate(remediation.MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures))
+
 		switch remediation.GetStrategy() {
 		case v2.RollbackRemediationStrategy:
 			// Verify the previous release is still in storage and unmodified
 			// before instructing to roll back to it.
-			if _, err := action.VerifySnapshot(r.configFactory.Build(nil), req.Object.GetPrevious()); err != nil {
+			prev := req.Object.Status.History.Previous(remediation.MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures))
+			if _, err := action.VerifySnapshot(r.configFactory.Build(nil), prev); err != nil {
 				if interrors.IsOneOf(err, action.ErrReleaseNotFound, action.ErrReleaseDisappeared, action.ErrReleaseNotObserved, action.ErrReleaseDigest) {
 					// If the rollback target is not found or is in any other
 					// way corrupt, the most correct remediation is to

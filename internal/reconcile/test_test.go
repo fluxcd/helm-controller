@@ -94,14 +94,11 @@ func TestTest_Reconcile(t *testing.T) {
 		// wantErr is the error that is expected to be returned.
 		wantErr error
 		// expectedConditions are the conditions that are expected to be set on
-		// the HelmRelease after running rollback.
+		// the HelmRelease after running test.
 		expectConditions []metav1.Condition
-		// expectCurrent is the expected Current release information in the
-		// HelmRelease after install.
-		expectCurrent func(releases []*helmrelease.Release) *v2.Snapshot
-		// expectPrevious returns the expected Previous release information of
-		// the HelmRelease after install.
-		expectPrevious func(releases []*helmrelease.Release) *v2.Snapshot
+		// expectHistory is the expected History on the HelmRelease after
+		// running test.
+		expectHistory func(releases []*helmrelease.Release) v2.Snapshots
 		// expectFailures is the expected Failures count of the HelmRelease.
 		expectFailures int64
 		// expectInstallFailures is the expected InstallFailures count of the
@@ -126,8 +123,8 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -137,10 +134,10 @@ func TestTest_Reconcile(t *testing.T) {
 				*conditions.TrueCondition(v2.TestSuccessCondition, v2.TestSucceededReason,
 					"1 test hook completed successfully"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				info := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
-				info.SetTestHooks(release.TestHooksFromRelease(releases[0]))
-				return info
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				withTests := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+				withTests.SetTestHooks(release.TestHooksFromRelease(releases[0]))
+				return v2.Snapshots{withTests}
 			},
 		},
 		{
@@ -158,8 +155,8 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -169,10 +166,10 @@ func TestTest_Reconcile(t *testing.T) {
 				*conditions.TrueCondition(v2.TestSuccessCondition, v2.TestSucceededReason,
 					"no test hooks"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				info := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
-				info.SetTestHooks(release.TestHooksFromRelease(releases[0]))
-				return info
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				withTests := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+				withTests.SetTestHooks(release.TestHooksFromRelease(releases[0]))
+				return v2.Snapshots{withTests}
 			},
 		},
 		{
@@ -190,8 +187,8 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 					LastAttemptedReleaseAction: v2.ReleaseActionInstall,
 					InstallFailures:            0,
@@ -203,10 +200,10 @@ func TestTest_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestFailedReason,
 					"timed out waiting for the condition"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				info := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
-				info.SetTestHooks(release.TestHooksFromRelease(releases[0]))
-				return info
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				withTests := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+				withTests.SetTestHooks(release.TestHooksFromRelease(releases[0]))
+				return v2.Snapshots{withTests}
 			},
 			expectFailures:        1,
 			expectInstallFailures: 1,
@@ -225,7 +222,7 @@ func TestTest_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{},
-			wantErr:          ErrNoCurrent,
+			wantErr:          ErrNoLatest,
 		},
 		{
 			name: "test with stale current",
@@ -249,8 +246,8 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -260,8 +257,10 @@ func TestTest_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestFailedReason,
 					ErrReleaseMismatch.Error()),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 			expectFailures: 1,
 			wantErr:        ErrReleaseMismatch,
@@ -334,16 +333,10 @@ func TestTest_Reconcile(t *testing.T) {
 			releases, _ = store.History(mockReleaseName)
 			helmreleaseutil.SortByRevision(releases)
 
-			if tt.expectCurrent != nil {
-				g.Expect(obj.GetCurrent()).To(testutil.Equal(tt.expectCurrent(releases)))
+			if tt.expectHistory != nil {
+				g.Expect(obj.Status.History).To(testutil.Equal(tt.expectHistory(releases)))
 			} else {
-				g.Expect(obj.GetCurrent()).To(BeNil(), "expected current to be nil")
-			}
-
-			if tt.expectPrevious != nil {
-				g.Expect(obj.GetPrevious()).To(testutil.Equal(tt.expectPrevious(releases)))
-			} else {
-				g.Expect(obj.GetPrevious()).To(BeNil(), "expected previous to be nil")
+				g.Expect(obj.Status.History).To(BeEmpty(), "expected history to be empty")
 			}
 
 			g.Expect(obj.Status.Failures).To(Equal(tt.expectFailures))
@@ -359,8 +352,8 @@ func Test_observeTest(t *testing.T) {
 
 		obj := &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current: &v2.Snapshot{
+				History: v2.Snapshots{
+					&v2.Snapshot{
 						Name:      mockReleaseName,
 						Namespace: mockReleaseNamespace,
 						Version:   1,
@@ -378,34 +371,43 @@ func Test_observeTest(t *testing.T) {
 		expect.SetTestHooks(release.TestHooksFromRelease(rls))
 
 		observeTest(obj)(rls)
-		g.Expect(obj.GetCurrent()).To(Equal(expect))
-		g.Expect(obj.GetPrevious()).To(BeNil())
+		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
+			expect,
+		}))
 	})
 
-	t.Run("test with different current version", func(t *testing.T) {
+	t.Run("test targeting different version than latest", func(t *testing.T) {
 		g := NewWithT(t)
 
 		current := &v2.Snapshot{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Version:   2,
+		}
+		previous := &v2.Snapshot{
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   1,
 		}
 		obj := &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current: current,
+				History: v2.Snapshots{
+					current,
+					previous,
 				},
 			},
 		}
 		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
-			Version:   2,
+			Version:   previous.Version,
 		}, testutil.ReleaseWithHooks(testHookFixtures))
 
 		observeTest(obj)(rls)
-		g.Expect(obj.GetCurrent()).To(Equal(current))
-		g.Expect(obj.GetPrevious()).To(BeNil())
+		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
+			current,
+			previous,
+		}))
 	})
 
 	t.Run("test without current", func(t *testing.T) {
@@ -420,8 +422,7 @@ func Test_observeTest(t *testing.T) {
 		}, testutil.ReleaseWithHooks(testHookFixtures))
 
 		observeTest(obj)(rls)
-		g.Expect(obj.GetCurrent()).To(BeNil())
-		g.Expect(obj.GetPrevious()).To(BeNil())
+		g.Expect(obj.Status.History).To(BeEmpty())
 	})
 }
 
@@ -435,8 +436,8 @@ func TestTest_failure(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				History: v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(cur)),
 				},
 			},
 		}
@@ -509,7 +510,7 @@ func TestTest_failure(t *testing.T) {
 
 		obj := obj.DeepCopy()
 		obj.Status.LastAttemptedReleaseAction = v2.ReleaseActionInstall
-		obj.GetCurrent().SetTestHooks(map[string]*v2.TestHookStatus{})
+		obj.Status.History.Latest().SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
 		r.failure(req, nil, err)
 
@@ -526,7 +527,7 @@ func TestTest_failure(t *testing.T) {
 
 		obj := obj.DeepCopy()
 		obj.Spec.Test = &v2.Test{IgnoreFailures: true}
-		obj.GetCurrent().SetTestHooks(map[string]*v2.TestHookStatus{})
+		obj.Status.History.Latest().SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
 		r.failure(req, nil, err)
 
@@ -546,8 +547,8 @@ func TestTest_success(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				History: v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(cur)),
 				},
 			},
 		}
@@ -560,7 +561,7 @@ func TestTest_success(t *testing.T) {
 		}
 
 		obj := obj.DeepCopy()
-		obj.GetCurrent().SetTestHooks(map[string]*v2.TestHookStatus{
+		obj.Status.History.Latest().SetTestHooks(map[string]*v2.TestHookStatus{
 			"test": {
 				Phase: helmrelease.HookPhaseSucceeded.String(),
 			},
@@ -601,7 +602,7 @@ func TestTest_success(t *testing.T) {
 		}
 
 		obj := obj.DeepCopy()
-		obj.GetCurrent().SetTestHooks(map[string]*v2.TestHookStatus{})
+		obj.Status.History.Latest().SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
 		r.success(req)
 

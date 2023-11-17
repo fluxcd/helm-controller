@@ -17,11 +17,11 @@ limitations under the License.
 package reconcile
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
-	helmrelease "helm.sh/helm/v3/pkg/release"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -29,7 +29,6 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
-	"github.com/fluxcd/helm-controller/internal/release"
 )
 
 const (
@@ -37,126 +36,21 @@ const (
 	mockReleaseNamespace = "mock-ns"
 )
 
-func Test_observeRelease(t *testing.T) {
-	const (
-		otherReleaseName      = "other"
-		otherReleaseNamespace = "other-ns"
-	)
-
-	t.Run("release", func(t *testing.T) {
-		g := NewWithT(t)
-
-		obj := &v2.HelmRelease{}
-		mock := helmrelease.Mock(&helmrelease.MockReleaseOptions{
-			Name:      mockReleaseName,
-			Namespace: mockReleaseNamespace,
-			Version:   1,
-			Status:    helmrelease.StatusPendingInstall,
+func Test_observedReleases_sortedVersions(t *testing.T) {
+	tests := []struct {
+		name         string
+		r            observedReleases
+		wantVersions []int
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if gotVersions := tt.r.sortedVersions(); !reflect.DeepEqual(gotVersions, tt.wantVersions) {
+				t.Errorf("sortedVersions() = %v, want %v", gotVersions, tt.wantVersions)
+			}
 		})
-		expect := release.ObservedToSnapshot(release.ObserveRelease(mock))
-
-		observeRelease(obj)(mock)
-
-		g.Expect(obj.GetPrevious()).To(BeNil())
-		g.Expect(obj.GetCurrent()).ToNot(BeNil())
-		g.Expect(obj.GetCurrent()).To(Equal(expect))
-	})
-
-	t.Run("release with current", func(t *testing.T) {
-		g := NewWithT(t)
-
-		current := &v2.Snapshot{
-			Name:      mockReleaseName,
-			Namespace: mockReleaseNamespace,
-			Version:   1,
-		}
-		obj := &v2.HelmRelease{
-			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current: current,
-				},
-			},
-		}
-		mock := helmrelease.Mock(&helmrelease.MockReleaseOptions{
-			Name:      current.Name,
-			Namespace: current.Namespace,
-			Version:   current.Version + 1,
-			Status:    helmrelease.StatusPendingInstall,
-		})
-		expect := release.ObservedToSnapshot(release.ObserveRelease(mock))
-
-		observeRelease(obj)(mock)
-		g.Expect(obj.GetPrevious()).ToNot(BeNil())
-		g.Expect(obj.GetPrevious()).To(Equal(current))
-		g.Expect(obj.GetCurrent()).ToNot(BeNil())
-		g.Expect(obj.GetCurrent()).To(Equal(expect))
-	})
-
-	t.Run("release with current with different name", func(t *testing.T) {
-		g := NewWithT(t)
-
-		current := &v2.Snapshot{
-			Name:      otherReleaseName,
-			Namespace: otherReleaseNamespace,
-			Version:   3,
-		}
-		obj := &v2.HelmRelease{
-			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current: current,
-				},
-			},
-		}
-		mock := helmrelease.Mock(&helmrelease.MockReleaseOptions{
-			Name:      mockReleaseName,
-			Namespace: mockReleaseNamespace,
-			Version:   1,
-			Status:    helmrelease.StatusPendingInstall,
-		})
-		expect := release.ObservedToSnapshot(release.ObserveRelease(mock))
-
-		observeRelease(obj)(mock)
-		g.Expect(obj.GetPrevious()).To(BeNil())
-		g.Expect(obj.GetCurrent()).ToNot(BeNil())
-		g.Expect(obj.GetCurrent()).To(Equal(expect))
-	})
-
-	t.Run("release with update to previous", func(t *testing.T) {
-		g := NewWithT(t)
-
-		previous := &v2.Snapshot{
-			Name:      mockReleaseName,
-			Namespace: mockReleaseNamespace,
-			Version:   1,
-			Status:    helmrelease.StatusDeployed.String(),
-		}
-		current := &v2.Snapshot{
-			Name:      previous.Name,
-			Namespace: previous.Namespace,
-			Version:   previous.Version + 1,
-			Status:    helmrelease.StatusPendingInstall.String(),
-		}
-		obj := &v2.HelmRelease{
-			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current:  current,
-					Previous: previous,
-				},
-			},
-		}
-		mock := helmrelease.Mock(&helmrelease.MockReleaseOptions{
-			Name:      previous.Name,
-			Namespace: previous.Namespace,
-			Version:   previous.Version,
-			Status:    helmrelease.StatusSuperseded,
-		})
-		expect := release.ObservedToSnapshot(release.ObserveRelease(mock))
-
-		observeRelease(obj)(mock)
-		g.Expect(obj.GetPrevious()).ToNot(BeNil())
-		g.Expect(obj.GetPrevious()).To(Equal(expect))
-		g.Expect(obj.GetCurrent()).To(Equal(current))
-	})
+	}
 }
 
 func Test_summarize(t *testing.T) {

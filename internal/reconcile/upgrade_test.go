@@ -73,12 +73,9 @@ func TestUpgrade_Reconcile(t *testing.T) {
 		// expectedConditions are the conditions that are expected to be set on
 		// the HelmRelease after upgrade.
 		expectConditions []metav1.Condition
-		// expectCurrent is the expected Current release information in the
-		// HelmRelease after upgrade.
-		expectCurrent func(releases []*helmrelease.Release) *v2.Snapshot
-		// expectPrevious returns the expected Previous release information of
-		// the HelmRelease after upgrade.
-		expectPrevious func(releases []*helmrelease.Release) *v2.Snapshot
+		// expectHistory returns the expected History of the HelmRelease after
+		// upgrade.
+		expectHistory func(releases []*helmrelease.Release) v2.Snapshots
 		// expectFailures is the expected Failures count of the HelmRelease.
 		expectFailures int64
 		// expectInstallFailures is the expected InstallFailures count of the
@@ -104,8 +101,8 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(),
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -113,11 +110,11 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded"),
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
-			},
-			expectPrevious: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 		},
 		{
@@ -136,8 +133,8 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(testutil.ChartWithFailingHook()),
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -147,11 +144,11 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason,
 					"post-upgrade hooks failed: 1 error occurred:\n\t* timed out waiting for the condition"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
-			},
-			expectPrevious: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 			expectFailures:        1,
 			expectUpgradeFailures: 1,
@@ -178,8 +175,8 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(),
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -189,8 +186,10 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason,
 					mockCreateErr.Error()),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 			expectFailures:        1,
 			expectUpgradeFailures: 0,
@@ -218,8 +217,8 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(),
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 				}
 			},
@@ -229,11 +228,11 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason,
 					mockUpdateErr.Error()),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
-			},
-			expectPrevious: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
 			},
 			expectFailures:        1,
 			expectUpgradeFailures: 1,
@@ -254,17 +253,17 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(),
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: nil,
-					},
+					History: nil,
 				}
 			},
 			expectConditions: []metav1.Condition{
 				*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded"),
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+				}
 			},
 		},
 		{
@@ -290,8 +289,8 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			chart: testutil.BuildChart(),
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					History: v2.ReleaseHistory{
-						Current: &v2.Snapshot{
+					History: v2.Snapshots{
+						{
 							Name:      mockReleaseName,
 							Namespace: releases[0].Namespace,
 							Version:   1,
@@ -306,15 +305,15 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason,
 					"Helm upgrade succeeded"),
 			},
-			expectCurrent: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return release.ObservedToSnapshot(release.ObserveRelease(releases[2]))
-			},
-			expectPrevious: func(releases []*helmrelease.Release) *v2.Snapshot {
-				return &v2.Snapshot{
-					Name:      mockReleaseName,
-					Namespace: releases[0].Namespace,
-					Version:   1,
-					Status:    helmrelease.StatusDeployed.String(),
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
+					{
+						Name:      mockReleaseName,
+						Namespace: releases[0].Namespace,
+						Version:   1,
+						Status:    helmrelease.StatusDeployed.String(),
+					},
 				}
 			},
 		},
@@ -385,16 +384,10 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			releases, _ = store.History(mockReleaseName)
 			helmreleaseutil.SortByRevision(releases)
 
-			if tt.expectCurrent != nil {
-				g.Expect(obj.GetCurrent()).To(testutil.Equal(tt.expectCurrent(releases)))
+			if tt.expectHistory != nil {
+				g.Expect(obj.Status.History).To(testutil.Equal(tt.expectHistory(releases)))
 			} else {
-				g.Expect(obj.GetCurrent()).To(BeNil(), "expected current to be nil")
-			}
-
-			if tt.expectPrevious != nil {
-				g.Expect(obj.GetPrevious()).To(testutil.Equal(tt.expectPrevious(releases)))
-			} else {
-				g.Expect(obj.GetPrevious()).To(BeNil(), "expected previous to be nil")
+				g.Expect(obj.Status.History).To(BeEmpty(), "expected history to be empty")
 			}
 
 			g.Expect(obj.Status.Failures).To(Equal(tt.expectFailures))
@@ -478,8 +471,8 @@ func TestUpgrade_success(t *testing.T) {
 		})
 		obj = &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
-				History: v2.ReleaseHistory{
-					Current: release.ObservedToSnapshot(release.ObserveRelease(cur)),
+				History: v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(cur)),
 				},
 			},
 		}
@@ -499,8 +492,8 @@ func TestUpgrade_success(t *testing.T) {
 		r.success(req)
 
 		expectMsg := fmt.Sprintf(fmtUpgradeSuccess,
-			fmt.Sprintf("%s/%s.v%d", mockReleaseNamespace, mockReleaseName, obj.GetCurrent().Version),
-			fmt.Sprintf("%s@%s", obj.GetCurrent().ChartName, obj.GetCurrent().ChartVersion))
+			fmt.Sprintf("%s/%s.v%d", mockReleaseNamespace, mockReleaseName, obj.Status.History.Latest().Version),
+			fmt.Sprintf("%s@%s", obj.Status.History.Latest().ChartName, obj.Status.History.Latest().ChartVersion))
 
 		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, expectMsg),
@@ -512,8 +505,8 @@ func TestUpgrade_success(t *testing.T) {
 				Message: expectMsg,
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.GetCurrent().ChartVersion,
-						eventMetaGroupKey(eventv1.MetaTokenKey):    obj.GetCurrent().ConfigDigest,
+						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.Status.History.Latest().ChartVersion,
+						eventMetaGroupKey(eventv1.MetaTokenKey):    obj.Status.History.Latest().ConfigDigest,
 					},
 				},
 			},
@@ -540,8 +533,8 @@ func TestUpgrade_success(t *testing.T) {
 		g.Expect(cond).ToNot(BeNil())
 
 		expectMsg := fmt.Sprintf(fmtTestPending,
-			fmt.Sprintf("%s/%s.v%d", mockReleaseNamespace, mockReleaseName, obj.GetCurrent().Version),
-			fmt.Sprintf("%s@%s", obj.GetCurrent().ChartName, obj.GetCurrent().ChartVersion))
+			fmt.Sprintf("%s/%s.v%d", mockReleaseNamespace, mockReleaseName, obj.Status.History.Latest().Version),
+			fmt.Sprintf("%s@%s", obj.Status.History.Latest().ChartName, obj.Status.History.Latest().ChartVersion))
 		g.Expect(cond.Message).To(Equal(expectMsg))
 	})
 }

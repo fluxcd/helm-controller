@@ -39,9 +39,12 @@ import (
 
 	"github.com/fluxcd/pkg/runtime/testenv"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 )
+
+const testFieldManager = "helm-controller"
 
 var (
 	ctx     = ctrl.SetupSignalHandler()
