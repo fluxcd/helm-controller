@@ -270,7 +270,14 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	// Load chart from artifact.
 	loadedChart, err := loader.SecureLoadChartFromURL(r.httpClient, hc.GetArtifact().URL, hc.GetArtifact().Digest)
 	if err != nil {
-		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, err.Error())
+		if errors.Is(err, loader.ErrFileNotFound) {
+			msg := fmt.Sprintf("Chart not ready: artifact not found. Retrying in %s", r.requeueDependency)
+			conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, msg)
+			log.Info(msg)
+			return ctrl.Result{RequeueAfter: r.requeueDependency}, nil
+		}
+
+		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, fmt.Sprintf("Could not load chart: %s", err.Error()))
 		return ctrl.Result{}, err
 	}
 

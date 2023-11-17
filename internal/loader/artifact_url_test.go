@@ -39,10 +39,15 @@ func TestSecureLoadChartFromURL(t *testing.T) {
 	digest := digestlib.SHA256.FromBytes(b)
 
 	const chartPath = "/chart.tgz"
+	const notFoundPath = "/not-found.tgz"
 	server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == chartPath {
 			res.WriteHeader(http.StatusOK)
 			_, _ = res.Write(b)
+			return
+		}
+		if req.URL.Path == notFoundPath {
+			res.WriteHeader(http.StatusNotFound)
 			return
 		}
 		res.WriteHeader(http.StatusInternalServerError)
@@ -76,11 +81,20 @@ func TestSecureLoadChartFromURL(t *testing.T) {
 		g.Expect(got).To(BeNil())
 	})
 
-	t.Run("error on server error", func(t *testing.T) {
+	t.Run("file not found error on 404", func(t *testing.T) {
+		g := NewWithT(t)
+
+		got, err := SecureLoadChartFromURL(client, server.URL+notFoundPath, digest.String())
+		g.Expect(errors.Is(err, ErrFileNotFound)).To(BeTrue())
+		g.Expect(got).To(BeNil())
+	})
+
+	t.Run("error on HTTP request failure", func(t *testing.T) {
 		g := NewWithT(t)
 
 		got, err := SecureLoadChartFromURL(client, server.URL+"/invalid.tgz", digest.String())
 		g.Expect(err).To(HaveOccurred())
+		g.Expect(errors.Is(err, ErrFileNotFound)).To(BeFalse())
 		g.Expect(got).To(BeNil())
 	})
 }

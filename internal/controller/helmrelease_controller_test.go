@@ -406,7 +406,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				WithScheme(NewTestScheme()).
 				WithObjects(chart).
 				Build(),
-			httpClient: retryablehttp.NewClient(),
+			httpClient:        retryablehttp.NewClient(),
+			requeueDependency: 10 * time.Second,
 		}
 
 		obj := &v2.HelmRelease{
@@ -419,12 +420,13 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		_, err := r.reconcileRelease(context.TODO(), nil, obj)
-		g.Expect(err).To(HaveOccurred())
+		res, err := r.reconcileRelease(context.TODO(), nil, obj)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
-			*conditions.FalseCondition(meta.ReadyCondition, v2.ArtifactFailedReason, "failed to download chart"),
+			*conditions.FalseCondition(meta.ReadyCondition, v2.ArtifactFailedReason, "Chart not ready"),
 		}))
 	})
 

@@ -33,6 +33,8 @@ import (
 )
 
 var (
+	// ErrFileNotFound is an error type used to signal 404 HTTP status code responses.
+	ErrFileNotFound = errors.New("file not found")
 	// ErrIntegrity signals a chart loader failed to verify the integrity of
 	// a chart, for example due to a digest mismatch.
 	ErrIntegrity = errors.New("integrity failure")
@@ -54,7 +56,10 @@ func SecureLoadChartFromURL(client *retryablehttp.Client, URL, digest string) (*
 			return nil, err
 		}
 		_ = resp.Body.Close()
-		return nil, fmt.Errorf("failed to download chart from '%s': %s", URL, resp.Status)
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("failed to download chart from '%s': %w", URL, ErrFileNotFound)
+		}
+		return nil, fmt.Errorf("failed to download chart from '%s' (status: %s)", URL, resp.Status)
 	}
 
 	var c bytes.Buffer
