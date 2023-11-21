@@ -60,10 +60,12 @@ import (
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/digest"
+	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/loader"
 	intpredicates "github.com/fluxcd/helm-controller/internal/predicates"
 	intreconcile "github.com/fluxcd/helm-controller/internal/reconcile"
+	"github.com/fluxcd/helm-controller/internal/release"
 )
 
 // +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete
@@ -288,6 +290,16 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		return ctrl.Result{}, err
 	}
 
+	// Attempt to adopt "legacy" v2beta1 release state on a best-effort basis.
+	// If this fails, the controller will fall back to performing an upgrade
+	// to settle on the desired state.
+	// TODO(hidde): remove this in a future release.
+	if ok, _ := features.Enabled(features.AdoptLegacyReleases); ok {
+		if err := r.adoptLegacyRelease(ctx, getter, obj); err != nil {
+			log.Error(err, "failed to adopt v2beta1 release state")
+		}
+	}
+
 	// If the release target configuration has changed, we need to uninstall the
 	// previous release target first. If we did not do this, the installation would
 	// fail due to resources already existing.
@@ -315,6 +327,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	obj.Status.LastAttemptedRevision = loadedChart.Metadata.Version
 	obj.Status.LastAttemptedConfigDigest = chartutil.DigestValues(digest.Canonical, values).String()
 	obj.Status.LastAttemptedValuesChecksum = ""
+	obj.Status.LastReleaseRevision = 0
 
 	// Construct config factory for any further Helm actions.
 	cfg, err := action.NewConfigFactory(getter,
@@ -505,6 +518,57 @@ func (r *HelmReleaseReconciler) checkDependencies(ctx context.Context, obj *v2.H
 			return fmt.Errorf("dependency '%s' is not ready", ref)
 		}
 	}
+	return nil
+}
+
+// adoptLegacyRelease attempts to adopt a v2beta1 release into a v2beta2
+// release.
+// This is done by retrieving the last successful release from the Helm storage
+// and converting it to a v2beta2 release snapshot.
+// If the v2beta1 release has already been adopted, this function is a no-op.
+func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter genericclioptions.RESTClientGetter, obj *v2.HelmRelease) error {
+	if obj.Status.LastReleaseRevision < 1 || len(obj.Status.History) > 0 {
+		return nil
+	}
+
+	var (
+		log              = ctrl.LoggerFrom(ctx).V(logger.DebugLevel)
+		storageNamespace = obj.GetStorageNamespace()
+		releaseNamespace = obj.GetReleaseNamespace()
+		releaseName      = obj.GetReleaseName()
+		version          = obj.Status.LastReleaseRevision
+	)
+
+	log.Info("adopting %s/%s.v%d release from v2beta1 state", releaseNamespace, releaseName, version)
+
+	// Construct config factory for current release.
+	cfg, err := action.NewConfigFactory(getter,
+		action.WithStorage(action.DefaultStorageDriver, storageNamespace),
+		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
+	)
+
+	// Get the last successful release based on the observation for the v2beta1
+	// object.
+	rls, err := cfg.NewStorage().Get(releaseName, version)
+	if err != nil {
+		return err
+	}
+
+	// Convert it to a v2beta2 release snapshot.
+	snap := release.ObservedToSnapshot(release.ObserveRelease(rls))
+
+	// If tests are enabled, include them as well.
+	if obj.GetTest().Enable {
+		snap.SetTestHooks(release.TestHooksFromRelease(rls))
+	}
+
+	// Adopt it as the current release in the history.
+	obj.Status.History = append(obj.Status.History, snap)
+	obj.Status.StorageNamespace = storageNamespace
+
+	// Erase the last release revision from the status.
+	obj.Status.LastReleaseRevision = 0
+
 	return nil
 }
 

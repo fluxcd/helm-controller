@@ -1407,6 +1407,19 @@ Deprecated: Use LastAttemptedConfigDigest instead.</p>
 </tr>
 <tr>
 <td>
+<code>lastReleaseRevision</code><br>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastReleaseRevision is the revision of the last successful Helm release.
+Deprecated: Use History instead.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>lastAttemptedConfigDigest</code><br>
 <em>
 string

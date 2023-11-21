@@ -908,6 +908,11 @@ type HelmReleaseStatus struct {
 	// +optional
 	LastAttemptedValuesChecksum string `json:"lastAttemptedValuesChecksum,omitempty"`
 
+	// LastReleaseRevision is the revision of the last successful Helm release.
+	// Deprecated: Use History instead.
+	// +optional
+	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`
+
 	// LastAttemptedConfigDigest is the digest for the config (better known as
 	// "values") of the last reconciliation attempt.
 	// +optional

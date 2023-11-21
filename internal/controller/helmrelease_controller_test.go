@@ -46,6 +46,7 @@ import (
 	"github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	feathelper "github.com/fluxcd/pkg/runtime/features"
 	"github.com/fluxcd/pkg/runtime/patch"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	sourcev1b2 "github.com/fluxcd/source-controller/api/v1beta2"
@@ -53,6 +54,8 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
 	"github.com/fluxcd/helm-controller/internal/action"
+	"github.com/fluxcd/helm-controller/internal/chartutil"
+	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	intreconcile "github.com/fluxcd/helm-controller/internal/reconcile"
 	"github.com/fluxcd/helm-controller/internal/release"
@@ -430,6 +433,110 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}))
 	})
 
+	t.Run("attempts to adopt v2beta1 release state", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Initialize feature gates.
+		g.Expect((&feathelper.FeatureGates{}).SupportedFeatures(features.FeatureGates())).To(Succeed())
+
+		// Create a test namespace for storing the Helm release mock.
+		ns, err := testEnv.CreateNamespace(context.TODO(), "adopt-release")
+		g.Expect(err).ToNot(HaveOccurred())
+		t.Cleanup(func() {
+			_ = testEnv.Delete(context.TODO(), ns)
+		})
+
+		// Create HelmChart mock.
+		chartMock := testutil.BuildChart()
+		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		chart := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "adopt-release",
+				Namespace:  ns.Name,
+				Generation: 1,
+			},
+			Spec: sourcev1b2.HelmChartSpec{
+				Chart:   "testdata/test-helmrepo",
+				Version: "0.1.0",
+				SourceRef: sourcev1b2.LocalHelmChartSourceReference{
+					Kind: sourcev1b2.HelmRepositoryKind,
+					Name: "reconcile-delete",
+				},
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 1,
+				Artifact:           chartArtifact,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		// Create a test Helm release storage mock.
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      "adopt-release",
+			Namespace: ns.Name,
+			Version:   1,
+			Chart:     chartMock,
+			Status:    helmrelease.StatusDeployed,
+		}, testutil.ReleaseWithConfig(nil))
+		valChecksum := chartutil.DigestValues("sha1", rls.Config)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "adopt-release",
+				Namespace: ns.Name,
+			},
+			Spec: v2.HelmReleaseSpec{
+				StorageNamespace: ns.Name,
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart:                   chart.Namespace + "/" + chart.Name,
+				LastReleaseRevision:         rls.Version,
+				LastAttemptedValuesChecksum: valChecksum.Hex(),
+			},
+		}
+
+		c := fake.NewClientBuilder().
+			WithScheme(NewTestScheme()).
+			WithObjects(chart).
+			Build()
+
+		r := &HelmReleaseReconciler{
+			Client:           c,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
+			httpClient:       retryablehttp.NewClient(),
+		}
+
+		// Store the Helm release mock in the test namespace.
+		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.GetStorageNamespace()))
+		g.Expect(err).ToNot(HaveOccurred())
+
+		store := helmstorage.Init(cfg.Driver)
+		g.Expect(store.Create(rls)).To(Succeed())
+
+		// Reconcile the Helm release.
+		_, err = r.reconcileRelease(context.TODO(), nil, obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Assert that the Helm release has been adopted.
+		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
+			release.ObservedToSnapshot(release.ObserveRelease(rls)),
+		}))
+		g.Expect(obj.Status.StorageNamespace).To(Equal(ns.Name))
+		g.Expect(obj.Status.LastAttemptedConfigDigest).ToNot(BeEmpty())
+		g.Expect(obj.Status.LastReleaseRevision).To(Equal(0))
+	})
+
 	t.Run("uninstalls HelmRelease if target has changed", func(t *testing.T) {
 		g := NewWithT(t)
 
@@ -607,7 +714,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Spec: v2.HelmReleaseSpec{
 				// Trigger a failure by setting an invalid storage namespace,
 				// preventing the release from actually being installed.
-				// This allows us to just test the , without
+				// This allows us to just test the values being set, without
 				// having to facilitate a full install.
 				StorageNamespace: "not-exist",
 				Values: &apiextensionsv1.JSON{
@@ -681,7 +788,7 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 		// Create a test Helm release storage mock.
 		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 			Name:      "reconcile-delete",
-			Namespace: ns.Namespace,
+			Namespace: ns.Name,
 			Version:   1,
 			Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
 			Status:    helmrelease.StatusDeployed,
@@ -791,7 +898,7 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 		// Create a test Helm release storage mock.
 		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 			Name:      "reconcile-delete",
-			Namespace: ns.Namespace,
+			Namespace: ns.Name,
 			Version:   1,
 			Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
 			Status:    helmrelease.StatusDeployed,
@@ -853,7 +960,7 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 		// Create a test Helm release storage mock.
 		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 			Name:      "reconcile-delete",
-			Namespace: ns.Namespace,
+			Namespace: ns.Name,
 			Version:   1,
 			Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
 			Status:    helmrelease.StatusDeployed,
@@ -953,7 +1060,7 @@ func TestHelmReleaseReconciler_reconileReleaseDeletion(t *testing.T) {
 		// Create a test Helm release storage mock.
 		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 			Name:      "reconcile-delete",
-			Namespace: ns.Namespace,
+			Namespace: ns.Name,
 			Version:   1,
 			Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
 			Status:    helmrelease.StatusDeployed,
@@ -1400,6 +1507,174 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 
 			err := r.checkDependencies(context.TODO(), tt.obj)
 			tt.expect(g, err)
+		})
+	}
+}
+
+func TestHelmReleaseReconciler_adoptLegacyRelease(t *testing.T) {
+	tests := []struct {
+		name                      string
+		releases                  func(namespace string) []*helmrelease.Release
+		spec                      func(spec *v2.HelmReleaseSpec)
+		status                    v2.HelmReleaseStatus
+		expectHistory             func(releases []*helmrelease.Release) v2.Snapshots
+		expectLastReleaseRevision int
+		wantErr                   bool
+	}{
+		{
+			name: "adopts last release revision",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      "orphaned",
+						Namespace: namespace,
+						Version:   6,
+						Chart:     testutil.BuildChart(),
+						Status:    helmrelease.StatusDeployed,
+					}, testutil.ReleaseWithTestHook()),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.ReleaseName = "orphaned"
+			},
+			status: v2.HelmReleaseStatus{
+				LastReleaseRevision: 6,
+			},
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
+			expectLastReleaseRevision: 0,
+		},
+		{
+			name: "includes test hooks if enabled",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      "orphaned-with-hooks",
+						Namespace: namespace,
+						Version:   3,
+						Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
+						Status:    helmrelease.StatusDeployed,
+					}, testutil.ReleaseWithTestHook()),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.ReleaseName = "orphaned-with-hooks"
+				spec.Test = &v2.Test{
+					Enable: true,
+				}
+			},
+			status: v2.HelmReleaseStatus{
+				LastReleaseRevision: 3,
+			},
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				snap := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+				snap.SetTestHooks(release.TestHooksFromRelease(releases[0]))
+
+				return v2.Snapshots{
+					snap,
+				}
+			},
+			expectLastReleaseRevision: 0,
+		},
+		{
+			name: "non-existing release",
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.ReleaseName = "non-existing"
+			},
+			status: v2.HelmReleaseStatus{
+				LastReleaseRevision: 2,
+			},
+			expectLastReleaseRevision: 2,
+			wantErr:                   true,
+		},
+		{
+			name: "without last release revision",
+			status: v2.HelmReleaseStatus{
+				LastReleaseRevision: 0,
+			},
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return nil
+			},
+			expectLastReleaseRevision: 0,
+		},
+		{
+			name: "with existing history",
+			status: v2.HelmReleaseStatus{
+				History: v2.Snapshots{
+					{
+						Name: "something",
+					},
+				},
+				LastReleaseRevision: 5,
+			},
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					{
+						Name: "something",
+					},
+				}
+			},
+			expectLastReleaseRevision: 5,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			// Create a test namespace for storing the Helm release mock.
+			ns, err := testEnv.CreateNamespace(context.TODO(), "adopt-release")
+			g.Expect(err).ToNot(HaveOccurred())
+			t.Cleanup(func() {
+				_ = testEnv.Delete(context.TODO(), ns)
+			})
+
+			// Mock a HelmRelease object.
+			obj := &v2.HelmRelease{
+				Spec: v2.HelmReleaseSpec{
+					StorageNamespace: ns.Name,
+				},
+				Status: tt.status,
+			}
+			if tt.spec != nil {
+				tt.spec(&obj.Spec)
+			}
+
+			r := &HelmReleaseReconciler{
+				Client:           testEnv.Client,
+				GetClusterConfig: GetTestClusterConfig,
+			}
+
+			// Store the Helm release mock in the test namespace.
+			getter, err := r.buildRESTClientGetter(context.TODO(), obj)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.GetStorageNamespace()))
+			g.Expect(err).ToNot(HaveOccurred())
+
+			var releases []*helmrelease.Release
+			if tt.releases != nil {
+				releases = tt.releases(ns.Name)
+			}
+			store := helmstorage.Init(cfg.Driver)
+			for _, rls := range releases {
+				g.Expect(store.Create(rls)).To(Succeed())
+			}
+
+			// Adopt the Helm release mock.
+			err = r.adoptLegacyRelease(context.TODO(), getter, obj)
+			g.Expect(err != nil).To(Equal(tt.wantErr), "unexpected error: %s", err)
+
+			// Verify the Helm release mock has been adopted.
+			var expectHistory v2.Snapshots
+			if tt.expectHistory != nil {
+				expectHistory = tt.expectHistory(releases)
+			}
+			g.Expect(obj.Status.History).To(Equal(expectHistory))
+			g.Expect(obj.Status.LastReleaseRevision).To(Equal(tt.expectLastReleaseRevision))
 		})
 	}
 }
