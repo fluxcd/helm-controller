@@ -268,6 +268,10 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		}
 		req.Object.Status.History.Truncate(ignoreFailures)
 
+		// TODO(hidde): this allows existing UIs to continue to display this
+		//  field, but should be removed in a future release.
+		req.Object.Status.LastAppliedRevision = req.Object.Status.History.Latest().ChartVersion
+
 		return nil, nil
 	case ReleaseStatusLocked:
 		log.Info(msgWithReason("release locked", state.Reason))

@@ -1019,7 +1019,14 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 		wantErr  error
 	}{
 		{
-			name:  "in-sync release does not trigger any action",
+			name: "in-sync release does not trigger any action",
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{Version: 1},
+					},
+				}
+			},
 			state: ReleaseState{Status: ReleaseStatusInSync},
 			want:  nil,
 		},

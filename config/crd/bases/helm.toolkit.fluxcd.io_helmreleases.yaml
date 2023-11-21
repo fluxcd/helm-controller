@@ -1903,6 +1903,11 @@ spec:
                   the latest desired state. It is reset after a successful reconciliation.
                 format: int64
                 type: integer
+              lastAppliedRevision:
+                description: 'LastAppliedRevision is the revision of the last successfully
+                  applied source. Deprecated: the revision can now be found in the
+                  History.'
+                type: string
               lastAttemptedConfigDigest:
                 description: LastAttemptedConfigDigest is the digest for the config
                   (better known as "values") of the last reconciliation attempt.

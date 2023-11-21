@@ -891,6 +891,12 @@ type HelmReleaseStatus struct {
 	// +optional
 	UpgradeFailures int64 `json:"upgradeFailures,omitempty"`
 
+	// LastAppliedRevision is the revision of the last successfully applied
+	// source.
+	// Deprecated: the revision can now be found in the History.
+	// +optional
+	LastAppliedRevision string `json:"lastAppliedRevision,omitempty"`
+
 	// LastAttemptedRevision is the Source revision of the last reconciliation
 	// attempt.
 	// +optional
