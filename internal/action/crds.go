@@ -65,13 +65,12 @@ func (*rootScoped) Name() apimeta.RESTScopeName {
 }
 
 func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmchart.Chart, visitorFunc ...resource.VisitorFunc) error {
-	if policy == v2.Skip {
-		cfg.Log("skipping CustomResourceDefinition apply: policy is set to %s", policy)
+	if len(chrt.CRDObjects()) == 0 {
 		return nil
 	}
 
-	if len(chrt.CRDObjects()) == 0 {
-		cfg.Log("skipping CustomResourceDefinition apply: no CRD objects found in chart")
+	if policy == v2.Skip {
+		cfg.Log("skipping CustomResourceDefinition apply: policy is set to %s", policy)
 		return nil
 	}
 
