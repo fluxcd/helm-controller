@@ -182,8 +182,8 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			log.V(logger.DebugLevel).Info("determining next Helm action based on current state")
 			if next, err = r.actionForState(ctx, req, state); err != nil {
 				if errors.Is(err, ErrExceededMaxRetries) {
-					conditions.MarkStalled(req.Object, "RetriesExceeded", "Attempted %d times but failed to %s",
-						req.Object.GetActiveRemediation().GetFailureCount(req.Object), req.Object.Status.LastAttemptedReleaseAction)
+					conditions.MarkStalled(req.Object, "RetriesExceeded", "Failed to %s after %d attempt(s)",
+						req.Object.Status.LastAttemptedReleaseAction, req.Object.GetActiveRemediation().GetFailureCount(req.Object))
 				}
 				return err
 			}
