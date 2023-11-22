@@ -50,6 +50,10 @@ var (
 	// attempts for the provided release config.
 	ErrExceededMaxRetries = errors.New("exceeded maximum retries")
 
+	// ErrMustRequeue is returned when the caller must requeue the object
+	// to continue the reconciliation process.
+	ErrMustRequeue = errors.New("must requeue")
+
 	// ErrUnknownReleaseStatus is returned when the release status is unknown
 	// and cannot be acted upon.
 	ErrUnknownReleaseStatus = errors.New("unknown release status")
@@ -81,7 +85,9 @@ var (
 // to be run remain, to ensure any transient error is cleared.
 //
 // Any returned error other than ErrExceededMaxRetries should be retried by the
-// caller as soon as possible, preferably with a backoff strategy.
+// caller as soon as possible, preferably with a backoff strategy. In case of
+// ErrMustRequeue, it is advised to requeue the object outside the interval
+// to ensure continued progress.
 //
 // The caller is expected to patch the object one last time with the
 // Request.Object result to persist the final observation. As there is an
@@ -199,6 +205,10 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 					fmt.Sprintf("instructed to stop before running %s action reconciler %s", next.Type(), next.Name()),
 				)
 				conditions.Delete(req.Object, meta.ReconcilingCondition)
+
+				if remediation := req.Object.GetActiveRemediation(); remediation == nil || !remediation.RetriesExhausted(req.Object) {
+					return ErrMustRequeue
+				}
 				return nil
 			}
 
@@ -236,6 +246,10 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 					"instructed to stop after running %s action reconciler %s", next.Type(), next.Name()),
 				)
 				conditions.Delete(req.Object, meta.ReconcilingCondition)
+
+				if remediation := req.Object.GetActiveRemediation(); remediation == nil || !remediation.RetriesExhausted(req.Object) {
+					return ErrMustRequeue
+				}
 				return nil
 			}
 
