@@ -25,25 +25,33 @@ import (
 	intchartutil "github.com/fluxcd/helm-controller/internal/chartutil"
 )
 
-// MustResetFailures returns true if the HelmRelease's status indicates that
-// the HelmRelease failure counters must be reset. This is the case if the
-// data used to make the last (failed) attempt has changed in a way that
-// indicates that a new attempt should be made. For example, a change in
-// generation, chart version, or values.
-func MustResetFailures(obj *v2.HelmRelease, chart *chart.Metadata, values chartutil.Values) bool {
+const (
+	differentGenerationReason = "generation differs from last attempt"
+	differentRevisionReason   = "chart version differs from last attempt"
+	differentValuesReason     = "values differ from last attempt"
+)
+
+// MustResetFailures returns a reason and true if the HelmRelease's status
+// indicates that the HelmRelease failure counters must be reset.
+// This is the case if the data used to make the last (failed) attempt has
+// changed in a way that indicates that a new attempt should be made.
+// For example, a change in generation, chart version, or values.
+// If no change is detected, an empty string is returned along with false.
+func MustResetFailures(obj *v2.HelmRelease, chart *chart.Metadata, values chartutil.Values) (string, bool) {
 	switch {
 	case obj.Status.LastAttemptedGeneration != obj.Generation:
-		return true
+		return differentGenerationReason, true
 	case obj.Status.LastAttemptedRevision != chart.Version:
-		return true
+		return differentRevisionReason, true
 	case obj.Status.LastAttemptedConfigDigest != "" || obj.Status.LastAttemptedValuesChecksum != "":
 		d := obj.Status.LastAttemptedConfigDigest
 		if d == "" {
 			// TODO: remove this when the deprecated field is removed.
 			d = "sha1:" + obj.Status.LastAttemptedValuesChecksum
 		}
-		return !intchartutil.VerifyValues(digest.Digest(d), values)
-	default:
-		return false
+		if ok := intchartutil.VerifyValues(digest.Digest(d), values); !ok {
+			return differentValuesReason, true
+		}
 	}
+	return "", false
 }

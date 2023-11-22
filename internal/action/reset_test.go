@@ -19,6 +19,7 @@ package action
 import (
 	"testing"
 
+	. "github.com/onsi/gomega"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,11 +29,12 @@ import (
 
 func TestMustResetFailures(t *testing.T) {
 	tests := []struct {
-		name   string
-		obj    *v2.HelmRelease
-		chart  *chart.Metadata
-		values chartutil.Values
-		want   bool
+		name       string
+		obj        *v2.HelmRelease
+		chart      *chart.Metadata
+		values     chartutil.Values
+		want       bool
+		wantReason string
 	}{
 		{
 			name: "on generation change",
@@ -44,7 +46,8 @@ func TestMustResetFailures(t *testing.T) {
 					LastAttemptedGeneration: 2,
 				},
 			},
-			want: true,
+			want:       true,
+			wantReason: differentGenerationReason,
 		},
 		{
 			name: "on revision change",
@@ -60,7 +63,8 @@ func TestMustResetFailures(t *testing.T) {
 			chart: &chart.Metadata{
 				Version: "1.1.0",
 			},
-			want: true,
+			want:       true,
+			wantReason: differentRevisionReason,
 		},
 		{
 			name: "on config digest change",
@@ -80,7 +84,8 @@ func TestMustResetFailures(t *testing.T) {
 			values: chartutil.Values{
 				"foo": "bar",
 			},
-			want: true,
+			want:       true,
+			wantReason: differentValuesReason,
 		},
 		{
 			name: "on (deprecated) values checksum change",
@@ -100,7 +105,8 @@ func TestMustResetFailures(t *testing.T) {
 			values: chartutil.Values{
 				"foo": "bar",
 			},
-			want: true,
+			want:       true,
+			wantReason: differentValuesReason,
 		},
 		{
 			name: "without change no reset",
@@ -125,9 +131,11 @@ func TestMustResetFailures(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := MustResetFailures(tt.obj, tt.chart, tt.values); got != tt.want {
-				t.Errorf("MustResetFailures() = %v, want %v", got, tt.want)
-			}
+			g := NewWithT(t)
+
+			reason, got := MustResetFailures(tt.obj, tt.chart, tt.values)
+			g.Expect(got).To(Equal(tt.want))
+			g.Expect(reason).To(Equal(tt.wantReason))
 		})
 	}
 }

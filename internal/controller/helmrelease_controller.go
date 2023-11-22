@@ -321,7 +321,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	obj.Status.StorageNamespace = obj.GetStorageNamespace()
 
 	// Reset the failure count if the chart or values have changed.
-	if action.MustResetFailures(obj, loadedChart.Metadata, values) {
+	if reason, ok := action.MustResetFailures(obj, loadedChart.Metadata, values); ok {
+		log.V(logger.DebugLevel).Info(fmt.Sprintf("resetting failure count (%s)", reason))
 		obj.Status.ClearFailures()
 	}
 
