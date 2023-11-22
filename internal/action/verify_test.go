@@ -46,11 +46,12 @@ func TestReleaseTargetChanged(t *testing.T) {
 	)
 
 	tests := []struct {
-		name      string
-		chartName string
-		spec      v2.HelmReleaseSpec
-		status    v2.HelmReleaseStatus
-		want      bool
+		name       string
+		chartName  string
+		spec       v2.HelmReleaseSpec
+		status     v2.HelmReleaseStatus
+		wantReason string
+		want       bool
 	}{
 		{
 			name:      "no change",
@@ -110,7 +111,8 @@ func TestReleaseTargetChanged(t *testing.T) {
 				},
 				StorageNamespace: defaultNamespace,
 			},
-			want: true,
+			wantReason: targetStorageNamespace,
+			want:       true,
 		},
 		{
 			name:      "different release namespace",
@@ -128,7 +130,8 @@ func TestReleaseTargetChanged(t *testing.T) {
 				},
 				StorageNamespace: defaultNamespace,
 			},
-			want: true,
+			wantReason: targetReleaseNamespace,
+			want:       true,
 		},
 		{
 			name:      "different release name",
@@ -146,7 +149,8 @@ func TestReleaseTargetChanged(t *testing.T) {
 				},
 				StorageNamespace: defaultNamespace,
 			},
-			want: true,
+			wantReason: targetReleaseName,
+			want:       true,
 		},
 		{
 			name:      "different chart name",
@@ -162,7 +166,8 @@ func TestReleaseTargetChanged(t *testing.T) {
 				},
 				StorageNamespace: defaultNamespace,
 			},
-			want: true,
+			wantReason: targetChartName,
+			want:       true,
 		},
 		{
 			name:      "matching shortened release name",
@@ -198,14 +203,15 @@ func TestReleaseTargetChanged(t *testing.T) {
 				},
 				StorageNamespace: defaultNamespace,
 			},
-			want: true,
+			wantReason: targetReleaseName,
+			want:       true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			got := ReleaseTargetChanged(&v2.HelmRelease{
+			reason, changed := ReleaseTargetChanged(&v2.HelmRelease{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: defaultNamespace,
 					Name:      defaultName,
@@ -213,7 +219,8 @@ func TestReleaseTargetChanged(t *testing.T) {
 				Spec:   tt.spec,
 				Status: tt.status,
 			}, tt.chartName)
-			g.Expect(got).To(Equal(tt.want))
+			g.Expect(changed).To(Equal(tt.want))
+			g.Expect(reason).To(Equal(tt.wantReason))
 		})
 	}
 }

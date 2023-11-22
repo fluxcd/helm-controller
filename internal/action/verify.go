@@ -41,27 +41,35 @@ var (
 	ErrConfigDigest       = errors.New("release config values changed")
 )
 
-// ReleaseTargetChanged returns true if the given release and/or chart
-// name have been mutated in such a way that it no longer has the same release
-// target as recorded in the Status.History of the object, by comparing the
-// (storage) namespace, and release and chart names.
+const (
+	targetStorageNamespace = "storage namespace"
+	targetReleaseNamespace = "release namespace"
+	targetReleaseName      = "release name"
+	targetChartName        = "chart name"
+)
+
+// ReleaseTargetChanged returns a reason and true if the given release and/or
+// chart name have been mutated in such a way that it no longer has the same
+// release target as recorded in the Status.History of the object, by comparing
+// the (storage) namespace, and release and chart names.
 // This can be used to e.g. trigger a garbage collection of the old release
 // before installing the new one.
-func ReleaseTargetChanged(obj *v2.HelmRelease, chartName string) bool {
+// If no change is detected, an empty string is returned along with false.
+func ReleaseTargetChanged(obj *v2.HelmRelease, chartName string) (string, bool) {
 	cur := obj.Status.History.Latest()
 	switch {
 	case obj.Status.StorageNamespace == "", cur == nil:
-		return false
+		return "", false
 	case obj.GetStorageNamespace() != obj.Status.StorageNamespace:
-		return true
+		return targetStorageNamespace, true
 	case obj.GetReleaseNamespace() != cur.Namespace:
-		return true
+		return targetReleaseNamespace, true
 	case release.ShortenName(obj.GetReleaseName()) != cur.Name:
-		return true
+		return targetReleaseName, true
 	case chartName != cur.ChartName:
-		return true
+		return targetChartName, true
 	default:
-		return false
+		return "", false
 	}
 }
 
