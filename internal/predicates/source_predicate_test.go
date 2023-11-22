@@ -21,9 +21,12 @@ import (
 	"time"
 
 	"github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+
+	"github.com/fluxcd/pkg/apis/meta"
 
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 )
@@ -46,6 +49,54 @@ func TestSourceRevisionChangePredicate_Update(t *testing.T) {
 		{name: "old with artifact", old: sourceA, new: emptySource, want: false},
 		{name: "old not a source", old: notASource, new: sourceA, want: false},
 		{name: "new not a source", old: sourceA, new: notASource, want: false},
+		{
+			name: "old not ready and new ready",
+			old: &sourceMock{
+				revision:   "revision-a",
+				conditions: []metav1.Condition{{Type: meta.ReadyCondition, Status: metav1.ConditionFalse}},
+			},
+			new: &sourceMock{
+				revision:   "revision-a",
+				conditions: []metav1.Condition{{Type: meta.ReadyCondition, Status: metav1.ConditionTrue}},
+			},
+			want: true,
+		},
+		{
+			name: "old ready and new not ready",
+			old: &sourceMock{
+				revision:   "revision-a",
+				conditions: []metav1.Condition{{Type: meta.ReadyCondition, Status: metav1.ConditionTrue}},
+			},
+			new: &sourceMock{
+				revision:   "revision-a",
+				conditions: []metav1.Condition{{Type: meta.ReadyCondition, Status: metav1.ConditionFalse}},
+			},
+			want: false,
+		},
+		{
+			name: "old not ready and new not ready",
+			old: &sourceMock{
+				revision:   "revision-a",
+				conditions: []metav1.Condition{{Type: meta.ReadyCondition, Status: metav1.ConditionFalse}},
+			},
+			new: &sourceMock{
+				revision:   "revision-a",
+				conditions: []metav1.Condition{{Type: meta.ReadyCondition, Status: metav1.ConditionFalse}},
+			},
+			want: false,
+		},
+		{
+			name: "old ready and new ready",
+			old: &sourceMock{
+				revision:   "revision-a",
+				conditions: []metav1.Condition{{Type: meta.ReadyCondition, Status: metav1.ConditionTrue}},
+			},
+			new: &sourceMock{
+				revision:   "revision-a",
+				conditions: []metav1.Condition{{Type: meta.ReadyCondition, Status: metav1.ConditionTrue}},
+			},
+			want: false,
+		},
 		{name: "old nil", old: nil, new: sourceA, want: false},
 		{name: "new nil", old: sourceA, new: nil, want: false},
 	}
@@ -65,7 +116,8 @@ func TestSourceRevisionChangePredicate_Update(t *testing.T) {
 
 type sourceMock struct {
 	unstructured.Unstructured
-	revision string
+	revision   string
+	conditions []metav1.Condition
 }
 
 func (m sourceMock) GetRequeueAfter() time.Duration {
@@ -79,4 +131,8 @@ func (m *sourceMock) GetArtifact() *sourcev1.Artifact {
 		}
 	}
 	return nil
+}
+
+func (m *sourceMock) GetConditions() []metav1.Condition {
+	return m.conditions
 }
