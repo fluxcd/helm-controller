@@ -212,7 +212,10 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	log := ctrl.LoggerFrom(ctx)
 
 	// Mark the resource as under reconciliation.
-	conditions.MarkReconciling(obj, meta.ProgressingReason, "")
+	conditions.MarkReconciling(obj, meta.ProgressingReason, "Fulfilling prerequisites")
+	if err := patchHelper.Patch(ctx, obj); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	// Confirm dependencies are Ready before proceeding.
 	if c := len(obj.Spec.DependsOn); c > 0 {

@@ -83,15 +83,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		r := &HelmReleaseReconciler{
-			Client: fake.NewClientBuilder().
-				WithScheme(NewTestScheme()).
-				WithObjects(dependency).
-				Build(),
-			EventRecorder:     record.NewFakeRecorder(32),
-			requeueDependency: 5 * time.Second,
-		}
-
 		obj := &v2.HelmRelease{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "dependant",
@@ -106,7 +97,17 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), nil, obj)
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(dependency, obj).
+				Build(),
+			EventRecorder:     record.NewFakeRecorder(32),
+			requeueDependency: 5 * time.Second,
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
 
@@ -119,10 +120,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 	t.Run("handles HelmChart get failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		r := &HelmReleaseReconciler{
-			Client: fake.NewClientBuilder().WithScheme(NewTestScheme()).Build(),
-		}
-
 		obj := &v2.HelmRelease{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "release",
@@ -133,21 +130,25 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		_, err := r.reconcileRelease(context.TODO(), nil, obj)
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(obj).
+				Build(),
+		}
+
+		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(HaveOccurred())
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
-			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, "Fulfilling prerequisites"),
 			*conditions.FalseCondition(meta.ReadyCondition, v2.ArtifactFailedReason, "could not get HelmChart object"),
 		}))
 	})
 
 	t.Run("handles ACL error for HelmChart", func(t *testing.T) {
 		g := NewWithT(t)
-
-		r := &HelmReleaseReconciler{
-			Client: fake.NewClientBuilder().WithScheme(NewTestScheme()).Build(),
-		}
 
 		obj := &v2.HelmRelease{
 			ObjectMeta: metav1.ObjectMeta{
@@ -159,7 +160,15 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), nil, obj)
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(obj).
+				Build(),
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
 		g.Expect(res.IsZero()).To(BeTrue())
@@ -191,13 +200,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		r := &HelmReleaseReconciler{
-			Client: fake.NewClientBuilder().
-				WithScheme(NewTestScheme()).
-				WithObjects(chart).
-				Build(),
-		}
-
 		obj := &v2.HelmRelease{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "release",
@@ -211,7 +213,15 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), nil, obj)
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(chart, obj).
+				Build(),
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(res.RequeueAfter).To(Equal(obj.Spec.Interval.Duration))
 
@@ -242,13 +252,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		r := &HelmReleaseReconciler{
-			Client: fake.NewClientBuilder().
-				WithScheme(NewTestScheme()).
-				WithObjects(chart).
-				Build(),
-		}
-
 		obj := &v2.HelmRelease{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "release",
@@ -262,7 +265,15 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), nil, obj)
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(chart, obj).
+				Build(),
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(res.RequeueAfter).To(Equal(obj.Spec.Interval.Duration))
 
@@ -293,13 +304,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		r := &HelmReleaseReconciler{
-			Client: fake.NewClientBuilder().
-				WithScheme(NewTestScheme()).
-				WithObjects(chart).
-				Build(),
-		}
-
 		obj := &v2.HelmRelease{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "release",
@@ -313,7 +317,15 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), nil, obj)
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(chart, obj).
+				Build(),
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(res.RequeueAfter).To(Equal(obj.Spec.Interval.Duration))
 
@@ -347,13 +359,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		r := &HelmReleaseReconciler{
-			Client: fake.NewClientBuilder().
-				WithScheme(NewTestScheme()).
-				WithObjects(chart).
-				Build(),
-		}
-
 		obj := &v2.HelmRelease{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "release",
@@ -372,11 +377,19 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		_, err := r.reconcileRelease(context.TODO(), nil, obj)
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(chart, obj).
+				Build(),
+		}
+
+		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(HaveOccurred())
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
-			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, "Fulfilling prerequisites"),
 			*conditions.FalseCondition(meta.ReadyCondition, "ValuesError", "could not resolve Secret chart values reference 'mock/missing' with key 'values.yaml'"),
 		}))
 	})
@@ -404,15 +417,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		r := &HelmReleaseReconciler{
-			Client: fake.NewClientBuilder().
-				WithScheme(NewTestScheme()).
-				WithObjects(chart).
-				Build(),
-			httpClient:        retryablehttp.NewClient(),
-			requeueDependency: 10 * time.Second,
-		}
-
 		obj := &v2.HelmRelease{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "release",
@@ -423,7 +427,17 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), nil, obj)
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(chart, obj).
+				Build(),
+			httpClient:        retryablehttp.NewClient(),
+			requeueDependency: 10 * time.Second,
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
 
@@ -504,7 +518,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		c := fake.NewClientBuilder().
 			WithScheme(NewTestScheme()).
-			WithObjects(chart).
+			WithStatusSubresource(&v2.HelmRelease{}).
+			WithObjects(chart, obj).
 			Build()
 
 		r := &HelmReleaseReconciler{
@@ -525,7 +540,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g.Expect(store.Create(rls)).To(Succeed())
 
 		// Reconcile the Helm release.
-		_, err = r.reconcileRelease(context.TODO(), nil, obj)
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Assert that the Helm release has been adopted.
@@ -562,18 +577,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 		}
 
-		c := fake.NewClientBuilder().
-			WithScheme(NewTestScheme()).
-			WithObjects(chart).
-			Build()
-
-		r := &HelmReleaseReconciler{
-			Client:           c,
-			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
-			httpClient:       retryablehttp.NewClient(),
-		}
-
 		obj := &v2.HelmRelease{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "release",
@@ -592,6 +595,19 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				HelmChart:        "mock/chart",
 				StorageNamespace: "mock",
 			},
+		}
+
+		c := fake.NewClientBuilder().
+			WithScheme(NewTestScheme()).
+			WithStatusSubresource(&v2.HelmRelease{}).
+			WithObjects(chart, obj).
+			Build()
+
+		r := &HelmReleaseReconciler{
+			Client:           c,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
+			httpClient:       retryablehttp.NewClient(),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj)
