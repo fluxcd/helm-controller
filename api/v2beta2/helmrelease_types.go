@@ -158,6 +158,12 @@ type HelmReleaseSpec struct {
 	// +optional
 	PersistentClient *bool `json:"persistentClient,omitempty"`
 
+	// DriftDetection holds the configuration for detecting and handling
+	// differences between the manifest in the Helm storage and the resources
+	// currently existing in the cluster.
+	// +optional
+	DriftDetection *DriftDetection `json:"driftDetection,omitempty"`
+
 	// Install holds the configuration for Helm install actions for this HelmRelease.
 	// +optional
 	Install *Install `json:"install,omitempty"`
@@ -190,6 +196,91 @@ type HelmReleaseSpec struct {
 	// of their definition.
 	// +optional
 	PostRenderers []PostRenderer `json:"postRenderers,omitempty"`
+}
+
+// DriftDetectionMode represents the modes in which a controller can detect and
+// handle differences between the manifest in the Helm storage and the resources
+// currently existing in the cluster.
+type DriftDetectionMode string
+
+var (
+	// DriftDetectionEnabled instructs the controller to actively detect any
+	// changes between the manifest in the Helm storage and the resources
+	// currently existing in the cluster.
+	// If any differences are detected, the controller will automatically
+	// correct the cluster state by performing a Helm upgrade.
+	DriftDetectionEnabled DriftDetectionMode = "enabled"
+
+	// DriftDetectionWarn instructs the controller to actively detect any
+	// changes between the manifest in the Helm storage and the resources
+	// currently existing in the cluster.
+	// If any differences are detected, the controller will emit a warning
+	// without automatically correcting the cluster state.
+	DriftDetectionWarn DriftDetectionMode = "warn"
+
+	// DriftDetectionDisabled instructs the controller to skip detection of
+	// differences entirely.
+	// This is the default behavior, and the controller will not actively
+	// detect or respond to differences between the manifest in the Helm
+	// storage and the resources currently existing in the cluster.
+	DriftDetectionDisabled DriftDetectionMode = "disabled"
+)
+
+var (
+	// DriftDetectionMetadataKey is the label or annotation key used to disable
+	// the diffing of an object.
+	DriftDetectionMetadataKey = GroupVersion.Group + "/driftDetection"
+	// DriftDetectionDisabledValue is the value used to disable the diffing of
+	// an object using DriftDetectionMetadataKey.
+	DriftDetectionDisabledValue = "disabled"
+)
+
+// IgnoreRule defines a rule to selectively disregard specific changes during
+// the drift detection process.
+type IgnoreRule struct {
+	// Paths is a list of JSON Pointer (RFC 6901) paths to be excluded from
+	// consideration in a Kubernetes object.
+	// +required
+	Paths []string `json:"paths"`
+
+	// Target is a selector for specifying Kubernetes objects to which this
+	// rule applies.
+	// If Target is not set, the Paths will be ignored for all Kubernetes
+	// objects within the manifest of the Helm release.
+	// +optional
+	Target *kustomize.Selector `json:"target,omitempty"`
+}
+
+// DriftDetection defines the strategy for performing differential analysis and
+// provides a way to define rules for ignoring specific changes during this
+// process.
+type DriftDetection struct {
+	// Mode defines how differences should be handled between the Helm manifest
+	// and the manifest currently applied to the cluster.
+	// If not explicitly set, it defaults to DiffModeDisabled.
+	// +kubebuilder:validation:Enum=enabled;warn;disabled
+	// +optional
+	Mode DriftDetectionMode `json:"mode,omitempty"`
+
+	// Ignore contains a list of rules for specifying which changes to ignore
+	// during diffing.
+	// +optional
+	Ignore []IgnoreRule `json:"ignore,omitempty"`
+}
+
+// GetMode returns the DiffMode set on the Diff, or DiffModeDisabled if not
+// set.
+func (d DriftDetection) GetMode() DriftDetectionMode {
+	if d.Mode == "" {
+		return DriftDetectionDisabled
+	}
+	return d.Mode
+}
+
+// MustDetectChanges returns true if the DiffMode is set to DiffModeEnabled or
+// DiffModeWarn.
+func (d DriftDetection) MustDetectChanges() bool {
+	return d.GetMode() == DriftDetectionEnabled || d.GetMode() == DriftDetectionWarn
 }
 
 // HelmChartTemplate defines the template from which the controller will
@@ -968,6 +1059,16 @@ type HelmRelease struct {
 	Spec HelmReleaseSpec `json:"spec,omitempty"`
 	// +kubebuilder:default:={"observedGeneration":-1}
 	Status HelmReleaseStatus `json:"status,omitempty"`
+}
+
+// GetDriftDetection returns the configuration for detecting and handling
+// differences between the manifest in the Helm storage and the resources
+// currently existing in the cluster.
+func (in *HelmRelease) GetDriftDetection() DriftDetection {
+	if in.Spec.DriftDetection == nil {
+		return DriftDetection{}
+	}
+	return *in.Spec.DriftDetection
 }
 
 // GetInstall returns the configuration for Helm install actions for the

@@ -17,6 +17,8 @@ limitations under the License.
 package reconcile
 
 import (
+	"context"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -25,6 +27,10 @@ import (
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/fluxcd/pkg/ssa"
+	"github.com/fluxcd/pkg/ssa/jsondiff"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -477,7 +483,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				}
 			}
 
-			got, err := DetermineReleaseState(cfg, &Request{
+			got, err := DetermineReleaseState(context.TODO(), cfg, &Request{
 				Object: obj,
 				Chart:  tt.chart,
 				Values: tt.values,
@@ -491,6 +497,150 @@ func Test_DetermineReleaseState(t *testing.T) {
 			g.Expect(err).ToNot(HaveOccurred())
 			g.Expect(got.Status).To(Equal(tt.want.Status))
 			g.Expect(got.Reason).To(ContainSubstring(tt.want.Reason))
+		})
+	}
+}
+
+func TestDetermineReleaseState_DriftDetection(t *testing.T) {
+	tests := []struct {
+		name          string
+		driftMode     v2.DriftDetectionMode
+		applyManifest bool
+		want          func(namespace string) ReleaseState
+	}{
+		{
+			name:      "with drift and detection mode enabled",
+			driftMode: v2.DriftDetectionEnabled,
+			want: func(namespace string) ReleaseState {
+				return ReleaseState{
+					Status: ReleaseStatusDrifted,
+					Diff: jsondiff.DiffSet{
+						{
+							Type: jsondiff.DiffTypeCreate,
+							GroupVersionKind: schema.GroupVersionKind{
+								Kind:    "Secret",
+								Version: "v1",
+							},
+							Namespace: namespace,
+							Name:      "fixture",
+						},
+					},
+				}
+			},
+		},
+		{
+			name:          "without drift and detection mode enabled",
+			driftMode:     v2.DriftDetectionEnabled,
+			applyManifest: true,
+			want: func(_ string) ReleaseState {
+				return ReleaseState{Status: ReleaseStatusInSync}
+			},
+		},
+		{
+			name:      "with drift and detection mode warn",
+			driftMode: v2.DriftDetectionWarn,
+			want: func(namespace string) ReleaseState {
+				return ReleaseState{
+					Status: ReleaseStatusDrifted,
+					Diff: jsondiff.DiffSet{
+						{
+							Type: jsondiff.DiffTypeCreate,
+							GroupVersionKind: schema.GroupVersionKind{
+								Kind:    "Secret",
+								Version: "v1",
+							},
+							Namespace: namespace,
+							Name:      "fixture",
+						},
+					},
+				}
+			},
+		},
+		{
+			name:          "without drift and detection mode warn",
+			applyManifest: true,
+			driftMode:     v2.DriftDetectionWarn,
+			want: func(_ string) ReleaseState {
+				return ReleaseState{Status: ReleaseStatusInSync}
+			},
+		},
+		{
+			name:      "drift detection mode disabled",
+			driftMode: v2.DriftDetectionDisabled,
+			want: func(_ string) ReleaseState {
+				return ReleaseState{Status: ReleaseStatusInSync}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			namedNS, err := testEnv.CreateNamespace(context.TODO(), mockReleaseNamespace)
+			g.Expect(err).NotTo(HaveOccurred())
+			t.Cleanup(func() {
+				_ = testEnv.Delete(context.TODO(), namedNS)
+			})
+			releaseNamespace := namedNS.Name
+
+			chart := testutil.BuildChart()
+
+			rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+				Name:      mockReleaseName,
+				Namespace: releaseNamespace,
+				Version:   1,
+				Status:    helmrelease.StatusDeployed,
+				Chart:     chart,
+			})
+
+			if tt.applyManifest {
+				objs, err := ssa.ReadObjects(strings.NewReader(rls.Manifest))
+				g.Expect(err).ToNot(HaveOccurred())
+
+				for _, obj := range objs {
+					g.Expect(ssa.NormalizeUnstructured(obj)).To(Succeed())
+					obj.SetNamespace(releaseNamespace)
+					g.Expect(testEnv.Create(context.Background(), obj)).To(Succeed())
+				}
+			}
+
+			obj := &v2.HelmRelease{
+				Spec: v2.HelmReleaseSpec{
+					ReleaseName:      mockReleaseName,
+					TargetNamespace:  releaseNamespace,
+					StorageNamespace: releaseNamespace,
+					DriftDetection: &v2.DriftDetection{
+						Mode: tt.driftMode,
+					},
+				},
+				Status: v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(rls)),
+					},
+				},
+			}
+
+			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
+			g.Expect(err).ToNot(HaveOccurred())
+
+			cfg, err := action.NewConfigFactory(getter,
+				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
+			)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			store := helmstorage.Init(cfg.Driver)
+			g.Expect(store.Create(rls)).To(Succeed())
+
+			got, err := DetermineReleaseState(context.TODO(), cfg, &Request{
+				Object: obj,
+				Chart:  testutil.BuildChart(),
+				Values: rls.Config,
+			})
+			g.Expect(err).ToNot(HaveOccurred())
+
+			want := tt.want(releaseNamespace)
+			g.Expect(got).To(Equal(want))
 		})
 	}
 }

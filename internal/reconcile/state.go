@@ -17,10 +17,14 @@ limitations under the License.
 package reconcile
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
+	"github.com/fluxcd/pkg/ssa/jsondiff"
+	"helm.sh/helm/v3/pkg/kube"
 	helmrelease "helm.sh/helm/v3/pkg/release"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/fluxcd/helm-controller/internal/action"
 	interrors "github.com/fluxcd/helm-controller/internal/errors"
@@ -48,6 +52,10 @@ const (
 	// ReleaseStatusOutOfSync indicates that the release is present in the Helm
 	// storage, but is not in sync with the v2beta2.HelmRelease object.
 	ReleaseStatusOutOfSync ReleaseStatus = "OutOfSync"
+	// ReleaseStatusDrifted indicates that the release is present in the Helm
+	// storage, but the cluster state has drifted from the manifest in the
+	// storage.
+	ReleaseStatusDrifted ReleaseStatus = "Drifted"
 	// ReleaseStatusLocked indicates that the release is present in the Helm
 	// storage, but is locked.
 	ReleaseStatusLocked ReleaseStatus = "Locked"
@@ -69,12 +77,15 @@ type ReleaseState struct {
 	Status ReleaseStatus
 	// Reason for the Status.
 	Reason string
+	// Diff contains any differences between the Helm storage manifest and the
+	// cluster state when Status equals ReleaseStatusDrifted.
+	Diff jsondiff.DiffSet
 }
 
 // DetermineReleaseState determines the state of the Helm release as compared
 // to the v2beta2.HelmRelease object. It returns a ReleaseState that indicates
 // the status of the release, and an error if the state could not be determined.
-func DetermineReleaseState(cfg *action.ConfigFactory, req *Request) (ReleaseState, error) {
+func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *Request) (ReleaseState, error) {
 	rls, err := action.LastRelease(cfg.Build(nil), req.Object.GetReleaseName())
 	if err != nil {
 		if errors.Is(err, action.ErrReleaseNotFound) {
@@ -143,6 +154,21 @@ func DetermineReleaseState(cfg *action.ConfigFactory, req *Request) (ReleaseStat
 			remediation := req.Object.GetActiveRemediation()
 			if remediation != nil && !remediation.MustIgnoreTestFailures(testSpec.IgnoreFailures) && cur.HasTestInPhase(helmrelease.HookPhaseFailed.String()) {
 				return ReleaseState{Status: ReleaseStatusFailed, Reason: "release has test in failed phase"}, nil
+			}
+		}
+
+		// Confirm the cluster state matches the desired config.
+		if diffOpts := req.Object.GetDriftDetection(); diffOpts.MustDetectChanges() {
+			diffSet, err := action.Diff(ctx, cfg.Build(nil), rls, kube.ManagedFieldsManager, req.Object.GetDriftDetection().Ignore...)
+			hasChanges := diffSet.HasChanges()
+			if err != nil {
+				if !hasChanges {
+					return ReleaseState{Status: ReleaseStatusUnknown}, fmt.Errorf("unable to determine cluster state: %w", err)
+				}
+				ctrl.LoggerFrom(ctx).Error(err, "diff of release against cluster state completed with error")
+			}
+			if hasChanges {
+				return ReleaseState{Status: ReleaseStatusDrifted, Diff: diffSet}, nil
 			}
 		}
 
