@@ -19,8 +19,8 @@ package yaml
 import (
 	"io"
 
-	goyaml "gopkg.in/yaml.v2"
 	"sigs.k8s.io/yaml"
+	goyaml "sigs.k8s.io/yaml/goyaml.v2"
 )
 
 // PreEncoder allows for pre-processing of the YAML data before encoding.

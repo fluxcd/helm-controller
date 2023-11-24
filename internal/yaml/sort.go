@@ -19,7 +19,7 @@ package yaml
 import (
 	"sort"
 
-	goyaml "gopkg.in/yaml.v2"
+	goyaml "sigs.k8s.io/yaml/goyaml.v2"
 )
 
 // SortMapSlice recursively sorts the given goyaml.MapSlice by key.

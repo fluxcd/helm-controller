@@ -20,8 +20,8 @@ import (
 	"bytes"
 	"testing"
 
-	goyaml "gopkg.in/yaml.v2"
 	"sigs.k8s.io/yaml"
+	goyaml "sigs.k8s.io/yaml/goyaml.v2"
 )
 
 func TestSortMapSlice(t *testing.T) {
