@@ -31,11 +31,15 @@ const (
 	// DetectDrift configures the detection of cluster state drift compared to
 	// the desired state as described in the manifest of the Helm release
 	// storage object.
+	// Deprecated in v0.37.0, use the drift detection mode on the HelmRelease
+	// object instead.
 	DetectDrift = "DetectDrift"
 
 	// CorrectDrift configures the correction of cluster state drift compared to
 	// the desired state as described in the manifest of the Helm release. It
 	// is only effective when DetectDrift is enabled.
+	// Deprecated in v0.37.0, use the drift detection mode on the HelmRelease
+	// object instead.
 	CorrectDrift = "CorrectDrift"
 
 	// AllowDNSLookups allows the controller to perform DNS lookups when rendering Helm
@@ -61,11 +65,11 @@ var features = map[string]bool{
 	// opt-in from v0.28
 	CacheSecretsAndConfigMaps: false,
 	// DetectDrift
-	// opt-in from v0.31
+	// deprecated in v0.37.0
 	DetectDrift: false,
 	// CorrectDrift,
-	// opt-out from v0.31.2
-	CorrectDrift: true,
+	// deprecated in v0.37.0
+	CorrectDrift: false,
 	// AllowDNSLookups
 	// opt-in from v0.31
 	AllowDNSLookups: false,

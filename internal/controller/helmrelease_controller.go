@@ -549,6 +549,9 @@ func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter g
 		action.WithStorage(action.DefaultStorageDriver, storageNamespace),
 		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
 	)
+	if err != nil {
+		return err
+	}
 
 	// Get the last successful release based on the observation for the v2beta1
 	// object.

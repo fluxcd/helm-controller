@@ -512,7 +512,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Status: v2.HelmReleaseStatus{
 				HelmChart:                   chart.Namespace + "/" + chart.Name,
 				LastReleaseRevision:         rls.Version,
-				LastAttemptedValuesChecksum: valChecksum.Hex(),
+				LastAttemptedValuesChecksum: valChecksum.Encoded(),
 			},
 		}
 
