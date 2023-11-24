@@ -29,11 +29,11 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/cli-utils/pkg/kstatus/polling"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlcfg "sigs.k8s.io/controller-runtime/pkg/config"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/client"
@@ -181,9 +181,9 @@ func main() {
 	intacl.AllowCrossNamespaceRef = !aclOptions.NoCrossNamespaceRefs
 
 	restConfig := client.GetConfigOrDie(clientOptions)
-	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
+
+	mgrConfig := ctrl.Options{
 		Scheme:                        scheme,
-		MetricsBindAddress:            metricsAddr,
 		HealthProbeBindAddress:        healthAddr,
 		LeaderElection:                leaderElectionOptions.Enable,
 		LeaderElectionReleaseOnCancel: leaderElectionOptions.ReleaseOnCancel,
@@ -202,20 +202,28 @@ func main() {
 			ByObject: map[ctrlclient.Object]ctrlcache.ByObject{
 				&v2.HelmRelease{}: {Label: watchSelector},
 			},
-			Namespaces: []string{watchNamespace},
 		},
 		Controller: ctrlcfg.Controller{
 			RecoverPanic:            pointer.Bool(true),
 			MaxConcurrentReconciles: concurrent,
 		},
-	})
+		Metrics: metricsserver.Options{
+			BindAddress:   metricsAddr,
+			ExtraHandlers: pprof.GetHandlers(),
+		},
+	}
+
+	mgrConfig.Cache.DefaultNamespaces = map[string]ctrlcache.Config{
+		watchNamespace: {},
+	}
+
+	mgr, err := ctrl.NewManager(restConfig, mgrConfig)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
 	probes.SetupChecks(mgr, setupLog)
-	pprof.SetupHandlers(mgr, setupLog)
 
 	metricsH := helper.NewMetrics(mgr, metrics.MustMakeRecorder(), v2.HelmReleaseFinalizer)
 	var eventRecorder *events.Recorder
@@ -241,9 +249,6 @@ func main() {
 		ctx = ow.Watch(ctx)
 	}
 
-	pollingOpts := polling.Options{}
-	statusPoller := polling.NewStatusPoller(mgr.GetClient(), mgr.GetRESTMapper(), pollingOpts)
-
 	if err = (&controller.HelmReleaseReconciler{
 		Client:           mgr.GetClient(),
 		EventRecorder:    eventRecorder,
@@ -251,8 +256,6 @@ func main() {
 		GetClusterConfig: ctrl.GetConfig,
 		ClientOpts:       clientOptions,
 		KubeConfigOpts:   kubeConfigOpts,
-		PollingOpts:      pollingOpts,
-		StatusPoller:     statusPoller,
 		FieldManager:     controllerName,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		DependencyRequeueInterval: requeueDependency,

@@ -299,7 +299,7 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 
 		return NewInstall(r.configFactory, r.eventRecorder), nil
 	case ReleaseStatusUnmanaged:
-		log.Info(msgWithReason("release not managed by object", state.Reason))
+		log.Info(msgWithReason("release not managed by controller", state.Reason))
 
 		// Clear the history as we can no longer rely on it.
 		req.Object.Status.ClearHistory()

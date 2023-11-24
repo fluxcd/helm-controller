@@ -79,8 +79,6 @@ type Observation struct {
 	Hooks []helmrelease.Hook `json:"hooks"`
 	// Namespace is the Kubernetes namespace of the release.
 	Namespace string `json:"namespace"`
-	// Labels of the release.
-	Labels map[string]string `json:"labels"`
 }
 
 // Targets returns if the release matches the given name, namespace and
@@ -118,7 +116,6 @@ func ObserveRelease(rel *helmrelease.Release, filter ...DataFilter) Observation 
 		Manifest:  rel.Manifest,
 		Hooks:     nil,
 		Namespace: rel.Namespace,
-		Labels:    nil,
 	}
 
 	if rel.Info != nil {
@@ -143,13 +140,6 @@ func ObserveRelease(rel *helmrelease.Release, filter ...DataFilter) Observation 
 			for i, h := range v.([]*helmrelease.Hook) {
 				obsRel.Hooks[i] = *h
 			}
-		}
-	}
-
-	if len(rel.Labels) > 0 {
-		obsRel.Labels = make(map[string]string, len(rel.Labels))
-		for i, v := range rel.Labels {
-			obsRel.Labels[i] = v
 		}
 	}
 
