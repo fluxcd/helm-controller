@@ -47,6 +47,13 @@ const (
 	// OOMWatch enables the OOM watcher, which will gracefully shut down the controller
 	// when the memory usage exceeds the configured limit. This is disabled by default.
 	OOMWatch = "OOMWatch"
+
+	// AdoptLegacyReleases enables the adoption of the historical Helm release
+	// based on the status fields from a v2beta1 HelmRelease object.
+	// This is enabled by default to support an upgrade path from v2beta1 to v2beta2
+	// without the need to upgrade the Helm release. But it can be disabled to
+	// avoid potential abuse of the adoption mechanism.
+	AdoptLegacyReleases = "AdoptLegacyReleases"
 )
 
 var features = map[string]bool{
@@ -65,6 +72,9 @@ var features = map[string]bool{
 	// OOMWatch
 	// opt-in from v0.31
 	OOMWatch: false,
+	// AdoptLegacyReleases
+	// opt-out from v0.37
+	AdoptLegacyReleases: true,
 }
 
 // FeatureGates contains a list of all supported feature gates and

@@ -48,9 +48,10 @@ import (
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta1"
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	// +kubebuilder:scaffold:imports
 
+	intacl "github.com/fluxcd/helm-controller/internal/acl"
 	"github.com/fluxcd/helm-controller/internal/controller"
 	"github.com/fluxcd/helm-controller/internal/features"
 	intkube "github.com/fluxcd/helm-controller/internal/kube"
@@ -173,8 +174,11 @@ func main() {
 		leaderElectionId = leaderelection.GenerateID(leaderElectionId, watchOptions.LabelSelector)
 	}
 
-	// set the managedFields owner for resources reconciled from Helm charts
+	// Set the managedFields owner for resources reconciled from Helm charts.
 	kube.ManagedFieldsManager = controllerName
+
+	// Configure the ACL policy.
+	intacl.AllowCrossNamespaceRef = !aclOptions.NoCrossNamespaceRefs
 
 	restConfig := client.GetConfigOrDie(clientOptions)
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
@@ -238,18 +242,18 @@ func main() {
 	}
 
 	pollingOpts := polling.Options{}
+	statusPoller := polling.NewStatusPoller(mgr.GetClient(), mgr.GetRESTMapper(), pollingOpts)
+
 	if err = (&controller.HelmReleaseReconciler{
-		Client:              mgr.GetClient(),
-		Config:              mgr.GetConfig(),
-		Scheme:              mgr.GetScheme(),
-		EventRecorder:       eventRecorder,
-		Metrics:             metricsH,
-		NoCrossNamespaceRef: aclOptions.NoCrossNamespaceRefs,
-		ClientOpts:          clientOptions,
-		KubeConfigOpts:      kubeConfigOpts,
-		PollingOpts:         pollingOpts,
-		StatusPoller:        polling.NewStatusPoller(mgr.GetClient(), mgr.GetRESTMapper(), pollingOpts),
-		ControllerName:      controllerName,
+		Client:           mgr.GetClient(),
+		EventRecorder:    eventRecorder,
+		Metrics:          metricsH,
+		GetClusterConfig: ctrl.GetConfig,
+		ClientOpts:       clientOptions,
+		KubeConfigOpts:   kubeConfigOpts,
+		PollingOpts:      pollingOpts,
+		StatusPoller:     statusPoller,
+		FieldManager:     controllerName,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		DependencyRequeueInterval: requeueDependency,
 		HTTPRetry:                 httpRetry,

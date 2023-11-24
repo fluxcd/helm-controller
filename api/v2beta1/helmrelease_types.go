@@ -28,6 +28,8 @@ import (
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
+
+	"github.com/fluxcd/helm-controller/api/v2beta2"
 )
 
 const HelmReleaseKind = "HelmRelease"
@@ -905,6 +907,46 @@ type HelmReleaseStatus struct {
 	// state. It is reset after a successful reconciliation.
 	// +optional
 	UpgradeFailures int64 `json:"upgradeFailures,omitempty"`
+
+	// StorageNamespace is the namespace of the Helm release storage for the
+	// current release.
+	//
+	// Note: this field is provisional to the v2beta2 API, and not actively used
+	// by v2beta1 HelmReleases.
+	// +optional
+	StorageNamespace string `json:"storageNamespace,omitempty"`
+
+	// History holds the history of Helm releases performed for this HelmRelease
+	// up to the last successfully completed release.
+	//
+	// Note: this field is provisional to the v2beta2 API, and not actively used
+	// by v2beta1 HelmReleases.
+	// +optional
+	History v2beta2.Snapshots `json:"history,omitempty"`
+
+	// LastAttemptedGeneration is the last generation the controller attempted
+	// to reconcile.
+	//
+	// Note: this field is provisional to the v2beta2 API, and not actively used
+	// by v2beta1 HelmReleases.
+	// +optional
+	LastAttemptedGeneration int64 `json:"lastAttemptedGeneration,omitempty"`
+
+	// LastAttemptedConfigDigest is the digest for the config (better known as
+	// "values") of the last reconciliation attempt.
+	//
+	// Note: this field is provisional to the v2beta2 API, and not actively used
+	// by v2beta1 HelmReleases.
+	// +optional
+	LastAttemptedConfigDigest string `json:"lastAttemptedConfigDigest,omitempty"`
+
+	// LastAttemptedReleaseAction is the last release action performed for this
+	// HelmRelease. It is used to determine the active remediation strategy.
+	//
+	// Note: this field is provisional to the v2beta2 API, and not actively used
+	// by v2beta1 HelmReleases.
+	// +optional
+	LastAttemptedReleaseAction string `json:"lastAttemptedReleaseAction,omitempty"`
 }
 
 // GetHelmChart returns the namespace and name of the HelmChart.

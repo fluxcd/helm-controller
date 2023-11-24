@@ -1,9 +1,9 @@
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
 kind: HelmRelease
 metadata:
   name: upgrade-fail-remediate
 spec:
-  interval: 5m
+  interval: 30s
   chart:
     spec:
       chart: podinfo
@@ -11,7 +11,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: podinfo
-      interval: 1m
+      interval: 10m
   values:
     resources:
       requests:

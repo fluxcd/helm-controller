@@ -22,43 +22,78 @@ import (
 	"path/filepath"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/fluxcd/pkg/runtime/testenv"
+	"github.com/fluxcd/pkg/testserver"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+
+	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	// +kubebuilder:scaffold:imports
 )
 
-var cfg *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
+var (
+	testEnv    *testenv.Environment
+	testServer *testserver.HTTPServer
+
+	testCtx = ctrl.SetupSignalHandler()
+)
+
+func NewTestScheme() *runtime.Scheme {
+	s := runtime.NewScheme()
+	utilruntime.Must(corev1.AddToScheme(s))
+	utilruntime.Must(apiextensionsv1.AddToScheme(s))
+	utilruntime.Must(sourcev1.AddToScheme(s))
+	utilruntime.Must(v2.AddToScheme(s))
+	return s
+}
 
 func TestMain(m *testing.M) {
-	testEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "config", "crd", "bases")},
-	}
+	testEnv = testenv.New(
+		testenv.WithCRDPath(
+			filepath.Join("..", "..", "build", "config", "crd", "bases"),
+			filepath.Join("..", "..", "config", "crd", "bases"),
+		),
+		testenv.WithScheme(NewTestScheme()),
+	)
 
 	var err error
-	cfg, err = testEnv.Start()
-	if err != nil {
-		panic(fmt.Errorf("failed to start testenv: %v", err))
+	if testServer, err = testserver.NewTempHTTPServer(); err != nil {
+		panic(fmt.Sprintf("Failed to create a temporary storage server: %v", err))
 	}
+	fmt.Println("Starting the test storage server")
+	testServer.Start()
 
-	utilruntime.Must(v2beta1.AddToScheme(scheme.Scheme))
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	if err != nil {
-		panic(fmt.Errorf("failed to create k8s client: %v", err))
-	}
+	go func() {
+		fmt.Println("Starting the test environment")
+		if err := testEnv.Start(testCtx); err != nil {
+			panic(fmt.Sprintf("Failed to start the test environment manager: %v", err))
+		}
+	}()
+	<-testEnv.Manager.Elected()
 
 	code := m.Run()
 
-	err = testEnv.Stop()
-	if err != nil {
-		panic(fmt.Errorf("failed to stop testenv: %v", err))
+	fmt.Println("Stopping the test environment")
+	if err := testEnv.Stop(); err != nil {
+		panic(fmt.Sprintf("Failed to stop the test environment: %v", err))
+	}
+
+	fmt.Println("Stopping the test storage server")
+	testServer.Stop()
+	if err := os.RemoveAll(testServer.Root()); err != nil {
+		panic(fmt.Sprintf("Failed to remove storage server dir: %v", err))
 	}
 
 	os.Exit(code)
+}
+
+// GetTestClusterConfig returns a copy of the test cluster config.
+func GetTestClusterConfig() (*rest.Config, error) {
+	return rest.CopyConfig(testEnv.GetConfig()), nil
 }
