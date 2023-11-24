@@ -51,7 +51,7 @@ func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 	vals helmchartutil.Values, opts ...UpgradeOption) (*helmrelease.Release, error) {
 	upgrade := newUpgrade(config, obj, opts)
 
-	policy, err := crdPolicyOrDefault(obj.GetInstall().CRDs)
+	policy, err := crdPolicyOrDefault(obj.GetUpgrade().CRDs)
 	if err != nil {
 		return nil, err
 	}
