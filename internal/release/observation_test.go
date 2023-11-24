@@ -219,7 +219,6 @@ func TestObserveRelease(t *testing.T) {
 				ChartMetadata: *smallRelease.Chart.Metadata,
 				Manifest:      smallRelease.Manifest,
 				Hooks:         nil,
-				Labels:        smallRelease.Labels,
 				Config:        smallRelease.Config,
 			},
 		},
@@ -241,7 +240,6 @@ func TestObserveRelease(t *testing.T) {
 					}
 					return hooks
 				}(),
-				Labels: midRelease.Labels,
 				Config: midRelease.Config,
 			},
 		},
@@ -271,7 +269,6 @@ func TestObserveRelease(t *testing.T) {
 				Info:          *testReleaseWithLabels.Info,
 				ChartMetadata: *testReleaseWithLabels.Chart.Metadata,
 				Config:        testReleaseWithLabels.Config,
-				Labels:        testReleaseWithLabels.Labels,
 				Manifest:      testReleaseWithLabels.Manifest,
 				Hooks: []helmrelease.Hook{
 					*testReleaseWithLabels.Hooks[0],
