@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/yaml"
 
+	"github.com/fluxcd/pkg/runtime/patch"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
@@ -90,13 +91,12 @@ other: values
 			&hc,
 		}
 
-		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(resources...).Build()
+		c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&v2.HelmRelease{}).WithObjects(resources...).Build()
 		r := &HelmReleaseReconciler{
 			Client:        c,
 			EventRecorder: &DummyRecorder{},
 		}
-
-		_, _, _ = r.reconcile(logr.NewContext(context.TODO(), logr.Discard()), hr)
+		_, _ = r.reconcileRelease(logr.NewContext(context.TODO(), logr.Discard()), patch.NewSerialPatcher(&hr, c), &hr)
 	})
 }
 
