@@ -24,7 +24,7 @@ import (
 	helmaction "helm.sh/helm/v3/pkg/action"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
@@ -42,7 +42,7 @@ func Diff(ctx context.Context, config *helmaction.Configuration, rls *helmreleas
 	if err != nil {
 		return nil, err
 	}
-	c, err := client.New(cfg, client.Options{DryRun: pointer.Bool(true)})
+	c, err := client.New(cfg, client.Options{DryRun: ptr.To(true)})
 	if err != nil {
 		return nil, err
 	}

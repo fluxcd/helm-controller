@@ -321,7 +321,7 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		log.Info(msgWithReason("detected changes in cluster state", diff.SummarizeDiffSetBrief(state.Diff)))
 		for _, change := range state.Diff {
 			if change.Type == jsondiff.DiffTypeCreate || change.Type == jsondiff.DiffTypeUpdate {
-				log.V(logger.DebugLevel).Info(fmt.Sprintf("observed change in cluster state"), "diff", change)
+				log.V(logger.DebugLevel).Info("observed change in cluster state", "diff", change)
 			}
 		}
 

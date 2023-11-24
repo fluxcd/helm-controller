@@ -33,7 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -616,7 +616,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.Install = &v2.Install{
 					Remediation: &v2.InstallRemediation{
-						RemediateLastFailure: pointer.Bool(true),
+						RemediateLastFailure: ptr.To(true),
 					},
 				}
 				spec.Uninstall = &v2.Uninstall{
@@ -635,7 +635,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.Install = &v2.Install{
 					Remediation: &v2.InstallRemediation{
-						RemediateLastFailure: pointer.Bool(true),
+						RemediateLastFailure: ptr.To(true),
 					},
 				}
 				spec.Test = &v2.Test{
@@ -740,7 +740,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.Upgrade = &v2.Upgrade{
 					Remediation: &v2.UpgradeRemediation{
-						RemediateLastFailure: pointer.Bool(true),
+						RemediateLastFailure: ptr.To(true),
 					},
 				}
 			},
@@ -778,7 +778,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 				spec.Upgrade = &v2.Upgrade{
 					Remediation: &v2.UpgradeRemediation{
 						Strategy:             &strategy,
-						RemediateLastFailure: pointer.Bool(true),
+						RemediateLastFailure: ptr.To(true),
 					},
 				}
 				spec.Uninstall = &v2.Uninstall{
@@ -816,7 +816,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.Upgrade = &v2.Upgrade{
 					Remediation: &v2.UpgradeRemediation{
-						RemediateLastFailure: pointer.Bool(true),
+						RemediateLastFailure: ptr.To(true),
 					},
 				}
 				spec.Test = &v2.Test{

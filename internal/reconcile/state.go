@@ -129,7 +129,7 @@ func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *
 	case helmrelease.StatusFailed:
 		return ReleaseState{Status: ReleaseStatusFailed}, nil
 	case helmrelease.StatusUninstalled:
-		return ReleaseState{Status: ReleaseStatusAbsent, Reason: fmt.Sprintf("found uninstalled release in storage")}, nil
+		return ReleaseState{Status: ReleaseStatusAbsent, Reason: "found uninstalled release in storage"}, nil
 	case helmrelease.StatusDeployed:
 		// Verify the release is in sync with the desired configuration.
 		if err = action.VerifyRelease(rls, cur, req.Chart.Metadata, req.Values); err != nil {
