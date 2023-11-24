@@ -11,6 +11,6 @@ spec:
     {{- if .Values.branch }}
     branch: "{{ .Values.branch }}"
     {{- end}}
-    {{- if .Values.branch }}
+    {{- if .Values.tag }}
     tag: "{{ .Values.tag }}"
     {{- end}}
