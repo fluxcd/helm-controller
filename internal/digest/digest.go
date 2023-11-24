@@ -20,6 +20,7 @@ import (
 	"crypto"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
+	"fmt"
 
 	"github.com/opencontainers/go-digest"
 	_ "github.com/opencontainers/go-digest/blake3"
@@ -38,4 +39,14 @@ var (
 func init() {
 	// Register SHA-1 algorithm for support of legacy values checksums.
 	digest.RegisterAlgorithm(SHA1, crypto.SHA1)
+}
+
+// AlgorithmForName returns the digest algorithm for the given name, or an
+// error of type digest.ErrDigestUnsupported if the algorithm is unavailable.
+func AlgorithmForName(name string) (digest.Algorithm, error) {
+	a := digest.Algorithm(name)
+	if !a.Available() {
+		return "", fmt.Errorf("%w: %s", digest.ErrDigestUnsupported, name)
+	}
+	return a, nil
 }
