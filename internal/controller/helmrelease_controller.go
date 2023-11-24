@@ -31,7 +31,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	kuberecorder "k8s.io/client-go/tools/record"
-	"sigs.k8s.io/cli-utils/pkg/kstatus/polling"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -84,9 +83,6 @@ type HelmReleaseReconciler struct {
 	GetClusterConfig func() (*rest.Config, error)
 	ClientOpts       runtimeClient.Options
 	KubeConfigOpts   runtimeClient.KubeConfigOptions
-
-	PollingOpts  polling.Options
-	StatusPoller *polling.StatusPoller
 
 	FieldManager          string
 	DefaultServiceAccount string
