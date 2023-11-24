@@ -49,6 +49,8 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	intdigest "github.com/fluxcd/helm-controller/internal/digest"
+
 	// +kubebuilder:scaffold:imports
 
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
@@ -95,6 +97,7 @@ func main() {
 		oomWatchMemoryThreshold   uint8
 		oomWatchMaxMemoryPath     string
 		oomWatchCurrentMemoryPath string
+		snapshotDigestAlgo        string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080",
@@ -121,6 +124,8 @@ func main() {
 		"The path to the cgroup memory limit file. Requires feature gate 'OOMWatch' to be enabled. If not set, the path will be automatically detected.")
 	flag.StringVar(&oomWatchCurrentMemoryPath, "oom-watch-current-memory-path", "",
 		"The path to the cgroup current memory usage file. Requires feature gate 'OOMWatch' to be enabled. If not set, the path will be automatically detected.")
+	flag.StringVar(&snapshotDigestAlgo, "snapshot-digest-algo", intdigest.Canonical.String(),
+		"The algorithm to use to calculate the digest of Helm release storage snapshots.")
 
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
@@ -179,6 +184,16 @@ func main() {
 
 	// Configure the ACL policy.
 	intacl.AllowCrossNamespaceRef = !aclOptions.NoCrossNamespaceRefs
+
+	// Configure the digest algorithm.
+	if snapshotDigestAlgo != intdigest.Canonical.String() {
+		algo, err := intdigest.AlgorithmForName(snapshotDigestAlgo)
+		if err != nil {
+			setupLog.Error(err, "unable to configure canonical digest algorithm")
+			os.Exit(1)
+		}
+		intdigest.Canonical = algo
+	}
 
 	restConfig := client.GetConfigOrDie(clientOptions)
 
