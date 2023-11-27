@@ -26,6 +26,8 @@ spec:
     - jsonPath: .status.conditions[?(@.type=="Ready")].message
       name: Status
       type: string
+    deprecated: true
+    deprecationWarning: v2beta1 HelmRelease is deprecated, upgrade to v2beta2
     name: v2beta1
     schema:
       openAPIV3Schema:
