@@ -18,20 +18,27 @@ package action
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	helmaction "helm.sh/helm/v3/pkg/action"
 	helmrelease "helm.sh/helm/v3/pkg/release"
-	"k8s.io/apimachinery/pkg/util/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	apierrutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
+	"github.com/fluxcd/cli-utils/pkg/object"
 	"github.com/fluxcd/pkg/ssa"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	"github.com/fluxcd/helm-controller/internal/diff"
 )
 
 // Diff returns a jsondiff.DiffSet of the changes between the state of the
@@ -86,7 +93,6 @@ func Diff(ctx context.Context, config *helmaction.Configuration, rls *helmreleas
 	diffOpts := []jsondiff.ListOption{
 		jsondiff.FieldOwner(fieldOwner),
 		jsondiff.ExclusionSelector{v2.DriftDetectionMetadataKey: v2.DriftDetectionDisabledValue},
-		jsondiff.MaskSecrets(true),
 		jsondiff.Rationalize(true),
 		jsondiff.Graceful(true),
 	}
@@ -119,5 +125,120 @@ func Diff(ctx context.Context, config *helmaction.Configuration, rls *helmreleas
 	if err != nil {
 		errs = append(errs, err)
 	}
-	return set, errors.Reduce(errors.Flatten(errors.NewAggregate(errs)))
+	return set, apierrutil.Reduce(apierrutil.Flatten(apierrutil.NewAggregate(errs)))
+}
+
+// ApplyDiff applies the changes described in the provided jsondiff.DiffSet to
+// the Kubernetes cluster.
+func ApplyDiff(ctx context.Context, config *helmaction.Configuration, diffSet jsondiff.DiffSet, fieldOwner string) (*ssa.ChangeSet, error) {
+	cfg, err := config.RESTClientGetter.ToRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+	c, err := client.New(cfg, client.Options{})
+	if err != nil {
+		return nil, err
+	}
+
+	var toCreate, toPatch sortableDiffs
+	for _, d := range diffSet {
+		switch d.Type {
+		case jsondiff.DiffTypeCreate:
+			toCreate = append(toCreate, d)
+		case jsondiff.DiffTypeUpdate:
+			toPatch = append(toPatch, d)
+		}
+	}
+
+	var (
+		changeSet = ssa.NewChangeSet()
+		errs      []error
+	)
+
+	sort.Sort(toCreate)
+	for _, d := range toCreate {
+		obj := d.DesiredObject.DeepCopyObject().(client.Object)
+		if err := c.Create(ctx, obj, client.FieldOwner(fieldOwner)); err != nil {
+			errs = append(errs, fmt.Errorf("%s creation failure: %w", diff.ResourceName(obj), err))
+			continue
+		}
+		changeSet.Add(objectToChangeSetEntry(obj, ssa.CreatedAction))
+	}
+
+	sort.Sort(toPatch)
+	for _, d := range toPatch {
+		data, err := json.Marshal(d.Patch)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s patch failure: %w", diff.ResourceName(d.DesiredObject), err))
+			continue
+		}
+
+		obj := d.DesiredObject.DeepCopyObject().(client.Object)
+		patch := client.RawPatch(types.JSONPatchType, data)
+		if err := c.Patch(ctx, obj, patch, client.FieldOwner(fieldOwner)); err != nil {
+			if obj.GetObjectKind().GroupVersionKind().Kind == "Secret" {
+				err = maskSensitiveErrData(err)
+			}
+			errs = append(errs, fmt.Errorf("%s patch failure: %w", diff.ResourceName(obj), err))
+			continue
+		}
+		changeSet.Add(objectToChangeSetEntry(obj, ssa.ConfiguredAction))
+	}
+
+	return changeSet, apierrutil.NewAggregate(errs)
+}
+
+// objectToChangeSetEntry returns a ssa.ChangeSetEntry for the given object and
+// action.
+func objectToChangeSetEntry(obj client.Object, action ssa.Action) ssa.ChangeSetEntry {
+	return ssa.ChangeSetEntry{
+		ObjMetadata: object.ObjMetadata{
+			GroupKind: obj.GetObjectKind().GroupVersionKind().GroupKind(),
+			Name:      obj.GetName(),
+			Namespace: obj.GetNamespace(),
+		},
+		GroupVersion: obj.GetObjectKind().GroupVersionKind().Version,
+		Subject:      diff.ResourceName(obj),
+		Action:       action,
+	}
+}
+
+// maskSensitiveErrData masks potentially sensitive data from the error message
+// returned by the Kubernetes API server.
+// This avoids leaking any sensitive data in logs or other output when a patch
+// operation fails.
+func maskSensitiveErrData(err error) error {
+	if apierrors.IsInvalid(err) {
+		// The last part of the error message is the reason for the error.
+		if i := strings.LastIndex(err.Error(), `:`); i != -1 {
+			err = errors.New(strings.TrimSpace(err.Error()[i+1:]))
+		}
+	}
+	return err
+}
+
+// sortableDiffs is a sortable slice of jsondiff.Diffs.
+type sortableDiffs []*jsondiff.Diff
+
+// Len returns the length of the slice.
+func (s sortableDiffs) Len() int { return len(s) }
+
+// Swap swaps the elements with indexes i and j.
+func (s sortableDiffs) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+// Less returns true if the element with index i should sort before the element
+// with index j.
+// The elements are sorted by GroupKind, Namespace and Name.
+func (s sortableDiffs) Less(i, j int) bool {
+	iDiff, jDiff := s[i], s[j]
+
+	if !ssa.Equals(iDiff.GroupVersionKind().GroupKind(), jDiff.GroupVersionKind().GroupKind()) {
+		return ssa.IsLessThan(iDiff.GroupVersionKind().GroupKind(), jDiff.GroupVersionKind().GroupKind())
+	}
+
+	if iDiff.GetNamespace() != jDiff.GetNamespace() {
+		return iDiff.GetNamespace() < jDiff.GetNamespace()
+	}
+
+	return iDiff.GetName() < jDiff.GetName()
 }

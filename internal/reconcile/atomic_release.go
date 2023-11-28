@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"helm.sh/helm/v3/pkg/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -320,8 +321,14 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 	case ReleaseStatusDrifted:
 		log.Info(msgWithReason("detected changes in cluster state", diff.SummarizeDiffSetBrief(state.Diff)))
 		for _, change := range state.Diff {
-			if change.Type == jsondiff.DiffTypeCreate || change.Type == jsondiff.DiffTypeUpdate {
-				log.V(logger.DebugLevel).Info("observed change in cluster state", "diff", change)
+			switch change.Type {
+			case jsondiff.DiffTypeCreate:
+				log.V(logger.DebugLevel).Info("resource deleted",
+					"resource", diff.ResourceName(change.DesiredObject))
+			case jsondiff.DiffTypeUpdate:
+				log.V(logger.DebugLevel).Info("resource modified",
+					"resource", diff.ResourceName(change.DesiredObject),
+					"patch", jsondiff.MaskSecretPatchData(change.Patch))
 			}
 		}
 
@@ -331,7 +338,7 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		)
 
 		if req.Object.GetDriftDetection().GetMode() == v2.DriftDetectionEnabled {
-			return NewUpgrade(r.configFactory, r.eventRecorder), nil
+			return NewCorrectClusterDrift(r.configFactory, r.eventRecorder, state.Diff, kube.ManagedFieldsManager), nil
 		}
 
 		return nil, nil

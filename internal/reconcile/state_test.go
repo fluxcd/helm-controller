@@ -27,7 +27,7 @@ import (
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/fluxcd/pkg/ssa"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
@@ -517,12 +517,17 @@ func TestDetermineReleaseState_DriftDetection(t *testing.T) {
 					Diff: jsondiff.DiffSet{
 						{
 							Type: jsondiff.DiffTypeCreate,
-							GroupVersionKind: schema.GroupVersionKind{
-								Kind:    "Secret",
-								Version: "v1",
+							DesiredObject: &unstructured.Unstructured{
+								Object: map[string]interface{}{
+									"apiVersion": "v1",
+									"kind":       "Secret",
+									"metadata": map[string]interface{}{
+										"name":              "fixture",
+										"namespace":         namespace,
+										"creationTimestamp": nil,
+									},
+								},
 							},
-							Namespace: namespace,
-							Name:      "fixture",
 						},
 					},
 				}
@@ -545,12 +550,17 @@ func TestDetermineReleaseState_DriftDetection(t *testing.T) {
 					Diff: jsondiff.DiffSet{
 						{
 							Type: jsondiff.DiffTypeCreate,
-							GroupVersionKind: schema.GroupVersionKind{
-								Kind:    "Secret",
-								Version: "v1",
+							DesiredObject: &unstructured.Unstructured{
+								Object: map[string]interface{}{
+									"apiVersion": "v1",
+									"kind":       "Secret",
+									"metadata": map[string]interface{}{
+										"name":              "fixture",
+										"namespace":         namespace,
+										"creationTimestamp": nil,
+									},
+								},
 							},
-							Namespace: namespace,
-							Name:      "fixture",
 						},
 					},
 				}

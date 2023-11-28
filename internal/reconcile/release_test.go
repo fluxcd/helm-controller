@@ -17,7 +17,6 @@ limitations under the License.
 package reconcile
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -35,23 +34,6 @@ const (
 	mockReleaseName      = "mock-release"
 	mockReleaseNamespace = "mock-ns"
 )
-
-func Test_observedReleases_sortedVersions(t *testing.T) {
-	tests := []struct {
-		name         string
-		r            observedReleases
-		wantVersions []int
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if gotVersions := tt.r.sortedVersions(); !reflect.DeepEqual(gotVersions, tt.wantVersions) {
-				t.Errorf("sortedVersions() = %v, want %v", gotVersions, tt.wantVersions)
-			}
-		})
-	}
-}
 
 func Test_summarize(t *testing.T) {
 	tests := []struct {

@@ -31,7 +31,7 @@ import (
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -1062,17 +1062,20 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			want:  &Upgrade{},
 		},
 		{
-			name: "drifted release triggers upgrade if enabled",
+			name: "drifted release triggers correction if enabled",
 			state: ReleaseState{Status: ReleaseStatusDrifted, Diff: jsondiff.DiffSet{
 				{
 					Type: jsondiff.DiffTypeCreate,
-					GroupVersionKind: schema.GroupVersionKind{
-						Group:   "apps",
-						Kind:    "Deployment",
-						Version: "v1",
+					DesiredObject: &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "apps/v1",
+							"kind":       "Deployment",
+							"metadata": map[string]interface{}{
+								"name":      "mock",
+								"namespace": "something",
+							},
+						},
 					},
-					Name:      "mock",
-					Namespace: "something",
 				},
 			}},
 			spec: func(spec *v2.HelmReleaseSpec) {
@@ -1091,7 +1094,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 					},
 				}
 			},
-			want: &Upgrade{},
+			want: &CorrectClusterDrift{},
 			wantEvent: &corev1.Event{
 				Reason: "DriftDetected",
 				Type:   corev1.EventTypeWarning,
@@ -1123,13 +1126,32 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			state: ReleaseState{Status: ReleaseStatusDrifted, Diff: jsondiff.DiffSet{
 				{
 					Type: jsondiff.DiffTypeUpdate,
-					GroupVersionKind: schema.GroupVersionKind{
-						Group:   "apps",
-						Kind:    "Deployment",
-						Version: "v1",
+					DesiredObject: &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "apps/v1",
+							"kind":       "Deployment",
+							"metadata": map[string]interface{}{
+								"name":      "mock",
+								"namespace": "something",
+							},
+							"spec": map[string]interface{}{
+								"replicas": 2,
+							},
+						},
 					},
-					Name:      "mock",
-					Namespace: "something",
+					ClusterObject: &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "apps/v1",
+							"kind":       "Deployment",
+							"metadata": map[string]interface{}{
+								"name":      "mock",
+								"namespace": "something",
+							},
+							"spec": map[string]interface{}{
+								"replicas": 1,
+							},
+						},
+					},
 					Patch: extjsondiff.Patch{
 						{
 							Type:     extjsondiff.OperationReplace,
