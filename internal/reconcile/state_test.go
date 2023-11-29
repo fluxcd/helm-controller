@@ -525,6 +525,13 @@ func TestDetermineReleaseState_DriftDetection(t *testing.T) {
 										"name":              "fixture",
 										"namespace":         namespace,
 										"creationTimestamp": nil,
+										"labels": map[string]interface{}{
+											"app.kubernetes.io/managed-by": "Helm",
+										},
+										"annotations": map[string]interface{}{
+											"meta.helm.sh/release-name":      mockReleaseName,
+											"meta.helm.sh/release-namespace": namespace,
+										},
 									},
 								},
 							},
@@ -558,6 +565,13 @@ func TestDetermineReleaseState_DriftDetection(t *testing.T) {
 										"name":              "fixture",
 										"namespace":         namespace,
 										"creationTimestamp": nil,
+										"labels": map[string]interface{}{
+											"app.kubernetes.io/managed-by": "Helm",
+										},
+										"annotations": map[string]interface{}{
+											"meta.helm.sh/release-name":      mockReleaseName,
+											"meta.helm.sh/release-namespace": namespace,
+										},
 									},
 								},
 							},
@@ -611,6 +625,13 @@ func TestDetermineReleaseState_DriftDetection(t *testing.T) {
 				for _, obj := range objs {
 					g.Expect(ssa.NormalizeUnstructured(obj)).To(Succeed())
 					obj.SetNamespace(releaseNamespace)
+					obj.SetLabels(map[string]string{
+						"app.kubernetes.io/managed-by": "Helm",
+					})
+					obj.SetAnnotations(map[string]string{
+						"meta.helm.sh/release-name":      rls.Name,
+						"meta.helm.sh/release-namespace": rls.Namespace,
+					})
 					g.Expect(testEnv.Create(context.Background(), obj)).To(Succeed())
 				}
 			}

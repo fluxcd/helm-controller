@@ -186,38 +186,6 @@ data:
 			},
 		},
 		{
-			name: "manifest with disabled annotation",
-			manifest: fmt.Sprintf(`---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: disabled
-  labels:
-    %[1]s: %[2]s
-data:
-  key: value`, v2.DriftDetectionMetadataKey, v2.DriftDetectionDisabledValue),
-			mutateCluster: func(objs []*unstructured.Unstructured, namespace string) ([]*unstructured.Unstructured, error) {
-				var clusterObjs []*unstructured.Unstructured
-				for _, obj := range objs {
-					obj := obj.DeepCopy()
-					obj.SetNamespace(namespace)
-					if err := unstructured.SetNestedField(obj.Object, "changed", "data", "key"); err != nil {
-						return nil, fmt.Errorf("failed to set nested field: %w", err)
-					}
-					clusterObjs = append(clusterObjs, obj)
-				}
-				return clusterObjs, nil
-			},
-			want: func(namespace string, desired, cluster []*unstructured.Unstructured) jsondiff.DiffSet {
-				return jsondiff.DiffSet{
-					{
-						Type:          jsondiff.DiffTypeExclude,
-						DesiredObject: namespacedUnstructured(desired[0], namespace),
-					},
-				}
-			},
-		},
-		{
 			name: "adheres to ignore rules",
 			manifest: `---
 apiVersion: v1
@@ -373,6 +341,53 @@ data:
 				}
 			},
 		},
+		{
+			name: "configures Helm metadata",
+			manifest: `---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: without-helm-metadata
+data:
+  key: value`,
+			mutateCluster: func(objs []*unstructured.Unstructured, namespace string) ([]*unstructured.Unstructured, error) {
+				var clusterObjs []*unstructured.Unstructured
+				for _, obj := range objs {
+					obj := obj.DeepCopy()
+					if obj.GetNamespace() == "" {
+						obj.SetNamespace(namespace)
+					}
+					obj.SetAnnotations(nil)
+					obj.SetLabels(nil)
+					clusterObjs = append(clusterObjs, obj)
+				}
+				return clusterObjs, nil
+			},
+			want: func(namespace string, desired, cluster []*unstructured.Unstructured) jsondiff.DiffSet {
+				return jsondiff.DiffSet{
+					{
+						Type:          jsondiff.DiffTypeUpdate,
+						DesiredObject: namespacedUnstructured(desired[0], namespace),
+						ClusterObject: cluster[0],
+						Patch: extjsondiff.Patch{
+							{
+								Type: extjsondiff.OperationAdd,
+								Path: "/metadata",
+								Value: map[string]interface{}{
+									"labels": map[string]interface{}{
+										appManagedByLabel: appManagedByHelm,
+									},
+									"annotations": map[string]interface{}{
+										helmReleaseNameAnnotation:      "configures Helm metadata",
+										helmReleaseNamespaceAnnotation: namespace,
+									},
+								},
+							},
+						},
+					},
+				}
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -389,9 +404,14 @@ data:
 				}
 			})
 
+			rls := &helmrelease.Release{Name: tt.name, Namespace: ns.Name, Manifest: tt.manifest}
+
 			objs, err := ssa.ReadObjects(strings.NewReader(tt.manifest))
 			if err != nil {
 				t.Fatalf("Failed to read release objects: %v", err)
+			}
+			for _, obj := range objs {
+				setHelmMetadata(obj, rls)
 			}
 
 			clusterObjs := objs
@@ -417,8 +437,6 @@ data:
 					t.Fatalf("Failed to create object: %v", err)
 				}
 			}
-
-			rls := &helmrelease.Release{Namespace: ns.Name, Manifest: tt.manifest}
 
 			got, err := Diff(ctx, &helmaction.Configuration{RESTClientGetter: getter}, rls, testOwner, tt.ignoreRules...)
 			if (err != nil) != tt.wantErr {

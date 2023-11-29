@@ -68,6 +68,11 @@ func Diff(ctx context.Context, config *helmaction.Configuration, rls *helmreleas
 		errs            []error
 	)
 	for _, obj := range objects {
+		// Set the Helm metadata on the object which is normally set by Helm
+		// during object creation.
+		setHelmMetadata(obj, rls)
+
+		// Set the namespace of the object if it is not set.
 		if obj.GetNamespace() == "" {
 			// Manifest does not contain the namespace of the release.
 			// Figure out if the object is namespaced if the namespace is not
@@ -186,6 +191,35 @@ func ApplyDiff(ctx context.Context, config *helmaction.Configuration, diffSet js
 	}
 
 	return changeSet, apierrutil.NewAggregate(errs)
+}
+
+const (
+	appManagedByLabel              = "app.kubernetes.io/managed-by"
+	appManagedByHelm               = "Helm"
+	helmReleaseNameAnnotation      = "meta.helm.sh/release-name"
+	helmReleaseNamespaceAnnotation = "meta.helm.sh/release-namespace"
+)
+
+// setHelmMetadata sets the metadata on the given object to indicate that it is
+// managed by Helm. This is safe to do, because we apply it to objects that
+// originate from the Helm release itself.
+// xref: https://github.com/helm/helm/blob/v3.13.2/pkg/action/validate.go
+// xref: https://github.com/helm/helm/blob/v3.13.2/pkg/action/rollback.go#L186-L191
+func setHelmMetadata(obj client.Object, rls *helmrelease.Release) {
+	labels := obj.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string, 1)
+	}
+	labels[appManagedByLabel] = appManagedByHelm
+	obj.SetLabels(labels)
+
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string, 2)
+	}
+	annotations[helmReleaseNameAnnotation] = rls.Name
+	annotations[helmReleaseNamespaceAnnotation] = rls.Namespace
+	obj.SetAnnotations(annotations)
 }
 
 // objectToChangeSetEntry returns a ssa.ChangeSetEntry for the given object and
