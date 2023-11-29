@@ -29,6 +29,7 @@ const (
 	differentGenerationReason = "generation differs from last attempt"
 	differentRevisionReason   = "chart version differs from last attempt"
 	differentValuesReason     = "values differ from last attempt"
+	resetRequestedReason      = "reset requested through annotation"
 )
 
 // MustResetFailures returns a reason and true if the HelmRelease's status
@@ -38,6 +39,12 @@ const (
 // For example, a change in generation, chart version, or values.
 // If no change is detected, an empty string is returned along with false.
 func MustResetFailures(obj *v2.HelmRelease, chart *chart.Metadata, values chartutil.Values) (string, bool) {
+	// Always check if a reset is requested.
+	// This is done first, so that the HelmReleaseStatus.LastHandledResetAt
+	// field is updated even if the reset request is not handled due to other
+	// diverging data.
+	resetRequested := v2.ShouldHandleResetRequest(obj)
+
 	switch {
 	case obj.Status.LastAttemptedGeneration != obj.Generation:
 		return differentGenerationReason, true
@@ -53,5 +60,10 @@ func MustResetFailures(obj *v2.HelmRelease, chart *chart.Metadata, values chartu
 			return differentValuesReason, true
 		}
 	}
+
+	if resetRequested {
+		return resetRequestedReason, true
+	}
+
 	return "", false
 }

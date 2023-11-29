@@ -24,6 +24,8 @@ import (
 	"helm.sh/helm/v3/pkg/chartutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/fluxcd/pkg/apis/meta"
+
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 )
 
@@ -107,6 +109,31 @@ func TestMustResetFailures(t *testing.T) {
 			},
 			want:       true,
 			wantReason: differentValuesReason,
+		},
+		{
+			name: "on reset request through annotation",
+			obj: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Generation: 1,
+					Annotations: map[string]string{
+						meta.ReconcileRequestAnnotation: "a",
+						v2.ResetRequestAnnotation:       "a",
+					},
+				},
+				Status: v2.HelmReleaseStatus{
+					LastAttemptedGeneration:   1,
+					LastAttemptedRevision:     "1.0.0",
+					LastAttemptedConfigDigest: "sha256:1dabc4e3cbbd6a0818bd460f3a6c9855bfe95d506c74726bc0f2edb0aecb1f4e",
+				},
+			},
+			chart: &chart.Metadata{
+				Version: "1.0.0",
+			},
+			values: chartutil.Values{
+				"foo": "bar",
+			},
+			want:       true,
+			wantReason: resetRequestedReason,
 		},
 		{
 			name: "without change no reset",

@@ -175,7 +175,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			}
 			return fmt.Errorf("atomic release canceled: %w", ctx.Err())
 		default:
-			// Determine the next action to run based on the current state.
+			// Determine the current state of the Helm release.
 			log.V(logger.DebugLevel).Info("determining current state of Helm release")
 			state, err := DetermineReleaseState(ctx, r.configFactory, req)
 			if err != nil {
@@ -273,6 +273,13 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state ReleaseState) (ActionReconciler, error) {
 	log := ctrl.LoggerFrom(ctx)
 
+	// Determine whether we may need to force a release action.
+	// We do this before determining the next action to run, as otherwise we may
+	// end up running a Helm upgrade (due to e.g. ReleaseStatusUnmanaged) and
+	// then forcing an upgrade (due to the release now being in
+	// ReleaseStatusInSync with a yet unhandled force request).
+	forceRequested := v2.ShouldHandleForceRequest(req.Object)
+
 	switch state.Status {
 	case ReleaseStatusInSync:
 		log.Info("release in-sync with desired state")
@@ -291,6 +298,11 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		//  field, but should be removed in a future release.
 		req.Object.Status.LastAppliedRevision = req.Object.Status.History.Latest().ChartVersion
 
+		if forceRequested {
+			log.Info(msgWithReason("forcing upgrade for in-sync release", "force requested through annotation"))
+			return NewUpgrade(r.configFactory, r.eventRecorder), nil
+		}
+
 		return nil, nil
 	case ReleaseStatusLocked:
 		log.Info(msgWithReason("release locked", state.Reason))
@@ -299,6 +311,11 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		log.Info(msgWithReason("release not installed", state.Reason))
 
 		if req.Object.GetInstall().GetRemediation().RetriesExhausted(req.Object) {
+			if forceRequested {
+				log.Info(msgWithReason("forcing install while out of retries", "force requested through annotation"))
+				return NewInstall(r.configFactory, r.eventRecorder), nil
+			}
+
 			return nil, fmt.Errorf("%w: cannot install release", ErrExceededMaxRetries)
 		}
 
@@ -314,6 +331,11 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		log.Info(msgWithReason("release out-of-sync with desired state", state.Reason))
 
 		if req.Object.GetUpgrade().GetRemediation().RetriesExhausted(req.Object) {
+			if forceRequested {
+				log.Info(msgWithReason("forcing upgrade while out of retries", "force requested through annotation"))
+				return NewUpgrade(r.configFactory, r.eventRecorder), nil
+			}
+
 			return nil, fmt.Errorf("%w: cannot upgrade release", ErrExceededMaxRetries)
 		}
 
@@ -364,6 +386,13 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		// attempted again.
 		if remediation.GetFailureCount(req.Object) <= 0 {
 			log.Info("release conditions have changed since last failure")
+			return NewUpgrade(r.configFactory, r.eventRecorder), nil
+		}
+
+		// If the force annotation is set, we can attempt to upgrade the release
+		// without any further checks.
+		if forceRequested {
+			log.Info(msgWithReason("forcing upgrade for failed release", "force requested through annotation"))
 			return NewUpgrade(r.configFactory, r.eventRecorder), nil
 		}
 

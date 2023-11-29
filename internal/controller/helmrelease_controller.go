@@ -154,6 +154,10 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Always attempt to patch the object after each reconciliation.
 	defer func() {
+		if v, ok := meta.ReconcileAnnotationValue(obj.GetAnnotations()); ok {
+			obj.Status.SetLastHandledReconcileRequest(v)
+		}
+
 		patchOpts := []patch.Option{
 			patch.WithFieldOwner(r.FieldManager),
 			patch.WithOwnedConditions{Conditions: intreconcile.OwnedConditions},
