@@ -1528,6 +1528,32 @@ string
 </tr>
 <tr>
 <td>
+<code>lastHandledForceAt</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastHandledForceAt holds the value of the most recent force request
+value, so a change of the annotation value can be detected.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastHandledResetAt</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastHandledResetAt holds the value of the most recent reset request
+value, so a change of the annotation value can be detected.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>ReconcileRequestStatus</code><br>
 <em>
 <a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#ReconcileRequestStatus">
