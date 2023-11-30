@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	extjsondiff "github.com/wI2L/jsondiff"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/fluxcd/pkg/ssa/jsondiff"
 )
@@ -49,10 +50,10 @@ var DefaultDiffTypes = []jsondiff.DiffType{
 //
 // For example:
 //
-//	Deployment/default/hello-world: changed (1 added, 1 changed, 1 removed)
-//	Deployment/default/hello-world2: removed
-//	Deployment/default/hello-world3: excluded
-//	Deployment/default/hello-world4: unchanged
+//	Deployment/default/hello-world changed (1 added, 1 changed, 1 removed)
+//	Deployment/default/hello-world2 removed
+//	Deployment/default/hello-world3 excluded
+//	Deployment/default/hello-world4 unchanged
 func SummarizeDiffSet(set jsondiff.DiffSet, include ...jsondiff.DiffType) string {
 	if include == nil {
 		include = DefaultDiffTypes
@@ -66,16 +67,16 @@ func SummarizeDiffSet(set jsondiff.DiffSet, include ...jsondiff.DiffType) string
 
 		switch diff.Type {
 		case jsondiff.DiffTypeNone:
-			writeResourceName(diff, &summary)
+			writeResourceName(diff.DesiredObject, &summary)
 			summary.WriteString(" unchanged\n")
 		case jsondiff.DiffTypeCreate:
-			writeResourceName(diff, &summary)
+			writeResourceName(diff.DesiredObject, &summary)
 			summary.WriteString(" removed\n")
 		case jsondiff.DiffTypeExclude:
-			writeResourceName(diff, &summary)
+			writeResourceName(diff.DesiredObject, &summary)
 			summary.WriteString(" excluded\n")
 		case jsondiff.DiffTypeUpdate:
-			writeResourceName(diff, &summary)
+			writeResourceName(diff.DesiredObject, &summary)
 			added, changed, removed := summarizeUpdate(diff)
 			summary.WriteString(fmt.Sprintf(" changed (%d additions, %d changes, %d removals)\n", added, changed, removed))
 		}
@@ -127,14 +128,25 @@ func SummarizeDiffSetBrief(set jsondiff.DiffSet, include ...jsondiff.DiffType) s
 	return strings.TrimSuffix(summary.String(), ", ")
 }
 
+// ResourceName returns the resource name in the format `kind/namespace/name`.
+func ResourceName(obj client.Object) string {
+	var summary strings.Builder
+	writeResourceName(obj, &summary)
+	return summary.String()
+}
+
+const resourceSeparator = "/"
+
 // writeResourceName writes the resource name in the format
 // `kind/namespace/name` to the given strings.Builder.
-func writeResourceName(diff *jsondiff.Diff, summary *strings.Builder) {
-	summary.WriteString(diff.GroupVersionKind.Kind)
-	summary.WriteString("/")
-	summary.WriteString(diff.Namespace)
-	summary.WriteString("/")
-	summary.WriteString(diff.Name)
+func writeResourceName(obj client.Object, summary *strings.Builder) {
+	summary.WriteString(obj.GetObjectKind().GroupVersionKind().Kind)
+	summary.WriteString(resourceSeparator)
+	if ns := obj.GetNamespace(); ns != "" {
+		summary.WriteString(ns)
+		summary.WriteString(resourceSeparator)
+	}
+	summary.WriteString(obj.GetName())
 }
 
 // SummarizeUpdate returns the number of added, changed and removed fields

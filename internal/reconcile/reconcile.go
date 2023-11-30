@@ -38,6 +38,9 @@ const (
 	// release in a stale pending state. It differs from ReconcilerTypeRemediate
 	// in that it does not produce a new Helm release.
 	ReconcilerTypeUnlock ReconcilerType = "unlock"
+	// ReconcilerTypeDriftCorrection is an ActionReconciler which corrects
+	// Helm releases which have drifted from the cluster state.
+	ReconcilerTypeDriftCorrection ReconcilerType = "drift correction"
 )
 
 // ReconcilerType is a string which identifies the type of ActionReconciler.

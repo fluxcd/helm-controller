@@ -20,7 +20,8 @@ import (
 	"testing"
 
 	extjsondiff "github.com/wI2L/jsondiff"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/fluxcd/pkg/ssa/jsondiff"
 )
@@ -28,36 +29,52 @@ import (
 func TestSummarizeDiffSet(t *testing.T) {
 	diffSet := jsondiff.DiffSet{
 		&jsondiff.Diff{
-			GroupVersionKind: schema.GroupVersionKind{
-				Kind: "ConfigMap",
+			DesiredObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "ConfigMap",
+					"metadata": map[string]interface{}{
+						"name":      "config",
+						"namespace": "namespace-1",
+					},
+				},
 			},
-			Namespace: "namespace-1",
-			Name:      "config",
-			Type:      jsondiff.DiffTypeNone,
+			Type: jsondiff.DiffTypeNone,
 		},
 		&jsondiff.Diff{
-			GroupVersionKind: schema.GroupVersionKind{
-				Kind: "Secret",
+			DesiredObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "Secret",
+					"metadata": map[string]interface{}{
+						"name":      "naughty",
+						"namespace": "namespace-x",
+					},
+				},
 			},
-			Namespace: "namespace-x",
-			Name:      "naughty",
-			Type:      jsondiff.DiffTypeCreate,
+			Type: jsondiff.DiffTypeCreate,
 		},
 		&jsondiff.Diff{
-			GroupVersionKind: schema.GroupVersionKind{
-				Kind: "StatefulSet",
+			DesiredObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "StatefulSet",
+					"metadata": map[string]interface{}{
+						"name":      "hello-world",
+						"namespace": "default",
+					},
+				},
 			},
-			Namespace: "default",
-			Name:      "hello-world",
-			Type:      jsondiff.DiffTypeExclude,
+			Type: jsondiff.DiffTypeExclude,
 		},
 		&jsondiff.Diff{
-			GroupVersionKind: schema.GroupVersionKind{
-				Kind: "Deployment",
+			DesiredObject: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "touched-me",
+						"namespace": "tenant-y",
+					},
+				},
 			},
-			Namespace: "tenant-y",
-			Name:      "touched-me",
-			Type:      jsondiff.DiffTypeUpdate,
+			Type: jsondiff.DiffTypeUpdate,
 			Patch: extjsondiff.Patch{
 				{Type: extjsondiff.OperationAdd},
 				{Type: extjsondiff.OperationReplace},
@@ -184,6 +201,47 @@ func TestSummarizeDiffSetBrief(t *testing.T) {
 			got := SummarizeDiffSetBrief(diffSet, tt.include...)
 			if got != tt.want {
 				t.Errorf("SummarizeDiffSetBrief() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResourceName(t *testing.T) {
+	tests := []struct {
+		name     string
+		resource client.Object
+		want     string
+	}{
+		{
+			name: "with namespace",
+			resource: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "Deployment",
+					"metadata": map[string]interface{}{
+						"name":      "touched-me",
+						"namespace": "tenant-y",
+					},
+				},
+			},
+			want: "Deployment/tenant-y/touched-me",
+		},
+		{
+			name: "without namespace",
+			resource: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind": "ClusterIssuer",
+					"metadata": map[string]interface{}{
+						"name": "letsencrypt",
+					},
+				},
+			},
+			want: "ClusterIssuer/letsencrypt",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ResourceName(tt.resource); got != tt.want {
+				t.Errorf("ResourceName() = %v, want %v", got, tt.want)
 			}
 		})
 	}
