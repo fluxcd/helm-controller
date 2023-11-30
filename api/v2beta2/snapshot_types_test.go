@@ -259,6 +259,24 @@ func TestSnapshots_Truncate(t *testing.T) {
 			},
 		},
 		{
+			name: "retains most recent snapshots when all have failed",
+			in: Snapshots{
+				{Version: 6, Status: "deployed"},
+				{Version: 5, Status: "failed"},
+				{Version: 4, Status: "failed"},
+				{Version: 3, Status: "failed"},
+				{Version: 2, Status: "failed"},
+				{Version: 1, Status: "failed"},
+			},
+			want: Snapshots{
+				{Version: 6, Status: "deployed"},
+				{Version: 5, Status: "failed"},
+				{Version: 4, Status: "failed"},
+				{Version: 3, Status: "failed"},
+				{Version: 2, Status: "failed"},
+			},
+		},
+		{
 			name: "without previous snapshot",
 			in: Snapshots{
 				{Version: 1, Status: "deployed"},
