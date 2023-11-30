@@ -168,7 +168,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 				// last observation before returning. If the patch fails, we
 				// log the error and return the original context cancellation
 				// error.
-				if err := r.patchHelper.Patch(ctx, req.Object); err != nil {
+				if err := r.patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner(r.fieldManager)); err != nil {
 					log.Error(err, "failed to patch HelmRelease after context cancellation")
 				}
 				cancel()

@@ -25,9 +25,11 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	kuberecorder "k8s.io/client-go/tools/record"
@@ -187,6 +189,14 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			retErr = apierrutil.Reduce(apierrutil.NewAggregate([]error{retErr, err}))
 		}
 
+		// Wait for the object to have synced in-cache after patching.
+		// This is required to ensure that the next reconciliation will
+		// operate on the patched object when an immediate reconcile is
+		// requested.
+		if err := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, r.waitForHistoryCacheSync(obj)); err != nil {
+			log.Error(err, "failed to wait for object to sync in-cache after patching")
+		}
+
 		// Always record suspend, readiness and duration metrics.
 		r.Metrics.RecordSuspend(ctx, obj, obj.Spec.Suspend)
 		r.Metrics.RecordReadiness(ctx, obj)
@@ -226,7 +236,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 
 	// Mark the resource as under reconciliation.
 	conditions.MarkReconciling(obj, meta.ProgressingReason, "Fulfilling prerequisites")
-	if err := patchHelper.Patch(ctx, obj); err != nil {
+	if err := patchHelper.Patch(ctx, obj, patch.WithOwnedConditions{Conditions: intreconcile.OwnedConditions}, patch.WithFieldOwner(r.FieldManager)); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -644,6 +654,24 @@ func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, obj *v2.HelmRe
 		return nil, err
 	}
 	return &hc, nil
+}
+
+// waitForHistoryCacheSync returns a function that can be used to wait for the
+// cache backing the Kubernetes client to be in sync with the current state of
+// the v2beta2.HelmRelease.
+// This is a trade-off between not caching at all, and introducing a slight
+// delay to ensure we always have the latest history state.
+func (r *HelmReleaseReconciler) waitForHistoryCacheSync(obj *v2.HelmRelease) wait.ConditionWithContextFunc {
+	newObj := &v2.HelmRelease{}
+	return func(ctx context.Context) (bool, error) {
+		if err := r.Get(ctx, client.ObjectKeyFromObject(obj), newObj); err != nil {
+			if apierrors.IsNotFound(err) {
+				return true, nil
+			}
+			return false, err
+		}
+		return apiequality.Semantic.DeepEqual(obj.Status.History, newObj.Status.History), nil
+	}
 }
 
 func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, o client.Object) []reconcile.Request {

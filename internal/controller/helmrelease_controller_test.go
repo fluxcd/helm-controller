@@ -1931,6 +1931,116 @@ func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
 	}
 }
 
+func Test_waitForHistoryCacheSync(t *testing.T) {
+	tests := []struct {
+		name     string
+		rel      *v2.HelmRelease
+		cacheRel *v2.HelmRelease
+		want     bool
+	}{
+		{
+			name: "different history",
+			rel: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "some-name",
+				},
+				Status: v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{
+							Version: 2,
+							Status:  "deployed",
+						},
+						{
+							Version: 1,
+							Status:  "failed",
+						},
+					},
+				},
+			},
+			cacheRel: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "some-name",
+				},
+				Status: v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{
+							Version: 1,
+							Status:  "deployed",
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "same history",
+			rel: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "some-name",
+				},
+				Status: v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{
+							Version: 2,
+							Status:  "deployed",
+						},
+						{
+							Version: 1,
+							Status:  "failed",
+						},
+					},
+				},
+			},
+			cacheRel: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "some-name",
+				},
+				Status: v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{
+							Version: 2,
+							Status:  "deployed",
+						},
+						{
+							Version: 1,
+							Status:  "failed",
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "does not exist",
+			rel: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "some-name",
+				},
+			},
+			cacheRel: nil,
+			want:     true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			c := fake.NewClientBuilder()
+			c.WithScheme(NewTestScheme())
+			if tt.cacheRel != nil {
+				c.WithObjects(tt.cacheRel)
+			}
+			r := &HelmReleaseReconciler{
+				Client: c.Build(),
+			}
+
+			got, err := r.waitForHistoryCacheSync(tt.rel)(context.Background())
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(got == tt.want).To(BeTrue())
+		})
+	}
+}
+
 func TestValuesReferenceValidation(t *testing.T) {
 	tests := []struct {
 		name       string
