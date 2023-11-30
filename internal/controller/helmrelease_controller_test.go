@@ -108,7 +108,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
-		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(err).To(Equal(errWaitForDependency))
 		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
@@ -222,7 +222,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
-		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(err).To(Equal(errWaitForChart))
 		g.Expect(res.RequeueAfter).To(Equal(obj.Spec.Interval.Duration))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
@@ -274,7 +274,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
-		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(err).To(Equal(errWaitForChart))
 		g.Expect(res.RequeueAfter).To(Equal(obj.Spec.Interval.Duration))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
@@ -326,7 +326,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
-		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(err).To(Equal(errWaitForChart))
 		g.Expect(res.RequeueAfter).To(Equal(obj.Spec.Interval.Duration))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
@@ -438,7 +438,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
-		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(err).To(Equal(errWaitForDependency))
 		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{

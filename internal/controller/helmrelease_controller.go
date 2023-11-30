@@ -59,6 +59,7 @@ import (
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/digest"
+	interrors "github.com/fluxcd/helm-controller/internal/errors"
 	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/loader"
@@ -96,6 +97,11 @@ type HelmReleaseReconcilerOptions struct {
 	DependencyRequeueInterval time.Duration
 	RateLimiter               ratelimiter.RateLimiter
 }
+
+var (
+	errWaitForDependency = errors.New("must wait for dependency")
+	errWaitForChart      = errors.New("must wait for chart")
+)
 
 func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
 	// Index the HelmRelease by the HelmChart references they point at
@@ -167,6 +173,13 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			patchOpts = append(patchOpts, patch.WithStatusObservedGeneration{})
 		}
 
+		// We do not want to return these errors, but rather wait for the
+		// designated RequeueAfter to expire and try again.
+		// However, not returning an error will cause the patch helper to
+		// patch the observed generation, which we do not want. So we ignore
+		// these errors here after patching.
+		retErr = interrors.Ignore(retErr, errWaitForDependency, errWaitForChart)
+
 		if err := patchHelper.Patch(ctx, obj, patchOpts...); err != nil {
 			if !obj.DeletionTimestamp.IsZero() {
 				err = apierrutil.FilterOut(err, func(e error) bool { return apierrors.IsNotFound(e) })
@@ -230,7 +243,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 
 			// Exponential backoff would cause execution to be prolonged too much,
 			// instead we requeue on a fixed interval.
-			return ctrl.Result{RequeueAfter: r.requeueDependency}, nil
+			return ctrl.Result{RequeueAfter: r.requeueDependency}, errWaitForDependency
 		}
 
 		log.Info("all dependencies are ready")
@@ -262,7 +275,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		conditions.MarkFalse(obj, meta.ReadyCondition, "HelmChartNotReady", msg)
 		// Do not requeue immediately, when the artifact is created
 		// the watcher should trigger a reconciliation.
-		return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}), nil
+		return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}), errWaitForChart
 	}
 
 	// Compose values based from the spec and references.
@@ -276,10 +289,10 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	loadedChart, err := loader.SecureLoadChartFromURL(r.httpClient, hc.GetArtifact().URL, hc.GetArtifact().Digest)
 	if err != nil {
 		if errors.Is(err, loader.ErrFileNotFound) {
-			msg := fmt.Sprintf("Chart not ready: artifact not found. Retrying in %s", r.requeueDependency)
+			msg := fmt.Sprintf("Chart not ready: artifact not found. Retrying in %s", r.requeueDependency.String())
 			conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, msg)
 			log.Info(msg)
-			return ctrl.Result{RequeueAfter: r.requeueDependency}, nil
+			return ctrl.Result{RequeueAfter: r.requeueDependency}, errWaitForDependency
 		}
 
 		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, fmt.Sprintf("Could not load chart: %s", err.Error()))
