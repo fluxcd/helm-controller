@@ -1015,14 +1015,15 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 
 func TestAtomicRelease_actionForState(t *testing.T) {
 	tests := []struct {
-		name      string
-		releases  []*helmrelease.Release
-		spec      func(spec *v2.HelmReleaseSpec)
-		status    func(releases []*helmrelease.Release) v2.HelmReleaseStatus
-		state     ReleaseState
-		want      ActionReconciler
-		wantEvent *corev1.Event
-		wantErr   error
+		name        string
+		releases    []*helmrelease.Release
+		annotations map[string]string
+		spec        func(spec *v2.HelmReleaseSpec)
+		status      func(releases []*helmrelease.Release) v2.HelmReleaseStatus
+		state       ReleaseState
+		want        ActionReconciler
+		wantEvent   *corev1.Event
+		wantErr     error
 	}{
 		{
 			name: "in-sync release does not trigger any action",
@@ -1037,6 +1038,22 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			want:  nil,
 		},
 		{
+			name:  "in-sync release with force annotation triggers upgrade action",
+			state: ReleaseState{Status: ReleaseStatusInSync},
+			annotations: map[string]string{
+				meta.ReconcileRequestAnnotation: "force",
+				v2.ForceRequestAnnotation:       "force",
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{Version: 1},
+					},
+				}
+			},
+			want: &Upgrade{},
+		},
+		{
 			name:  "locked release triggers unlock action",
 			state: ReleaseState{Status: ReleaseStatusLocked},
 			want:  &Unlock{},
@@ -1045,6 +1062,20 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			name:  "absent release triggers install action",
 			state: ReleaseState{Status: ReleaseStatusAbsent},
 			want:  &Install{},
+		},
+		{
+			name: "absent release without remaining retries and force annotation triggers install",
+			annotations: map[string]string{
+				meta.ReconcileRequestAnnotation: "force",
+				v2.ForceRequestAnnotation:       "force",
+			},
+			state: ReleaseState{Status: ReleaseStatusAbsent},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					InstallFailures: 1,
+				}
+			},
+			want: &Install{},
 		},
 		{
 			name:  "absent release without remaining retries returns error",
@@ -1182,6 +1213,22 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			want: &Upgrade{},
 		},
 		{
+			name: "out-of-sync release with no remaining retries and force annotation triggers upgrade",
+			state: ReleaseState{
+				Status: ReleaseStatusOutOfSync,
+			},
+			annotations: map[string]string{
+				meta.ReconcileRequestAnnotation: "force",
+				v2.ForceRequestAnnotation:       "force",
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					UpgradeFailures: 1,
+				}
+			},
+			want: &Upgrade{},
+		},
+		{
 			name: "out-of-sync release with no remaining retries returns error",
 			state: ReleaseState{
 				Status: ReleaseStatusOutOfSync,
@@ -1216,6 +1263,21 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 				return v2.HelmReleaseStatus{
 					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
 					UpgradeFailures:            0,
+				}
+			},
+			want: &Upgrade{},
+		},
+		{
+			name:  "failed release with exhausted retries and force annotation triggers upgrade",
+			state: ReleaseState{Status: ReleaseStatusFailed},
+			annotations: map[string]string{
+				meta.ReconcileRequestAnnotation: "force",
+				v2.ForceRequestAnnotation:       "force",
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
+					UpgradeFailures:            1,
 				}
 			},
 			want: &Upgrade{},
@@ -1370,6 +1432,9 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			g := NewWithT(t)
 
 			obj := &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: tt.annotations,
+				},
 				Spec: v2.HelmReleaseSpec{
 					ReleaseName:      mockReleaseName,
 					TargetNamespace:  mockReleaseNamespace,

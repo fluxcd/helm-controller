@@ -1009,6 +1009,16 @@ type HelmReleaseStatus struct {
 	// +optional
 	LastAttemptedConfigDigest string `json:"lastAttemptedConfigDigest,omitempty"`
 
+	// LastHandledForceAt holds the value of the most recent force request
+	// value, so a change of the annotation value can be detected.
+	// +optional
+	LastHandledForceAt string `json:"lastHandledForceAt,omitempty"`
+
+	// LastHandledResetAt holds the value of the most recent reset request
+	// value, so a change of the annotation value can be detected.
+	// +optional
+	LastHandledResetAt string `json:"lastHandledResetAt,omitempty"`
+
 	meta.ReconcileRequestStatus `json:",inline"`
 }
 
