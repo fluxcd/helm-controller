@@ -125,10 +125,6 @@ func summarize(req *Request) {
 		conditions.Delete(req.Object, v2.TestSuccessCondition)
 	}
 
-	// Remove any stale Remediation observation as soon as the release is
-	// Released and (optionally) has TestSuccess.
-	conditionallyDeleteRemediated(req)
-
 	conds := req.Object.Status.Conditions
 	if len(conds) == 0 {
 		// Nothing to summarize if there are no conditions.
@@ -167,51 +163,6 @@ func summarize(req *Request) {
 		Message:            conds[0].Message,
 		ObservedGeneration: req.Object.Generation,
 	})
-}
-
-// conditionallyDeleteRemediated removes the Remediated condition if the
-// release is Released and (optionally) has TestSuccess. But only if
-// the observed generation of these conditions is equal or higher than
-// the generation of the Remediated condition.
-func conditionallyDeleteRemediated(req *Request) {
-	remediated := conditions.Get(req.Object, v2.RemediatedCondition)
-	if remediated == nil {
-		// If the object is not marked as Remediated, there is nothing to
-		// remove.
-		return
-	}
-
-	released := conditions.Get(req.Object, v2.ReleasedCondition)
-	if released == nil || released.Status != metav1.ConditionTrue {
-		// If the release is not marked as Released, we must still be
-		// Remediated.
-		return
-	}
-
-	if !req.Object.GetTest().Enable || req.Object.GetTest().IgnoreFailures {
-		// If tests are not enabled, or failures are ignored, and the
-		// generation is equal or higher than the generation of the
-		// Remediated condition, we are not in a Remediated state anymore.
-		if released.Status == metav1.ConditionTrue && released.ObservedGeneration >= remediated.ObservedGeneration {
-			conditions.Delete(req.Object, v2.RemediatedCondition)
-		}
-		return
-	}
-
-	testSuccess := conditions.Get(req.Object, v2.TestSuccessCondition)
-	if testSuccess == nil || testSuccess.Status != metav1.ConditionTrue {
-		// If the release is not marked as TestSuccess, we must still be
-		// Remediated.
-		return
-	}
-
-	if testSuccess.Status == metav1.ConditionTrue && testSuccess.ObservedGeneration >= remediated.ObservedGeneration {
-		// If the release is marked as TestSuccess, and the generation of
-		// the TestSuccess condition is equal or higher than the generation
-		// of the Remediated condition, we are not in a Remediated state.
-		conditions.Delete(req.Object, v2.RemediatedCondition)
-		return
-	}
 }
 
 // eventMessageWithLog returns an event message composed out of the given

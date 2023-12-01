@@ -75,6 +75,9 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	// Mark upgrade attempt on object.
 	req.Object.Status.LastAttemptedReleaseAction = v2.ReleaseActionUpgrade
 
+	// If we are upgrading, we are no longer remediated.
+	conditions.Delete(req.Object, v2.RemediatedCondition)
+
 	// Run the Helm upgrade action.
 	_, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values)
 
