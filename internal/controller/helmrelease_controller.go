@@ -197,9 +197,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			log.Error(err, "failed to wait for object to sync in-cache after patching")
 		}
 
-		// Always record suspend, readiness and duration metrics.
-		r.Metrics.RecordSuspend(ctx, obj, obj.Spec.Suspend)
-		r.Metrics.RecordReadiness(ctx, obj)
+		// Record the duration of the reconciliation.
 		r.Metrics.RecordDuration(ctx, obj, start)
 	}()
 
