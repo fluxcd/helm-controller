@@ -217,11 +217,13 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 				log.V(logger.DebugLevel).Info(
 					fmt.Sprintf("instructed to stop before running %s action reconciler %s", next.Type(), next.Name()),
 				)
-				conditions.Delete(req.Object, meta.ReconcilingCondition)
 
 				if remediation := req.Object.GetActiveRemediation(); remediation == nil || !remediation.RetriesExhausted(req.Object) {
+					conditions.MarkReconciling(req.Object, meta.ProgressingWithRetryReason, conditions.GetMessage(req.Object, meta.ReadyCondition))
 					return ErrMustRequeue
 				}
+
+				conditions.Delete(req.Object, meta.ReconcilingCondition)
 				return nil
 			}
 
@@ -229,14 +231,14 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			// This to show continuous progress, as Helm actions can be long-running.
 			reconcilingMsg := fmt.Sprintf("Running '%s' action with timeout of %s",
 				next.Name(), timeoutForAction(next, req.Object).String())
-			conditions.MarkTrue(req.Object, meta.ReconcilingCondition, "Progressing", reconcilingMsg)
+			conditions.MarkReconciling(req.Object, meta.ProgressingReason, reconcilingMsg)
 
 			// If the next action is a release action, we can mark the release
 			// as progressing in terms of readiness as well. Doing this for any
 			// other action type is not useful, as it would potentially
 			// overwrite more important failure state from an earlier action.
 			if next.Type() == ReconcilerTypeRelease {
-				conditions.MarkUnknown(req.Object, meta.ReadyCondition, "Progressing", reconcilingMsg)
+				conditions.MarkUnknown(req.Object, meta.ReadyCondition, meta.ProgressingReason, reconcilingMsg)
 			}
 
 			// Patch the object to reflect the new condition.
@@ -258,11 +260,13 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 				log.V(logger.DebugLevel).Info(fmt.Sprintf(
 					"instructed to stop after running %s action reconciler %s", next.Type(), next.Name()),
 				)
-				conditions.Delete(req.Object, meta.ReconcilingCondition)
 
 				if remediation := req.Object.GetActiveRemediation(); remediation == nil || !remediation.RetriesExhausted(req.Object) {
+					conditions.MarkReconciling(req.Object, meta.ProgressingWithRetryReason, conditions.GetMessage(req.Object, meta.ReadyCondition))
 					return ErrMustRequeue
 				}
+
+				conditions.Delete(req.Object, meta.ReconcilingCondition)
 				return nil
 			}
 
