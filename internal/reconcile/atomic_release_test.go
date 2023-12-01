@@ -1350,14 +1350,14 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			want: &RollbackRemediation{},
 		},
 		{
-			name:  "failed release with active upgrade remediation and unverified previous triggers upgrade",
+			name:  "failed release with active upgrade remediation and no previous release triggers error",
 			state: ReleaseState{Status: ReleaseStatusFailed},
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   2,
-					Status:    helmrelease.StatusSuperseded,
+					Status:    helmrelease.StatusFailed,
 					Chart:     testutil.BuildChart(),
 				}),
 			},
@@ -1371,6 +1371,37 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
 					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
+					UpgradeFailures:            1,
+				}
+			},
+			wantErr: ErrMissingRollbackTarget,
+		},
+		{
+			name:  "failed release with active upgrade remediation and unverified previous triggers upgrade",
+			state: ReleaseState{Status: ReleaseStatusFailed},
+			releases: []*helmrelease.Release{
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   2,
+					Status:    helmrelease.StatusFailed,
+					Chart:     testutil.BuildChart(),
+				}),
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Upgrade = &v2.Upgrade{
+					Remediation: &v2.UpgradeRemediation{
+						Retries: 2,
+					},
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 						release.ObservedToSnapshot(release.ObserveRelease(
 							testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 								Name:      mockReleaseName,

@@ -49,8 +49,8 @@ import (
 // Remediated=False and a warning event is emitted.
 //
 // When the Request.Object does not have a (successful) previous deployed
-// release, it returns an error of type ErrNoPrevious. In addition, it
-// returns ErrReleaseMismatch if the name and/or namespace of the latest and
+// release, it returns an error of type ErrMissingRollbackTarget. In addition,
+// it returns ErrReleaseMismatch if the name and/or namespace of the latest and
 // previous release do not match. Any other returned error indicates the caller
 // should retry as it did not cause a change to the Helm storage.
 //
@@ -85,7 +85,7 @@ func (r *RollbackRemediation) Reconcile(ctx context.Context, req *Request) error
 	// Previous is required to determine what version to roll back to.
 	prev := req.Object.Status.History.Previous(req.Object.GetUpgrade().GetRemediation().MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures))
 	if prev == nil {
-		return fmt.Errorf("%w: required to rollback", ErrNoPrevious)
+		return fmt.Errorf("%w: required to rollback", ErrMissingRollbackTarget)
 	}
 
 	// Confirm previous and current point to the same release.

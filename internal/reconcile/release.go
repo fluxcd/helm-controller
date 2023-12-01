@@ -36,9 +36,6 @@ var (
 	// ErrNoLatest is returned when the HelmRelease has no latest release
 	// but this is required by the ActionReconciler.
 	ErrNoLatest = errors.New("no latest release")
-	// ErrNoPrevious is returned when the HelmRelease has no previous release
-	// but this is required by the ActionReconciler.
-	ErrNoPrevious = errors.New("no previous release")
 	// ErrReleaseMismatch is returned when the resulting release after running
 	// an action does not match the expected latest and/or previous release.
 	// This can happen for actions where targeting a release by version is not

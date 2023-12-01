@@ -59,6 +59,9 @@ var (
 	// to continue the reconciliation process.
 	ErrMustRequeue = errors.New("must requeue")
 
+	// ErrMissingRollbackTarget is returned when the rollback target is missing.
+	ErrMissingRollbackTarget = errors.New("missing target release for rollback")
+
 	// ErrUnknownReleaseStatus is returned when the release status is unknown
 	// and cannot be acted upon.
 	ErrUnknownReleaseStatus = errors.New("unknown release status")
@@ -189,6 +192,11 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 				if errors.Is(err, ErrExceededMaxRetries) {
 					conditions.MarkStalled(req.Object, "RetriesExceeded", "Failed to %s after %d attempt(s)",
 						req.Object.Status.LastAttemptedReleaseAction, req.Object.GetActiveRemediation().GetFailureCount(req.Object))
+					return err
+				}
+				if errors.Is(err, ErrMissingRollbackTarget) {
+					conditions.MarkStalled(req.Object, "MissingRollbackTarget", "Failed to perform remediation: %s", err.Error())
+					return err
 				}
 				return err
 			}
@@ -412,10 +420,15 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 			// before instructing to roll back to it.
 			prev := req.Object.Status.History.Previous(remediation.MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures))
 			if _, err := action.VerifySnapshot(r.configFactory.Build(nil), prev); err != nil {
-				if interrors.IsOneOf(err, action.ErrReleaseNotFound, action.ErrReleaseDisappeared, action.ErrReleaseNotObserved, action.ErrReleaseDigest) {
-					// If the rollback target is not found or is in any other
-					// way corrupt, the most correct remediation is to
-					// reattempt the upgrade.
+				if errors.Is(err, action.ErrReleaseNotFound) {
+					// If the rollback target is missing, we cannot roll back
+					// to it and must fail.
+					return nil, fmt.Errorf("%w: cannot remediate failed release", ErrMissingRollbackTarget)
+				}
+
+				if interrors.IsOneOf(err, action.ErrReleaseDisappeared, action.ErrReleaseNotObserved, action.ErrReleaseDigest) {
+					// If the rollback target is in any way corrupt,
+					// the most correct remediation is to reattempt the upgrade.
 					log.Info(msgWithReason("unable to verify previous release in storage to roll back to", err.Error()))
 					return NewUpgrade(r.configFactory, r.eventRecorder), nil
 				}

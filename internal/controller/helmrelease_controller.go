@@ -375,7 +375,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		if errors.Is(err, intreconcile.ErrMustRequeue) {
 			return ctrl.Result{Requeue: true}, nil
 		}
-		if errors.Is(err, intreconcile.ErrExceededMaxRetries) {
+		if interrors.IsOneOf(err, intreconcile.ErrExceededMaxRetries, intreconcile.ErrMissingRollbackTarget) {
 			err = reconcile.TerminalError(err)
 		}
 		return ctrl.Result{}, err
