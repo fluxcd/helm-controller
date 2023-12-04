@@ -81,11 +81,13 @@ func (in Snapshots) Previous(ignoreTests bool) *Snapshot {
 }
 
 // Truncate removes all Snapshots up to the Previous deployed Snapshot.
-// If there is no previous-deployed Snapshot, no Snapshots are removed.
+// If there is no previous-deployed Snapshot, the most recent 5 Snapshots are
+// retained.
 func (in *Snapshots) Truncate(ignoreTests bool) {
 	if in.Len() < 2 {
 		return
 	}
+
 	in.SortByVersion()
 	for i := range (*in)[1:] {
 		s := (*in)[i+1]
@@ -95,6 +97,13 @@ func (in *Snapshots) Truncate(ignoreTests bool) {
 				return
 			}
 		}
+	}
+
+	if in.Len() > defaultMaxHistory {
+		// If none of the Snapshots are deployed or superseded, and there
+		// are more than the defaultMaxHistory, truncate to the most recent
+		// Snapshots.
+		*in = (*in)[:defaultMaxHistory]
 	}
 }
 

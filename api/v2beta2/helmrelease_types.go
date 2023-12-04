@@ -37,6 +37,11 @@ const (
 	HelmReleaseFinalizer = "finalizers.fluxcd.io"
 )
 
+const (
+	// defaultMaxHistory is the default number of Helm release versions to keep.
+	defaultMaxHistory = 5
+)
+
 // Kustomize Helm PostRenderer specification.
 type Kustomize struct {
 	// Strategic merge and JSON patches, defined as inline YAML objects,
@@ -1200,7 +1205,7 @@ func (in HelmRelease) GetTimeout() metav1.Duration {
 // GetMaxHistory returns the configured MaxHistory, or the default of 5.
 func (in HelmRelease) GetMaxHistory() int {
 	if in.Spec.MaxHistory == nil {
-		return 5
+		return defaultMaxHistory
 	}
 	return *in.Spec.MaxHistory
 }

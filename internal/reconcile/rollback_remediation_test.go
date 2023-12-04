@@ -121,7 +121,7 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "rollback without previous",
+			name: "rollback without previous target release",
 			releases: func(namespace string) []*helmrelease.Release {
 				return []*helmrelease.Release{
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
@@ -147,7 +147,7 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 					},
 				}
 			},
-			wantErr: ErrNoPrevious,
+			wantErr: ErrMissingRollbackTarget,
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
