@@ -162,6 +162,10 @@ The HelmChart is created in the same namespace as the `.sourceRef`, with a name
 matching the HelmRelease's `<.metadata.namespace>-<.metadata.name>`, and will
 be reported in `.status.helmChart`.
 
+The chart version of the last release attempt is reported in
+`.status.lastAttemptedRevision`. The controller will automatically perform a
+Helm release when the HelmChart produces a new chart (version).
+
 **Warning:** Changing the `.spec.chart` to a Helm chart with a different name
 (as specified in the chart's `Chart.yaml`) will cause the controller to
 uninstall any previous release before installing the new one.
@@ -280,6 +284,13 @@ Also, circular dependencies between HelmRelease resources must be avoided,
 otherwise the interdependent HelmRelease resources will never be reconciled.
 
 ### Values
+
+The values for the Helm release can be specified in two ways:
+
+- [Values references](#values-references)
+- [Inline values](#inline-values)
+
+Changes to the combined values will trigger a new Helm release.
 
 #### Values references
 
