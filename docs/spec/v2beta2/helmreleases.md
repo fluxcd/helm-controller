@@ -921,6 +921,82 @@ When the flag is set, HelmReleases which do not have a `.spec.serviceAccountName
 specified will use the Service Account name provided by
 `--default-service-account=<name>` in the namespace of the HelmRelease object.
 
+### Remote clusters / Cluster-API
+
+Using a [`.spec.kubeConfig` reference](#kubeconfig-reference), it is possible
+to manage the full lifecycle of Helm releases on remote clusters.
+This composes well with Cluster-API bootstrap providers such as CAPBK (kubeadm),
+CAPA (AWS), and others.
+
+To reconcile a HelmRelease to a CAPI controlled cluster, put the HelmRelease in
+the same namespace as your Cluster object, and set the
+`.spec.kubeConfig.secretRef.name` to `<cluster-name>-kubeconfig`:
+
+```yaml
+---
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: Cluster
+metadata:
+  name: stage # the kubeconfig Secret will contain the Cluster name
+  namespace: capi-stage
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+        - 10.100.0.0/16
+    serviceDomain: stage-cluster.local
+    services:
+      cidrBlocks:
+        - 10.200.0.0/12
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+    kind: KubeadmControlPlane
+    name: stage-control-plane
+    namespace: capi-stage
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+    kind: DockerCluster
+    name: stage
+    namespace: capi-stage
+---
+# ... unrelated Cluster API objects omitted for brevity ...
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+  namespace: capi-stage
+spec:
+  kubeConfig:
+    secretRef:
+      name: stage-kubeconfig # Cluster API creates this for the matching Cluster
+  chart:
+    spec:
+      chart: prometheus
+      version: ">=4.0.0 <5.0.0"
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+  install:
+    remediation:
+      retries: -1
+```
+
+The Cluster and HelmRelease can be created at the same time as long as the
+[install remediation configuration](#install-remediation) is set to a
+forgiving number of `.retries`. The HelmRelease will then eventually succeed
+in installing the Helm chart once the cluster is available.
+
+If you want to target clusters created by other means than Cluster-API, you can
+create a Service Account with the necessary permissions on the target cluster,
+generate a KubeConfig for that account, and then create a Secret on the cluster
+where helm-controller is running. For example:
+
+```shell
+kubectl -n default create secret generic prod-kubeconfig \
+    --from-file=value.yaml=./kubeconfig
+```
+
 ### Triggering a reconcile
 
 To manually tell the helm-controller to reconcile a HelmRelease outside the
