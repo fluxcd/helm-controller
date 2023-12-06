@@ -162,6 +162,10 @@ The HelmChart is created in the same namespace as the `.sourceRef`, with a name
 matching the HelmRelease's `<.metadata.namespace>-<.metadata.name>`, and will
 be reported in `.status.helmChart`.
 
+**Warning:** Changing the `.spec.chart` to a Helm chart with a different name
+(as specified in the chart's `Chart.yaml`) will cause the controller to
+uninstall any previous release before installing the new one.
+
 **Note:** On multi-tenant clusters, platform admins can disable cross-namespace
 references with the `--no-cross-namespace-refs=true` flag. When this flag is
 set, the HelmRelease can only refer to Sources in the same namespace as the
@@ -171,6 +175,10 @@ HelmRelease object.
 
 `.spec.releaseName` is an optional field used to specify the name of the Helm
 release. It defaults to a composition of `[<target namespace>-]<name>`.
+
+**Warning:** Changing the release name of a HelmRelease which has already been
+installed will not rename the release. Instead, the existing release will be
+uninstalled before installing a new release with the new name.
 
 **Note:** When the composition exceeds the maximum length of 53 characters, the
 name is shortened by hashing the release name with SHA-256. The resulting name
@@ -185,11 +193,21 @@ dash (`-`), followed by the 12 characters of the hash. For example,
 which the Helm release is made. It defaults to the namespace of the
 HelmRelease.
 
+**Warning:** Changing the target namespace of a HelmRelease which has already
+been installed will not move the release to the new namespace. Instead, the
+existing release will be uninstalled before installing a new release in the new
+target namespace.
+
 ### Storage namespace
 
 `.spec.storageNamespace` is an optional field used to specify the namespace
 in which Helm stores release information. It defaults to the namespace of the
 HelmRelease.
+
+**Warning:** Changing the storage namespace of a HelmRelease which has already
+been installed will not move the release to the new namespace. Instead, the
+existing release will be uninstalled before installing a new release in the new
+storage namespace.
 
 **Note:** When making use of the Helm CLI and attempting to make use of
 `helm get` commands to inspect a release, the `-n` flag should target the
@@ -736,8 +754,6 @@ a new Helm release. When the field is set to `false` or removed, it will
 resume.
 
 ## Working with HelmReleases
-
-### The reconciliation model
 
 ### Configuring failure handling
 
