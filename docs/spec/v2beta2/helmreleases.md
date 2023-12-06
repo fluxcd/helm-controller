@@ -1180,7 +1180,95 @@ purposes.
 
 #### Describe the HelmRelease
 
+Describing a HelmRelease using `kubectl describe helmrelease <release-name>`
+displays the latest recorded information for the resource in the Status and
+Events sections:
+
+```console
+...
+Status:
+  Conditions:
+    Last Transition Time:  2023-12-06T18:23:21Z
+    Message:               Failed to install after 1 attempt(s)
+    Observed Generation:   1
+    Reason:                RetriesExceeded
+    Status:                True
+    Type:                  Stalled
+    Last Transition Time:  2023-12-06T18:23:21Z
+    Message:               Helm test failed for release podinfo/podinfo.v1 with chart podinfo@6.5.3: 1 error occurred:
+                           * pod podinfo-fault-test-a0tew failed
+    Observed Generation:   1
+    Reason:                TestFailed
+    Status:                False
+    Type:                  Ready
+    Last Transition Time:  2023-12-06T18:23:16Z
+    Message:               Helm install succeeded for release podinfo/podinfo.v1 with chart podinfo@6.5.3
+    Observed Generation:   1
+    Reason:                InstallSucceeded
+    Status:                True
+    Type:                  Released
+    Last Transition Time:  2023-12-06T18:23:21Z
+    Message:               Helm test failed for release podinfo/podinfo.v1 with chart podinfo@6.5.3: 1 error occurred:
+                           * pod podinfo-fault-test-a0tew failed
+    Observed Generation:   1
+    Reason:                TestFailed
+    Status:                False
+    Type:                  TestSuccess
+...
+  History:
+    Chart Name:      podinfo
+    Chart Version:   6.5.3
+    Config Digest:   sha256:2598fd0e8c65bae746c6686a61c2b2709f47ba8ed5c36450ae1c30aea9c88e9f
+    Digest:          sha256:24f31c6f2f3da97b217a794b5fb9234818296c971ff9f849144bf07438976e4d
+    First Deployed:  2023-12-06T18:23:12Z
+    Last Deployed:   2023-12-06T18:23:12Z
+    Name:            podinfo
+    Namespace:       default
+    Status:          deployed
+    Test Hooks:
+      podinfo-fault-test-a0tew:
+        Last Completed:  2023-12-06T18:23:21Z
+        Last Started:    2023-12-06T18:23:16Z
+        Phase:           Failed
+      podinfo-grpc-test-rzg5v:
+      podinfo-jwt-test-7k1hv:
+      Podinfo - Service - Test - Bgoeg:
+    Version:                      1
+...
+Events:
+  Type     Reason            Age   From             Message
+  ----     ------            ----  ----             -------
+  Normal   HelmChartCreated  88s   helm-controller  Created HelmChart/podinfo/podinfo-podinfo with SourceRef 'HelmRepository/podinfo/podinfo'
+  Normal   HelmChartInSync   88s   helm-controller  HelmChart/podinfo/podinfo-podinfo with SourceRef 'HelmRepository/podinfo/podinfo' is in-sync
+  Normal   InstallSucceeded  83s   helm-controller  Helm install succeeded for release podinfo/podinfo.v1 with chart podinfo@6.5.3
+  Warning  TestFailed        78s   helm-controller  Helm test failed for release podinfo/podinfo.v1 with chart podinfo@6.5.3: 1 error occurred:
+           * pod podinfo-fault-test-a0tew failed
+```
+
 #### Trace emitted Events
+
+To view events for specific HelmRelease(s), `kubectl events` can be used in
+combination with `--for` to list the Events for specific objects. For example,
+running
+
+```shell
+kubectl events --for HelmRelease/<release-name>
+```
+
+lists
+
+```shell
+LAST SEEN   TYPE      REASON             OBJECT                MESSAGE
+88s         Normal    HelmChartCreated   HelmRelease/podinfo   Created HelmChart/podinfo/podinfo-podinfo with SourceRef 'HelmRepository/podinfo/podinfo'
+88s         Normal    HelmChartInSync    HelmRelease/podinfo   HelmChart/podinfo/podinfo-podinfo with SourceRef 'HelmRepository/podinfo/podinfo' is in-sync
+83s         Normal    InstallSucceeded   HelmRelease/podinfo   Helm install succeeded for release podinfo/podinfo.v1 with chart podinfo@6.5.3
+78s         Warning   TestFailed         HelmRelease/podinfo   Helm test failed for release podinfo/podinfo.v1 with chart podinfo@6.5.3: 1 error occurred:
+            * pod podinfo-fault-test-a0tew failed
+```
+
+Besides being reported in Events, the controller may also log reconciliation
+errors. The Flux CLI offers commands for filtering the logs for a specific
+HelmRelease, e.g. `flux logs --level=error --kind=HelmRelease --name=<release-name>.`
 
 ## HelmRelease Status
 
