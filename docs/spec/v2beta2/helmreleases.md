@@ -739,6 +739,32 @@ resume.
 
 ### The reconciliation model
 
+### Configuring failure handling
+
+From time to time, a Helm installation, upgrade, or accompanying [Helm test](#test-configuration)
+may fail. When this happens, by default no action is taken, and the release is
+left in a failed state. However, several automatic failure remediation options
+can be set via [`.spec.install.remediation`](#install-remediation) and
+[`.spec.upgrade.remediation`](#upgrade-remediation).
+
+By configuring the `.retries` field for the respective action, the controller
+will first remediate the failure by performing a Helm rollback or uninstall, and
+then reattempt the action. It will repeat this process until the `.retries`
+are exhausted, or the action succeeds.
+
+Once the `.retries` are exhausted, the controller will stop attempting to
+remediate the failure, and the Helm release will be left in a failed state.
+To ensure the Helm release is brought back to the last known good state or
+uninstalled, `.remediateLastFailure` can be set to `true`.
+For Helm upgrades, this defaults to `true` if at least one retry is configured.
+
+When a new release configuration or Helm chart is detected, the controller will
+reset the failure counters and attempt to install or upgrade the release again.
+
+**Note:** In addition to the automatic failure remediation options, the
+controller can be instructed to [force a Helm release](#forcing-a-release) or
+to [retry a failed Helm release](#resetting-remediation-retries)
+
 ### Controlling the lifecycle of Custom Resource Definitions
 
 Helm does support [the installation of Custom Resource Definitions](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#method-1-let-helm-do-it-for-you)
