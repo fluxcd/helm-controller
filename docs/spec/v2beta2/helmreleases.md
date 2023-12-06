@@ -195,10 +195,11 @@ HelmRelease.
 `helm get` commands to inspect a release, the `-n` flag should target the
 storage namespace of the HelmRelease.
 
-### Service account reference
+### Service Account reference
 
 `.spec.serviceAccountName` is an optional field used to specify the
-ServiceAcccount to be impersonated while reconciling the HelmRelease.
+Service Account to be impersonated while reconciling the HelmRelease.
+For more information, refer to [Role-based access control](#role-based-access-control).
 
 ### Persistent client
 
@@ -654,7 +655,7 @@ spec:
 `.spec.kubeConfig.secretRef.name` is an optional field to specify the name of
 a Secret containing a KubeConfig. If specified, the Helm operations will be
 targeted at the default cluster specified in this KubeConfig instead of using
-the in-cluster ServiceAccount.
+the in-cluster Service Account.
 
 The Secret defined in the `.secretRef` must exist in the same namespace as the
 HelmRelease. On every reconciliation, the KubeConfig bytes will be loaded from
@@ -682,8 +683,8 @@ constraints of KubeConfigs from current Cluster API providers. KubeConfigs with
 `cmd-path` in them likely won't work without a custom, per-provider installation
 of helm-controller.
 
-When both `.spec.kubeConfig` and a [ServiceAccount reference](#service-account-reference)
-are specified, the controller will impersonate the service account on the
+When both `.spec.kubeConfig` and a [Service Account reference](#service-account-reference)
+are specified, the controller will impersonate the Service Account on the
 target cluster.
 
 The Helm storage is stored on the remote cluster in a namespace that equals to
@@ -742,7 +743,100 @@ resume.
 
 ### Role-based access control
 
-### Remote clusters/Cluster-API
+By default, a HelmRelease runs under the cluster admin account and can create,
+modify, and delete cluster level objects (ClusterRoles, ClusterRoleBindings,
+CustomResourceDefinitions, etc.) and namespaced objects (Deployments, Ingresses,
+etc.)
+
+For certain HelmReleases, a cluster administrator may wish to restrict the
+permissions of the HelmRelease to a specific namespace or to a specific set of
+namespaced objects. To restrict a HelmRelease, one can assign a Service Account
+under which the reconciliation is performed using
+[`.spec.serviceAccountName`](#service-account-reference).
+
+Assuming you want to restrict a group of HelmReleases to a single namespace,
+you can create a Service Account with a RoleBinding that grants access only to
+that namespace.
+
+For example, the following Service Account and RoleBinding restricts the
+HelmRelease to the `webapp` namespace:
+
+```yaml
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: webapp
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: webapp-reconciler
+  namespace: webapp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: webapp-reconciler
+  namespace: webapp
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+ apiVersion: rbac.authorization.k8s.io/v1
+ kind: RoleBinding
+ metadata:
+   name: webapp-reconciler
+   namespace: webapp
+ roleRef:
+   apiGroup: rbac.authorization.k8s.io
+   kind: Role
+   name: webapp-reconciler
+ subjects:
+   - kind: ServiceAccount
+     name: webapp-reconciler
+     namespace: webapp
+```
+
+**Note:** The above resources are not created by the helm-controller, but should
+be created by a cluster administrator and preferably be managed by a
+[Kustomization](https://fluxcd.io/flux/components/kustomize/kustomizations/).
+
+The Service Account can then be referenced in the HelmRelease:
+
+```yaml
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+ name: podinfo
+ namespace: webapp
+spec:
+ serviceAccountName: webapp-reconciler
+ interval: 5m
+ chart:
+   spec:
+     chart: podinfo
+     sourceRef:
+       kind: HelmRepository
+       name: podinfo
+```
+
+When the controller reconciles the `podinfo` HelmRelease, it will impersonate
+the `webapp-reconciler` Service Account. If the chart contains cluster level
+objects like CustomResourceDefinitions, the reconciliation will fail since the
+account it runs under has no permissions to alter objects outside the
+`webapp` namespace.
+
+#### Enforcing impersonation
+
+On multi-tenant clusters, platform admins can enforce impersonation with the
+`--default-service-account` flag.
+
+When the flag is set, HelmReleases which do not have a `.spec.serviceAccountName`
+specified will use the Service Account name provided by
+`--default-service-account=<name>` in the namespace of the HelmRelease object.
 
 ### Triggering a reconcile
 
