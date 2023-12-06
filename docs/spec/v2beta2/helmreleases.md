@@ -741,6 +741,63 @@ resume.
 
 ### Controlling the lifecycle of Custom Resource Definitions
 
+Helm does support [the installation of Custom Resource Definitions](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#method-1-let-helm-do-it-for-you)
+(CRDs) as part of a chart. However, it has no native support for
+[upgrading CRDs](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations):
+
+> There is no support at this time for upgrading or deleting CRDs using Helm.
+> This was an explicit decision after much community discussion due to the
+> danger for unintentional data loss. Furthermore, there is currently no
+> community consensus around how to handle CRDs and their lifecycle. As this
+> evolves, Helm will add support for those use cases.
+
+If you write your own Helm charts, you can work around this limitation by
+putting your CRDs into the templates instead of the `crds/` directory, or by
+factoring them out into a separate Helm chart as suggested by the [official Helm
+documentation](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#method-2-separate-charts).
+
+However, if you use a third-party Helm chart that installs CRDs, not being able
+to upgrade the CRDs via HelmRelease objects might become a cumbersome limitation
+within your GitOps workflow. Therefore, Flux allows you to opt in to upgrading
+CRDs by setting the `.crds` policy in the [`.spec.install`](#install-configuration)
+and [`.spec.upgrade`](#upgrade-configuration) configurations.
+
+The following policy values are supported:
+
+- `Skip`: Skip the installation or upgrade of CRDs. This is the default value
+  for `.spec.upgrade.crds`.
+- `Create`: Create CRDs if they do not exist, but do not upgrade or delete them.
+  This is the default value for `.spec.install.crds`.
+- `CreateReplace`: Create new CRDs, update (replace) existing ones, but **do
+  not** delete CRDs which no longer exist in the current Helm chart.
+
+For example, if you want to update CRDs when installing and upgrading a Helm
+chart, you can set the `.spec.install.crds` and `.spec.upgrade.crds` policies to
+`CreateReplace`:
+
+```yaml
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: my-operator
+  namespace: default
+spec:
+  interval: 10m
+  chart:
+    spec:
+      chart: my-operator
+      version: "1.0.1"
+      sourceRef:
+        kind: HelmRepository
+        name: my-operator-repo
+      interval: 5m
+  install:
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace
+```
+
 ### Role-based access control
 
 By default, a HelmRelease runs under the cluster admin account and can create,
