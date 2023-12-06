@@ -1272,6 +1272,157 @@ HelmRelease, e.g. `flux logs --level=error --kind=HelmRelease --name=<release-na
 
 ## HelmRelease Status
 
+### History
+
+The HelmRelease shows the history of Helm releases it has performed up to the
+previous successful release as a list in the `.status.history` of the resource.
+The history is ordered by the time of the release, with the most recent release
+first.
+
+When [Helm tests](#test-configuration) are enabled, the history will also
+include the status of the tests which were run for each release.
+
+#### History example
+
+```yaml
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: <release-name>
+status:
+  history:
+    - chartName: podinfo
+      chartVersion: 6.5.3
+      configDigest: sha256:803f06d4673b07668ff270301ca54ca5829da3133c1219f47bd9f52a60b22f9f
+      digest: sha256:3036cf7c06fd35b8ccb15c426fed9ce8a059a0a4befab1a47170b6e962c4d784
+      firstDeployed: '2023-12-06T20:38:47Z'
+      lastDeployed: '2023-12-06T20:52:06Z'
+      name: podinfo
+      namespace: podinfo
+      status: deployed
+      testHooks:
+        podinfo-grpc-test-qulpw:
+          lastCompleted: '2023-12-06T20:52:09Z'
+          lastStarted: '2023-12-06T20:52:07Z'
+          phase: Succeeded
+        podinfo-jwt-test-xe0ch:
+          lastCompleted: '2023-12-06T20:52:12Z'
+          lastStarted: '2023-12-06T20:52:09Z'
+          phase: Succeeded
+        podinfo-service-test-eh6x2:
+          lastCompleted: '2023-12-06T20:52:14Z'
+          lastStarted: '2023-12-06T20:52:12Z'
+          phase: Succeeded
+      version: 3
+    - chartName: podinfo
+      chartVersion: 6.5.3
+      configDigest: sha256:e15c415d62760896bd8bec192a44c5716dc224db9e0fc609b9ac14718f8f9e56
+      digest: sha256:858b157a63889b25379e287e24a9b38beb09a8ae21f31ae2cf7ad53d70744375
+      firstDeployed: '2023-12-06T20:38:47Z'
+      lastDeployed: '2023-12-06T20:39:02Z'
+      name: podinfo
+      namespace: podinfo
+      status: superseded
+      testHooks:
+        podinfo-grpc-test-aiuee:
+          lastCompleted: '2023-12-06T20:39:04Z'
+          lastStarted: '2023-12-06T20:39:02Z'
+          phase: Succeeded
+        podinfo-jwt-test-dme3b:
+          lastCompleted: '2023-12-06T20:39:07Z'
+          lastStarted: '2023-12-06T20:39:04Z'
+          phase: Succeeded
+        podinfo-service-test-fgvte:
+          lastCompleted: '2023-12-06T20:39:09Z'
+          lastStarted: '2023-12-06T20:39:07Z'
+          phase: Succeeded
+      version: 2
+```
+
 ### Conditions
 
-### History
+### Storage Namespace
+
+The helm-controller reports the active storage namespace in the
+`.status.storageNamespace` field.
+
+When the [`.spec.storageNamespace`](#storage-namespace) is changed, the
+controller will use the namespace from the Status to perform a Helm uninstall
+for the release in the old storage namespace, before performing a Helm install
+using the new storage namespace.
+
+### Failure Counters
+
+The helm-controller reports the number of failures it encountered for a
+HelmRelease in the `.status.failures`, `.status.installFailures` and
+`.status.upgradeFailures` fields.
+
+The `.status.failures` field is a general counter for all failures, while the
+`.status.installFailures` and `.status.upgradeFailures` fields are counters
+which are specific to the Helm install and upgrade actions respectively.
+The latter two counters are used to determine if the controller is allowed to
+retry an action when [install](#install-remediation) or [upgrade](#upgrade-remediation)
+remediation is enabled.
+
+The counters are reset when a new configuration is applied to the HelmRelease,
+the [values](#values) change, or when a new Helm chart version is discovered.
+In addition, they can be [reset using an annotation](#resetting-remediation-retries).
+
+### Observed Generation
+
+The helm-controller reports an observed generation in the HelmRelease's
+`.status.observedGeneration`. The observed generation is the latest
+`.metadata.generation` which resulted in either a [ready state](#ready-helmrelease),
+or stalled due to error it can not recover from without human intervention.
+
+### Last Attempted Config Digest
+
+The helm-controller reports the digest for the [values](#values) it last
+attempted to perform a Helm install or upgrade with in the
+`.status.lastAttemptedConfigDigest` field.
+
+The digest is used to determine if the controller should reset the
+[failure counters](#failure-counters) due to a change in the values.
+
+### Last Attempted Revision
+
+The helm-controller reports the revision of the Helm chart it last attempted
+to perform a Helm install or upgrade with in the
+`.status.lastAttemptedRevision` field.
+
+The revision is used by the controller to determine if it should reset the
+[failure counters](#failure-counters) due to a change in the chart version.
+
+### Last Attempted Release Action
+
+The helm-controller reports the last Helm release action it attempted to
+perform in the `.status.lastAttemptedReleaseAction` field. The possible values
+are `install` and `upgrade`.
+
+This field is used by the controller to determine the active remediation
+strategy for the HelmRelease.
+
+### Last Handled Reconcile At
+
+The helm-controller reports the last `reconcile.fluxcd.io/requestedAt`
+annotation value it acted on in the `.status.lastHandledReconcileAt` field.
+
+For practical information about this field, see
+[triggering a reconcile](#triggering-a-reconcile).
+
+### Last Handled Force At
+
+The helm-controller reports the last `reconcile.fluxcd.io/forceAt`
+annotation value it acted on in the `.status.lastHandledForceAt` field.
+
+For practical information about this field, see
+[forcing a release](#forcing-a-release).
+
+### Last Handled Reset At
+
+The helm-controller reports the last `reconcile.fluxcd.io/resetAt`
+annotation value it acted on in the `.status.lastHandledResetAt` field.
+
+For practical information about this field, see
+[resetting remediation retries](#resetting-remediation-retries).
