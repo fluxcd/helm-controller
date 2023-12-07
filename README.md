@@ -38,6 +38,8 @@ operator.
   [notification-controller][])
 * Built-in Kustomize compatible Helm post renderer, providing support
   for strategic merge, JSON 6902 and images patches
+* Supports detecting and correcting in-cluster changes compared to the desired
+  state of the Helm release
 
 ## Guides
 

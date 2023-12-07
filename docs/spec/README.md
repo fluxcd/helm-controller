@@ -35,6 +35,7 @@ actions that should be (conditionally) executed. Based on this the reconciler:
 - performs a Helm install or upgrade action if needed
 - performs a Helm test action if enabled
 - performs a reconciliation strategy (rollback, uninstall) and retries as configured if any Helm action failed
+- performs in cluster drift detection and correction if enabled
 
 The controller that runs these Helm actions relies on [source-controller](https://github.com/fluxcd/source-controller)
 for providing the Helm charts from Helm repositories or any other source that source-controller
