@@ -5,7 +5,8 @@ Helm releases.
 
 ## Example
 
-The following is an example of a HelmRelease.
+The following is an example of a HelmRelease which installs the
+[podinfo Helm chart](https://github.com/stefanprodan/podinfo/tree/master/charts/podinfo).
 
 ```yaml
 ---
@@ -34,6 +35,7 @@ spec:
         kind: HelmRepository
         name: podinfo
       interval: 5m
+  releaseName: podinfo
   install:
     remediation:
       retries: 3
@@ -54,7 +56,29 @@ spec:
 
 In the above example:
 
-- ...
+- A [HelmRepository](https://fluxcd.io/flux/components/source/helmrepositories/)
+  named `podinfo` is created, pointing to the Helm repository from which the 
+  podinfo chart can be installed.
+- A HelmRelease named `podinfo` is created, that will create a HelmChart object
+  from [the `.spec.chart`](#chart-template) and watch it for Artifact changes.
+- The controller will fetch the chart from the HelmChart's Artifact and use it
+  together with the `.spec.releaseName` and `.spec.values` to confirm if the
+  Helm release exists and is up-to-date.
+- If the Helm release does not exist, is not up-to-date, or has not observed to
+  be made by the controller, then the controller will install or upgrade the
+  release, respectively. If this fails, it is allowed to retry the operation
+  a number of times while requeueing between attempts, as defined by the 
+  respective [remediation configurations](#configuring-failure-handling).
+- If the [Helm tests](#test-configuration) for the release have not been run
+  before for this release, the HelmRelease will run them.
+- When the Helm release in storage is up-to-date, the controller will check if
+  the release in the cluster has drifted from the desired state, as defined by
+  the [drift detection configuration](#drift-detection). If it has, the
+  controller will [correct the drift](#drift-correction) by re-applying the
+  desired state.
+- The controller will repeat the above steps at the interval defined by
+  `.spec.interval`, or when the configuration changes in a way that affects the
+  desired state of the Helm release (e.g. a new chart version or values).
 
 You can run this example by saving the manifest into `podinfo.yaml`.
 
