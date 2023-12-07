@@ -1529,7 +1529,8 @@ spec:
                             type: object
                           type: array
                         patchesJson6902:
-                          description: JSON 6902 patches, defined as inline YAML objects.
+                          description: 'JSON 6902 patches, defined as inline YAML
+                            objects. Deprecated: use Patches instead.'
                           items:
                             description: JSON6902Patch contains a JSON6902 patch and
                               the target the patch should be applied to.
@@ -1624,8 +1625,8 @@ spec:
                             type: object
                           type: array
                         patchesStrategicMerge:
-                          description: Strategic merge patches, defined as inline
-                            YAML objects.
+                          description: 'Strategic merge patches, defined as inline
+                            YAML objects. Deprecated: use Patches instead.'
                           items:
                             x-kubernetes-preserve-unknown-fields: true
                           type: array
