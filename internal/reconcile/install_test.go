@@ -197,6 +197,29 @@ func TestInstall_Reconcile(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "install with stale conditions",
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					Conditions: []metav1.Condition{
+						*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestFailedReason, ""),
+						*conditions.TrueCondition(v2.RemediatedCondition, v2.UninstallSucceededReason, ""),
+					},
+				}
+			},
+			chart: testutil.BuildChart(),
+			expectConditions: []metav1.Condition{
+				*conditions.TrueCondition(meta.ReadyCondition, v2.InstallSucceededReason,
+					"Helm install succeeded"),
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason,
+					"Helm install succeeded"),
+			},
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -84,7 +84,8 @@ func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 	// before the install.
 	req.Object.Status.ClearHistory()
 
-	// If we are installing, we are no longer remediated.
+	// If we are installing, none of the previous conditions apply.
+	conditions.Delete(req.Object, v2.TestSuccessCondition)
 	conditions.Delete(req.Object, v2.RemediatedCondition)
 
 	// Run the Helm install action.

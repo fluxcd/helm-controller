@@ -317,6 +317,40 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "upgrade with stale conditions",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Chart:     testutil.BuildChart(),
+						Version:   2,
+						Status:    helmrelease.StatusDeployed,
+					}),
+				}
+			},
+			chart: testutil.BuildChart(),
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					Conditions: []metav1.Condition{
+						*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestFailedReason, ""),
+						*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason, ""),
+					},
+				}
+			},
+			expectConditions: []metav1.Condition{
+				*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason,
+					"Helm upgrade succeeded"),
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason,
+					"Helm upgrade succeeded"),
+			},
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+				}
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
