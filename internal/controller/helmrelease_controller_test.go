@@ -179,7 +179,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}))
 	})
 
-	t.Run("waits for HelmChart to be ready", func(t *testing.T) {
+	t.Run("waits for HelmChart to have an Artifact", func(t *testing.T) {
 		g := NewWithT(t)
 
 		chart := &sourcev1b2.HelmChart{
@@ -190,11 +190,11 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 			Status: sourcev1b2.HelmChartStatus{
 				ObservedGeneration: 2,
-				Artifact:           &sourcev1.Artifact{},
+				Artifact:           nil,
 				Conditions: []metav1.Condition{
 					{
 						Type:   meta.ReadyCondition,
-						Status: metav1.ConditionFalse,
+						Status: metav1.ConditionTrue,
 					},
 				},
 			},
@@ -2202,6 +2202,90 @@ func TestValuesReferenceValidation(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("composeValues() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+		})
+	}
+}
+
+func Test_isHelmChartReady(t *testing.T) {
+	mock := &sourcev1b2.HelmChart{
+		ObjectMeta: metav1.ObjectMeta{
+			Generation: 2,
+		},
+		Status: sourcev1b2.HelmChartStatus{
+			ObservedGeneration: 2,
+			Conditions: []metav1.Condition{
+				{
+					Type:   meta.ReadyCondition,
+					Status: metav1.ConditionTrue,
+				},
+			},
+			Artifact: &sourcev1.Artifact{},
+		},
+	}
+
+	tests := []struct {
+		name       string
+		obj        *sourcev1b2.HelmChart
+		want       bool
+		wantReason string
+	}{
+		{
+			name: "chart is ready",
+			obj:  mock.DeepCopy(),
+			want: true,
+		},
+		{
+			name: "chart generation differs from observed generation while Ready=True",
+			obj: func() *sourcev1b2.HelmChart {
+				m := mock.DeepCopy()
+				m.Generation = 3
+				return m
+			}(),
+			want:       false,
+			wantReason: "latest generation of object has not been reconciled",
+		},
+		{
+			name: "chart generation differs from observed generation while Ready=False",
+			obj: func() *sourcev1b2.HelmChart {
+				m := mock.DeepCopy()
+				m.Generation = 3
+				conditions.MarkFalse(m, meta.ReadyCondition, "Reason", "some reason")
+				return m
+			}(),
+			want:       false,
+			wantReason: "some reason",
+		},
+		{
+			name: "chart has Stalled=True",
+			obj: func() *sourcev1b2.HelmChart {
+				m := mock.DeepCopy()
+				conditions.MarkFalse(m, meta.ReadyCondition, "Reason", "some reason")
+				conditions.MarkStalled(m, "Reason", "some stalled reason")
+				return m
+			}(),
+			want:       false,
+			wantReason: "some stalled reason",
+		},
+		{
+			name: "chart does not have an Artifact",
+			obj: func() *sourcev1b2.HelmChart {
+				m := mock.DeepCopy()
+				m.Status.Artifact = nil
+				return m
+			}(),
+			want:       false,
+			wantReason: "does not have an artifact",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotReason := isHelmChartReady(tt.obj)
+			if got != tt.want {
+				t.Errorf("isHelmChartReady() got = %v, want %v", got, tt.want)
+			}
+			if gotReason != tt.wantReason {
+				t.Errorf("isHelmChartReady() reason = %v, want %v", gotReason, tt.wantReason)
 			}
 		})
 	}
