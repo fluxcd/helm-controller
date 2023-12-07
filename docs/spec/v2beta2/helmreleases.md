@@ -1,7 +1,9 @@
 # Helm Releases
 
-The `HelmRelease` API defines a way to declaratively manage the lifecycle of
-Helm releases.
+The `HelmRelease` API allows for controller-driven reconciliation of Helm
+releases via Helm actions such as install, upgrade, test, uninstall, and
+rollback. In addition to this, it allows detecting and correcting cluster state
+drift from the desired release state.
 
 ## Example
 
