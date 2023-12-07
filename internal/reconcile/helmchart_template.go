@@ -149,7 +149,6 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 			newChart.Spec.SourceRef.Kind, newChart.GetNamespace(), newChart.Spec.SourceRef.Name)
 
 		ctrl.LoggerFrom(ctx).Info(msg)
-		r.eventRecorder.Eventf(req.Object, eventv1.EventTypeTrace, "HelmChartInSync", msg)
 	default:
 		err = fmt.Errorf("unexpected action '%s' for %s", entry.Action.String(), entry.Subject)
 		return err
