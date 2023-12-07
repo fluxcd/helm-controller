@@ -1897,7 +1897,8 @@ capable of targeting objects based on kind, label and annotation selectors.</p>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Strategic merge patches, defined as inline YAML objects.</p>
+<p>Strategic merge patches, defined as inline YAML objects.
+Deprecated: use Patches instead.</p>
 </td>
 </tr>
 <tr>
@@ -1911,7 +1912,8 @@ capable of targeting objects based on kind, label and annotation selectors.</p>
 </td>
 <td>
 <em>(Optional)</em>
-<p>JSON 6902 patches, defined as inline YAML objects.</p>
+<p>JSON 6902 patches, defined as inline YAML objects.
+Deprecated: use Patches instead.</p>
 </td>
 </tr>
 <tr>
