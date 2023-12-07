@@ -1366,6 +1366,139 @@ status:
 
 ### Conditions
 
+A HelmRelease enters various states during its lifecycle, reflected as
+[Kubernetes Conditions](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties).
+It can be [reconciling](#reconciling-helmrelease) when it is being processed by
+the controller, it can be [ready](#ready-helmrelease) when the Helm release is
+installed and up-to-date, or it can [fail](#failed-helmrelease) during
+reconciliation.
+
+The HelmRelease API is compatible with the [kstatus specification](https://github.com/kubernetes-sigs/cli-utils/tree/master/pkg/kstatus),
+and reports `Reconciling` and `Stalled` conditions where applicable to provide
+better (timeout) support to solutions polling the HelmRelease to become `Ready`.
+
+#### Reconciling HelmRelease
+
+The helm-controller marks the HelmRepository as _reconciling_ when it is working
+on re-assessing the Helm release state, or working on a Helm action such as
+installing or upgrading the release.
+
+This can be due to one of the following reasons (without this being an
+exhaustive list):
+
+- The desired state of the HelmRelease has changed, and the controller is
+  working on installing or upgrading the Helm release.
+- The generation of the HelmRelease is newer than the [Observed
+  Generation](#observed-generation).
+- The HelmRelease has been installed or upgraded, but the [Helm
+  test](#test-configuration) is still running.
+- The HelmRelease is installed or upgraded, but the controller is working on
+  [detecting](#drift-detection) or [correcting](#drift-correction) drift.
+
+When the HelmRelease is "reconciling", the `Ready` Condition status becomes
+`Unknown` when the controller is working on a Helm install or upgrade, and the
+controller adds a Condition with the following attributes to the HelmRelease's
+`.status.conditions`:
+
+- `type: Reconciling`
+- `status: "True"`
+- `reason: Progressing` | `reason: ProgressingWithRetry`
+
+The Condition `message` is updated during the course of the reconciliation to
+report the Helm action being performed at any particular moment.
+
+The Condition has a ["negative polarity"](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties),
+and is only present on the HelmRelease while the status is `"True"`.
+
+#### Ready HelmRelease
+
+The helm-controller marks the HelmRelease as _ready_ when it has the following
+characteristics:
+
+When the HelmRelease is "ready", the controller sets a Condition with the
+following attributes in the HelmRelease's `.status.conditions`:
+
+- `type: Ready`
+- `status: "True"`
+- `reason: InstallSucceeded` | `reason: UpgradeSucceeded` | `reason: TestSucceeded`
+
+This `Ready` Condition will retain a status value of `"True"` until the
+HelmRelease is marked as reconciling, or e.g. an [error occurs](#failed-helmrelease)
+due to a failed Helm action.
+
+When a Helm install or upgrade has completed, the controller sets a Condition
+with the following attributes in the HelmRelease's `.status.conditions`:
+
+- `type: Released`
+- `status: "True"`
+- `reason: InstallSucceeded` | `reason: UpgradeSucceeded`
+
+The `Released` Condition will retain a status value of `"True"` until the
+next Helm install or upgrade has completed.
+
+When [Helm tests are enabled](#test-configuration) and completed successfully,
+the controller sets a Condition with the following attributes in the
+HelmRelease's `.status.conditions`:
+
+- `type: TestSuccess`
+- `status: "True"`
+- `reason: TestSucceeded`
+
+The `TestSuccess` Condition will retain a status value of `"True"` until the
+next Helm install or upgrade occurs, or the Helm tests are disabled.
+
+#### Failed HelmRelease
+
+The helm-controller may get stuck trying to determine state or produce a Helm
+release without completing. This can occur due to some of the following factors:
+
+- The HelmChart does not have an Artifact, or is not ready.
+- The HelmRelease's dependencies are not ready.
+- The composition of [values references](#values-references) and [inline values](#inline-values)
+  failed due to a misconfiguration.
+- The Helm action (install, upgrade, rollback, uninstall) failed.
+- The Helm action succeeded, but the [Helm test](#test-configuration) failed.
+
+When the failure is due to an error during a Helm install or upgrade, a
+Condition with the following attributes is added:
+
+- `type: Released`
+- `status: "False"`
+- `reason: InstallFailed` | `reason: UpgradeFailed`
+
+In case the failure is due to an error during a Helm test, a Condition with the
+following attributes is added:
+
+- `type: TestSuccess`
+- `status: "False"`
+- `reason: TestFailed`
+
+This `TestSuccess` Condition will only count as a failure when the Helm test
+results have [not been ignored](#configuring-failure-handling).
+
+When the failure has resulted in a rollback or uninstall, a Condition with the
+following attributes is added:
+
+- `type: Remediated`
+- `status: "True"`
+- `reason: RollbackSucceeded` | `reason: UninstallSucceeded` | `reason: RollbackFailed` | `reason: UninstallFailed`
+
+This `Remediated` Condition will retain a status value of `"True"` until the
+next Helm install or upgrade has completed.
+
+When the HelmRelease is "failing", the controller sets a Condition with the
+following attributes in the HelmRelease's `.status.conditions`:
+
+- `type: Ready`
+- `status: "False"`
+- `reason: InstallFailed` | `reason: UpgradeFailed` | `reason: TestFailed` | `reason: RollbackSucceeded` | `reason: UninstallSucceeded` | `reason: RollbackFailed` | `reason: UninstallFailed` | `reason: <arbitrary error>`
+
+Note that a HelmRelease can be [reconciling](#reconciling-helmrelease) while
+failing at the same time. For example, due to a new release attempt after
+remediating a failed Helm action. When a reconciliation fails, the `Reconciling`
+Condition reason would be `ProgressingWithRetry`. When the reconciliation is
+performed again after the failure, the reason is updated to `Progressing`.
+
 ### Storage Namespace
 
 The helm-controller reports the active storage namespace in the
