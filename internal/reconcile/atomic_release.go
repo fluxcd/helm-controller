@@ -25,6 +25,7 @@ import (
 
 	"helm.sh/helm/v3/pkg/kube"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -315,6 +316,18 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 			return NewUpgrade(r.configFactory, r.eventRecorder), nil
 		}
 
+		// Since the release is in-sync, remove any remediated condition if
+		// present and replace it with upgrade succeeded condition.
+		// This can happen when the current release, which is the result of a
+		// rollback remediation, matches the new desired configuration due to
+		// having the same chart version and values. As a result, we are already
+		// in-sync without performing a release action.
+		if conditions.IsTrue(req.Object, v2.RemediatedCondition) {
+			cur := req.Object.Status.History.Latest()
+			msg := fmt.Sprintf(fmtUpgradeSuccess, cur.FullReleaseName(), cur.VersionedChartName())
+			replaceCondition(req.Object, v2.RemediatedCondition, v2.ReleasedCondition, v2.UpgradeSucceededReason, msg, metav1.ConditionTrue)
+		}
+
 		return nil, nil
 	case ReleaseStatusLocked:
 		log.Info(msgWithReason("release locked", state.Reason))
@@ -378,6 +391,21 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		return nil, nil
 	case ReleaseStatusUntested:
 		log.Info(msgWithReason("release has not been tested", state.Reason))
+
+		// Since an untested release indicates that the release is already
+		// in-sync, remove any remediated condition if present and replace it
+		// with upgrade succeeded condition.
+		// This can happen when an untested current release, which is the result
+		// of a rollback remediation, matches the new desired configuration due
+		// to having the same chart version and values, and has test enabled. As
+		// a result, we are already in-sync without performing a release action,
+		// the existing release needs to undergo testing.
+		if conditions.IsTrue(req.Object, v2.RemediatedCondition) {
+			cur := req.Object.Status.History.Latest()
+			msg := fmt.Sprintf(fmtUpgradeSuccess, cur.FullReleaseName(), cur.VersionedChartName())
+			replaceCondition(req.Object, v2.RemediatedCondition, v2.ReleasedCondition, v2.UpgradeSucceededReason, msg, metav1.ConditionTrue)
+		}
+
 		return NewTest(r.configFactory, r.eventRecorder), nil
 	case ReleaseStatusFailed:
 		log.Info(msgWithReason("release is in a failed state", state.Reason))
@@ -489,5 +517,26 @@ func timeoutForAction(action ActionReconciler, obj *v2.HelmRelease) time.Duratio
 		return obj.GetUninstall().GetTimeout(obj.GetTimeout()).Duration
 	default:
 		return obj.GetTimeout().Duration
+	}
+}
+
+// replaceCondition replaces existing target condition with replacement
+// condition, if present, for the given values, retaining the
+// LastTransitionTime.
+func replaceCondition(obj *v2.HelmRelease, target string, replacement string, reason string, msg string, status metav1.ConditionStatus) {
+	c := conditions.Get(obj, target)
+	if c != nil {
+		// Remove any existing replacement condition to retain the
+		// LastTransitionTime set here. If the state of the new condition
+		// changes an existing condition, the LastTransitionTime is updated to
+		// the current time.
+		// Refer https://github.com/fluxcd/pkg/blob/runtime/v0.43.0/runtime/conditions/setter.go#L54-L55.
+		conditions.Delete(obj, replacement)
+		c.Status = status
+		c.Type = replacement
+		c.Reason = reason
+		c.Message = msg
+		conditions.Set(obj, c)
+		conditions.Delete(obj, target)
 	}
 }
