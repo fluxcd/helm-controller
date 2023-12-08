@@ -276,9 +276,9 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		return ctrl.Result{}, err
 	}
 
-	// Check chart readiness.
-	if hc.Generation != hc.Status.ObservedGeneration || !conditions.IsReady(hc) || hc.GetArtifact() == nil {
-		msg := fmt.Sprintf("HelmChart '%s/%s' is not ready", hc.GetNamespace(), hc.GetName())
+	// Check if the HelmChart is ready.
+	if ready, reason := isHelmChartReady(hc); !ready {
+		msg := fmt.Sprintf("HelmChart '%s/%s' is not ready: %s", hc.GetNamespace(), hc.GetName(), reason)
 		log.Info(msg)
 		conditions.MarkFalse(obj, meta.ReadyCondition, "HelmChartNotReady", msg)
 		// Do not requeue immediately, when the artifact is created
@@ -702,4 +702,30 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, 
 		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
 	}
 	return reqs
+}
+
+// isHelmChartReady returns true if the given HelmChart is ready, and a reason
+// why it is not ready otherwise.
+func isHelmChartReady(obj *sourcev1.HelmChart) (bool, string) {
+	switch {
+	case obj.Generation != obj.Status.ObservedGeneration:
+		msg := "latest generation of object has not been reconciled"
+
+		// If the chart is not ready, we can likely provide a more
+		// concise reason why.
+		// We do not do this while the Generation matches the Observed
+		// Generation, as we could then potentially stall on e.g.
+		// temporary errors which do not have an impact as long as
+		// there is an Artifact for the current Generation.
+		if conditions.IsFalse(obj, meta.ReadyCondition) {
+			msg = conditions.GetMessage(obj, meta.ReadyCondition)
+		}
+		return false, msg
+	case conditions.IsStalled(obj):
+		return false, conditions.GetMessage(obj, meta.StalledCondition)
+	case obj.Status.Artifact == nil:
+		return false, "does not have an artifact"
+	default:
+		return true, ""
+	}
 }
