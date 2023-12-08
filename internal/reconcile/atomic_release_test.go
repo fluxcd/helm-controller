@@ -1015,15 +1015,16 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 
 func TestAtomicRelease_actionForState(t *testing.T) {
 	tests := []struct {
-		name        string
-		releases    []*helmrelease.Release
-		annotations map[string]string
-		spec        func(spec *v2.HelmReleaseSpec)
-		status      func(releases []*helmrelease.Release) v2.HelmReleaseStatus
-		state       ReleaseState
-		want        ActionReconciler
-		wantEvent   *corev1.Event
-		wantErr     error
+		name             string
+		releases         []*helmrelease.Release
+		annotations      map[string]string
+		spec             func(spec *v2.HelmReleaseSpec)
+		status           func(releases []*helmrelease.Release) v2.HelmReleaseStatus
+		state            ReleaseState
+		want             ActionReconciler
+		wantEvent        *corev1.Event
+		wantErr          error
+		assertConditions []metav1.Condition
 	}{
 		{
 			name: "in-sync release does not trigger any action",
@@ -1052,6 +1053,25 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 				}
 			},
 			want: &Upgrade{},
+		},
+		{
+			name: "in-sync release with stale remediated condition",
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{Version: 1},
+					},
+					Conditions: []metav1.Condition{
+						*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason, "upgrade failed"),
+						*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason, "rolled back"),
+					},
+				}
+			},
+			state: ReleaseState{Status: ReleaseStatusInSync},
+			want:  nil,
+			assertConditions: []metav1.Condition{
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "upgrade succeeded"),
+			},
 		},
 		{
 			name:  "locked release triggers unlock action",
@@ -1244,6 +1264,25 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			name:  "untested release triggers test action",
 			state: ReleaseState{Status: ReleaseStatusUntested},
 			want:  &Test{},
+		},
+		{
+			name: "untested release with stale remediated condition",
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{Version: 1},
+					},
+					Conditions: []metav1.Condition{
+						*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason, "upgrade failed"),
+						*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason, "rolled back"),
+					},
+				}
+			},
+			state: ReleaseState{Status: ReleaseStatusUntested},
+			want:  &Test{},
+			assertConditions: []metav1.Condition{
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "upgrade succeeded"),
+			},
 		},
 		{
 			name:  "failed release without active remediation triggers upgrade",
@@ -1513,6 +1552,122 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			} else {
 				g.Expect(recorder.GetEvents()).To(BeEmpty())
 			}
+
+			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(tt.assertConditions))
+		})
+	}
+}
+
+func Test_replaceCondition(t *testing.T) {
+	g := NewWithT(t)
+	timestamp, err := time.Parse(time.UnixDate, "Wed Feb 25 11:06:39 GMT 2015")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	tests := []struct {
+		name           string
+		conditions     []metav1.Condition
+		target         string
+		replacement    string
+		wantConditions []metav1.Condition
+	}{
+		{
+			name: "both conditions exist",
+			conditions: []metav1.Condition{
+				{
+					Type:               v2.ReleasedCondition,
+					Status:             metav1.ConditionFalse,
+					Reason:             v2.UpgradeFailedReason,
+					Message:            "upgrade failed",
+					ObservedGeneration: 1,
+					LastTransitionTime: metav1.NewTime(timestamp),
+				},
+				{
+					Type:               v2.RemediatedCondition,
+					Status:             metav1.ConditionTrue,
+					Reason:             v2.RollbackSucceededReason,
+					Message:            "rollback",
+					ObservedGeneration: 1,
+					LastTransitionTime: metav1.NewTime(timestamp),
+				},
+			},
+			target:      v2.RemediatedCondition,
+			replacement: v2.ReleasedCondition,
+			wantConditions: []metav1.Condition{
+				{
+					Type:               v2.ReleasedCondition,
+					Status:             metav1.ConditionTrue,
+					Reason:             v2.UpgradeSucceededReason,
+					Message:            "foo",
+					ObservedGeneration: 1,
+					LastTransitionTime: metav1.NewTime(timestamp),
+				},
+			},
+		},
+		{
+			name: "no existing replacement condition",
+			conditions: []metav1.Condition{
+				{
+					Type:               v2.RemediatedCondition,
+					Status:             metav1.ConditionTrue,
+					Reason:             v2.RollbackSucceededReason,
+					Message:            "rollback",
+					ObservedGeneration: 1,
+					LastTransitionTime: metav1.NewTime(timestamp),
+				},
+			},
+			target:      v2.RemediatedCondition,
+			replacement: v2.ReleasedCondition,
+			wantConditions: []metav1.Condition{
+				{
+					Type:               v2.ReleasedCondition,
+					Status:             metav1.ConditionTrue,
+					Reason:             v2.UpgradeSucceededReason,
+					Message:            "foo",
+					ObservedGeneration: 1,
+					LastTransitionTime: metav1.NewTime(timestamp),
+				},
+			},
+		},
+		{
+			name: "no existing target condition",
+			conditions: []metav1.Condition{
+				{
+					Type:               v2.ReleasedCondition,
+					Status:             metav1.ConditionFalse,
+					Reason:             v2.UpgradeFailedReason,
+					Message:            "upgrade failed",
+					ObservedGeneration: 1,
+					LastTransitionTime: metav1.NewTime(timestamp),
+				},
+			},
+			target:      v2.RemediatedCondition,
+			replacement: v2.ReleasedCondition,
+			wantConditions: []metav1.Condition{
+				{
+					Type:               v2.ReleasedCondition,
+					Status:             metav1.ConditionFalse,
+					Reason:             v2.UpgradeFailedReason,
+					Message:            "upgrade failed",
+					ObservedGeneration: 1,
+					LastTransitionTime: metav1.NewTime(timestamp),
+				},
+			},
+		},
+		{
+			name:        "no existing target and replacement conditions",
+			target:      v2.RemediatedCondition,
+			replacement: v2.ReleasedCondition,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			obj := &v2.HelmRelease{}
+			obj.Generation = 1
+			obj.Status.Conditions = tt.conditions
+			replaceCondition(obj, tt.target, tt.replacement, v2.UpgradeSucceededReason, "foo", metav1.ConditionTrue)
+			g.Expect(obj.Status.Conditions).To(Equal(tt.wantConditions))
 		})
 	}
 }
