@@ -35,6 +35,7 @@ actions that should be (conditionally) executed. Based on this the reconciler:
 - performs a Helm install or upgrade action if needed
 - performs a Helm test action if enabled
 - performs a reconciliation strategy (rollback, uninstall) and retries as configured if any Helm action failed
+- performs in cluster drift detection and correction if enabled
 
 The controller that runs these Helm actions relies on [source-controller](https://github.com/fluxcd/source-controller)
 for providing the Helm charts from Helm repositories or any other source that source-controller
@@ -50,7 +51,7 @@ trigger a Helm uninstall.
 Alerting can be configured with a Kubernetes custom resource that specifies a webhook address, and a
 group of `HelmRelease` resources to be monitored using the [notification-controller](https://github.com/fluxcd/notification-controller).
 
-The API design of the controller can be found at [helm.toolkit.fluxcd.io/v2beta1](./v2beta1/helmreleases.md).
+The API design of the controller can be found at [helm.toolkit.fluxcd.io/v2beta2](./v2beta2/helmreleases.md).
 
 ## Backward compatibility
 
