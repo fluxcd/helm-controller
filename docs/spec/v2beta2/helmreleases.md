@@ -1420,6 +1420,15 @@ and is only present on the HelmRelease while the status is `"True"`.
 The helm-controller marks the HelmRelease as _ready_ when it has the following
 characteristics:
 
+- The Helm release is installed and up-to-date. This means that the Helm
+  release has been installed or upgraded, the release's chart has the same
+  version as the [Helm chart referenced by the HelmRelease](#chart-template),
+  and the [values](#values) used to install or upgrade the release have not
+  changed.
+- The Helm release has passed any [Helm tests](#test-configuration) that are
+  enabled.
+- The HelmRelease is not being [reconciled](#reconciling-helmrelease).
+
 When the HelmRelease is "ready", the controller sets a Condition with the
 following attributes in the HelmRelease's `.status.conditions`:
 
