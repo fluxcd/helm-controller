@@ -2,8 +2,8 @@
 
 The `HelmRelease` API allows for controller-driven reconciliation of Helm
 releases via Helm actions such as install, upgrade, test, uninstall, and
-rollback. In addition to this, it allows detecting and correcting cluster state
-drift from the desired release state.
+rollback. In addition to this, it detects and corrects cluster state drift
+from the desired release state.
 
 ## Example
 
@@ -61,16 +61,17 @@ In the above example:
 - A [HelmRepository](https://fluxcd.io/flux/components/source/helmrepositories/)
   named `podinfo` is created, pointing to the Helm repository from which the 
   podinfo chart can be installed.
-- A HelmRelease named `podinfo` is created, that will create a HelmChart object
-  from [the `.spec.chart`](#chart-template) and watch it for Artifact changes.
+- A HelmRelease named `podinfo` is created, that will create a [HelmChart](https://fluxcd.io/flux/components/source/helmcharts/) object
+  object from [the `.spec.chart`](#chart-template) and watch it for Artifact
+  changes.
 - The controller will fetch the chart from the HelmChart's Artifact and use it
   together with the `.spec.releaseName` and `.spec.values` to confirm if the
   Helm release exists and is up-to-date.
 - If the Helm release does not exist, is not up-to-date, or has not observed to
   be made by the controller, then the controller will install or upgrade the
-  release, respectively. If this fails, it is allowed to retry the operation
-  a number of times while requeueing between attempts, as defined by the 
-  respective [remediation configurations](#configuring-failure-handling).
+  release. If this fails, it is allowed to retry the operation a number of
+  times while requeueing between attempts, as defined by the respective
+  [remediation configurations](#configuring-failure-handling).
 - If the [Helm tests](#test-configuration) for the release have not been run
   before for this release, the HelmRelease will run them.
 - When the Helm release in storage is up-to-date, the controller will check if
@@ -451,7 +452,7 @@ The field offers the following subfields:
   Defaults to `false`.
 - `.preserveValues` (Optional): Instructs Helm to re-use the values from the
   last release while merging in overrides from [values](#values). Setting
-  this flag makes the HelmRelease non-declarative.
+  this flag makes the HelmRelease non-declarative. Defaults to `false`.
 
 #### Upgrade remediation
 
@@ -528,7 +529,7 @@ The field offers the following subfields:
   Defaults to the [global timeout value](#timeout).
 - `.cleanupOnFail` (Optional): Allows deletion of new resources created during
   the rollback of the release when it fails. Defaults to `false`.
- `.disableHooks` (Optional): Prevents [chart hooks](https://helm.sh/docs/topics/charts_hooks/)
+- `.disableHooks` (Optional): Prevents [chart hooks](https://helm.sh/docs/topics/charts_hooks/)
   from running during the rollback of the release. Defaults to `false`.
 - `.disableWait` (Optional): Disables waiting for resources to be ready after
   rolling back the release. Defaults to `false`.
@@ -552,8 +553,10 @@ The field offers the following subfields:
 - `.timeout` (Optional): The time to wait for any individual Kubernetes
   operation (like Jobs for hooks) during the uninstalltion of the release.
   Defaults to the [global timeout value](#timeout).
-- `.deletionPropagation` (Optional):
- `.disableHooks` (Optional): Prevents [chart hooks](https://helm.sh/docs/topics/charts_hooks/)
+- `.deletionPropagation` (Optional): The [deletion propagation policy](https://kubernetes.io/docs/tasks/administer-cluster/use-cascading-deletion/)
+  when a Helm uninstall is performed. Valid values are `background`,
+  `foreground` and `orphan`. Defaults to `background`.
+- `.disableHooks` (Optional): Prevents [chart hooks](https://helm.sh/docs/topics/charts_hooks/)
   from running during the uninstallation of the release. Defaults to `false`.
 - `.disableWait` (Optional): Disables waiting for resources to be deleted after
   uninstalling the release. Defaults to `false`.
@@ -569,7 +572,7 @@ storage.
 
 When `.spec.driftDetection.mode` is set to `warn` or `enabled`, and the
 desired state of the HelmRelease is in-sync with the Helm release object in
-the storage. The controller will compare the manifest from the Helm storage
+the storage, the controller will compare the manifest from the Helm storage
 with the current state of the cluster using a
 [server-side dry-run apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/).
 
@@ -581,9 +584,9 @@ to the controller logs (with `--log-level=debug`).
 
 #### Drift correction
 
-When `.spec.driftDetection.mode` is set to `enabled`, the controller will
-attempt to correct the drift by creating and patching the resources based on
-the server-side dry-run result.
+Furthermore, when `.spec.driftDetection.mode` is set to `enabled`, the
+controller will attempt to correct the drift by creating and patching the
+resources based on the server-side dry-run result.
 
 At the end of the correction attempt, it will emit a Kubernetes Event with a
 summary of the changes it made and any failures it encountered. In case of a
