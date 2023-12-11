@@ -1,5 +1,7 @@
 # Helm Releases
 
+<!-- menuweight:10 -->
+
 The `HelmRelease` API allows for controller-driven reconciliation of Helm
 releases via Helm actions such as install, upgrade, test, uninstall, and
 rollback. In addition to this, it detects and corrects cluster state drift
@@ -62,16 +64,15 @@ In the above example:
   named `podinfo` is created, pointing to the Helm repository from which the 
   podinfo chart can be installed.
 - A HelmRelease named `podinfo` is created, that will create a [HelmChart](https://fluxcd.io/flux/components/source/helmcharts/) object
-  object from [the `.spec.chart`](#chart-template) and watch it for Artifact
-  changes.
+  from [the `.spec.chart`](#chart-template) and watch it for Artifact changes.
 - The controller will fetch the chart from the HelmChart's Artifact and use it
   together with the `.spec.releaseName` and `.spec.values` to confirm if the
   Helm release exists and is up-to-date.
 - If the Helm release does not exist, is not up-to-date, or has not observed to
-  be made by the controller, then the controller will install or upgrade the
-  release. If this fails, it is allowed to retry the operation a number of
-  times while requeueing between attempts, as defined by the respective
-  [remediation configurations](#configuring-failure-handling).
+  be made by the controller based on [the HelmRelease's history](#history), then
+  the controller will install or upgrade the release. If this fails, it is
+  allowed to retry the operation a number of times while requeueing between
+  attempts, as defined by the respective [remediation configurations](#configuring-failure-handling).
 - If the [Helm tests](#test-configuration) for the release have not been run
   before for this release, the HelmRelease will run them.
 - When the Helm release in storage is up-to-date, the controller will check if
@@ -214,7 +215,7 @@ uninstalled before installing a new release with the new name.
 **Note:** When the composition exceeds the maximum length of 53 characters, the
 name is shortened by hashing the release name with SHA-256. The resulting name
 is then composed of the first 40 characters of the release name, followed by a
-dash (`-`), followed by the 12 characters of the hash. For example,
+dash (`-`), followed by the first 12 characters of the hash. For example,
 `a-very-lengthy-target-namespace-with-a-nice-object-name` becomes
 `a-very-lengthy-target-namespace-with-a-nic-97af5d7f41f3`.
 
@@ -481,7 +482,8 @@ The field offers the following subfields:
 
 To make the controller run the [Helm tests available for the chart](https://helm.sh/docs/topics/chart_tests/)
 after a successful Helm install or upgrade, `.spec.test.enable` can be set to
-`true`.
+`true`. When enabled, the test results will be available in the
+[`.status.history`](#history) field and emitted as a Kubernetes Event.
 
 By default, when tests are enabled, failures in tests are considered release
 failures, and thus are subject to the triggering Helm action's remediation
@@ -586,7 +588,7 @@ to the controller logs (with `--log-level=debug`).
 
 Furthermore, when `.spec.driftDetection.mode` is set to `enabled`, the
 controller will attempt to correct the drift by creating and patching the
-resources based on the server-side apply dry-run result.
+resources based on the server-side dry-run apply result.
 
 At the end of the correction attempt, it will emit a Kubernetes Event with a
 summary of the changes it made and any failures it encountered. In case of a
@@ -977,6 +979,9 @@ When the flag is set, HelmReleases which do not have a `.spec.serviceAccountName
 specified will use the Service Account name provided by
 `--default-service-account=<name>` in the namespace of the HelmRelease object.
 
+For further best practices on securing helm-controller, see our
+[best practices guide](https://fluxcd.io/flux/security/best-practices).
+
 ### Remote clusters / Cluster-API
 
 Using a [`.spec.kubeConfig` reference](#kubeconfig-reference), it is possible
@@ -1078,9 +1083,9 @@ flux reconcile helmrelease <helmrelease-name>
 ### Forcing a release
 
 To instruct the helm-controller to forcefully perform a Helm install or
-upgrade, it can be annotated with `reconcile.fluxcd.io/forceAt: <arbitrary value>`
-while simultaneously [triggering a reconcile](#triggering-a-reconcile) with the
-same value.
+upgrade without making changes to the spec, it can be annotated with
+`reconcile.fluxcd.io/forceAt: <arbitrary value>` while simultaneously
+[triggering a reconcile](#triggering-a-reconcile) with the same value.
 
 Annotating the resource forces a one-off Helm install or upgrade if the
 `<arbitrary-value>` differs from the last value the controller acted on, as
