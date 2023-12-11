@@ -92,7 +92,7 @@ jobs:
           mkdir -p config/release
           kustomize build ./config/crd > ./config/release/${{ env.CONTROLLER }}.crds.yaml
           kustomize build ./config/manager > ./config/release/${{ env.CONTROLLER }}.deployment.yaml
-      - uses: anchore/sbom-action/download-syft@fd74a6fb98a204a1ad35bbfae0122c1a302ff88b # v0.15.0
+      - uses: anchore/sbom-action/download-syft@5ecf649a417b8ae17dc8383dc32d46c03f2312df # v0.15.1
       - name: Create release and SBOM
         id: run-goreleaser
         if: startsWith(github.ref, 'refs/tags/v')
