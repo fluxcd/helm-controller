@@ -586,7 +586,7 @@ to the controller logs (with `--log-level=debug`).
 
 Furthermore, when `.spec.driftDetection.mode` is set to `enabled`, the
 controller will attempt to correct the drift by creating and patching the
-resources based on the server-side dry-run result.
+resources based on the server-side apply dry-run result.
 
 At the end of the correction attempt, it will emit a Kubernetes Event with a
 summary of the changes it made and any failures it encountered. In case of a
