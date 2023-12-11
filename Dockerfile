@@ -31,7 +31,7 @@ COPY internal/ internal/
 ENV CGO_ENABLED=0
 RUN xx-go build -trimpath -a -o helm-controller main.go
 
-FROM alpine:3.18
+FROM alpine:3.19
 
 RUN apk add --no-cache ca-certificates \
     && update-ca-certificates
