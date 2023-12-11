@@ -852,12 +852,14 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 		g.Expect(err).To(MatchError(helmdriver.ErrReleaseNotFound))
 
 		// Verify Helm chart has been removed.
-		err = testEnv.Get(context.TODO(), client.ObjectKey{
-			Namespace: hc.Namespace,
-			Name:      hc.Name,
-		}, &sourcev1b2.HelmChart{})
-		g.Expect(err).To(HaveOccurred())
-		g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+		g.Eventually(func(g Gomega) {
+			err = testEnv.Get(context.TODO(), client.ObjectKey{
+				Namespace: hc.Namespace,
+				Name:      hc.Name,
+			}, &sourcev1b2.HelmChart{})
+			g.Expect(err).To(HaveOccurred())
+			g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+		}).Should(Succeed())
 	})
 
 	t.Run("removes finalizer for suspended resource with DeletionTimestamp", func(t *testing.T) {
