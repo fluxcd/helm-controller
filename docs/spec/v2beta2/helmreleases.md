@@ -600,7 +600,7 @@ the spec).
 
 `.spec.driftDetection.ignore` is an optional field to provide
 [JSON Pointers](https://datatracker.ietf.org/doc/html/rfc6901) to ignore while
-detecting and correcting drift. This can for example be easeful when Horizontal
+detecting and correcting drift. This can for example be useful when Horizontal
 Pod Autoscaling is enabled for a Deployment, or when a Helm chart has hooks
 which mutate a resource.
 
