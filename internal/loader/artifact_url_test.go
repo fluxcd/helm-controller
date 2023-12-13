@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -66,6 +67,19 @@ func TestSecureLoadChartFromURL(t *testing.T) {
 		g := NewWithT(t)
 
 		got, err := SecureLoadChartFromURL(client, chartURL, digest.String())
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.Name()).To(Equal("chart"))
+		g.Expect(got.Metadata.Version).To(Equal("0.1.0"))
+	})
+
+	t.Run("overwrites hostname", func(t *testing.T) {
+		g := NewWithT(t)
+
+		t.Setenv(envSourceControllerLocalhost, strings.TrimPrefix(server.URL, "http://"))
+		wrongHostnameURL := "http://invalid.com" + chartPath
+
+		got, err := SecureLoadChartFromURL(client, wrongHostnameURL, digest.String())
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.Name()).To(Equal("chart"))
@@ -159,6 +173,47 @@ func Test_copyAndVerify(t *testing.T) {
 
 			err := copyAndVerify(tt.digest, tt.in, tt.out)
 			g.Expect(err != nil).To(Equal(tt.wantErr), err)
+		})
+	}
+}
+
+func Test_overwriteHostname(t *testing.T) {
+	tests := []struct {
+		name     string
+		URL      string
+		hostname string
+		want     string
+		wantErr  bool
+	}{
+		{
+			name:     "overwrite hostname",
+			URL:      "http://example.com",
+			hostname: "localhost",
+			want:     "http://localhost",
+		},
+		{
+			name:     "overwrite hostname with port",
+			URL:      "http://example.com",
+			hostname: "localhost:9090",
+			want:     "http://localhost:9090",
+		},
+		{
+			name:     "no hostname",
+			URL:      "http://example.com",
+			hostname: "",
+			want:     "http://example.com",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := overwriteHostname(tt.URL, tt.hostname)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("overwriteHostname() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("overwriteHostname() got = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

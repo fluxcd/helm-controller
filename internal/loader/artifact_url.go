@@ -24,12 +24,21 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"os"
 
 	"github.com/hashicorp/go-retryablehttp"
 	digestlib "github.com/opencontainers/go-digest"
 	_ "github.com/opencontainers/go-digest/blake3"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
+)
+
+const (
+	// envSourceControllerLocalhost is the name of the environment variable
+	// used to override the hostname of the source-controller from which
+	// the chart is usually downloaded.
+	envSourceControllerLocalhost = "SOURCE_CONTROLLER_LOCALHOST"
 )
 
 var (
@@ -45,6 +54,11 @@ var (
 // digest before loading the chart. It returns the loaded chart.Chart, or an
 // error. The error may be of type ErrIntegrity if the integrity check fails.
 func SecureLoadChartFromURL(client *retryablehttp.Client, URL, digest string) (*chart.Chart, error) {
+	URL, err := overwriteHostname(URL, os.Getenv(envSourceControllerLocalhost))
+	if err != nil {
+		return nil, err
+	}
+
 	req, err := retryablehttp.NewRequest(http.MethodGet, URL, nil)
 	if err != nil {
 		return nil, err
@@ -93,4 +107,19 @@ func copyAndVerify(digest string, reader io.Reader, writer io.Writer) error {
 		return fmt.Errorf("%w: computed digest doesn't match '%s'", ErrIntegrity, dig)
 	}
 	return nil
+}
+
+// overwriteHostname overwrites the hostname of the given URL with the given
+// hostname. If the hostname is empty, the URL is returned unmodified.
+func overwriteHostname(URL, hostname string) (string, error) {
+	if hostname == "" {
+		return URL, nil
+	}
+
+	u, err := url.Parse(URL)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse URL to overwrite hostname: %w", err)
+	}
+	u.Host = hostname
+	return u.String(), nil
 }
