@@ -21,7 +21,7 @@ require (
 	github.com/fluxcd/pkg/apis/event v0.6.0
 	github.com/fluxcd/pkg/apis/kustomize v1.2.0
 	github.com/fluxcd/pkg/apis/meta v1.2.0
-	github.com/fluxcd/pkg/runtime v0.43.2
+	github.com/fluxcd/pkg/runtime v0.43.3
 	github.com/fluxcd/pkg/ssa v0.35.0
 	github.com/fluxcd/pkg/testserver v0.5.0
 	github.com/fluxcd/source-controller/api v1.2.2
