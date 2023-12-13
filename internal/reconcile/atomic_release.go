@@ -262,9 +262,17 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 					"instructed to stop after running %s action reconciler %s", next.Type(), next.Name()),
 				)
 
-				if remediation := req.Object.GetActiveRemediation(); remediation == nil || !remediation.RetriesExhausted(req.Object) {
+				remediation := req.Object.GetActiveRemediation()
+				if remediation == nil || !remediation.RetriesExhausted(req.Object) {
 					conditions.MarkReconciling(req.Object, meta.ProgressingWithRetryReason, conditions.GetMessage(req.Object, meta.ReadyCondition))
 					return ErrMustRequeue
+				}
+				// Check if retries have exhausted after remediation for early
+				// stall condition detection.
+				if remediation != nil && remediation.RetriesExhausted(req.Object) {
+					conditions.MarkStalled(req.Object, "RetriesExceeded", "Failed to %s after %d attempt(s)",
+						req.Object.Status.LastAttemptedReleaseAction, req.Object.GetActiveRemediation().GetFailureCount(req.Object))
+					return ErrExceededMaxRetries
 				}
 
 				conditions.Delete(req.Object, meta.ReconcilingCondition)
