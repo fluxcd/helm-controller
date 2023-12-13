@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-retryablehttp"
 	. "github.com/onsi/gomega"
 	"github.com/opencontainers/go-digest"
 	helmrelease "helm.sh/helm/v3/pkg/release"
@@ -433,7 +432,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(chart, obj).
 				Build(),
-			httpClient:        retryablehttp.NewClient(),
 			requeueDependency: 10 * time.Second,
 		}
 
@@ -526,7 +524,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Client:           c,
 			GetClusterConfig: GetTestClusterConfig,
 			EventRecorder:    record.NewFakeRecorder(32),
-			httpClient:       retryablehttp.NewClient(),
 		}
 
 		// Store the Helm release mock in the test namespace.
@@ -607,7 +604,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Client:           c,
 			GetClusterConfig: GetTestClusterConfig,
 			EventRecorder:    record.NewFakeRecorder(32),
-			httpClient:       retryablehttp.NewClient(),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj)
@@ -683,7 +679,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Client:           c,
 			GetClusterConfig: GetTestClusterConfig,
 			EventRecorder:    record.NewFakeRecorder(32),
-			httpClient:       retryablehttp.NewClient(),
 		}
 
 		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj)
@@ -755,7 +750,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Client:           c,
 			GetClusterConfig: GetTestClusterConfig,
 			EventRecorder:    record.NewFakeRecorder(32),
-			httpClient:       retryablehttp.NewClient(),
 		}
 
 		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj)
