@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-retryablehttp"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -90,8 +89,8 @@ type HelmReleaseReconciler struct {
 	FieldManager          string
 	DefaultServiceAccount string
 
-	httpClient        *retryablehttp.Client
-	requeueDependency time.Duration
+	requeueDependency    time.Duration
+	artifactFetchRetries int
 }
 
 type HelmReleaseReconcilerOptions struct {
@@ -122,15 +121,7 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 	}
 
 	r.requeueDependency = opts.DependencyRequeueInterval
-
-	// Configure the retryable http client used for fetching artifacts.
-	// By default, it retries 10 times within a 3.5 minutes window.
-	httpClient := retryablehttp.NewClient()
-	httpClient.RetryWaitMin = 5 * time.Second
-	httpClient.RetryWaitMax = 30 * time.Second
-	httpClient.RetryMax = opts.HTTPRetry
-	httpClient.Logger = nil
-	r.httpClient = httpClient
+	r.artifactFetchRetries = opts.HTTPRetry
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v2.HelmRelease{}, builder.WithPredicates(
@@ -294,7 +285,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	}
 
 	// Load chart from artifact.
-	loadedChart, err := loader.SecureLoadChartFromURL(r.httpClient, hc.GetArtifact().URL, hc.GetArtifact().Digest)
+	loadedChart, err := loader.SecureLoadChartFromURL(loader.NewRetryableHTTPClient(ctx, r.artifactFetchRetries), hc.GetArtifact().URL, hc.GetArtifact().Digest)
 	if err != nil {
 		if errors.Is(err, loader.ErrFileNotFound) {
 			msg := fmt.Sprintf("Chart not ready: artifact not found. Retrying in %s", r.requeueDependency.String())
