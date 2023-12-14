@@ -629,6 +629,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
+			wantErr: ErrExceededMaxRetries,
 		},
 		{
 			name: "install test failure with remediation",
@@ -654,6 +655,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 					snap,
 				}
 			},
+			wantErr: ErrExceededMaxRetries,
 		},
 		{
 			name: "install test failure with test ignore",
@@ -759,6 +761,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
+			wantErr: ErrExceededMaxRetries,
 		},
 		{
 			name: "upgrade failure with uninstall remediation",
@@ -799,6 +802,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
+			wantErr: ErrExceededMaxRetries,
 		},
 		{
 			name: "upgrade test failure with remediation",
@@ -841,6 +845,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
+			wantErr: ErrExceededMaxRetries,
 		},
 		{
 			name: "upgrade test failure with test ignore",
@@ -926,6 +931,55 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
+			wantErr: ErrExceededMaxRetries,
+		},
+		{
+			name: "upgrade remediation results in exhausted retries",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Chart:     testutil.BuildChart(),
+						Status:    helmrelease.StatusSuperseded,
+					}),
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   2,
+						Chart:     testutil.BuildChart(),
+						Status:    helmrelease.StatusSuperseded,
+					}),
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   3,
+						Chart:     testutil.BuildChart(),
+						Status:    helmrelease.StatusFailed,
+					}),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Upgrade = &v2.Upgrade{
+					Remediation: &v2.UpgradeRemediation{
+						Retries: 1,
+					},
+				}
+			},
+			status: func(namespace string, releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
+						release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
+					Failures:                   2,
+					UpgradeFailures:            2,
+				}
+			},
+			chart:   testutil.BuildChart(),
 			wantErr: ErrExceededMaxRetries,
 		},
 	}
