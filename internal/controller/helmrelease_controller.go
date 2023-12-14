@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -55,6 +56,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
+	"github.com/fluxcd/helm-controller/api/v2beta1"
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -142,10 +144,15 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	start := time.Now()
 	log := ctrl.LoggerFrom(ctx)
 
-	// Fetch the HelmRelease
+	// Fetch the HelmRelease.
 	obj := &v2.HelmRelease{}
 	if err := r.Get(ctx, req.NamespacedName, obj); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	// Conditionally reset the field managers for the object.
+	if err := r.resetFieldManagers(ctx, obj); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// Initialize the patch helper with the current version of the object.
@@ -661,6 +668,30 @@ func (r *HelmReleaseReconciler) waitForHistoryCacheSync(obj *v2.HelmRelease) wai
 		}
 		return apiequality.Semantic.DeepEqual(obj.Status.History, newObj.Status.History), nil
 	}
+}
+
+// resetFieldManagers removes all managed fields from the v2beta2.HelmRelease
+// object which used to be managed by the v2beta1.HelmRelease controller.
+// This is required to prevent any conversion conflicts when newly added fields
+// are not present in the v2beta1.HelmRelease, or when the v2beta1.HelmRelease
+// is eventually removed.
+// xref: https://github.com/kubernetes/kubernetes/issues/111937
+func (r *HelmReleaseReconciler) resetFieldManagers(ctx context.Context, obj *v2.HelmRelease) error {
+	var filtered []metav1.ManagedFieldsEntry
+	for _, f := range obj.GetManagedFields() {
+		if f.APIVersion != v2beta1.GroupVersion.String() || f.Manager != r.FieldManager {
+			filtered = append(filtered, f)
+		}
+	}
+
+	if len(filtered) == len(obj.GetManagedFields()) {
+		return nil
+	}
+
+	mergeFrom := client.MergeFrom(obj.DeepCopy())
+	obj.SetManagedFields(filtered)
+
+	return r.Client.Patch(ctx, obj, mergeFrom)
 }
 
 func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, o client.Object) []reconcile.Request {
