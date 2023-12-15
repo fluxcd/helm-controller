@@ -156,6 +156,15 @@ type HelmReleaseSpec struct {
 	// +optional
 	PersistentClient *bool `json:"persistentClient,omitempty"`
 
+	// DriftDetection holds the configuration for detecting and handling
+	// differences between the manifest in the Helm storage and the resources
+	// currently existing in the cluster.
+	//
+	// Note: this field is provisional to the v2beta2 API, and not actively used
+	// by v2beta1 HelmReleases.
+	// +optional
+	DriftDetection *v2beta2.DriftDetection `json:"driftDetection,omitempty"`
+
 	// Install holds the configuration for Helm install actions for this HelmRelease.
 	// +optional
 	Install *Install `json:"install,omitempty"`
@@ -947,6 +956,22 @@ type HelmReleaseStatus struct {
 	// by v2beta1 HelmReleases.
 	// +optional
 	LastAttemptedReleaseAction string `json:"lastAttemptedReleaseAction,omitempty"`
+
+	// LastHandledForceAt holds the value of the most recent force request
+	// value, so a change of the annotation value can be detected.
+	//
+	// Note: this field is provisional to the v2beta2 API, and not actively used
+	// by v2beta1 HelmReleases.
+	// +optional
+	LastHandledForceAt string `json:"lastHandledForceAt,omitempty"`
+
+	// LastHandledResetAt holds the value of the most recent reset request
+	// value, so a change of the annotation value can be detected.
+	//
+	// Note: this field is provisional to the v2beta2 API, and not actively used
+	// by v2beta1 HelmReleases.
+	// +optional
+	LastHandledResetAt string `json:"lastHandledResetAt,omitempty"`
 }
 
 // GetHelmChart returns the namespace and name of the HelmChart.
