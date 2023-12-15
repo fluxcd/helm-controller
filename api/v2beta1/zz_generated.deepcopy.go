@@ -235,6 +235,11 @@ func (in *HelmReleaseSpec) DeepCopyInto(out *HelmReleaseSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.DriftDetection != nil {
+		in, out := &in.DriftDetection, &out.DriftDetection
+		*out = new(v2beta2.DriftDetection)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Install != nil {
 		in, out := &in.Install, &out.Install
 		*out = new(Install)
