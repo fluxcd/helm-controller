@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.37.1
+
+This prerelease fixes a backwards compatibility issue that could occur when
+trying to move from the `v2beta1` to `v2beta2` API while enabling drift
+detection.
+
+In addition, logging has been improved to provide faster feedback on any
+HTTP errors encountered while fetching HelmChart artifacts, and the controller
+will now set the `Stalled` condition as soon as it detects to be out of retries
+without having to wait for the next reconciliation.
+
+Lastly, Helm has been updated to v3.13.3.
+
+Fixes:
+- loader: allow overwrite of URL hostname again
+  [#844](https://github.com/fluxcd/helm-controller/pull/844)
+- api: ensure backwards compatibility v2beta1
+  [#851](https://github.com/fluxcd/helm-controller/pull/851)
+
+Improvements:
+- loader: log HTTP errors to provide faster feedback
+  [#845](https://github.com/fluxcd/helm-controller/pull/845)
+- Update runtime to v0.43.3
+  [#846](https://github.com/fluxcd/helm-controller/pull/846)
+- Early stall condition detection after remediation
+  [#848](https://github.com/fluxcd/helm-controller/pull/848)
+- Update Helm to v3.13.3
+  [#849](https://github.com/fluxcd/helm-controller/pull/849)
+
 ## 0.37.0
 
 **Release date:** 2023-12-12
