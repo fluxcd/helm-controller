@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.37.2
+
+This prerelease fixes a bug that resulted in the controller not being able to
+properly watch HelmRelease resources with specific labels.
+
+Fixes:
+- Properly configure namespace selector
+  [#858](https://github.com/fluxcd/helm-controller/pull/858)
+
+Improvements:
+- build(deps): bump golang.org/x/crypto from 0.16.0 to 0.17.0
+  [#856](https://github.com/fluxcd/helm-controller/pull/856)
+
 ## 0.37.1
 
 This prerelease fixes a backwards compatibility issue that could occur when
