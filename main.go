@@ -228,8 +228,10 @@ func main() {
 		},
 	}
 
-	mgrConfig.Cache.DefaultNamespaces = map[string]ctrlcache.Config{
-		watchNamespace: {},
+	if watchNamespace != "" {
+		mgrConfig.Cache.DefaultNamespaces = map[string]ctrlcache.Config{
+			watchNamespace: ctrlcache.Config{},
+		}
 	}
 
 	mgr, err := ctrl.NewManager(restConfig, mgrConfig)
