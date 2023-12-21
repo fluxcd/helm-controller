@@ -1,6 +1,8 @@
 module github.com/fluxcd/helm-controller
 
-go 1.20
+go 1.21
+
+toolchain go1.21.5
 
 replace github.com/fluxcd/helm-controller/api => ./api
 
@@ -36,11 +38,11 @@ require (
 	github.com/wI2L/jsondiff v0.4.1-0.20230626084051-c85fb8ce3cac
 	golang.org/x/text v0.14.0
 	helm.sh/helm/v3 v3.13.3
-	k8s.io/api v0.28.4
+	k8s.io/api v0.29.0
 	k8s.io/apiextensions-apiserver v0.28.4
-	k8s.io/apimachinery v0.28.4
-	k8s.io/cli-runtime v0.28.4
-	k8s.io/client-go v0.28.4
+	k8s.io/apimachinery v0.29.0
+	k8s.io/cli-runtime v0.29.0
+	k8s.io/client-go v0.29.0
 	k8s.io/kubectl v0.28.4
 	k8s.io/utils v0.0.0-20231127182322-b307cd553661
 	sigs.k8s.io/controller-runtime v0.16.3

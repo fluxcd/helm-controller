@@ -198,7 +198,7 @@ func (c *MemoryRESTClientGetter) toRESTMapper() (meta.RESTMapper, error) {
 		return nil, err
 	}
 	mapper := restmapper.NewDeferredDiscoveryRESTMapper(discoveryClient)
-	return restmapper.NewShortcutExpander(mapper, discoveryClient), nil
+	return restmapper.NewShortcutExpander(mapper, discoveryClient, nil), nil
 }
 
 // ToRawKubeConfigLoader returns a clientcmd.ClientConfig using
