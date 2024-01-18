@@ -533,7 +533,7 @@ func (r *HelmReleaseReconciler) checkDependencies(ctx context.Context, obj *v2.H
 			return fmt.Errorf("unable to get '%s' dependency: %w", ref, err)
 		}
 
-		if dHr.Generation != dHr.Status.ObservedGeneration || !conditions.IsTrue(dHr, meta.ReadyCondition) {
+		if !conditions.IsTrue(dHr, meta.ReadyCondition) {
 			return fmt.Errorf("dependency '%s' is not ready", ref)
 		}
 	}
