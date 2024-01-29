@@ -36,6 +36,8 @@ import (
 	"github.com/fluxcd/cli-utils/pkg/object"
 	"github.com/fluxcd/pkg/ssa"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
+	ssanormalize "github.com/fluxcd/pkg/ssa/normalize"
+	ssautil "github.com/fluxcd/pkg/ssa/utils"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/diff"
@@ -55,11 +57,11 @@ func Diff(ctx context.Context, config *helmaction.Configuration, rls *helmreleas
 	}
 
 	// Read the release manifest and normalize the objects.
-	objects, err := ssa.ReadObjects(strings.NewReader(rls.Manifest))
+	objects, err := ssautil.ReadObjects(strings.NewReader(rls.Manifest))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read objects from release manifest: %w", err)
 	}
-	if err = ssa.NormalizeUnstructuredListWithScheme(objects, c.Scheme()); err != nil {
+	if err = ssanormalize.UnstructuredListWithScheme(objects, c.Scheme()); err != nil {
 		return nil, fmt.Errorf("failed to normalize release objects: %w", err)
 	}
 

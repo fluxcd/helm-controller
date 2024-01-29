@@ -43,6 +43,8 @@ import (
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/ssa"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
+	ssanormalize "github.com/fluxcd/pkg/ssa/normalize"
+	ssautil "github.com/fluxcd/pkg/ssa/utils"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/kube"
@@ -406,7 +408,7 @@ data:
 
 			rls := &helmrelease.Release{Name: tt.name, Namespace: ns.Name, Manifest: tt.manifest}
 
-			objs, err := ssa.ReadObjects(strings.NewReader(tt.manifest))
+			objs, err := ssautil.ReadObjects(strings.NewReader(tt.manifest))
 			if err != nil {
 				t.Fatalf("Failed to read release objects: %v", err)
 			}
@@ -430,7 +432,7 @@ data:
 			})
 
 			for _, obj := range clusterObjs {
-				if err = ssa.NormalizeUnstructured(obj); err != nil {
+				if err = ssanormalize.Unstructured(obj); err != nil {
 					t.Fatalf("Failed to normalize cluster manifest: %v", err)
 				}
 				if err := c.Create(ctx, obj, client.FieldOwner(testOwner)); err != nil {
@@ -827,6 +829,6 @@ func generateName(name string) string {
 func namespacedUnstructured(obj *unstructured.Unstructured, namespace string) *unstructured.Unstructured {
 	obj = obj.DeepCopy()
 	obj.SetNamespace(namespace)
-	_ = ssa.NormalizeUnstructured(obj)
+	_ = ssanormalize.Unstructured(obj)
 	return obj
 }
