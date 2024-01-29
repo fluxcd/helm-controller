@@ -1,16 +1,38 @@
 version: 2
 
 updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    labels: ["dependencies"]
+    schedule:
+      interval: "daily"
+    groups:
+      go-deps:
+        patterns:
+          - "*"
+    allow:
+      - dependency-type: "direct"
+    ignore:
+      # Kubernetes deps are updated by fluxcd/pkg/runtime
+      - dependency-name: "k8s.io/*"
+      - dependency-name: "sigs.k8s.io/*"
+      - dependency-name: "github.com/go-logr/*"
+      # jsondiff is updated by fluxcd/pkg/ssa
+      - dependency-name: "github.com/wI2L/jsondiff"
+      # OCI deps are updated by fluxcd/pkg/oci
+      - dependency-name: "github.com/google/go-containerregistry*"
+      - dependency-name: "github.com/opencontainers/*"
+      # Helm deps are updated by fluxcd/pkg/helmtestserver
+      - dependency-name: "helm.sh/helm/*"
+      # Flux APIs are updated at release time
+      - dependency-name: "github.com/fluxcd/helm-controller/api"
+      - dependency-name: "github.com/fluxcd/source-controller/api"
   - package-ecosystem: "github-actions"
     directory: "/"
     labels: ["area/ci", "dependencies"]
-    schedule:
-      # By default, this will be on a monday.
-      interval: "weekly"
     groups:
-      # Group all updates together, so that they are all applied in a single PR.
-      # Grouped updates are currently in beta and is subject to change.
-      # xref: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file#groups
       ci:
         patterns:
           - "*"
+    schedule:
+      interval: "daily"
