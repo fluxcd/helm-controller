@@ -29,8 +29,9 @@ import (
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/fluxcd/pkg/ssa"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
+	ssanormalize "github.com/fluxcd/pkg/ssa/normalize"
+	ssautil "github.com/fluxcd/pkg/ssa/utils"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -619,11 +620,11 @@ func TestDetermineReleaseState_DriftDetection(t *testing.T) {
 			})
 
 			if tt.applyManifest {
-				objs, err := ssa.ReadObjects(strings.NewReader(rls.Manifest))
+				objs, err := ssautil.ReadObjects(strings.NewReader(rls.Manifest))
 				g.Expect(err).ToNot(HaveOccurred())
 
 				for _, obj := range objs {
-					g.Expect(ssa.NormalizeUnstructured(obj)).To(Succeed())
+					g.Expect(ssanormalize.Unstructured(obj)).To(Succeed())
 					obj.SetNamespace(releaseNamespace)
 					obj.SetLabels(map[string]string{
 						"app.kubernetes.io/managed-by": "Helm",
