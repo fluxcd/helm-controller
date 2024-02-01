@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.37.3
+
+**Release date:** 2024-02-01
+
+This prerelease comes with an update to the Kubernetes dependencies to
+v1.28.6 and various other dependencies have been updated to their latest version
+to patch upstream CVEs.
+
+In addition, the controller is now built with Go 1.21.
+
+Improvements:
+- ci: Enable dependabot gomod updates
+  [#874](https://github.com/fluxcd/helm-controller/pull/874)
+- Update Go to 1.21
+  [#872](https://github.com/fluxcd/helm-controller/pull/872)
+- Various dependency updates
+  [#882](https://github.com/fluxcd/helm-controller/pull/882)
+  [#877](https://github.com/fluxcd/helm-controller/pull/877)
+  [#876](https://github.com/fluxcd/helm-controller/pull/876)
+  [#871](https://github.com/fluxcd/helm-controller/pull/871)
+  [#867](https://github.com/fluxcd/helm-controller/pull/867)
+  [#865](https://github.com/fluxcd/helm-controller/pull/865)
+  [#862](https://github.com/fluxcd/helm-controller/pull/862)
+  [#860](https://github.com/fluxcd/helm-controller/pull/860)
+
 ## 0.37.2
 
 This prerelease fixes a bug that resulted in the controller not being able to
