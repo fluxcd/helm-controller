@@ -24,6 +24,8 @@ import (
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
 
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/ssa"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
 
@@ -63,6 +65,9 @@ func (r *CorrectClusterDrift) Reconcile(ctx context.Context, req *Request) error
 
 	ctx, cancel := context.WithTimeout(ctx, req.Object.GetTimeout().Duration)
 	defer cancel()
+
+	// Update condition to reflect the current status.
+	conditions.MarkUnknown(req.Object, meta.ReadyCondition, meta.ProgressingReason, "correcting cluster drift")
 
 	changeSet, err := action.ApplyDiff(ctx, r.configFactory.Build(nil), r.diff, r.fieldManager)
 	r.report(req.Object, changeSet, err)
