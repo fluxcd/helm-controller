@@ -247,6 +247,10 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 
 		log.Info("all dependencies are ready")
 	}
+	// Remove any stale corresponding Ready=False condition with Unknown.
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, v2.DependencyNotReadyReason) {
+		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
+	}
 
 	// Get the HelmChart object for the release.
 	hc, err := r.getHelmChart(ctx, obj)
@@ -266,6 +270,10 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, msg)
 		return ctrl.Result{}, err
 	}
+	// Remove any stale corresponding Ready=False condition with Unknown.
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, aclv1.AccessDeniedReason, v2.ArtifactFailedReason) {
+		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
+	}
 
 	// Check if the HelmChart is ready.
 	if ready, reason := isHelmChartReady(hc); !ready {
@@ -276,12 +284,20 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		// the watcher should trigger a reconciliation.
 		return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}), errWaitForChart
 	}
+	// Remove any stale corresponding Ready=False condition with Unknown.
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, "HelmChartNotReady") {
+		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
+	}
 
 	// Compose values based from the spec and references.
 	values, err := chartutil.ChartValuesFromReferences(ctx, r.Client, obj.Namespace, obj.GetValues(), obj.Spec.ValuesFrom...)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "ValuesError", err.Error())
 		return ctrl.Result{}, err
+	}
+	// Remove any stale corresponding Ready=False condition with Unknown.
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, "ValuesError") {
+		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
 	// Load chart from artifact.
@@ -297,12 +313,20 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, fmt.Sprintf("Could not load chart: %s", err.Error()))
 		return ctrl.Result{}, err
 	}
+	// Remove any stale corresponding Ready=False condition with Unknown.
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, v2.ArtifactFailedReason) {
+		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
+	}
 
 	// Build the REST client getter.
 	getter, err := r.buildRESTClientGetter(ctx, obj)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "RESTClientError", err.Error())
 		return ctrl.Result{}, err
+	}
+	// Remove any stale corresponding Ready=False condition with Unknown.
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, "RESTClientError") {
+		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
 	// Attempt to adopt "legacy" v2beta1 release state on a best-effort basis.
@@ -353,6 +377,10 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "FactoryError", err.Error())
 		return ctrl.Result{}, err
+	}
+	// Remove any stale corresponding Ready=False condition with Unknown.
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, "FactoryError") {
+		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
 	// Off we go!

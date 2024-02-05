@@ -43,6 +43,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/fluxcd/pkg/apis/acl"
+	aclv1 "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	feathelper "github.com/fluxcd/pkg/runtime/features"
@@ -761,6 +762,127 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g.Expect(obj.Status.LastAttemptedRevision).To(Equal(chartMock.Metadata.Version))
 		g.Expect(obj.Status.LastAttemptedConfigDigest).To(Equal("sha256:1dabc4e3cbbd6a0818bd460f3a6c9855bfe95d506c74726bc0f2edb0aecb1f4e"))
 		g.Expect(obj.Status.LastAttemptedValuesChecksum).To(BeEmpty())
+	})
+
+	t.Run("error recovery updates ready condition", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Create a test namespace for storing the Helm release mock.
+		ns, err := testEnv.CreateNamespace(context.TODO(), "error-recovery")
+		g.Expect(err).ToNot(HaveOccurred())
+		t.Cleanup(func() {
+			_ = testEnv.Delete(context.TODO(), ns)
+		})
+
+		// Create HelmChart mock.
+		chartMock := testutil.BuildChart()
+		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		chart := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "error-recovery",
+				Namespace:  ns.Name,
+				Generation: 1,
+			},
+			Spec: sourcev1b2.HelmChartSpec{
+				Chart:   "testdata/test-helmrepo",
+				Version: "0.1.0",
+				SourceRef: sourcev1b2.LocalHelmChartSourceReference{
+					Kind: sourcev1b2.HelmRepositoryKind,
+					Name: "error-recovery",
+				},
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 1,
+				Artifact:           chartArtifact,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		// Create a test Helm release storage mock.
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      "error-recovery",
+			Namespace: ns.Name,
+			Version:   1,
+			Chart:     chartMock,
+			Status:    helmrelease.StatusDeployed,
+		}, testutil.ReleaseWithConfig(nil))
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "error-recovery",
+				Namespace: ns.Name,
+			},
+			Spec: v2.HelmReleaseSpec{
+				StorageNamespace: ns.Name,
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart: chart.Namespace + "/" + chart.Name,
+				History: v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(rls)),
+				},
+			},
+		}
+
+		c := fake.NewClientBuilder().
+			WithScheme(NewTestScheme()).
+			WithStatusSubresource(&v2.HelmRelease{}).
+			WithObjects(chart, obj).
+			Build()
+
+		r := &HelmReleaseReconciler{
+			Client:           c,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
+			FieldManager:     "test",
+		}
+
+		// Store the Helm release mock in the test namespace.
+		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.GetStorageNamespace()))
+		g.Expect(err).ToNot(HaveOccurred())
+
+		store := helmstorage.Init(cfg.Driver)
+		g.Expect(store.Create(rls)).To(Succeed())
+
+		sp := patch.NewSerialPatcher(obj, r.Client)
+
+		// List of failure reasons to test.
+		prereqFailures := []string{
+			v2.DependencyNotReadyReason,
+			aclv1.AccessDeniedReason,
+			v2.ArtifactFailedReason,
+			"HelmChartNotReady",
+			"ValuesError",
+			"RESTClientError",
+			"FactoryError",
+		}
+
+		// Update ready condition for each failure, reconcile and check if the
+		// stale failure condition gets updated.
+		for _, failReason := range prereqFailures {
+			conditions.MarkFalse(obj, meta.ReadyCondition, failReason, "foo")
+			err := sp.Patch(context.TODO(), obj,
+				patch.WithOwnedConditions{Conditions: intreconcile.OwnedConditions},
+				patch.WithFieldOwner(r.FieldManager),
+			)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			_, err = r.reconcileRelease(context.TODO(), sp, obj)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			ready := conditions.Get(obj, meta.ReadyCondition)
+			g.Expect(ready.Status).To(Equal(metav1.ConditionUnknown))
+			g.Expect(ready.Reason).To(Equal(meta.ProgressingReason))
+		}
 	})
 }
 
