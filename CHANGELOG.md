@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.37.4
+
+**Release date:** 2024-02-05
+
+This prerelease comes with improvements in the HelmRelease status reporting.
+After recovering from a reconciliation failure, sometimes the status may show
+stale conditions which could be misleading. This has been fixed by ensuring that
+the stale failure conditions get updated after failure recovery.
+
+Improvements:
+- Remove stale Ready=False conditions value to show more accurate status
+  [#884](https://github.com/fluxcd/helm-controller/pull/884)
+- Dependency update
+  [#886](https://github.com/fluxcd/helm-controller/pull/886)
+
 ## 0.37.3
 
 **Release date:** 2024-02-01
