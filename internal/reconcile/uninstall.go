@@ -43,6 +43,7 @@ import (
 // The writes to the Helm storage during the uninstallation are observed, and
 // update the Status.History field.
 //
+// When uninstall starts, the object emits a corresponding event.
 // After a successful uninstall, the object is marked with Released=False and
 // an event is emitted. When the uninstallation fails, the object is marked
 // with Released=False and a warning event is emitted.
@@ -91,6 +92,17 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	if cur == nil {
 		return fmt.Errorf("%w: required to uninstall", ErrNoLatest)
 	}
+
+	// Compose started message
+	msg := fmt.Sprintf(fmtUninstallStarted, cur.FullReleaseName(), cur.VersionedChartName())
+	// Record event
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		corev1.EventTypeNormal,
+		v2.UninstallStartedReason,
+		msg,
+	)
 
 	// Run the Helm uninstall action.
 	res, err := action.Uninstall(ctx, cfg, req.Object, cur.Name)
@@ -158,6 +170,8 @@ func (r *Uninstall) Type() ReconcilerType {
 }
 
 const (
+	// fmtUninstallStarted is the message format for an uninstall start.
+	fmtUninstallStarted = "Helm uninstall started for release %s with chart %s"
 	// fmtUninstallFailed is the message format for an uninstall failure.
 	fmtUninstallFailure = "Helm uninstall failed for release %s with chart %s: %s"
 	// fmtUninstallSuccess is the message format for a successful uninstall.

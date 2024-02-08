@@ -31,7 +31,6 @@ import (
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -68,6 +67,9 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 		// expectedConditions are the conditions that are expected to be set on
 		// the HelmRelease after rolling back.
 		expectConditions []metav1.Condition
+		// expectEvents is the expected Events of the HelmRelease
+		// after rolling back.
+		expectEvents func(prev *v2.Snapshot, release *v2.HelmRelease) []corev1.Event
 		// expectHistory is the expected History on the HelmRelease after
 		// rolling back.
 		expectHistory func(releases []*helmrelease.Release) v2.Snapshots
@@ -111,6 +113,21 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			expectConditions: []metav1.Condition{
 				*conditions.FalseCondition(meta.ReadyCondition, v2.RollbackSucceededReason, "succeeded"),
 				*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason, "succeeded"),
+			},
+			expectEvents: func(prev *v2.Snapshot, release *v2.HelmRelease) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.RollbackStartedReason,
+						Message: fmt.Sprintf(fmtRollbackRemediationStarted, prev.FullReleaseName(), prev.VersionedChartName()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): prev.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, release.GetValues()).String(),
+							},
+						},
+					},
+				}
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -188,6 +205,21 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.RemediatedCondition, v2.RollbackFailedReason,
 					"timed out waiting for the condition"),
 			},
+			expectEvents: func(prev *v2.Snapshot, release *v2.HelmRelease) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.RollbackStartedReason,
+						Message: fmt.Sprintf(fmtRollbackRemediationStarted, prev.FullReleaseName(), prev.VersionedChartName()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): prev.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, release.GetValues()).String(),
+							},
+						},
+					},
+				}
+			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
@@ -238,6 +270,21 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.RemediatedCondition, v2.RollbackFailedReason,
 					mockCreateErr.Error()),
 			},
+			expectEvents: func(prev *v2.Snapshot, release *v2.HelmRelease) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.RollbackStartedReason,
+						Message: fmt.Sprintf(fmtRollbackRemediationStarted, prev.FullReleaseName(), prev.VersionedChartName()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): prev.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, release.GetValues()).String(),
+							},
+						},
+					},
+				}
+			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
@@ -285,6 +332,21 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 					"storage update error"),
 				*conditions.FalseCondition(v2.RemediatedCondition, v2.RollbackFailedReason,
 					"storage update error"),
+			},
+			expectEvents: func(prev *v2.Snapshot, release *v2.HelmRelease) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.RollbackStartedReason,
+						Message: fmt.Sprintf(fmtRollbackRemediationStarted, prev.FullReleaseName(), prev.VersionedChartName()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): prev.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, release.GetValues()).String(),
+							},
+						},
+					},
+				}
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -342,7 +404,7 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := new(record.FakeRecorder)
+			recorder := testutil.NewFakeRecorder(10, true)
 			got := (NewRollbackRemediation(cfg, recorder)).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
@@ -350,6 +412,12 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 				g.Expect(errors.Is(got, tt.wantErr)).To(BeTrue())
 			} else {
 				g.Expect(got).ToNot(HaveOccurred())
+			}
+			if tt.expectEvents != nil {
+				prev := obj.Status.History.Previous(obj.GetUpgrade().GetRemediation().MustIgnoreTestFailures(obj.GetTest().IgnoreFailures))
+				for _, event := range tt.expectEvents(prev, obj) {
+					g.Expect(recorder.GetEvents()).To(ContainElement(event))
+				}
 			}
 
 			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(tt.expectConditions))

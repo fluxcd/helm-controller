@@ -32,6 +32,10 @@ const (
 )
 
 const (
+	// InstallStartedReason represents the fact that the Helm install for the
+	// HelmRelease started.
+	InstallStartedReason string = "InstallStarted"
+
 	// InstallSucceededReason represents the fact that the Helm install for the
 	// HelmRelease succeeded.
 	InstallSucceededReason string = "InstallSucceeded"
@@ -39,6 +43,10 @@ const (
 	// InstallFailedReason represents the fact that the Helm install for the
 	// HelmRelease failed.
 	InstallFailedReason string = "InstallFailed"
+
+	// UpgradeStartedReason represents the fact that the Helm upgrade for the
+	// HelmRelease started.
+	UpgradeStartedReason string = "UpgradeStarted"
 
 	// UpgradeSucceededReason represents the fact that the Helm upgrade for the
 	// HelmRelease succeeded.
@@ -48,6 +56,10 @@ const (
 	// HelmRelease failed.
 	UpgradeFailedReason string = "UpgradeFailed"
 
+	// TestStartedReason represents the fact that the Helm tests for the
+	// HelmRelease started.
+	TestStartedReason string = "TestStarted"
+
 	// TestSucceededReason represents the fact that the Helm tests for the
 	// HelmRelease succeeded.
 	TestSucceededReason string = "TestSucceeded"
@@ -56,6 +68,10 @@ const (
 	// failed.
 	TestFailedReason string = "TestFailed"
 
+	// RollbackStartedReason represents the fact that the Helm rollback for the
+	// HelmRelease started.
+	RollbackStartedReason string = "RollbackStarted"
+
 	// RollbackSucceededReason represents the fact that the Helm rollback for the
 	// HelmRelease succeeded.
 	RollbackSucceededReason string = "RollbackSucceeded"
@@ -63,6 +79,10 @@ const (
 	// RollbackFailedReason represents the fact that the Helm test for the
 	// HelmRelease failed.
 	RollbackFailedReason string = "RollbackFailed"
+
+	// UninstallStartedReason represents the fact that the Helm uninstall for the
+	// HelmRelease started.
+	UninstallStartedReason string = "UninstallStarted"
 
 	// UninstallSucceededReason represents the fact that the Helm uninstall for the
 	// HelmRelease succeeded.

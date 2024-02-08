@@ -40,6 +40,7 @@ import (
 // The writes to the Helm storage during the upgrade process are observed,
 // and update the Status.History field.
 //
+// When upgrade starts, the object emits a corresponding event.
 // On upgrade success, the object is marked with Released=True and emits an
 // event. In addition, the object is marked with TestSuccess=False if tests
 // are enabled to indicate we are awaiting the results.
@@ -79,6 +80,17 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	conditions.Delete(req.Object, v2.TestSuccessCondition)
 	conditions.Delete(req.Object, v2.RemediatedCondition)
 
+	// Compose started message.
+	msg := fmt.Sprintf(fmtUpgradeStarted, req.Object.GetReleaseName(), req.Chart.Name())
+	// Record event.
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(req.Chart.Metadata.Version, chartutil.DigestValues(digest.Canonical, req.Values).String()),
+		corev1.EventTypeNormal,
+		v2.UpgradeStartedReason,
+		msg,
+	)
+
 	// Run the Helm upgrade action.
 	_, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values)
 
@@ -117,6 +129,8 @@ func (r *Upgrade) Type() ReconcilerType {
 }
 
 const (
+	// fmtUpgradeStarted is the message format for an upgrade started.
+	fmtUpgradeStarted = "Helm upgrade started for release %s with chart %s"
 	// fmtUpgradeFailure is the message format for an upgrade failure.
 	fmtUpgradeFailure = "Helm upgrade failed for release %s/%s with chart %s@%s: %s"
 	// fmtUpgradeSuccess is the message format for a successful upgrade.

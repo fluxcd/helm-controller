@@ -42,6 +42,7 @@ import (
 // TestHooks field of the latest Snapshot in the Status.History to be updated
 // if it matches the target of the test.
 //
+// When the test starts, the object emits a corresponding event.
 // When all test hooks for the release succeed, the object is marked with
 // TestSuccess=True and an event is emitted. When one of the test hooks fails,
 // Helm stops running the remaining tests, and the object is marked with
@@ -83,6 +84,17 @@ func (r *Test) Reconcile(ctx context.Context, req *Request) error {
 		return fmt.Errorf("%w: required for test", ErrNoLatest)
 	}
 
+	// Compose started message.
+	msg := fmt.Sprintf(fmtTestStarted, cur.FullReleaseName(), cur.VersionedChartName())
+	// Record event.
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		corev1.EventTypeNormal,
+		v2.TestStartedReason,
+		msg,
+	)
+
 	// Run the Helm test action.
 	rls, err := action.Test(ctx, cfg, req.Object)
 
@@ -119,6 +131,8 @@ func (r *Test) Type() ReconcilerType {
 }
 
 const (
+	// fmtTestStarted is the message format used when tests are started.
+	fmtTestStarted = "Helm test %s with chart %s is started"
 	// fmtTestPending is the message format used when awaiting tests to be run.
 	fmtTestPending = "Helm release %s with chart %s is awaiting tests"
 	// fmtTestFailure is the message format for a test failure.

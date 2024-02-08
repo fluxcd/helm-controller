@@ -41,6 +41,7 @@ import (
 // cleared to mark the start of a new release lifecycle. This ensures we never
 // attempt to roll back to a previous release before the install.
 //
+// When the installation starts, the object emits a corresponding event.
 // During the installation process, the writes to the Helm storage are
 // observed and recorded in the Status.History field of the Request.Object.
 //
@@ -88,6 +89,17 @@ func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 	conditions.Delete(req.Object, v2.TestSuccessCondition)
 	conditions.Delete(req.Object, v2.RemediatedCondition)
 
+	// Compose started message.
+	msg := fmt.Sprintf(fmtInstallStarted, req.Object.GetReleaseName(), req.Chart.Name())
+	// Record event.
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(req.Chart.Metadata.Version, chartutil.DigestValues(digest.Canonical, req.Values).String()),
+		corev1.EventTypeNormal,
+		v2.InstallStartedReason,
+		msg,
+	)
+
 	// Run the Helm install action.
 	_, err := action.Install(ctx, cfg, req.Object, req.Chart, req.Values)
 
@@ -126,6 +138,8 @@ func (r *Install) Type() ReconcilerType {
 }
 
 const (
+	// fmtInstallStarted is the message format for an installation start.
+	fmtInstallStarted = "Helm install started for release %s with chart %s"
 	// fmtInstallFailure is the message format for an installation failure.
 	fmtInstallFailure = "Helm install failed for release %s/%s with chart %s@%s: %s"
 	// fmtInstallSuccess is the message format for a successful installation.

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
+	"helm.sh/helm/v3/pkg/chart"
 	helmchart "helm.sh/helm/v3/pkg/chart"
 	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
 	helmrelease "helm.sh/helm/v3/pkg/release"
@@ -32,7 +33,6 @@ import (
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -73,6 +73,9 @@ func TestUpgrade_Reconcile(t *testing.T) {
 		// expectedConditions are the conditions that are expected to be set on
 		// the HelmRelease after upgrade.
 		expectConditions []metav1.Condition
+		// expectEvents is the expected Events of the HelmRelease
+		// after upgrade.
+		expectEvents func(release *v2.HelmRelease, chart *chart.Chart) []corev1.Event
 		// expectHistory returns the expected History of the HelmRelease after
 		// upgrade.
 		expectHistory func(releases []*helmrelease.Release) v2.Snapshots
@@ -110,6 +113,21 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded"),
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded"),
 			},
+			expectEvents: func(release *v2.HelmRelease, chart *chart.Chart) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UpgradeStartedReason,
+						Message: fmt.Sprintf(fmtUpgradeStarted, release.GetReleaseName(), chart.Name()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): chart.Metadata.Version,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, chart.Values).String(),
+							},
+						},
+					},
+				}
+			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
@@ -143,6 +161,21 @@ func TestUpgrade_Reconcile(t *testing.T) {
 					"post-upgrade hooks failed: 1 error occurred:\n\t* timed out waiting for the condition"),
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason,
 					"post-upgrade hooks failed: 1 error occurred:\n\t* timed out waiting for the condition"),
+			},
+			expectEvents: func(release *v2.HelmRelease, chart *chart.Chart) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UpgradeStartedReason,
+						Message: fmt.Sprintf(fmtUpgradeStarted, release.GetReleaseName(), chart.Name()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): chart.Metadata.Version,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, chart.Values).String(),
+							},
+						},
+					},
+				}
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -186,6 +219,21 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason,
 					mockCreateErr.Error()),
 			},
+			expectEvents: func(release *v2.HelmRelease, chart *chart.Chart) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UpgradeStartedReason,
+						Message: fmt.Sprintf(fmtUpgradeStarted, release.GetReleaseName(), chart.Name()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): chart.Metadata.Version,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, chart.Values).String(),
+							},
+						},
+					},
+				}
+			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
@@ -228,6 +276,21 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason,
 					mockUpdateErr.Error()),
 			},
+			expectEvents: func(release *v2.HelmRelease, chart *chart.Chart) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UpgradeStartedReason,
+						Message: fmt.Sprintf(fmtUpgradeStarted, release.GetReleaseName(), chart.Name()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): chart.Metadata.Version,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, chart.Values).String(),
+							},
+						},
+					},
+				}
+			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
@@ -259,6 +322,21 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			expectConditions: []metav1.Condition{
 				*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded"),
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded"),
+			},
+			expectEvents: func(release *v2.HelmRelease, chart *chart.Chart) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UpgradeStartedReason,
+						Message: fmt.Sprintf(fmtUpgradeStarted, release.GetReleaseName(), chart.Name()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): chart.Metadata.Version,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, chart.Values).String(),
+							},
+						},
+					},
+				}
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -305,6 +383,21 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason,
 					"Helm upgrade succeeded"),
 			},
+			expectEvents: func(release *v2.HelmRelease, chart *chart.Chart) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UpgradeStartedReason,
+						Message: fmt.Sprintf(fmtUpgradeStarted, release.GetReleaseName(), chart.Name()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): chart.Metadata.Version,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, chart.Values).String(),
+							},
+						},
+					},
+				}
+			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
@@ -344,6 +437,21 @@ func TestUpgrade_Reconcile(t *testing.T) {
 					"Helm upgrade succeeded"),
 				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason,
 					"Helm upgrade succeeded"),
+			},
+			expectEvents: func(release *v2.HelmRelease, chart *chart.Chart) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UpgradeStartedReason,
+						Message: fmt.Sprintf(fmtUpgradeStarted, release.GetReleaseName(), chart.Name()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): chart.Metadata.Version,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, chart.Values).String(),
+							},
+						},
+					},
+				}
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -401,7 +509,7 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := new(record.FakeRecorder)
+			recorder := testutil.NewFakeRecorder(10, true)
 			got := NewUpgrade(cfg, recorder).Reconcile(context.TODO(), &Request{
 				Object: obj,
 				Chart:  tt.chart,
@@ -411,6 +519,11 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				g.Expect(got).To(Equal(tt.wantErr))
 			} else {
 				g.Expect(got).ToNot(HaveOccurred())
+			}
+			if tt.expectEvents != nil {
+				for _, event := range tt.expectEvents(obj, tt.chart) {
+					g.Expect(recorder.GetEvents()).To(ContainElement(event))
+				}
 			}
 
 			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(tt.expectConditions))

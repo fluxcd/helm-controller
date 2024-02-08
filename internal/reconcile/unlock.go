@@ -38,6 +38,8 @@ import (
 // for a Request.Object in the Helm storage if stuck in a pending state, by
 // setting the status to release.StatusFailed and persisting it.
 //
+// When unlock starts, the object emits a corresponding event.
+//
 // This write to the Helm storage is observed, and updates the Status.History
 // field if the persisted object targets the same release version.
 //
@@ -79,6 +81,17 @@ func (r *Unlock) Reconcile(_ context.Context, req *Request) error {
 	// Ensure the release is in a pending state.
 	cur := release.ObservedToSnapshot(release.ObserveRelease(rls))
 	if status := rls.Info.Status; status.IsPending() {
+		// Compose started message.
+		msg := fmt.Sprintf(fmtUnlockStarted, cur.FullReleaseName(), cur.VersionedChartName(), status.String())
+		// Record event.
+		r.eventRecorder.AnnotatedEventf(
+			req.Object,
+			eventMeta(cur.ChartVersion, cur.ConfigDigest),
+			corev1.EventTypeNormal,
+			"PendingRelease",
+			msg,
+		)
+
 		// Update pending status to failed and persist.
 		rls.SetStatus(helmrelease.StatusFailed, fmt.Sprintf("Release unlocked from stale '%s' state", status.String()))
 		if err = cfg.Releases.Update(rls); err != nil {
@@ -99,6 +112,8 @@ func (r *Unlock) Type() ReconcilerType {
 }
 
 const (
+	// fmtUnlockStarted is the message format for an unlock start.
+	fmtUnlockStarted = "Unlock of Helm release %s with chart %s in %s state started"
 	// fmtUnlockFailure is the message format for an unlock failure.
 	fmtUnlockFailure = "Unlock of Helm release %s with chart %s in %s state failed: %s"
 	// fmtUnlockSuccess is the message format for a successful unlock.

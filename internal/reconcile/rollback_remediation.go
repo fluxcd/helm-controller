@@ -44,6 +44,7 @@ import (
 // The writes to the Helm storage during the rollback are observed, and update
 // the Status.History field.
 //
+// When rollback starts, the object emits a corresponding event.
 // After a successful rollback, the object is marked with Remediated=True and
 // an event is emitted. When the rollback fails, the object is marked with
 // Remediated=False and a warning event is emitted.
@@ -94,8 +95,21 @@ func (r *RollbackRemediation) Reconcile(ctx context.Context, req *Request) error
 			ErrReleaseMismatch, prev.FullReleaseName(), cur.FullReleaseName())
 	}
 
+	// Compose started message.
+	msg := fmt.Sprintf(fmtRollbackRemediationStarted, prev.FullReleaseName(), prev.VersionedChartName())
+	// Record event.
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(cur.ChartVersion, chartutil.DigestValues(digest.Canonical, req.Values).String()),
+		corev1.EventTypeNormal,
+		v2.RollbackStartedReason,
+		msg,
+	)
+
 	// Run the Helm rollback action.
-	if err := action.Rollback(cfg, req.Object, prev.Name, action.RollbackToVersion(prev.Version)); err != nil {
+	err := action.Rollback(cfg, req.Object, prev.Name, action.RollbackToVersion(prev.Version))
+
+	if err != nil {
 		r.failure(req, prev, logBuf, err)
 
 		// Return error if we did not store a release, as this does not
@@ -120,6 +134,9 @@ func (r *RollbackRemediation) Type() ReconcilerType {
 }
 
 const (
+	// fmtRollbackRemediationStarted is the message format for a rollback
+	// remediation start.
+	fmtRollbackRemediationStarted = "Helm rollback to previous release %s with chart %s started"
 	// fmtRollbackRemediationFailure is the message format for a rollback
 	// remediation failure.
 	fmtRollbackRemediationFailure = "Helm rollback to previous release %s with chart %s failed: %s"

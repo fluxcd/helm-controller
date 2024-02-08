@@ -30,7 +30,6 @@ import (
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -67,6 +66,9 @@ func TestUnlock_Reconcile(t *testing.T) {
 		// expectedConditions are the conditions that are expected to be set on
 		// the HelmRelease after running rollback.
 		expectConditions []metav1.Condition
+		// expectEvents is the expected Events of the HelmRelease after
+		// running unlock.
+		expectEvents func(cur *v2.Snapshot, status *helmrelease.Status) []corev1.Event
 		// expectHistory is the expected History of the HelmRelease after
 		// unlock.
 		expectHistory func(releases []*helmrelease.Release) v2.Snapshots
@@ -102,6 +104,21 @@ func TestUnlock_Reconcile(t *testing.T) {
 			expectConditions: []metav1.Condition{
 				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "Unlocked Helm release"),
 				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "Unlocked Helm release"),
+			},
+			expectEvents: func(cur *v2.Snapshot, status *helmrelease.Status) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  "PendingRelease",
+						Message: fmt.Sprintf(fmtUnlockStarted, cur.FullReleaseName(), cur.VersionedChartName(), status),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): cur.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    cur.ConfigDigest,
+							},
+						},
+					},
+				}
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -139,6 +156,21 @@ func TestUnlock_Reconcile(t *testing.T) {
 			expectConditions: []metav1.Condition{
 				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "in pending-rollback state failed: storage update error"),
 				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "in pending-rollback state failed: storage update error"),
+			},
+			expectEvents: func(cur *v2.Snapshot, status *helmrelease.Status) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  "PendingRelease",
+						Message: fmt.Sprintf(fmtUnlockStarted, cur.FullReleaseName(), cur.VersionedChartName(), status),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): cur.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    cur.ConfigDigest,
+							},
+						},
+					},
+				}
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -336,7 +368,11 @@ func TestUnlock_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := new(record.FakeRecorder)
+			recorder := testutil.NewFakeRecorder(10, true)
+			// Retrieve last release object.
+			rls, _ := action.LastRelease(cfg.Build(nil, observeUnlock(obj)), obj.GetReleaseName())
+			cur := release.ObservedToSnapshot(release.ObserveRelease(rls))
+
 			got := NewUnlock(cfg, recorder).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
@@ -345,7 +381,11 @@ func TestUnlock_Reconcile(t *testing.T) {
 			} else {
 				g.Expect(got).ToNot(HaveOccurred())
 			}
-
+			if tt.expectEvents != nil {
+				for _, event := range tt.expectEvents(cur, &rls.Info.Status) {
+					g.Expect(recorder.GetEvents()).To(ContainElement(event))
+				}
+			}
 			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(tt.expectConditions))
 
 			releases, _ = store.History(mockReleaseName)

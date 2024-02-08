@@ -30,7 +30,6 @@ import (
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -64,6 +63,9 @@ func TestUninstall_Reconcile(t *testing.T) {
 		// expectedConditions are the conditions that are expected to be set on
 		// the HelmRelease after running rollback.
 		expectConditions []metav1.Condition
+		// expectEvents is the expected Events of the HelmRelease
+		// after running rollback.
+		expectEvents func(cur *v2.Snapshot) []corev1.Event
 		// expectHistory is the expected History of the HelmRelease after
 		// uninstall.
 		expectHistory func(namespace string, releases []*helmrelease.Release) v2.Snapshots
@@ -107,6 +109,21 @@ func TestUninstall_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallSucceededReason,
 					"succeeded"),
 			},
+			expectEvents: func(cur *v2.Snapshot) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UninstallStartedReason,
+						Message: fmt.Sprintf(fmtUninstallStarted, cur.FullReleaseName(), cur.VersionedChartName()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): cur.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    cur.ConfigDigest,
+							},
+						},
+					},
+				}
+			},
 			expectHistory: func(namespace string, releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
@@ -143,6 +160,21 @@ func TestUninstall_Reconcile(t *testing.T) {
 					"uninstallation completed with 1 error(s): 1 error occurred:\n\t* timed out waiting for the condition"),
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallFailedReason,
 					"uninstallation completed with 1 error(s): 1 error occurred:\n\t* timed out waiting for the condition"),
+			},
+			expectEvents: func(cur *v2.Snapshot) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UninstallStartedReason,
+						Message: fmt.Sprintf(fmtUninstallStarted, cur.FullReleaseName(), cur.VersionedChartName()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): cur.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    cur.ConfigDigest,
+							},
+						},
+					},
+				}
 			},
 			expectHistory: func(namespace string, releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -198,6 +230,21 @@ func TestUninstall_Reconcile(t *testing.T) {
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
+			expectEvents: func(cur *v2.Snapshot) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UninstallStartedReason,
+						Message: fmt.Sprintf(fmtUninstallStarted, cur.FullReleaseName(), cur.VersionedChartName()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): cur.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    cur.ConfigDigest,
+							},
+						},
+					},
+				}
+			},
 			expectFailures: 1,
 			wantErr:        ErrNoStorageUpdate,
 		},
@@ -241,6 +288,21 @@ func TestUninstall_Reconcile(t *testing.T) {
 			expectHistory: func(namespace string, releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
+			expectEvents: func(cur *v2.Snapshot) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UninstallStartedReason,
+						Message: fmt.Sprintf(fmtUninstallStarted, cur.FullReleaseName(), cur.VersionedChartName()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): cur.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    cur.ConfigDigest,
+							},
+						},
+					},
 				}
 			},
 			expectFailures: 1,
@@ -299,6 +361,21 @@ func TestUninstall_Reconcile(t *testing.T) {
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallFailedReason,
 					ErrReleaseMismatch.Error()),
 			},
+			expectEvents: func(cur *v2.Snapshot) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UninstallStartedReason,
+						Message: fmt.Sprintf(fmtUninstallStarted, cur.FullReleaseName(), cur.VersionedChartName()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): cur.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    cur.ConfigDigest,
+							},
+						},
+					},
+				}
+			},
 			expectHistory: func(namespace string, releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
@@ -335,6 +412,21 @@ func TestUninstall_Reconcile(t *testing.T) {
 				return v2.HelmReleaseStatus{
 					History: v2.Snapshots{
 						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+				}
+			},
+			expectEvents: func(cur *v2.Snapshot) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UninstallStartedReason,
+						Message: fmt.Sprintf(fmtUninstallStarted, cur.FullReleaseName(), cur.VersionedChartName()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): cur.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    cur.ConfigDigest,
+							},
+						},
 					},
 				}
 			},
@@ -375,6 +467,21 @@ func TestUninstall_Reconcile(t *testing.T) {
 					"succeeded"),
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallSucceededReason,
 					"succeeded"),
+			},
+			expectEvents: func(cur *v2.Snapshot) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UninstallStartedReason,
+						Message: fmt.Sprintf(fmtUninstallStarted, cur.FullReleaseName(), cur.VersionedChartName()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): cur.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    cur.ConfigDigest,
+							},
+						},
+					},
+				}
 			},
 			expectHistory: func(namespace string, releases []*helmrelease.Release) v2.Snapshots {
 				rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
@@ -419,6 +526,21 @@ func TestUninstall_Reconcile(t *testing.T) {
 					"was already uninstalled"),
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallSucceededReason,
 					"was already uninstalled"),
+			},
+			expectEvents: func(cur *v2.Snapshot) []corev1.Event {
+				return []corev1.Event{
+					{
+						Type:    corev1.EventTypeNormal,
+						Reason:  v2.UninstallStartedReason,
+						Message: fmt.Sprintf(fmtUninstallStarted, cur.FullReleaseName(), cur.VersionedChartName()),
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								eventMetaGroupKey(eventv1.MetaRevisionKey): cur.ChartVersion,
+								eventMetaGroupKey(eventv1.MetaTokenKey):    cur.ConfigDigest,
+							},
+						},
+					},
+				}
 			},
 			expectHistory: func(namespace string, releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -476,7 +598,7 @@ func TestUninstall_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := new(record.FakeRecorder)
+			recorder := testutil.NewFakeRecorder(10, true)
 			got := NewUninstall(cfg, recorder).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
@@ -484,6 +606,13 @@ func TestUninstall_Reconcile(t *testing.T) {
 				g.Expect(errors.Is(got, tt.wantErr)).To(BeTrue())
 			} else {
 				g.Expect(got).ToNot(HaveOccurred())
+			}
+
+			if tt.expectEvents != nil {
+				cur := obj.Status.History.Latest().DeepCopy()
+				for _, event := range tt.expectEvents(cur) {
+					g.Expect(recorder.GetEvents()).To(ContainElement(event))
+				}
 			}
 
 			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(tt.expectConditions))

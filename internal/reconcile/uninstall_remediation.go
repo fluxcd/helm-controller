@@ -44,6 +44,8 @@ var (
 // The writes to the Helm storage during the rollback are observed, and update
 // the Status.History field.
 //
+// When uninstall starts, the object emits a corresponding event.
+//
 // After a successful uninstall, the object is marked with Remediated=True and
 // an event is emitted. When the uninstallation fails, the object is marked
 // with Remediated=False and a warning event is emitted.
@@ -90,6 +92,17 @@ func (r *UninstallRemediation) Reconcile(ctx context.Context, req *Request) erro
 		return fmt.Errorf("%w: required to uninstall", ErrNoLatest)
 	}
 
+	// Compose started message.
+	msg := fmt.Sprintf(fmtUninstallRemediationStarted, cur.FullReleaseName(), cur.VersionedChartName())
+	// Record event.
+	r.eventRecorder.AnnotatedEventf(
+		req.Object,
+		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		corev1.EventTypeNormal,
+		v2.UninstallStartedReason,
+		msg,
+	)
+
 	// Run the Helm uninstall action.
 	res, err := action.Uninstall(ctx, cfg, req.Object, cur.Name)
 
@@ -130,6 +143,9 @@ func (r *UninstallRemediation) Type() ReconcilerType {
 }
 
 const (
+	// fmtUninstallRemediationStarted is the message format for an uninstall
+	// remediation start.
+	fmtUninstallRemediationStarted = "Helm uninstall remediation for release %s with chart %s started"
 	// fmtUninstallRemediationFailure is the message format for an uninstall
 	// remediation failure.
 	fmtUninstallRemediationFailure = "Helm uninstall remediation for release %s with chart %s failed: %s"
