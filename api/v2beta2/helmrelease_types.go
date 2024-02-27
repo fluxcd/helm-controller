@@ -1059,7 +1059,6 @@ const (
 )
 
 // +genclient
-// +genclient:Namespaced
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=hr
 // +kubebuilder:storageversion
