@@ -78,8 +78,24 @@ HelmChartTemplate
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>Chart defines the template of the v1beta2.HelmChart that should be created
 for this HelmRelease.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>chartRef</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.CrossNamespaceSourceReference">
+CrossNamespaceSourceReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ChartRef holds a reference to a source controller resource containing the
+Helm chart artifact.</p>
 </td>
 </tr>
 <tr>
@@ -408,6 +424,74 @@ installing or upgrading a HelmRelease.</p>
 <a href="#helm.toolkit.fluxcd.io/v2beta2.HelmChartTemplateSpec">HelmChartTemplateSpec</a>)
 </p>
 <p>CrossNamespaceObjectReference contains enough information to let you locate
+the typed referenced object at cluster level.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>apiVersion</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>APIVersion of the referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Kind of the referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name of the referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>namespace</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Namespace of the referent.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2beta2.CrossNamespaceSourceReference">CrossNamespaceSourceReference
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>CrossNamespaceSourceReference contains enough information to let you locate
 the typed referenced object at cluster level.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
@@ -1009,8 +1093,24 @@ HelmChartTemplate
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>Chart defines the template of the v1beta2.HelmChart that should be created
 for this HelmRelease.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>chartRef</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.CrossNamespaceSourceReference">
+CrossNamespaceSourceReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ChartRef holds a reference to a source controller resource containing the
+Helm chart artifact.</p>
 </td>
 </tr>
 <tr>
