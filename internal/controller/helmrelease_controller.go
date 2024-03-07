@@ -43,7 +43,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	aclv1 "github.com/fluxcd/pkg/apis/acl"
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/acl"
 	runtimeClient "github.com/fluxcd/pkg/runtime/client"
@@ -237,7 +236,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 			msg := fmt.Sprintf("dependencies do not meet ready condition (%s): retrying in %s",
 				err.Error(), r.requeueDependency.String())
 			conditions.MarkFalse(obj, meta.ReadyCondition, v2.DependencyNotReadyReason, err.Error())
-			r.Eventf(obj, eventv1.EventSeverityInfo, v2.DependencyNotReadyReason, err.Error())
+			r.Eventf(obj, corev1.EventTypeNormal, v2.DependencyNotReadyReason, err.Error())
 			log.Info(msg)
 
 			// Exponential backoff would cause execution to be prolonged too much,
@@ -259,7 +258,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 			conditions.MarkStalled(obj, aclv1.AccessDeniedReason, err.Error())
 			conditions.MarkFalse(obj, meta.ReadyCondition, aclv1.AccessDeniedReason, err.Error())
 			conditions.Delete(obj, meta.ReconcilingCondition)
-			r.Eventf(obj, eventv1.EventSeverityError, aclv1.AccessDeniedReason, err.Error())
+			r.Eventf(obj, corev1.EventTypeWarning, aclv1.AccessDeniedReason, err.Error())
 
 			// Recovering from this is not possible without a restart of the
 			// controller or a change of spec, both triggering a new
@@ -294,7 +293,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	values, err := chartutil.ChartValuesFromReferences(ctx, r.Client, obj.Namespace, obj.GetValues(), obj.Spec.ValuesFrom...)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "ValuesError", err.Error())
-		r.Eventf(obj, eventv1.EventSeverityError, "ValuesError", err.Error())
+		r.Eventf(obj, corev1.EventTypeWarning, "ValuesError", err.Error())
 		return ctrl.Result{}, err
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.
@@ -313,7 +312,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		}
 
 		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, fmt.Sprintf("Could not load chart: %s", err.Error()))
-		r.Eventf(obj, eventv1.EventSeverityError, v2.ArtifactFailedReason, err.Error())
+		r.Eventf(obj, corev1.EventTypeWarning, v2.ArtifactFailedReason, err.Error())
 		return ctrl.Result{}, err
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.
