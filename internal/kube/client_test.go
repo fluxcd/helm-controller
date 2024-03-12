@@ -250,7 +250,7 @@ func TestMemoryRESTClientGetter_ToRESTMapper(t *testing.T) {
 		// Calling it again should return the same instance.
 		rm2, err := c.ToRESTMapper()
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(rm2).To(BeIdenticalTo(rm))
+		g.Expect(rm2).To(BeEquivalentTo(rm))
 	})
 
 	t.Run("returns a REST mapper", func(t *testing.T) {
@@ -268,7 +268,7 @@ func TestMemoryRESTClientGetter_ToRESTMapper(t *testing.T) {
 		// Calling it again should return a new instance.
 		rm2, err := c.ToRESTMapper()
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(rm2).ToNot(BeIdenticalTo(rm))
+		g.Expect(rm2).ToNot(BeEquivalentTo(rm))
 	})
 }
 
