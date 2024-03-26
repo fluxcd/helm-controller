@@ -442,6 +442,60 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
+
+	t.Run("Spec ChartRef and existing chart trigger delete", func(t *testing.T) {
+		g := NewWithT(t)
+
+		releaseName := "garbage-collection"
+		existingChart := sourcev1.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: namespace.GetName(),
+				Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
+				Labels: map[string]string{
+					v2.GroupVersion.Group + "/name":      releaseName,
+					v2.GroupVersion.Group + "/namespace": namespace.GetName(),
+				},
+			},
+			Spec: sourcev1.HelmChartSpec{
+				Chart: "./bar",
+				SourceRef: sourcev1.LocalHelmChartSourceReference{
+					Kind: sourcev1.HelmRepositoryKind,
+					Name: "bar-repository",
+				},
+			},
+		}
+		g.Expect(testEnv.CreateAndWait(context.TODO(), &existingChart)).To(Succeed())
+		t.Cleanup(func() {
+			g.Expect(testEnv.Cleanup(context.Background(), &existingChart)).To(Succeed())
+		})
+
+		recorder := record.NewFakeRecorder(32)
+		r := &HelmChartTemplate{
+			client:        testEnv,
+			eventRecorder: recorder,
+			fieldManager:  testFieldManager,
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: namespace.GetName(),
+				Name:      releaseName,
+			},
+			Spec: v2.HelmReleaseSpec{
+				Interval: metav1.Duration{Duration: 1 * time.Hour},
+				ChartRef: &v2.CrossNamespaceSourceReference{
+					Kind: sourcev1.OCIRepositoryKind,
+					Name: "oci-repository",
+				},
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart: fmt.Sprintf("%s/%s", existingChart.GetNamespace(), existingChart.GetName()),
+			},
+		}
+		err := r.Reconcile(context.TODO(), &Request{Object: obj})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(obj.Status.HelmChart).To(BeEmpty())
+	})
 }
 
 func TestHelmChartTemplate_reconcileDelete(t *testing.T) {

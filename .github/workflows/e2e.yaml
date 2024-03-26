@@ -138,6 +138,11 @@ jobs:
           kubectl -n install-create-target-ns get deployment install-create-target-ns-install-create-target-ns-podinfo
 
           kubectl -n helm-system delete -f config/testdata/install-create-target-ns
+      - name: Run install from ocirepo test
+        run: |
+          kubectl -n helm-system apply -f config/testdata/install-from-ocirepo-source
+          kubectl -n helm-system wait helmreleases/podinfo-from-ocirepo --for=condition=ready --timeout=4m
+          kubectl -n helm-system delete -f config/testdata/install-from-ocirepo-source
       - name: Run install fail test
         run: |
           test_name=install-fail
