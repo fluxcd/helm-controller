@@ -1248,12 +1248,12 @@ func (in *HelmRelease) GetStatusConditions() *[]metav1.Condition {
 }
 
 // IsChartRefPresent returns true if the HelmRelease has a ChartRef.
-func (in *HelmRelease) IsChartRefPresent() bool {
+func (in *HelmRelease) HasChartRef() bool {
 	return in.Spec.ChartRef != nil
 }
 
 // IsChartTemplatePresent returns true if the HelmRelease has a ChartTemplate.
-func (in *HelmRelease) IsChartTemplatePresent() bool {
+func (in *HelmRelease) HasChartTemplate() bool {
 	return in.Spec.Chart.Spec.Chart != ""
 }
 
