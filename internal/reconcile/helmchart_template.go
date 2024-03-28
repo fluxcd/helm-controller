@@ -104,7 +104,7 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 		return nil
 	}
 
-	if obj.IsChartRefPresent() {
+	if obj.HasChartRef() {
 		// if a chartRef is present, we do not need to reconcile the HelmChart from the template.
 		return nil
 	}
@@ -246,7 +246,7 @@ func buildHelmChartFromTemplate(obj *v2.HelmRelease) *sourcev1.HelmChart {
 }
 
 func mustCleanDeployedChart(obj *v2.HelmRelease) bool {
-	if obj.IsChartRefPresent() && !obj.IsChartTemplatePresent() {
+	if obj.HasChartRef() && !obj.HasChartTemplate() {
 		if obj.Status.HelmChart != "" {
 			return true
 		}
