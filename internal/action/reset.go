@@ -48,7 +48,7 @@ func MustResetFailures(obj *v2.HelmRelease, chart *chart.Metadata, values chartu
 	switch {
 	case obj.Status.LastAttemptedGeneration != obj.Generation:
 		return differentGenerationReason, true
-	case obj.Status.LastAttemptedRevision != chart.Version:
+	case obj.Status.GetLastAttemptedRevision() != chart.Version:
 		return differentRevisionReason, true
 	case obj.Status.LastAttemptedConfigDigest != "" || obj.Status.LastAttemptedValuesChecksum != "":
 		d := obj.Status.LastAttemptedConfigDigest

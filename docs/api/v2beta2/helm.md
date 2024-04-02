@@ -1584,7 +1584,8 @@ string
 <td>
 <em>(Optional)</em>
 <p>LastAttemptedRevision is the Source revision of the last reconciliation
-attempt.</p>
+attempt. For OCIRegistry sources, the 12 first characters of the digest are
+appended to the chart version e.g. &ldquo;1.2.3+1234567890ab&rdquo;.</p>
 </td>
 </tr>
 <tr>

@@ -15,6 +15,7 @@ replace (
 )
 
 require (
+	github.com/Masterminds/semver v1.5.0
 	github.com/fluxcd/cli-utils v0.36.0-flux.5
 	github.com/fluxcd/helm-controller/api v0.37.4
 	github.com/fluxcd/pkg/apis/acl v0.2.0

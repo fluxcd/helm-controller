@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"helm.sh/helm/v3/pkg/chart"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -42,6 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/Masterminds/semver"
 	aclv1 "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/acl"
@@ -331,6 +333,12 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	// Remove any stale corresponding Ready=False condition with Unknown.
 	if conditions.HasAnyReason(obj, meta.ReadyCondition, v2.ArtifactFailedReason) {
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
+	}
+
+	err = mutateChartWithSourceRevision(loadedChart, source)
+	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, "ChartMutateError", err.Error())
+		return ctrl.Result{}, err
 	}
 
 	// Build the REST client getter.
@@ -761,7 +769,7 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, 
 	for i, hr := range list.Items {
 		// If the HelmRelease is ready and the revision of the artifact equals to the
 		// last attempted revision, we should not make a request for this HelmRelease
-		if conditions.IsReady(&list.Items[i]) && hc.GetArtifact().HasRevision(hr.Status.LastAttemptedRevision) {
+		if conditions.IsReady(&list.Items[i]) && hc.GetArtifact().HasRevision(hr.Status.GetLastAttemptedRevision()) {
 			continue
 		}
 		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
@@ -793,7 +801,7 @@ func (r *HelmReleaseReconciler) requestsForOCIRrepositoryChange(ctx context.Cont
 	for i, hr := range list.Items {
 		// If the HelmRelease is ready and the revision of the artifact equals to the
 		// last attempted revision, we should not make a request for this HelmRelease
-		if conditions.IsReady(&list.Items[i]) && or.GetArtifact().HasRevision(hr.Status.LastAttemptedRevision) {
+		if conditions.IsReady(&list.Items[i]) && or.GetArtifact().HasRevision(hr.Status.GetLastAttemptedRevision()) {
 			continue
 		}
 		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
@@ -855,4 +863,44 @@ func getNamespacedName(obj *v2.HelmRelease) (types.NamespacedName, error) {
 	}
 
 	return namespacedName, nil
+}
+
+func mutateChartWithSourceRevision(chart *chart.Chart, source source.Source) error {
+	// If the source is an OCIRepository, we can try to mutate the chart version
+	// with the artifact revision. The revision is either a <tag>@<digest> or
+	// just a digest.
+	obj, ok := source.(*sourcev1.OCIRepository)
+	if !ok {
+		return nil
+	}
+	ver, err := semver.NewVersion(chart.Metadata.Version)
+	if err != nil {
+		return err
+	}
+	revision := obj.GetArtifact().Revision
+	switch {
+	case strings.Contains(revision, "@"):
+		tagD := strings.Split(revision, "@")
+		if len(tagD) != 2 || tagD[0] != chart.Metadata.Version {
+			return fmt.Errorf("artifact revision %s does not match chart version %s", tagD[0], chart.Metadata.Version)
+		}
+		// algotithm are sha256, sha384, sha512 with the canonical being sha256
+		// So every digest starts with a sha algorithm and a colon
+		sha := strings.Split(tagD[1], ":")[1]
+		// add the digest to the chart version to make sure mutable tags are detected
+		*ver, err = ver.SetMetadata(sha[0:12])
+		if err != nil {
+			return err
+		}
+	default:
+		// default to the digest
+		sha := strings.Split(revision, ":")[1]
+		*ver, err = ver.SetMetadata(sha[0:12])
+		if err != nil {
+			return err
+		}
+	}
+
+	chart.Metadata.Version = ver.String()
+	return nil
 }

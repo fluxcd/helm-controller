@@ -2452,7 +2452,8 @@ spec:
               lastAttemptedRevision:
                 description: |-
                   LastAttemptedRevision is the Source revision of the last reconciliation
-                  attempt.
+                  attempt. For OCIRegistry sources, the 12 first characters of the digest are
+                  appended to the chart version e.g. "1.2.3+1234567890ab".
                 type: string
               lastAttemptedValuesChecksum:
                 description: |-

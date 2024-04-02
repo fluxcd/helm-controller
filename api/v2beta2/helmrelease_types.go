@@ -1002,7 +1002,8 @@ type HelmReleaseStatus struct {
 	LastAppliedRevision string `json:"lastAppliedRevision,omitempty"`
 
 	// LastAttemptedRevision is the Source revision of the last reconciliation
-	// attempt.
+	// attempt. For OCIRegistry sources, the 12 first characters of the digest are
+	// appended to the chart version e.g. "1.2.3+1234567890ab".
 	// +optional
 	LastAttemptedRevision string `json:"lastAttemptedRevision,omitempty"`
 
@@ -1056,6 +1057,10 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 		return split[0], split[1]
 	}
 	return "", ""
+}
+
+func (in *HelmReleaseStatus) GetLastAttemptedRevision() string {
+	return in.LastAttemptedRevision
 }
 
 const (

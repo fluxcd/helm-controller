@@ -24,8 +24,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fluxcd/pkg/apis/acl"
+	aclv1 "github.com/fluxcd/pkg/apis/acl"
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
+	feathelper "github.com/fluxcd/pkg/runtime/features"
+	"github.com/fluxcd/pkg/runtime/patch"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	sourcev1b2 "github.com/fluxcd/source-controller/api/v1beta2"
 	. "github.com/onsi/gomega"
 	"github.com/opencontainers/go-digest"
+	"helm.sh/helm/v3/pkg/chart"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
@@ -43,15 +52,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/yaml"
-
-	"github.com/fluxcd/pkg/apis/acl"
-	aclv1 "github.com/fluxcd/pkg/apis/acl"
-	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/conditions"
-	feathelper "github.com/fluxcd/pkg/runtime/features"
-	"github.com/fluxcd/pkg/runtime/patch"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	sourcev1b2 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
@@ -1211,18 +1211,23 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		}))
 	})
 
-	t.Run("handles reconciliation of new artifact", func(t *testing.T) {
+	t.Run("handle chartRef mutable tag", func(t *testing.T) {
 		g := NewWithT(t)
 
+		// Create HelmChart mock.
 		chartMock := testutil.BuildChart()
 		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
 		g.Expect(err).ToNot(HaveOccurred())
+		chartArtifact.Revision += "@" + chartArtifact.Digest
 
-		ociRepo := &sourcev1b2.OCIRepository{
+		ocirepo := &sourcev1b2.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  "mock",
 				Generation: 1,
+			},
+			Spec: sourcev1b2.OCIRepositorySpec{
+				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
 			Status: sourcev1b2.OCIRepositoryStatus{
 				ObservedGeneration: 1,
@@ -1247,44 +1252,46 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 					Name:      "ocirepo",
 					Namespace: "mock",
 				},
-				StorageNamespace: "other",
-			},
-			Status: v2.HelmReleaseStatus{
-				History: v2.Snapshots{
-					{
-						Name:      "mock",
-						Namespace: "mock",
-					},
-				},
-				StorageNamespace: "mock",
 			},
 		}
 
-		c := fake.NewClientBuilder().
-			WithScheme(NewTestScheme()).
-			WithStatusSubresource(&v2.HelmRelease{}).
-			WithObjects(ociRepo, obj).
-			Build()
-
 		r := &HelmReleaseReconciler{
-			Client:           c,
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(ocirepo, obj).
+				Build(),
 			GetClusterConfig: GetTestClusterConfig,
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(res.Requeue).To(BeTrue())
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("namespaces \"mock\" not found"))
 
-		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
-			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
-			*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallSucceededReason, "Release mock/mock.v0 was not found, assuming it is uninstalled"),
-			*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallSucceededReason, "Release mock/mock.v0 was not found, assuming it is uninstalled"),
-		}))
+		// Verify attempted values are set.
+		g.Expect(obj.Status.LastAttemptedGeneration).To(Equal(obj.Generation))
+		dig := strings.Split(chartArtifact.Revision, ":")[1][0:12]
+		g.Expect(obj.Status.LastAttemptedRevision).To(Equal(chartMock.Metadata.Version + "+" + dig))
+		g.Expect(obj.Status.LastAttemptedConfigDigest).To(Equal("sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"))
+		g.Expect(obj.Status.LastAttemptedValuesChecksum).To(BeEmpty())
 
-		// Verify history and storage namespace are cleared.
-		g.Expect(obj.Status.History).To(BeNil())
-		g.Expect(obj.Status.StorageNamespace).To(BeEmpty())
+		// change the chart revision to simulate a new digest
+		chartArtifact.Revision = chartMock.Metadata.Version + "@" + "sha256:adebc5e3cbcd6a0918bd470f3a6c9855bfe95d506c74726bc0f2edb0aecb1f4e"
+		ocirepo.Status.Artifact = chartArtifact
+		r.Client.Update(context.Background(), ocirepo)
+
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("namespaces \"mock\" not found"))
+
+		// Verify attempted values are set.
+		g.Expect(obj.Status.LastAttemptedGeneration).To(Equal(obj.Generation))
+		dig2 := strings.Split(chartArtifact.Revision, ":")[1][0:12]
+		g.Expect(obj.Status.LastAttemptedRevision).To(Equal(chartMock.Metadata.Version + "+" + dig2))
+		g.Expect(obj.Status.LastAttemptedConfigDigest).To(Equal("sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"))
+		g.Expect(obj.Status.LastAttemptedValuesChecksum).To(BeEmpty())
+
 	})
 }
 
@@ -2907,4 +2914,72 @@ func Test_isOCIRepositoryReady(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_TryMutateChartWithSourceRevision(t *testing.T) {
+	tests := []struct {
+		name        string
+		version     string
+		revision    string
+		wantVersion string
+		wantErr     bool
+	}{
+		{
+			name:        "valid version and revision",
+			version:     "1.2.3",
+			revision:    "1.2.3@sha256:9933f58f8bf459eb199d59ebc8a05683f3944e1242d9f5467d99aa2cf08a5370",
+			wantVersion: "1.2.3+9933f58f8bf4",
+			wantErr:     false,
+		},
+		{
+			name:        "valid version and invalid revision",
+			version:     "1.2.3",
+			revision:    "1.2.4@sha256:9933f58f8bf459eb199d59ebc8a05683f3944e1242d9f5467d99aa2cf08a5370",
+			wantVersion: "",
+			wantErr:     true,
+		},
+		{
+			name:        "valid version and revision without version",
+			version:     "1.2.3",
+			revision:    "sha256:9933f58f8bf459eb199d59ebc8a05683f3944e1242d9f5467d99aa2cf08a5370",
+			wantVersion: "1.2.3+9933f58f8bf4",
+			wantErr:     false,
+		},
+		{
+			name:        "invalid version",
+			version:     "sha:123456",
+			revision:    "1.2.3@sha:123456",
+			wantVersion: "",
+			wantErr:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			c := &chart.Chart{
+				Metadata: &chart.Metadata{
+					Version: tt.version,
+				},
+			}
+
+			s := &sourcev1b2.OCIRepository{
+				Status: sourcev1b2.OCIRepositoryStatus{
+					Artifact: &sourcev1.Artifact{
+						Revision: tt.revision,
+					},
+				},
+			}
+
+			err := mutateChartWithSourceRevision(c, s)
+			if tt.wantErr {
+				g.Expect(err).To(HaveOccurred())
+			} else {
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(c.Metadata.Version).To(Equal(tt.wantVersion))
+			}
+		})
+	}
+
 }
