@@ -1391,6 +1391,7 @@ spec:
                               sign the OCI Helm chart.
                             enum:
                             - cosign
+                            - notation
                             type: string
                           secretRef:
                             description: |-
