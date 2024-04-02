@@ -176,7 +176,7 @@ A HelmRelease also needs a
 
 ### Chart template
 
-`.spec.chart` is a required field used by the helm-controller as a template to
+`.spec.chart` is an optional field used by the helm-controller as a template to
 create a new [HelmChart resource](https://fluxcd.io/flux/components/source/helmcharts/).
 
 The spec for the HelmChart is provided via `.spec.chart.spec`, refer to
@@ -202,6 +202,69 @@ uninstall any previous release before installing the new one.
 references with the `--no-cross-namespace-refs=true` flag. When this flag is
 set, the HelmRelease can only refer to Sources in the same namespace as the
 HelmRelease object.
+
+### Chart reference
+
+`.spec.chartRef` is an optional field used to refer to an [OCIRepository resource](https://fluxcd.io/flux/components/source/ocirepositories/)
+from which to fetch the Helm chart. The chart is fetched by the controller with the
+information provided by `.status.artifact` of the OCIRepository.
+
+The chart version of the last release attempt is reported in `.status.lastAttemptedRevision`.
+The version is in the format <version>+<digest[0:12]>. The digest of the artifact is
+appended to the version to ensure that a change in the artifact content triggers a new release.
+The controller will automatically perform a Helm release when the OCIRepository produces a new artifact.
+
+**Warning:** One of `.spec.chart` or `.spec.chartRef` must be set, but not both.
+If switching from `.spec.chart` to `.spec.chartRef`, the HelmRelease will uninstall
+the previous release before installing the new one.
+
+**Note:** On multi-tenant clusters, platform admins can disable cross-namespace
+references with the `--no-cross-namespace-refs=true` flag. When this flag is
+set, the HelmRelease can only refer to Sources in the same namespace as the
+HelmRelease object.
+
+```yaml
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: OCIRepository
+metadata:
+  name: podinfo-ocirepo
+spec:
+  interval: 30s
+  url: oci://ghcr.io/stefanprodan/charts/podinfo
+  ref:
+    tag: 6.6.0
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 10m
+  timeout: 5m
+  chartRef:
+    kind: OCIRepository
+    name: podinfo
+    namespace: default
+  releaseName: podinfo
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  test:
+    enable: true
+  driftDetection:
+    mode: enabled
+    ignore:
+    - paths: ["/spec/replicas"]
+      target:
+        kind: Deployment
+  values:
+    replicaCount: 2
+```
 
 ### Release name
 
