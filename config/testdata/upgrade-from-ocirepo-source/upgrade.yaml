@@ -1,0 +1,10 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: OCIRepository
+metadata:
+  name: upgrade-from-ocirepo-source
+spec:
+  interval: 30s
+  url: oci://ghcr.io/stefanprodan/charts/podinfo
+  ref:
+    tag: 6.6.1

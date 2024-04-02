@@ -1439,7 +1439,9 @@ spec:
                     minLength: 1
                     type: string
                   namespace:
-                    description: Namespace of the referent.
+                    description: |-
+                      Namespace of the referent, defaults to the namespace of the Kubernetes
+                      resource object that contains the reference.
                     maxLength: 63
                     minLength: 1
                     type: string

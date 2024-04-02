@@ -463,6 +463,45 @@ jobs:
           fi
 
           kubectl delete -n helm-system -f config/testdata/$test_name/install.yaml
+      - name: Run upgrade from ocirepo source
+        run: |
+            test_name=upgrade-from-ocirepo-source
+            kubectl -n helm-system apply -f config/testdata/$test_name/install.yaml
+            echo -n ">>> Waiting for expected conditions"
+            count=0
+            until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="True" and .Ready=="True"' )" ]; do
+              echo -n '.'
+              sleep 5
+              count=$((count + 1))
+              if [[ ${count} -eq 24 ]]; then
+                echo ' No more retries left!'
+                exit 1
+              fi
+            done
+            echo ' done'
+  
+            # Validate release was installed.
+            REVISION_COUNT=$(helm -n helm-system history -o json $test_name | jq 'length')
+            if [ "$REVISION_COUNT" != 1 ]; then
+              echo -e "Unexpected revision count: $REVISION_COUNT"
+              exit 1
+            fi
+  
+            kubectl -n helm-system apply -f config/testdata/$test_name/upgrade.yaml
+            echo -n ">>> Waiting for expected conditions"
+            count=0
+            until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="True" and .Ready=="True"' )" ]; do
+              echo -n '.'
+              sleep 5
+              count=$((count + 1))
+              if [[ ${count} -eq 24 ]]; then
+                echo ' No more retries left!'
+                exit 1
+              fi
+            done
+            echo ' done'
+  
+            kubectl delete -n helm-system -f config/testdata/$test_name/install.yaml
       - name: Run upgrade fail with uninstall remediation strategy test
         run: |
           test_name=upgrade-fail-remediate-uninstall

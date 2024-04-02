@@ -546,7 +546,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Namespace of the referent.</p>
+<p>Namespace of the referent, defaults to the namespace of the Kubernetes
+resource object that contains the reference.</p>
 </td>
 </tr>
 </tbody>
