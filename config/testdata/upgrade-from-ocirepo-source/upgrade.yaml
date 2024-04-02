@@ -7,4 +7,4 @@ spec:
   interval: 30s
   url: oci://ghcr.io/stefanprodan/charts/podinfo
   ref:
-    tag: 6.6.1
+    digest: "sha256:0cc9a8446c95009ef382f5eade883a67c257f77d50f84e78ecef2aac9428d1e5"
