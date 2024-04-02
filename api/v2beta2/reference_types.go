@@ -60,7 +60,8 @@ type CrossNamespaceSourceReference struct {
 	// +required
 	Name string `json:"name"`
 
-	// Namespace of the referent.
+	// Namespace of the referent, defaults to the namespace of the Kubernetes
+	// resource object that contains the reference.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Optional

@@ -50,6 +50,7 @@ import (
 	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/jitter"
 	"github.com/fluxcd/pkg/runtime/logger"
+	"github.com/fluxcd/pkg/runtime/object"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	source "github.com/fluxcd/source-controller/api/v1"
@@ -107,7 +108,7 @@ var (
 )
 
 func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
-	// Index the HelmRelease by the HelmChart references they point at
+	// Index the HelmRelease by the Source reference they point to.
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2.HelmRelease{}, v2.SourceIndexKey,
 		func(o client.Object) []string {
 			obj := o.(*v2.HelmRelease)
@@ -677,7 +678,7 @@ func (r *HelmReleaseReconciler) getSource(ctx context.Context, obj *v2.HelmRelea
 	var name, namespace string
 	if obj.HasChartRef() {
 		if obj.Spec.ChartRef.Kind == sourcev1.OCIRepositoryKind {
-			return r.getHelmChartFromOCIRef(ctx, obj)
+			return r.getSourceFromOCIRef(ctx, obj)
 		}
 		name, namespace = obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
 		if namespace == "" {
@@ -700,7 +701,7 @@ func (r *HelmReleaseReconciler) getSource(ctx context.Context, obj *v2.HelmRelea
 	return &hc, nil
 }
 
-func (r *HelmReleaseReconciler) getHelmChartFromOCIRef(ctx context.Context, obj *v2.HelmRelease) (source.Source, error) {
+func (r *HelmReleaseReconciler) getSourceFromOCIRef(ctx context.Context, obj *v2.HelmRelease) (source.Source, error) {
 	name, namespace := obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
 	if namespace == "" {
 		namespace = obj.GetNamespace()
@@ -801,63 +802,35 @@ func (r *HelmReleaseReconciler) requestsForOCIRrepositoryChange(ctx context.Cont
 }
 
 func isSourceReady(obj source.Source) (bool, string) {
-	if hc, ok := obj.(*sourcev1.HelmChart); ok {
-		return isHelmChartReady(hc)
+	if o, ok := obj.(conditions.Getter); ok {
+		return isReady(o, obj.GetArtifact())
 	}
-
-	or, ok := obj.(*sourcev1.OCIRepository)
-	if ok {
-		return isOCIRepositoryReady(or)
-	}
-
-	return false, "unknown source type"
+	return false, fmt.Sprintf("unknown source type: %T", obj)
 }
 
-// isHelmChartReady returns true if the given HelmChart is ready, and a reason
-// why it is not ready otherwise.
-func isHelmChartReady(obj *sourcev1.HelmChart) (bool, string) {
-	switch {
-	case obj.Generation != obj.Status.ObservedGeneration:
-		msg := "latest generation of object has not been reconciled"
-
-		// If the chart is not ready, we can likely provide a more
-		// concise reason why.
-		// We do not do this while the Generation matches the Observed
-		// Generation, as we could then potentially stall on e.g.
-		// temporary errors which do not have an impact as long as
-		// there is an Artifact for the current Generation.
-		if conditions.IsFalse(obj, meta.ReadyCondition) {
-			msg = conditions.GetMessage(obj, meta.ReadyCondition)
-		}
-		return false, fmt.Sprintf("HelmChart '%s/%s' is not ready: %s",
-			obj.GetNamespace(), obj.GetName(), msg)
-	case conditions.IsStalled(obj):
-		return false, fmt.Sprintf("HelmChart '%s/%s' is not ready: %s",
-			obj.GetNamespace(), obj.GetName(), conditions.GetMessage(obj, meta.StalledCondition))
-	case obj.Status.Artifact == nil:
-		return false, fmt.Sprintf("HelmChart '%s/%s' is not ready: %s",
-			obj.GetNamespace(), obj.GetName(), "does not have an artifact")
-	default:
-		return true, ""
+func isReady(obj conditions.Getter, artifact *source.Artifact) (bool, string) {
+	observedGen, err := object.GetStatusObservedGeneration(obj)
+	if err != nil {
+		return false, err.Error()
 	}
-}
 
-func isOCIRepositoryReady(obj *sourcev1.OCIRepository) (bool, string) {
+	kind := obj.GetObjectKind().GroupVersionKind().Kind
+
 	switch {
-	case obj.Generation != obj.Status.ObservedGeneration:
+	case obj.GetGeneration() != observedGen:
 		msg := "latest generation of object has not been reconciled"
 
 		if conditions.IsFalse(obj, meta.ReadyCondition) {
 			msg = conditions.GetMessage(obj, meta.ReadyCondition)
 		}
-		return false, fmt.Sprintf("OCIRepository '%s/%s' is not ready: %s",
-			obj.GetNamespace(), obj.GetName(), msg)
+		return false, fmt.Sprintf("%s '%s/%s' is not ready: %s",
+			kind, obj.GetNamespace(), obj.GetName(), msg)
 	case conditions.IsStalled(obj):
-		return false, fmt.Sprintf("OCIRepository '%s/%s' is not ready: %s",
-			obj.GetNamespace(), obj.GetName(), conditions.GetMessage(obj, meta.StalledCondition))
-	case obj.Status.Artifact == nil:
-		return false, fmt.Sprintf("OCIRepository '%s/%s' is not ready: %s",
-			obj.GetNamespace(), obj.GetName(), "does not have an artifact")
+		return false, fmt.Sprintf("%s '%s/%s' is not ready: %s",
+			kind, obj.GetNamespace(), obj.GetName(), conditions.GetMessage(obj, meta.StalledCondition))
+	case artifact == nil:
+		return false, fmt.Sprintf("%s '%s/%s' is not ready: %s",
+			kind, obj.GetNamespace(), obj.GetName(), "does not have an artifact")
 	default:
 		return true, ""
 	}
