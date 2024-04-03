@@ -401,7 +401,7 @@ func (in HelmChartTemplate) GetNamespace(defaultNamespace string) string {
 // HelmChartTemplateVerification verifies the authenticity of an OCI Helm chart.
 type HelmChartTemplateVerification struct {
 	// Provider specifies the technology used to sign the OCI Helm chart.
-	// +kubebuilder:validation:Enum=cosign
+	// +kubebuilder:validation:Enum=cosign;notation
 	// +kubebuilder:default:=cosign
 	Provider string `json:"provider"`
 
