@@ -307,6 +307,9 @@ func TestInstall_failure(t *testing.T) {
 				ReleaseName:     mockReleaseName,
 				TargetNamespace: mockReleaseNamespace,
 			},
+			Status: v2.HelmReleaseStatus{
+				LastAttemptedRevisionDigest: "sha256:1234567890",
+			},
 		}
 		chrt = testutil.BuildChart()
 		err  = errors.New("installation error")
@@ -337,6 +340,7 @@ func TestInstall_failure(t *testing.T) {
 				Message: expectMsg,
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
+						eventMetaGroupKey(metaOCIDigestKey):        obj.Status.LastAttemptedRevisionDigest,
 						eventMetaGroupKey(eventv1.MetaRevisionKey): chrt.Metadata.Version,
 						eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
 					},

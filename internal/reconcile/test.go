@@ -145,7 +145,7 @@ func (r *Test) failure(req *Request, err error) {
 	// Condition summary.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		eventMeta(cur.ChartVersion, cur.ConfigDigest, addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeWarning,
 		v2.TestFailedReason,
 		msg,
@@ -181,7 +181,7 @@ func (r *Test) success(req *Request) {
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		eventMeta(cur.ChartVersion, cur.ConfigDigest, addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.TestSucceededReason,
 		msg,

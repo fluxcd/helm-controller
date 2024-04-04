@@ -154,7 +154,7 @@ func (r *UninstallRemediation) failure(req *Request, buffer *action.LogBuffer, e
 	// Condition summary.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		eventMeta(cur.ChartVersion, cur.ConfigDigest, addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeWarning,
 		v2.UninstallFailedReason,
 		eventMessageWithLog(msg, buffer),
@@ -175,7 +175,7 @@ func (r *UninstallRemediation) success(req *Request) {
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		eventMeta(cur.ChartVersion, cur.ConfigDigest, addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.UninstallSucceededReason,
 		msg,

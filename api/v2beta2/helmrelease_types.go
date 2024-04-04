@@ -1002,10 +1002,15 @@ type HelmReleaseStatus struct {
 	LastAppliedRevision string `json:"lastAppliedRevision,omitempty"`
 
 	// LastAttemptedRevision is the Source revision of the last reconciliation
-	// attempt. For OCIRegistry sources, the 12 first characters of the digest are
+	// attempt. For OCIRepository  sources, the 12 first characters of the digest are
 	// appended to the chart version e.g. "1.2.3+1234567890ab".
 	// +optional
 	LastAttemptedRevision string `json:"lastAttemptedRevision,omitempty"`
+
+	// LastAttemptedRevisionDigest is the digest of the last reconciliation attempt.
+	// This is only set for OCIRepository sources.
+	// +optional
+	LastAttemptedRevisionDigest string `json:"lastAttemptedRevisionDigest,omitempty"`
 
 	// LastAttemptedValuesChecksum is the SHA1 checksum for the values of the last
 	// reconciliation attempt.

@@ -1584,8 +1584,21 @@ string
 <td>
 <em>(Optional)</em>
 <p>LastAttemptedRevision is the Source revision of the last reconciliation
-attempt. For OCIRegistry sources, the 12 first characters of the digest are
+attempt. For OCIRepository  sources, the 12 first characters of the digest are
 appended to the chart version e.g. &ldquo;1.2.3+1234567890ab&rdquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastAttemptedRevisionDigest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastAttemptedRevisionDigest is the digest of the last reconciliation attempt.
+This is only set for OCIRepository sources.</p>
 </td>
 </tr>
 <tr>
@@ -2378,6 +2391,18 @@ TestHookStatus
 <em>(Optional)</em>
 <p>TestHooks is the list of test hooks for the release as observed to be
 run by the controller.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ociDigest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>OCIDigest is the digest of the OCI artifact associated with the release.</p>
 </td>
 </tr>
 </tbody>

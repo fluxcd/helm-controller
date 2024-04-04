@@ -335,7 +335,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
-	err = mutateChartWithSourceRevision(loadedChart, source)
+	ociDigest, err := mutateChartWithSourceRevision(loadedChart, source)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "ChartMutateError", err.Error())
 		return ctrl.Result{}, err
@@ -388,6 +388,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	// Set last attempt values.
 	obj.Status.LastAttemptedGeneration = obj.Generation
 	obj.Status.LastAttemptedRevision = loadedChart.Metadata.Version
+	obj.Status.LastAttemptedRevisionDigest = ociDigest
 	obj.Status.LastAttemptedConfigDigest = chartutil.DigestValues(digest.Canonical, values).String()
 	obj.Status.LastAttemptedValuesChecksum = ""
 	obj.Status.LastReleaseRevision = 0
@@ -865,24 +866,28 @@ func getNamespacedName(obj *v2.HelmRelease) (types.NamespacedName, error) {
 	return namespacedName, nil
 }
 
-func mutateChartWithSourceRevision(chart *chart.Chart, source source.Source) error {
+func mutateChartWithSourceRevision(chart *chart.Chart, source source.Source) (string, error) {
 	// If the source is an OCIRepository, we can try to mutate the chart version
 	// with the artifact revision. The revision is either a <tag>@<digest> or
 	// just a digest.
 	obj, ok := source.(*sourcev1.OCIRepository)
 	if !ok {
-		return nil
+		// if not make sure to return an empty string to delete the digest of the
+		// last attempted revision
+		return "", nil
 	}
 	ver, err := semver.NewVersion(chart.Metadata.Version)
 	if err != nil {
-		return err
+		return "", err
 	}
+
+	var ociDigest string
 	revision := obj.GetArtifact().Revision
 	switch {
 	case strings.Contains(revision, "@"):
 		tagD := strings.Split(revision, "@")
 		if len(tagD) != 2 || tagD[0] != chart.Metadata.Version {
-			return fmt.Errorf("artifact revision %s does not match chart version %s", tagD[0], chart.Metadata.Version)
+			return "", fmt.Errorf("artifact revision %s does not match chart version %s", tagD[0], chart.Metadata.Version)
 		}
 		// algotithm are sha256, sha384, sha512 with the canonical being sha256
 		// So every digest starts with a sha algorithm and a colon
@@ -890,17 +895,19 @@ func mutateChartWithSourceRevision(chart *chart.Chart, source source.Source) err
 		// add the digest to the chart version to make sure mutable tags are detected
 		*ver, err = ver.SetMetadata(sha[0:12])
 		if err != nil {
-			return err
+			return "", err
 		}
+		ociDigest = tagD[1]
 	default:
 		// default to the digest
 		sha := strings.Split(revision, ":")[1]
 		*ver, err = ver.SetMetadata(sha[0:12])
 		if err != nil {
-			return err
+			return "", err
 		}
+		ociDigest = revision
 	}
 
 	chart.Metadata.Version = ver.String()
-	return nil
+	return ociDigest, nil
 }

@@ -1100,6 +1100,10 @@ spec:
                       description: Namespace is the namespace the release is deployed
                         to.
                       type: string
+                    ociDigest:
+                      description: OCIDigest is the digest of the OCI artifact associated
+                        with the release.
+                      type: string
                     status:
                       description: Status is the current state of the release.
                       type: string
@@ -2374,6 +2378,10 @@ spec:
                       description: Namespace is the namespace the release is deployed
                         to.
                       type: string
+                    ociDigest:
+                      description: OCIDigest is the digest of the OCI artifact associated
+                        with the release.
+                      type: string
                     status:
                       description: Status is the current state of the release.
                       type: string
@@ -2452,8 +2460,13 @@ spec:
               lastAttemptedRevision:
                 description: |-
                   LastAttemptedRevision is the Source revision of the last reconciliation
-                  attempt. For OCIRegistry sources, the 12 first characters of the digest are
+                  attempt. For OCIRepository  sources, the 12 first characters of the digest are
                   appended to the chart version e.g. "1.2.3+1234567890ab".
+                type: string
+              lastAttemptedRevisionDigest:
+                description: |-
+                  LastAttemptedRevisionDigest is the digest of the last reconciliation attempt.
+                  This is only set for OCIRepository sources.
                 type: string
               lastAttemptedValuesChecksum:
                 description: |-

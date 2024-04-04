@@ -186,6 +186,10 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g := NewWithT(t)
 
 		chart := &sourcev1b2.HelmChart{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: sourcev1b2.GroupVersion.String(),
+				Kind:       sourcev1b2.HelmChartKind,
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  "mock",
@@ -238,6 +242,10 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g := NewWithT(t)
 
 		chart := &sourcev1b2.HelmChart{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: sourcev1b2.GroupVersion.String(),
+				Kind:       sourcev1b2.HelmChartKind,
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  "mock",
@@ -960,6 +968,10 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		g := NewWithT(t)
 
 		ocirepo := &sourcev1b2.OCIRepository{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: sourcev1b2.GroupVersion.String(),
+				Kind:       sourcev1b2.OCIRepositoryKind,
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  "mock",
@@ -2972,7 +2984,7 @@ func Test_TryMutateChartWithSourceRevision(t *testing.T) {
 				},
 			}
 
-			err := mutateChartWithSourceRevision(c, s)
+			_, err := mutateChartWithSourceRevision(c, s)
 			if tt.wantErr {
 				g.Expect(err).To(HaveOccurred())
 			} else {

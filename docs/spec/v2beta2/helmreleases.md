@@ -242,26 +242,10 @@ metadata:
   namespace: default
 spec:
   interval: 10m
-  timeout: 5m
   chartRef:
     kind: OCIRepository
     name: podinfo
     namespace: default
-  releaseName: podinfo
-  install:
-    remediation:
-      retries: 3
-  upgrade:
-    remediation:
-      retries: 3
-  test:
-    enable: true
-  driftDetection:
-    mode: enabled
-    ignore:
-    - paths: ["/spec/replicas"]
-      target:
-        kind: Deployment
   values:
     replicaCount: 2
 ```

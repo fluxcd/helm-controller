@@ -43,6 +43,10 @@ var (
 	ErrReleaseMismatch = errors.New("release mismatch")
 )
 
+// mutateObservedRelease is a function that mutates the Observation with the
+// given HelmRelease object.
+type mutateObservedRelease func(*v2.HelmRelease, release.Observation) release.Observation
+
 // observedReleases is a map of Helm releases as observed to be written to the
 // Helm storage. The key is the version of the release.
 type observedReleases map[int]release.Observation
@@ -58,7 +62,7 @@ func (r observedReleases) sortedVersions() (versions []int) {
 }
 
 // recordOnObject records the observed releases on the HelmRelease object.
-func (r observedReleases) recordOnObject(obj *v2.HelmRelease) {
+func (r observedReleases) recordOnObject(obj *v2.HelmRelease, mutators ...mutateObservedRelease) {
 	switch len(r) {
 	case 0:
 		return
@@ -67,17 +71,25 @@ func (r observedReleases) recordOnObject(obj *v2.HelmRelease) {
 		for _, o := range r {
 			obs = o
 		}
+		for _, mut := range mutators {
+			obs = mut(obj, obs)
+		}
 		obj.Status.History = append(v2.Snapshots{release.ObservedToSnapshot(obs)}, obj.Status.History...)
 	default:
 		versions := r.sortedVersions()
-
-		obj.Status.History = append(v2.Snapshots{release.ObservedToSnapshot(r[versions[0]])}, obj.Status.History...)
+		obs := r[versions[0]]
+		for _, mut := range mutators {
+			obs = mut(obj, obs)
+		}
+		obj.Status.History = append(v2.Snapshots{release.ObservedToSnapshot(obs)}, obj.Status.History...)
 
 		for _, ver := range versions[1:] {
 			for i := range obj.Status.History {
 				snap := obj.Status.History[i]
 				if snap.Targets(r[ver].Name, r[ver].Namespace, r[ver].Version) {
-					newSnap := release.ObservedToSnapshot(r[ver])
+					obs := r[ver]
+					obs.OCIDigest = snap.OCIDigest
+					newSnap := release.ObservedToSnapshot(obs)
 					newSnap.SetTestHooks(snap.GetTestHooks())
 					obj.Status.History[i] = newSnap
 					return
@@ -85,6 +97,11 @@ func (r observedReleases) recordOnObject(obj *v2.HelmRelease) {
 			}
 		}
 	}
+}
+
+func mutateOCIDigest(obj *v2.HelmRelease, obs release.Observation) release.Observation {
+	obs.OCIDigest = obj.Status.LastAttemptedRevisionDigest
+	return obs
 }
 
 // observeRelease returns a storage.ObserveFunc that stores the observed
@@ -174,9 +191,15 @@ func eventMessageWithLog(msg string, log *action.LogBuffer) string {
 	return msg
 }
 
+// addMeta is a function that adds metadata to an event map.
+type addMeta func(map[string]string)
+
+// metaOCIDigestKey is the key for the OCI digest metadata.
+const metaOCIDigestKey = "oci-digest"
+
 // eventMeta returns the event (annotation) metadata based on the given
 // parameters.
-func eventMeta(revision, token string) map[string]string {
+func eventMeta(revision, token string, metas ...addMeta) map[string]string {
 	var metadata map[string]string
 	if revision != "" || token != "" {
 		metadata = make(map[string]string)
@@ -187,7 +210,23 @@ func eventMeta(revision, token string) map[string]string {
 			metadata[eventMetaGroupKey(eventv1.MetaTokenKey)] = token
 		}
 	}
+
+	for _, add := range metas {
+		add(metadata)
+	}
+
 	return metadata
+}
+
+func addOCIDigest(digest string) addMeta {
+	return func(m map[string]string) {
+		if digest != "" {
+			if m == nil {
+				m = make(map[string]string)
+			}
+			m[eventMetaGroupKey(metaOCIDigestKey)] = digest
+		}
+	}
 }
 
 // eventMetaGroupKey returns the event (annotation) metadata key prefixed with

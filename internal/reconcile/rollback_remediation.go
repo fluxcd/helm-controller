@@ -143,7 +143,7 @@ func (r *RollbackRemediation) failure(req *Request, prev *v2.Snapshot, buffer *a
 	// Condition summary.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(prev.ChartVersion, chartutil.DigestValues(digest.Canonical, req.Values).String()),
+		eventMeta(prev.ChartVersion, chartutil.DigestValues(digest.Canonical, req.Values).String(), addOCIDigest(prev.OCIDigest)),
 		corev1.EventTypeWarning,
 		v2.RollbackFailedReason,
 		eventMessageWithLog(msg, buffer),
@@ -162,7 +162,7 @@ func (r *RollbackRemediation) success(req *Request, prev *v2.Snapshot) {
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(prev.ChartVersion, chartutil.DigestValues(digest.Canonical, req.Values).String()),
+		eventMeta(prev.ChartVersion, chartutil.DigestValues(digest.Canonical, req.Values).String(), addOCIDigest(prev.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.RollbackSucceededReason,
 		msg,

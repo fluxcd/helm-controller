@@ -119,7 +119,7 @@ func (r *Unlock) failure(req *Request, cur *v2.Snapshot, status helmrelease.Stat
 	// Record warning event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		eventMeta(cur.ChartVersion, cur.ConfigDigest, addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeWarning,
 		"PendingRelease",
 		msg,
@@ -138,7 +138,7 @@ func (r *Unlock) success(req *Request, cur *v2.Snapshot, status helmrelease.Stat
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		eventMeta(cur.ChartVersion, cur.ConfigDigest, addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		"PendingRelease",
 		msg,

@@ -92,7 +92,7 @@ func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 	_, err := action.Install(ctx, cfg, req.Object, req.Chart, req.Values)
 
 	// Record the history of releases observed during the install.
-	obsReleases.recordOnObject(req.Object)
+	obsReleases.recordOnObject(req.Object, mutateOCIDigest)
 
 	if err != nil {
 		r.failure(req, logBuf, err)
@@ -154,7 +154,8 @@ func (r *Install) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Condition summary.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(req.Chart.Metadata.Version, chartutil.DigestValues(digest.Canonical, req.Values).String()),
+		eventMeta(req.Chart.Metadata.Version, chartutil.DigestValues(digest.Canonical, req.Values).String(),
+			addOCIDigest(req.Object.Status.LastAttemptedRevisionDigest)),
 		corev1.EventTypeWarning,
 		v2.InstallFailedReason,
 		eventMessageWithLog(msg, buffer),
@@ -181,7 +182,7 @@ func (r *Install) success(req *Request) {
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		eventMeta(cur.ChartVersion, cur.ConfigDigest, addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.InstallSucceededReason,
 		msg,

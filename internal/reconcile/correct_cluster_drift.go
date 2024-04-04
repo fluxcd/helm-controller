@@ -99,10 +99,10 @@ func (r *CorrectClusterDrift) report(obj *v2.HelmRelease, changeSet *ssa.ChangeS
 			sb.WriteString(changeSet.String())
 		}
 
-		r.eventRecorder.AnnotatedEventf(obj, eventMeta(cur.ChartVersion, cur.ConfigDigest), corev1.EventTypeWarning,
+		r.eventRecorder.AnnotatedEventf(obj, eventMeta(cur.ChartVersion, cur.ConfigDigest, addOCIDigest(cur.OCIDigest)), corev1.EventTypeWarning,
 			"DriftCorrectionFailed", sb.String())
 	case changeSet != nil && len(changeSet.Entries) > 0:
-		r.eventRecorder.AnnotatedEventf(obj, eventMeta(cur.ChartVersion, cur.ConfigDigest), corev1.EventTypeNormal,
+		r.eventRecorder.AnnotatedEventf(obj, eventMeta(cur.ChartVersion, cur.ConfigDigest, addOCIDigest(cur.OCIDigest)), corev1.EventTypeNormal,
 			"DriftCorrected", "Cluster state of release %s has been corrected:\n%s",
 			obj.Status.History.Latest().FullReleaseName(), changeSet.String())
 	}
