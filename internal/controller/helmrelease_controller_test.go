@@ -1299,11 +1299,149 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 
 		// Verify attempted values are set.
 		g.Expect(obj.Status.LastAttemptedGeneration).To(Equal(obj.Generation))
-		dig2 := strings.Split(chartArtifact.Revision, ":")[1][0:12]
-		g.Expect(obj.Status.LastAttemptedRevision).To(Equal(chartMock.Metadata.Version + "+" + dig2))
+		dig = strings.Split(chartArtifact.Revision, ":")[1][0:12]
+		g.Expect(obj.Status.LastAttemptedRevision).To(Equal(chartMock.Metadata.Version + "+" + dig))
+		g.Expect(obj.Status.LastAttemptedConfigDigest).To(Equal("sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"))
+		g.Expect(obj.Status.LastAttemptedValuesChecksum).To(BeEmpty())
+	})
+
+	t.Run("upgrade by switching from existing HelmChat to chartRef", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Create HelmChart mock.
+		chartMock := testutil.BuildChart()
+		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
+		g.Expect(err).ToNot(HaveOccurred())
+		// copy the artifact to mutate the revision
+		ociArtifact := chartArtifact.DeepCopy()
+		ociArtifact.Revision += "@" + chartArtifact.Digest
+
+		ns, err := testEnv.CreateNamespace(context.TODO(), "mock")
+		g.Expect(err).ToNot(HaveOccurred())
+		t.Cleanup(func() {
+			_ = testEnv.Delete(context.TODO(), ns)
+		})
+
+		// hc is the HelmChart object created by the HelmRelease object.
+		hc := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  ns.Name,
+				Generation: 1,
+			},
+			Spec: sourcev1b2.HelmChartSpec{
+				Chart:   "testdata/test-helmrepo",
+				Version: "0.1.0",
+				SourceRef: sourcev1b2.LocalHelmChartSourceReference{
+					Kind: sourcev1b2.HelmRepositoryKind,
+					Name: "test-helmrepo",
+				},
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 1,
+				Artifact:           chartArtifact,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		// ocirepo is the chartRef object to switch to.
+		ocirepo := &sourcev1b2.OCIRepository{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "ocirepo",
+				Namespace:  ns.Name,
+				Generation: 1,
+			},
+			Spec: sourcev1b2.OCIRepositorySpec{
+				URL:      "oci://test-example.com",
+				Interval: metav1.Duration{Duration: 1 * time.Second},
+			},
+			Status: sourcev1b2.OCIRepositoryStatus{
+				ObservedGeneration: 1,
+				Artifact:           ociArtifact,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		// Create a test Helm release storage mock.
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      "release",
+			Namespace: ns.Name,
+			Version:   1,
+			Chart:     chartMock,
+			Status:    helmrelease.StatusDeployed,
+		})
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: ns.Name,
+			},
+			Spec: v2.HelmReleaseSpec{
+				ChartRef: &v2.CrossNamespaceSourceReference{
+					Kind: "OCIRepository",
+					Name: "ocirepo",
+				},
+			},
+			Status: v2.HelmReleaseStatus{
+				StorageNamespace: ns.Name,
+				History: v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(rls)),
+				},
+				HelmChart: hc.Namespace + "/" + hc.Name,
+			},
+		}
+
+		c := fake.NewClientBuilder().
+			WithScheme(NewTestScheme()).
+			WithStatusSubresource(&v2.HelmRelease{}).
+			WithObjects(hc, ocirepo, obj).
+			Build()
+
+		r := &HelmReleaseReconciler{
+			Client:           c,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
+		}
+
+		// Store the Helm release mock in the test namespace.
+		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		g.Expect(err).ToNot(HaveOccurred())
+
+		store := helmstorage.Init(cfg.Driver)
+		g.Expect(store.Create(rls)).To(Succeed())
+
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify attempted values are set.
+		g.Expect(obj.Status.LastAttemptedGeneration).To(Equal(obj.Generation))
+		dig := strings.Split(ociArtifact.Revision, ":")[1][0:12]
+		g.Expect(obj.Status.LastAttemptedRevision).To(Equal(chartMock.Metadata.Version + "+" + dig))
 		g.Expect(obj.Status.LastAttemptedConfigDigest).To(Equal("sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"))
 		g.Expect(obj.Status.LastAttemptedValuesChecksum).To(BeEmpty())
 
+		// verify upgrade succeeded
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded for release %s with chart %s",
+				fmt.Sprintf("%s/%s.v%d", rls.Namespace, rls.Name, rls.Version+1), fmt.Sprintf("%s@%s", chartMock.Name(),
+					fmt.Sprintf("%s+%s", chartMock.Metadata.Version, dig))),
+			*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded for release %s with chart %s",
+				fmt.Sprintf("%s/%s.v%d", rls.Namespace, rls.Name, rls.Version+1), fmt.Sprintf("%s@%s", chartMock.Name(),
+					fmt.Sprintf("%s+%s", chartMock.Metadata.Version, dig))),
+		}))
 	})
 }
 

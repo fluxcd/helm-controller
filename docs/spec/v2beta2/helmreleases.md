@@ -210,25 +210,27 @@ from which to fetch the Helm chart. The chart is fetched by the controller with 
 information provided by `.status.artifact` of the OCIRepository.
 
 The chart version of the last release attempt is reported in `.status.lastAttemptedRevision`.
-The version is in the format <version>+<digest[0:12]>. The digest of the artifact is
-appended to the version to ensure that a change in the artifact content triggers a new release.
-The controller will automatically perform a Helm release when the OCIRepository produces a new artifact.
+The version is in the format `<version>+<digest[0:12]>`. The digest of the OCI artifact
+is appended to the version to ensure that a change in the artifact content triggers
+a new release. The controller will automatically perform a Helm upgrade when the
+OCIRepository detects a new digest in the OCI artifact stored in registry, even if
+the version inside `Chart.yaml` is unchanged.
 
 **Warning:** One of `.spec.chart` or `.spec.chartRef` must be set, but not both.
-If switching from `.spec.chart` to `.spec.chartRef`, the HelmRelease will uninstall
-the previous release before installing the new one.
+When switching from `.spec.chart` to `.spec.chartRef`, the controller will perform
+an Helm upgrade and will garbage collect the old HelmChart object.
 
 **Note:** On multi-tenant clusters, platform admins can disable cross-namespace
-references with the `--no-cross-namespace-refs=true` flag. When this flag is
-set, the HelmRelease can only refer to Sources in the same namespace as the
+references with the `--no-cross-namespace-refs=true` controller flag. When this flag is
+set, the HelmRelease can only refer to OCIRepositories in the same namespace as the
 HelmRelease object.
 
 ```yaml
----
 apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: OCIRepository
 metadata:
-  name: podinfo-ocirepo
+  name: podinfo
+  namespace: default
 spec:
   interval: 30s
   url: oci://ghcr.io/stefanprodan/charts/podinfo

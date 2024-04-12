@@ -891,17 +891,23 @@ func mutateChartWithSourceRevision(chart *chart.Chart, source source.Source) (st
 		}
 		// algotithm are sha256, sha384, sha512 with the canonical being sha256
 		// So every digest starts with a sha algorithm and a colon
-		sha := strings.Split(tagD[1], ":")[1]
+		sha, err := extractDigetString(tagD[1])
+		if err != nil {
+			return "", err
+		}
 		// add the digest to the chart version to make sure mutable tags are detected
-		*ver, err = ver.SetMetadata(sha[0:12])
+		*ver, err = ver.SetMetadata(sha)
 		if err != nil {
 			return "", err
 		}
 		ociDigest = tagD[1]
 	default:
 		// default to the digest
-		sha := strings.Split(revision, ":")[1]
-		*ver, err = ver.SetMetadata(sha[0:12])
+		sha, err := extractDigetString(revision)
+		if err != nil {
+			return "", err
+		}
+		*ver, err = ver.SetMetadata(sha)
 		if err != nil {
 			return "", err
 		}
@@ -910,4 +916,17 @@ func mutateChartWithSourceRevision(chart *chart.Chart, source source.Source) (st
 
 	chart.Metadata.Version = ver.String()
 	return ociDigest, nil
+}
+
+func extractDigetString(revision string) (string, error) {
+	var sha string
+	if pair := strings.Split(revision, ":"); len(pair) != 2 {
+		return "", fmt.Errorf("invalid artifact revision %s", revision)
+	} else {
+		sha = pair[1]
+	}
+	if len(sha) < 12 {
+		return "", fmt.Errorf("invalid artifact revision %s", revision)
+	}
+	return sha[0:12], nil
 }
