@@ -182,7 +182,7 @@ func observeRollback(obj *v2.HelmRelease) storage.ObserveFunc {
 		for i := range obj.Status.History {
 			snap := obj.Status.History[i]
 			if snap.Targets(rls.Name, rls.Namespace, rls.Version) {
-				newSnap := release.ObservedToSnapshot(release.ObserveRelease(rls))
+				newSnap := release.ObservedToSnapshot(releaseToObservation(rls, snap))
 				newSnap.SetTestHooks(snap.GetTestHooks())
 				obj.Status.History[i] = newSnap
 				return

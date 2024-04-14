@@ -104,6 +104,12 @@ func mutateOCIDigest(obj *v2.HelmRelease, obs release.Observation) release.Obser
 	return obs
 }
 
+func releaseToObservation(rls *helmrelease.Release, snapshot *v2.Snapshot) release.Observation {
+	obs := release.ObserveRelease(rls)
+	obs.OCIDigest = snapshot.OCIDigest
+	return obs
+}
+
 // observeRelease returns a storage.ObserveFunc that stores the observed
 // releases in the given observedReleases map.
 // It can be used for Helm actions that modify multiple releases in the

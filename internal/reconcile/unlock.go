@@ -77,7 +77,7 @@ func (r *Unlock) Reconcile(_ context.Context, req *Request) error {
 	}
 
 	// Ensure the release is in a pending state.
-	cur := release.ObservedToSnapshot(release.ObserveRelease(rls))
+	cur := processCurrentSnaphot(req.Object, rls)
 	if status := rls.Info.Status; status.IsPending() {
 		// Update pending status to failed and persist.
 		rls.SetStatus(helmrelease.StatusFailed, fmt.Sprintf("Release unlocked from stale '%s' state", status.String()))
@@ -154,9 +154,23 @@ func observeUnlock(obj *v2.HelmRelease) storage.ObserveFunc {
 		for i := range obj.Status.History {
 			snap := obj.Status.History[i]
 			if snap.Targets(rls.Name, rls.Namespace, rls.Version) {
-				obj.Status.History[i] = release.ObservedToSnapshot(release.ObserveRelease(rls))
+				obj.Status.History[i] = release.ObservedToSnapshot(releaseToObservation(rls, snap))
 				return
 			}
 		}
 	}
+}
+
+// processCurrentSnaphot processes the current snapshot based on a Helm release.
+// It also looks for the OCIDigest in the corresponding v2.HelmRelease history and
+// updates the current snapshot with the OCIDigest if found.
+func processCurrentSnaphot(obj *v2.HelmRelease, rls *helmrelease.Release) *v2.Snapshot {
+	cur := release.ObservedToSnapshot(release.ObserveRelease(rls))
+	for i := range obj.Status.History {
+		snap := obj.Status.History[i]
+		if snap.Targets(rls.Name, rls.Namespace, rls.Version) {
+			cur.OCIDigest = snap.OCIDigest
+		}
+	}
+	return cur
 }

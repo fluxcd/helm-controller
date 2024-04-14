@@ -613,4 +613,47 @@ func Test_observeRollback(t *testing.T) {
 			expect,
 		}))
 	})
+
+	t.Run("rollback with update to previous deployed with OCI Digest", func(t *testing.T) {
+		g := NewWithT(t)
+
+		previous := &v2.Snapshot{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Version:   2,
+			Status:    helmrelease.StatusFailed.String(),
+			OCIDigest: "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6",
+		}
+		latest := &v2.Snapshot{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Version:   3,
+			Status:    helmrelease.StatusDeployed.String(),
+			OCIDigest: "sha256:aedc2b0de1576a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6",
+		}
+
+		obj := &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
+				History: v2.Snapshots{
+					latest,
+					previous,
+				},
+			},
+		}
+		rls := helmrelease.Mock(&helmrelease.MockReleaseOptions{
+			Name:      previous.Name,
+			Namespace: previous.Namespace,
+			Version:   previous.Version,
+			Status:    helmrelease.StatusSuperseded,
+		})
+		obs := release.ObserveRelease(rls)
+		obs.OCIDigest = "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6"
+		expect := release.ObservedToSnapshot(obs)
+
+		observeRollback(obj)(rls)
+		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
+			latest,
+			expect,
+		}))
+	})
 }
