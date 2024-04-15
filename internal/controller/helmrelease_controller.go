@@ -800,11 +800,19 @@ func (r *HelmReleaseReconciler) requestsForOCIRrepositoryChange(ctx context.Cont
 
 	var reqs []reconcile.Request
 	for i, hr := range list.Items {
-		// If the HelmRelease is ready and the revision of the artifact equals to the
-		// last attempted revision, we should not make a request for this HelmRelease
-		if conditions.IsReady(&list.Items[i]) && or.GetArtifact().HasRevision(hr.Status.GetLastAttemptedRevision()) {
+		// If the HelmRelease is ready and the digest of the artifact equals to the
+		// last attempted revision digest, we should not make a request for this HelmRelease,
+		// likewise if we cannot retrieve the artifact digest.
+		digest := extractDigest(or.GetArtifact().Revision)
+		if digest == "" {
+			ctrl.LoggerFrom(ctx).Error(fmt.Errorf("wrong digest for %T", or), "failed to get requests for OCIRepository change")
 			continue
 		}
+
+		if digest == hr.Status.LastAttemptedRevisionDigest {
+			continue
+		}
+
 		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
 	}
 	return reqs
@@ -855,6 +863,9 @@ func getNamespacedName(obj *v2.HelmRelease) (types.NamespacedName, error) {
 	switch {
 	case obj.HasChartRef() && !obj.HasChartTemplate():
 		namespacedName.Namespace = obj.Spec.ChartRef.Namespace
+		if namespacedName.Namespace == "" {
+			namespacedName.Namespace = obj.GetNamespace()
+		}
 		namespacedName.Name = obj.Spec.ChartRef.Name
 	case !obj.HasChartRef() && obj.HasChartTemplate():
 		namespacedName.Namespace = obj.Spec.Chart.GetNamespace(obj.GetNamespace())
@@ -891,7 +902,7 @@ func mutateChartWithSourceRevision(chart *chart.Chart, source source.Source) (st
 		}
 		// algotithm are sha256, sha384, sha512 with the canonical being sha256
 		// So every digest starts with a sha algorithm and a colon
-		sha, err := extractDigetString(tagD[1])
+		sha, err := extractDigestSubString(tagD[1])
 		if err != nil {
 			return "", err
 		}
@@ -903,7 +914,7 @@ func mutateChartWithSourceRevision(chart *chart.Chart, source source.Source) (st
 		ociDigest = tagD[1]
 	default:
 		// default to the digest
-		sha, err := extractDigetString(revision)
+		sha, err := extractDigestSubString(revision)
 		if err != nil {
 			return "", err
 		}
@@ -918,8 +929,9 @@ func mutateChartWithSourceRevision(chart *chart.Chart, source source.Source) (st
 	return ociDigest, nil
 }
 
-func extractDigetString(revision string) (string, error) {
+func extractDigestSubString(revision string) (string, error) {
 	var sha string
+	// expects a revision in the <algorithm>:<digest> format
 	if pair := strings.Split(revision, ":"); len(pair) != 2 {
 		return "", fmt.Errorf("invalid artifact revision %s", revision)
 	} else {
@@ -929,4 +941,18 @@ func extractDigetString(revision string) (string, error) {
 		return "", fmt.Errorf("invalid artifact revision %s", revision)
 	}
 	return sha[0:12], nil
+}
+
+func extractDigest(revision string) string {
+	if strings.Contains(revision, "@") {
+		// expects a revision in the <version>@<algorithm>:<digest> format
+		tagD := strings.Split(revision, "@")
+		if len(tagD) != 2 {
+			return ""
+		}
+		return tagD[1]
+	} else {
+		// revision in the <algorithm>:<digest> format
+		return revision
+	}
 }
