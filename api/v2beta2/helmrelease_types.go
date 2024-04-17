@@ -376,6 +376,10 @@ type HelmChartTemplateSpec struct {
 	// +deprecated
 	ValuesFile string `json:"valuesFile,omitempty"`
 
+	// IgnoreMissingValuesFiles controls whether to silently ignore missing values files rather than failing.
+	// +optional
+	IgnoreMissingValuesFiles bool `json:"ignoreMissingValuesFiles,omitempty"`
+
 	// Verify contains the secret name containing the trusted public keys
 	// used to verify the signature and specifies which provider to use to check
 	// whether OCI image is authentic.
