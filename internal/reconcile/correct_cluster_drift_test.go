@@ -24,10 +24,13 @@ import (
 	. "github.com/onsi/gomega"
 	extjsondiff "github.com/wI2L/jsondiff"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/ssa"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
 
@@ -154,6 +157,10 @@ func TestCorrectClusterDrift_Reconcile(t *testing.T) {
 			} else {
 				g.Expect(recorder.GetEvents()).To(BeEmpty())
 			}
+
+			g.Expect(tt.obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+				*conditions.UnknownCondition(meta.ReadyCondition, meta.ProgressingReason, "correcting cluster drift"),
+			}))
 		})
 	}
 }
