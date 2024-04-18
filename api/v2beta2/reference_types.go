@@ -42,6 +42,33 @@ type CrossNamespaceObjectReference struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
+// CrossNamespaceSourceReference contains enough information to let you locate
+// the typed referenced object at cluster level.
+type CrossNamespaceSourceReference struct {
+	// APIVersion of the referent.
+	// +optional
+	APIVersion string `json:"apiVersion,omitempty"`
+
+	// Kind of the referent.
+	// +kubebuilder:validation:Enum=OCIRepository
+	// +required
+	Kind string `json:"kind"`
+
+	// Name of the referent.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +required
+	Name string `json:"name"`
+
+	// Namespace of the referent, defaults to the namespace of the Kubernetes
+	// resource object that contains the reference.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Optional
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+}
+
 // ValuesReference contains a reference to a resource containing Helm values,
 // and optionally the key they can be found at.
 type ValuesReference struct {

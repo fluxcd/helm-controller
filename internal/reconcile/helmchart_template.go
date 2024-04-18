@@ -95,6 +95,20 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 		}
 	}
 
+	if mustCleanDeployedChart(obj) {
+		// If the HelmRelease has a ChartRef and no Chart template, and the
+		// HelmChart is present, we need to clean it up.
+		if err := r.reconcileDelete(ctx, req.Object); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if obj.HasChartRef() {
+		// if a chartRef is present, we do not need to reconcile the HelmChart from the template.
+		return nil
+	}
+
 	// Confirm we are allowed to fetch the HelmChart.
 	if err := acl.AllowsAccessTo(req.Object, sourcev1.HelmChartKind, chartRef); err != nil {
 		return err
@@ -229,4 +243,14 @@ func buildHelmChartFromTemplate(obj *v2.HelmRelease) *sourcev1.HelmChart {
 		result.SetLabels(metaTpl.Labels)
 	}
 	return result
+}
+
+func mustCleanDeployedChart(obj *v2.HelmRelease) bool {
+	if obj.HasChartRef() && !obj.HasChartTemplate() {
+		if obj.Status.HelmChart != "" {
+			return true
+		}
+	}
+
+	return false
 }

@@ -457,6 +457,95 @@ func TestUnlock_success(t *testing.T) {
 	}))
 }
 
+func TestUnlock_withOCIDigest(t *testing.T) {
+	g := NewWithT(t)
+
+	namedNS, err := testEnv.CreateNamespace(context.TODO(), mockReleaseNamespace)
+	g.Expect(err).NotTo(HaveOccurred())
+	t.Cleanup(func() {
+		_ = testEnv.Delete(context.TODO(), namedNS)
+	})
+	releaseNamespace := namedNS.Name
+
+	rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+		Name:      mockReleaseName,
+		Namespace: releaseNamespace,
+		Chart:     testutil.BuildChart(),
+		Version:   4,
+		Status:    helmrelease.StatusPendingInstall,
+	})
+
+	obs := release.ObserveRelease(rls)
+	obs.OCIDigest = "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6"
+	snap := release.ObservedToSnapshot(obs)
+
+	obj := &v2.HelmRelease{
+		Spec: v2.HelmReleaseSpec{
+			ReleaseName:      mockReleaseName,
+			TargetNamespace:  releaseNamespace,
+			StorageNamespace: releaseNamespace,
+			Timeout:          &metav1.Duration{Duration: 100 * time.Millisecond},
+		},
+		Status: v2.HelmReleaseStatus{
+			History: v2.Snapshots{
+				snap,
+			},
+		},
+	}
+
+	getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	cfg, err := action.NewConfigFactory(getter,
+		action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
+	)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	store := helmstorage.Init(cfg.Driver)
+	g.Expect(store.Create(rls)).To(Succeed())
+
+	recorder := testutil.NewFakeRecorder(10, false)
+	got := NewUnlock(cfg, recorder).Reconcile(context.TODO(), &Request{
+		Object: obj,
+	})
+
+	g.Expect(got).ToNot(HaveOccurred())
+
+	g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(
+		[]metav1.Condition{
+			*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "Unlocked Helm release"),
+			*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "Unlocked Helm release"),
+		}))
+
+	releases, _ := store.History(mockReleaseName)
+	helmreleaseutil.SortByRevision(releases)
+	expected := release.ObserveRelease(releases[0])
+	expected.OCIDigest = "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6"
+	g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
+		release.ObservedToSnapshot(expected),
+	}))
+
+	expectMsg := fmt.Sprintf(fmtUnlockSuccess,
+		fmt.Sprintf("%s/%s.v%d", rls.Namespace, snap.Name, snap.Version),
+		fmt.Sprintf("%s@%s", rls.Chart.Name(), rls.Chart.Metadata.Version),
+		rls.Info.Status.String())
+
+	g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+		{
+			Type:    corev1.EventTypeNormal,
+			Reason:  "PendingRelease",
+			Message: expectMsg,
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					eventMetaGroupKey(metaOCIDigestKey):        expected.OCIDigest,
+					eventMetaGroupKey(eventv1.MetaRevisionKey): rls.Chart.Metadata.Version,
+					eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, rls.Config).String(),
+				},
+			},
+		},
+	}))
+}
+
 func Test_observeUnlock(t *testing.T) {
 	t.Run("unlock", func(t *testing.T) {
 		g := NewWithT(t)
@@ -480,6 +569,38 @@ func Test_observeUnlock(t *testing.T) {
 			Status:    helmrelease.StatusFailed,
 		})
 		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
+		observeUnlock(obj)(rls)
+
+		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
+			expect,
+		}))
+	})
+
+	t.Run("unlock with OCI Digest", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
+				History: v2.Snapshots{
+					{
+						Name:      mockReleaseName,
+						Namespace: mockReleaseNamespace,
+						Version:   1,
+						Status:    helmrelease.StatusPendingRollback.String(),
+						OCIDigest: "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6",
+					},
+				},
+			},
+		}
+		rls := helmrelease.Mock(&helmrelease.MockReleaseOptions{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Version:   1,
+			Status:    helmrelease.StatusFailed,
+		})
+		obs := release.ObserveRelease(rls)
+		obs.OCIDigest = "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6"
+		expect := release.ObservedToSnapshot(obs)
 		observeUnlock(obj)(rls)
 
 		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{

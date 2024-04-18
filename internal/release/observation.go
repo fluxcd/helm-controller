@@ -79,6 +79,8 @@ type Observation struct {
 	Hooks []helmrelease.Hook `json:"hooks"`
 	// Namespace is the Kubernetes namespace of the release.
 	Namespace string `json:"namespace"`
+	// OCIDigest is the digest of the OCI artifact that was used to
+	OCIDigest string `json:"ociDigest"`
 }
 
 // Targets returns if the release matches the given name, namespace and
@@ -166,6 +168,7 @@ func ObservedToSnapshot(rls Observation) *v2.Snapshot {
 		LastDeployed:  metav1.NewTime(rls.Info.LastDeployed.Time),
 		Deleted:       metav1.NewTime(rls.Info.Deleted.Time),
 		Status:        rls.Info.Status.String(),
+		OCIDigest:     rls.OCIDigest,
 	}
 }
 

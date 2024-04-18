@@ -180,7 +180,7 @@ func (r *Uninstall) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Condition summary.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		eventMeta(cur.ChartVersion, cur.ConfigDigest, addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeWarning, v2.UninstallFailedReason,
 		eventMessageWithLog(msg, buffer),
 	)
@@ -201,7 +201,7 @@ func (r *Uninstall) success(req *Request) {
 	// Condition summary.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		eventMeta(cur.ChartVersion, cur.ConfigDigest, addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.UninstallSucceededReason,
 		msg,
@@ -224,7 +224,7 @@ func observeUninstall(obj *v2.HelmRelease) storage.ObserveFunc {
 		for i := range obj.Status.History {
 			snap := obj.Status.History[i]
 			if snap.Targets(rls.Name, rls.Namespace, rls.Version) {
-				newSnap := release.ObservedToSnapshot(release.ObserveRelease(rls))
+				newSnap := release.ObservedToSnapshot(releaseToObservation(rls, snap))
 				newSnap.SetTestHooks(snap.GetTestHooks())
 				obj.Status.History[i] = newSnap
 				return

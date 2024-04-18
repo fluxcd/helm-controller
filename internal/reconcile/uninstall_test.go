@@ -702,4 +702,36 @@ func Test_observeUninstall(t *testing.T) {
 			current,
 		}))
 	})
+	t.Run("uninstall of current with OCI Digest", func(t *testing.T) {
+		g := NewWithT(t)
+
+		current := &v2.Snapshot{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Version:   1,
+			Status:    helmrelease.StatusDeployed.String(),
+			OCIDigest: "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6",
+		}
+		obj := &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
+				History: v2.Snapshots{
+					current,
+				},
+			},
+		}
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      current.Name,
+			Namespace: current.Namespace,
+			Version:   current.Version,
+			Status:    helmrelease.StatusUninstalled,
+		})
+		obs := release.ObserveRelease(rls)
+		obs.OCIDigest = "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6"
+		expect := release.ObservedToSnapshot(obs)
+
+		observeUninstall(obj)(rls)
+		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
+			expect,
+		}))
+	})
 }

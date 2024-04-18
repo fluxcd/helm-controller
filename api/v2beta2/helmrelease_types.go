@@ -74,11 +74,17 @@ type PostRenderer struct {
 }
 
 // HelmReleaseSpec defines the desired state of a Helm release.
+// +kubebuilder:validation:XValidation:rule="(has(self.chart) && !has(self.chartRef)) || (!has(self.chart) && has(self.chartRef))", message="either chart or chartRef must be set"
 type HelmReleaseSpec struct {
 	// Chart defines the template of the v1beta2.HelmChart that should be created
 	// for this HelmRelease.
-	// +required
-	Chart HelmChartTemplate `json:"chart"`
+	// +optional
+	Chart HelmChartTemplate `json:"chart,omitempty"`
+
+	// ChartRef holds a reference to a source controller resource containing the
+	// Helm chart artifact.
+	// +optional
+	ChartRef *CrossNamespaceSourceReference `json:"chartRef,omitempty"`
 
 	// Interval at which to reconcile the Helm release.
 	// +kubebuilder:validation:Type=string
@@ -996,9 +1002,15 @@ type HelmReleaseStatus struct {
 	LastAppliedRevision string `json:"lastAppliedRevision,omitempty"`
 
 	// LastAttemptedRevision is the Source revision of the last reconciliation
-	// attempt.
+	// attempt. For OCIRepository  sources, the 12 first characters of the digest are
+	// appended to the chart version e.g. "1.2.3+1234567890ab".
 	// +optional
 	LastAttemptedRevision string `json:"lastAttemptedRevision,omitempty"`
+
+	// LastAttemptedRevisionDigest is the digest of the last reconciliation attempt.
+	// This is only set for OCIRepository sources.
+	// +optional
+	LastAttemptedRevisionDigest string `json:"lastAttemptedRevisionDigest,omitempty"`
 
 	// LastAttemptedValuesChecksum is the SHA1 checksum for the values of the last
 	// reconciliation attempt.
@@ -1050,6 +1062,10 @@ func (in HelmReleaseStatus) GetHelmChart() (string, string) {
 		return split[0], split[1]
 	}
 	return "", ""
+}
+
+func (in *HelmReleaseStatus) GetLastAttemptedRevision() string {
+	return in.LastAttemptedRevision
 }
 
 const (
@@ -1239,6 +1255,16 @@ func (in *HelmRelease) SetConditions(conditions []metav1.Condition) {
 // Deprecated: use GetConditions instead.
 func (in *HelmRelease) GetStatusConditions() *[]metav1.Condition {
 	return &in.Status.Conditions
+}
+
+// IsChartRefPresent returns true if the HelmRelease has a ChartRef.
+func (in *HelmRelease) HasChartRef() bool {
+	return in.Spec.ChartRef != nil
+}
+
+// IsChartTemplatePresent returns true if the HelmRelease has a ChartTemplate.
+func (in *HelmRelease) HasChartTemplate() bool {
+	return in.Spec.Chart.Spec.Chart != ""
 }
 
 // +kubebuilder:object:root=true

@@ -78,8 +78,24 @@ HelmChartTemplate
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>Chart defines the template of the v1beta2.HelmChart that should be created
 for this HelmRelease.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>chartRef</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.CrossNamespaceSourceReference">
+CrossNamespaceSourceReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ChartRef holds a reference to a source controller resource containing the
+Helm chart artifact.</p>
 </td>
 </tr>
 <tr>
@@ -463,6 +479,75 @@ string
 <td>
 <em>(Optional)</em>
 <p>Namespace of the referent.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2beta2.CrossNamespaceSourceReference">CrossNamespaceSourceReference
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>CrossNamespaceSourceReference contains enough information to let you locate
+the typed referenced object at cluster level.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>apiVersion</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>APIVersion of the referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Kind of the referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name of the referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>namespace</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Namespace of the referent, defaults to the namespace of the Kubernetes
+resource object that contains the reference.</p>
 </td>
 </tr>
 </tbody>
@@ -1009,8 +1094,24 @@ HelmChartTemplate
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>Chart defines the template of the v1beta2.HelmChart that should be created
 for this HelmRelease.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>chartRef</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2beta2.CrossNamespaceSourceReference">
+CrossNamespaceSourceReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ChartRef holds a reference to a source controller resource containing the
+Helm chart artifact.</p>
 </td>
 </tr>
 <tr>
@@ -1483,7 +1584,21 @@ string
 <td>
 <em>(Optional)</em>
 <p>LastAttemptedRevision is the Source revision of the last reconciliation
-attempt.</p>
+attempt. For OCIRepository  sources, the 12 first characters of the digest are
+appended to the chart version e.g. &ldquo;1.2.3+1234567890ab&rdquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastAttemptedRevisionDigest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastAttemptedRevisionDigest is the digest of the last reconciliation attempt.
+This is only set for OCIRepository sources.</p>
 </td>
 </tr>
 <tr>
@@ -2276,6 +2391,18 @@ TestHookStatus
 <em>(Optional)</em>
 <p>TestHooks is the list of test hooks for the release as observed to be
 run by the controller.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ociDigest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>OCIDigest is the digest of the OCI artifact associated with the release.</p>
 </td>
 </tr>
 </tbody>

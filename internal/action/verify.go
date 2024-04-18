@@ -126,6 +126,11 @@ func VerifyReleaseObject(snapshot *v2.Snapshot, rls *helmrelease.Release) error 
 	verifier := relDig.Verifier()
 
 	obs := release.ObserveRelease(rls)
+
+	// unfortunately we have to pass in the OciDigest as is, because helmrelease.Release
+	// does not have a field for it.
+	obs.OCIDigest = snapshot.OCIDigest
+
 	if err = obs.Encode(verifier); err != nil {
 		// We are expected to be able to encode valid JSON, error out without a
 		// typed error assuming malfunction to signal to e.g. retry.

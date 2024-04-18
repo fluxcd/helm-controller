@@ -156,6 +156,9 @@ type Snapshot struct {
 	// run by the controller.
 	// +optional
 	TestHooks *map[string]*TestHookStatus `json:"testHooks,omitempty"`
+	// OCIDigest is the digest of the OCI artifact associated with the release.
+	// +optional
+	OCIDigest string `json:"ociDigest,omitempty"`
 }
 
 // FullReleaseName returns the full name of the release in the format

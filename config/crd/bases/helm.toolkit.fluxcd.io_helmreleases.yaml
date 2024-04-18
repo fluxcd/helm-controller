@@ -1100,6 +1100,10 @@ spec:
                       description: Namespace is the namespace the release is deployed
                         to.
                       type: string
+                    ociDigest:
+                      description: OCIDigest is the digest of the OCI artifact associated
+                        with the release.
+                      type: string
                     status:
                       description: Status is the current state of the release.
                       type: string
@@ -1419,6 +1423,35 @@ spec:
                     type: object
                 required:
                 - spec
+                type: object
+              chartRef:
+                description: |-
+                  ChartRef holds a reference to a source controller resource containing the
+                  Helm chart artifact.
+                properties:
+                  apiVersion:
+                    description: APIVersion of the referent.
+                    type: string
+                  kind:
+                    description: Kind of the referent.
+                    enum:
+                    - OCIRepository
+                    type: string
+                  name:
+                    description: Name of the referent.
+                    maxLength: 253
+                    minLength: 1
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace of the referent, defaults to the namespace of the Kubernetes
+                      resource object that contains the reference.
+                    maxLength: 63
+                    minLength: 1
+                    type: string
+                required:
+                - kind
+                - name
                 type: object
               dependsOn:
                 description: |-
@@ -2199,9 +2232,12 @@ spec:
                   type: object
                 type: array
             required:
-            - chart
             - interval
             type: object
+            x-kubernetes-validations:
+            - message: either chart or chartRef must be set
+              rule: (has(self.chart) && !has(self.chartRef)) || (!has(self.chart)
+                && has(self.chartRef))
           status:
             default:
               observedGeneration: -1
@@ -2342,6 +2378,10 @@ spec:
                       description: Namespace is the namespace the release is deployed
                         to.
                       type: string
+                    ociDigest:
+                      description: OCIDigest is the digest of the OCI artifact associated
+                        with the release.
+                      type: string
                     status:
                       description: Status is the current state of the release.
                       type: string
@@ -2420,7 +2460,13 @@ spec:
               lastAttemptedRevision:
                 description: |-
                   LastAttemptedRevision is the Source revision of the last reconciliation
-                  attempt.
+                  attempt. For OCIRepository  sources, the 12 first characters of the digest are
+                  appended to the chart version e.g. "1.2.3+1234567890ab".
+                type: string
+              lastAttemptedRevisionDigest:
+                description: |-
+                  LastAttemptedRevisionDigest is the digest of the last reconciliation attempt.
+                  This is only set for OCIRepository sources.
                 type: string
               lastAttemptedValuesChecksum:
                 description: |-

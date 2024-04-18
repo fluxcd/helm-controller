@@ -17,10 +17,12 @@ limitations under the License.
 package reconcile
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
+	"helm.sh/helm/v3/pkg/chart"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -453,4 +455,180 @@ func mockLogBuffer(size int, lines int) *action.LogBuffer {
 		log.Log("line %d", i+1)
 	}
 	return log
+}
+
+func Test_RecordOnObject(t *testing.T) {
+	tests := []struct {
+		name     string
+		obj      *v2.HelmRelease
+		r        observedReleases
+		mutate   bool
+		testFunc func(*v2.HelmRelease) error
+	}{
+		{
+			name: "record observed releases",
+			obj: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+				},
+			},
+			r: observedReleases{
+				1: {
+					Name:    mockReleaseName,
+					Version: 1,
+					ChartMetadata: chart.Metadata{
+						Name:    mockReleaseName,
+						Version: "1.0.0",
+					},
+				},
+			},
+			testFunc: func(obj *v2.HelmRelease) error {
+				if len(obj.Status.History) != 1 {
+					return fmt.Errorf("history length is not 1")
+				}
+				if obj.Status.History[0].Name != mockReleaseName {
+					return fmt.Errorf("release name is not %s", mockReleaseName)
+				}
+				return nil
+			},
+		},
+		{
+			name: "record observed releases with multiple versions",
+			obj: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+				},
+			},
+			r: observedReleases{
+				1: {
+					Name:    mockReleaseName,
+					Version: 1,
+					ChartMetadata: chart.Metadata{
+						Name:    mockReleaseName,
+						Version: "1.0.0",
+					},
+				},
+				2: {
+					Name:    mockReleaseName,
+					Version: 2,
+					ChartMetadata: chart.Metadata{
+						Name:    mockReleaseName,
+						Version: "2.0.0",
+					},
+				},
+			},
+			testFunc: func(obj *v2.HelmRelease) error {
+				if len(obj.Status.History) != 1 {
+					return fmt.Errorf("want history length 1, got %d", len(obj.Status.History))
+				}
+				if obj.Status.History[0].Name != mockReleaseName {
+					return fmt.Errorf("release name is not %s", mockReleaseName)
+				}
+				if obj.Status.History[0].ChartVersion != "2.0.0" {
+					return fmt.Errorf("want chart version %s, got %s", "2.0.0", obj.Status.History[0].ChartVersion)
+				}
+				return nil
+			},
+		},
+		{
+			name: "record observed releases with status digest",
+			obj: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+				},
+				Status: v2.HelmReleaseStatus{
+					LastAttemptedRevisionDigest: "sha256:123456",
+				},
+			},
+			r: observedReleases{
+				1: {
+					Name:    mockReleaseName,
+					Version: 1,
+					ChartMetadata: chart.Metadata{
+						Name:    mockReleaseName,
+						Version: "1.0.0",
+					},
+				},
+			},
+			mutate: true,
+			testFunc: func(obj *v2.HelmRelease) error {
+				h := obj.Status.History.Latest()
+				if h.Name != mockReleaseName {
+					return fmt.Errorf("release name is not %s", mockReleaseName)
+				}
+				if h.ChartVersion != "1.0.0" {
+					return fmt.Errorf("want chart version %s, got %s", "1.0.0", h.ChartVersion)
+				}
+				if h.OCIDigest != obj.Status.LastAttemptedRevisionDigest {
+					return fmt.Errorf("want digest %s, got %s", obj.Status.LastAttemptedRevisionDigest, h.OCIDigest)
+				}
+				return nil
+			},
+		},
+		{
+			name: "record observed releases with multiple versions and status digest",
+			obj: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+				},
+				Status: v2.HelmReleaseStatus{
+					LastAttemptedRevisionDigest: "sha256:123456",
+				},
+			},
+			r: observedReleases{
+				1: {
+					Name:    mockReleaseName,
+					Version: 1,
+					ChartMetadata: chart.Metadata{
+						Name:    mockReleaseName,
+						Version: "1.0.0",
+					},
+				},
+				2: {
+					Name:    mockReleaseName,
+					Version: 2,
+					ChartMetadata: chart.Metadata{
+						Name:    mockReleaseName,
+						Version: "2.0.0",
+					},
+				},
+			},
+			mutate: true,
+			testFunc: func(obj *v2.HelmRelease) error {
+				if len(obj.Status.History) != 1 {
+					return fmt.Errorf("want history length 1, got %d", len(obj.Status.History))
+				}
+				h := obj.Status.History.Latest()
+				if h.Name != mockReleaseName {
+					return fmt.Errorf("release name is not %s", mockReleaseName)
+				}
+				if h.ChartVersion != "2.0.0" {
+					return fmt.Errorf("want chart version %s, got %s", "2.0.0", h.ChartVersion)
+				}
+				if h.OCIDigest != obj.Status.LastAttemptedRevisionDigest {
+					return fmt.Errorf("want digest %s, got %s", obj.Status.LastAttemptedRevisionDigest, h.OCIDigest)
+				}
+				return nil
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			if tt.mutate {
+				tt.r.recordOnObject(tt.obj, mutateOCIDigest)
+			} else {
+				tt.r.recordOnObject(tt.obj)
+			}
+			err := tt.testFunc(tt.obj)
+			g.Expect(err).ToNot(HaveOccurred())
+		})
+	}
+
 }

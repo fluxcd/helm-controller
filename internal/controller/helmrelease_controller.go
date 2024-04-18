@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"helm.sh/helm/v3/pkg/chart"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -42,6 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/Masterminds/semver"
 	aclv1 "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/acl"
@@ -50,8 +52,10 @@ import (
 	helper "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/jitter"
 	"github.com/fluxcd/pkg/runtime/logger"
+	"github.com/fluxcd/pkg/runtime/object"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/runtime/predicates"
+	source "github.com/fluxcd/source-controller/api/v1"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
@@ -73,6 +77,8 @@ import (
 // +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases/finalizers,verbs=get;create;update;patch;delete
 // +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=helmcharts,verbs=get;list;watch
 // +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=helmcharts/status,verbs=get
+// +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=ocirepositories,verbs=get;list;watch
+// +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=ocirepositories/status,verbs=get
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // HelmReleaseReconciler reconciles a HelmRelease object.
@@ -104,15 +110,16 @@ var (
 )
 
 func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
-	// Index the HelmRelease by the HelmChart references they point at
+	// Index the HelmRelease by the Source reference they point to.
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2.HelmRelease{}, v2.SourceIndexKey,
 		func(o client.Object) []string {
 			obj := o.(*v2.HelmRelease)
+			namespacedName, err := getNamespacedName(obj)
+			if err != nil {
+				return nil
+			}
 			return []string{
-				types.NamespacedName{
-					Namespace: obj.Spec.Chart.GetNamespace(obj.GetNamespace()),
-					Name:      obj.GetHelmChartName(),
-				}.String(),
+				namespacedName.String(),
 			}
 		},
 	); err != nil {
@@ -131,6 +138,11 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 			handler.EnqueueRequestsFromMapFunc(r.requestsForHelmChartChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
+		Watches(
+			&sourcev1.OCIRepository{},
+			handler.EnqueueRequestsFromMapFunc(r.requestsForOCIRrepositoryChange),
+			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
+		).
 		WithOptions(controller.Options{
 			RateLimiter: opts.RateLimiter,
 		}).
@@ -145,6 +157,10 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	obj := &v2.HelmRelease{}
 	if err := r.Get(ctx, req.NamespacedName, obj); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if !isValidChartRef(obj) {
+		return ctrl.Result{}, reconcile.TerminalError(fmt.Errorf("invalid Chart reference"))
 	}
 
 	// Initialize the patch helper with the current version of the object.
@@ -251,8 +267,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
-	// Get the HelmChart object for the release.
-	hc, err := r.getHelmChart(ctx, obj)
+	// Get the source object containing the HelmChart.
+	source, err := r.getSource(ctx, obj)
 	if err != nil {
 		if acl.IsAccessDenied(err) {
 			conditions.MarkStalled(obj, aclv1.AccessDeniedReason, err.Error())
@@ -266,7 +282,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 			return ctrl.Result{}, reconcile.TerminalError(err)
 		}
 
-		msg := fmt.Sprintf("could not get HelmChart object: %s", err.Error())
+		msg := fmt.Sprintf("could not get Source object: %s", err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, msg)
 		return ctrl.Result{}, err
 	}
@@ -275,17 +291,16 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
-	// Check if the HelmChart is ready.
-	if ready, reason := isHelmChartReady(hc); !ready {
-		msg := fmt.Sprintf("HelmChart '%s/%s' is not ready: %s", hc.GetNamespace(), hc.GetName(), reason)
+	// Check if the source is ready.
+	if ready, msg := isSourceReady(source); !ready {
 		log.Info(msg)
-		conditions.MarkFalse(obj, meta.ReadyCondition, "HelmChartNotReady", msg)
+		conditions.MarkFalse(obj, meta.ReadyCondition, "SourceNotReady", msg)
 		// Do not requeue immediately, when the artifact is created
 		// the watcher should trigger a reconciliation.
 		return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}), errWaitForChart
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.
-	if conditions.HasAnyReason(obj, meta.ReadyCondition, "HelmChartNotReady") {
+	if conditions.HasAnyReason(obj, meta.ReadyCondition, "SourceNotReady") {
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
@@ -302,10 +317,10 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	}
 
 	// Load chart from artifact.
-	loadedChart, err := loader.SecureLoadChartFromURL(loader.NewRetryableHTTPClient(ctx, r.artifactFetchRetries), hc.GetArtifact().URL, hc.GetArtifact().Digest)
+	loadedChart, err := loader.SecureLoadChartFromURL(loader.NewRetryableHTTPClient(ctx, r.artifactFetchRetries), source.GetArtifact().URL, source.GetArtifact().Digest)
 	if err != nil {
 		if errors.Is(err, loader.ErrFileNotFound) {
-			msg := fmt.Sprintf("Chart not ready: artifact not found. Retrying in %s", r.requeueDependency.String())
+			msg := fmt.Sprintf("Source not ready: artifact not found. Retrying in %s", r.requeueDependency.String())
 			conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, msg)
 			log.Info(msg)
 			return ctrl.Result{RequeueAfter: r.requeueDependency}, errWaitForDependency
@@ -318,6 +333,12 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	// Remove any stale corresponding Ready=False condition with Unknown.
 	if conditions.HasAnyReason(obj, meta.ReadyCondition, v2.ArtifactFailedReason) {
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
+	}
+
+	ociDigest, err := mutateChartWithSourceRevision(loadedChart, source)
+	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, "ChartMutateError", err.Error())
+		return ctrl.Result{}, err
 	}
 
 	// Build the REST client getter.
@@ -367,6 +388,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	// Set last attempt values.
 	obj.Status.LastAttemptedGeneration = obj.Generation
 	obj.Status.LastAttemptedRevision = loadedChart.Metadata.Version
+	obj.Status.LastAttemptedRevisionDigest = ociDigest
 	obj.Status.LastAttemptedConfigDigest = chartutil.DigestValues(digest.Canonical, values).String()
 	obj.Status.LastAttemptedValuesChecksum = ""
 	obj.Status.LastReleaseRevision = 0
@@ -657,11 +679,24 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *
 	return kube.NewMemoryRESTClientGetter(cfg, opts...), nil
 }
 
-// getHelmChart retrieves the v1beta2.HelmChart for the given v2beta2.HelmRelease
-// using the name that is advertised in the status object.
-// It returns the v1beta2.HelmChart, or an error.
-func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, obj *v2.HelmRelease) (*sourcev1.HelmChart, error) {
-	namespace, name := obj.Status.GetHelmChart()
+// getSource returns the source object containing the HelmChart, either by
+// using the chartRef in the spec, or by looking up the HelmChart
+// referenced in the status object.
+// It returns the source object or an error.
+func (r *HelmReleaseReconciler) getSource(ctx context.Context, obj *v2.HelmRelease) (source.Source, error) {
+	var name, namespace string
+	if obj.HasChartRef() {
+		if obj.Spec.ChartRef.Kind == sourcev1.OCIRepositoryKind {
+			return r.getSourceFromOCIRef(ctx, obj)
+		}
+		name, namespace = obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
+		if namespace == "" {
+			namespace = obj.GetNamespace()
+		}
+	} else {
+		namespace, name = obj.Status.GetHelmChart()
+	}
+
 	chartRef := types.NamespacedName{Namespace: namespace, Name: name}
 
 	if err := intacl.AllowsAccessTo(obj, sourcev1.HelmChartKind, chartRef); err != nil {
@@ -673,6 +708,24 @@ func (r *HelmReleaseReconciler) getHelmChart(ctx context.Context, obj *v2.HelmRe
 		return nil, err
 	}
 	return &hc, nil
+}
+
+func (r *HelmReleaseReconciler) getSourceFromOCIRef(ctx context.Context, obj *v2.HelmRelease) (source.Source, error) {
+	name, namespace := obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
+	if namespace == "" {
+		namespace = obj.GetNamespace()
+	}
+	ociRepoRef := types.NamespacedName{Namespace: namespace, Name: name}
+
+	if err := intacl.AllowsAccessTo(obj, sourcev1.OCIRepositoryKind, ociRepoRef); err != nil {
+		return nil, err
+	}
+
+	or := sourcev1.OCIRepository{}
+	if err := r.Client.Get(ctx, ociRepoRef, &or); err != nil {
+		return nil, err
+	}
+	return &or, nil
 }
 
 // waitForHistoryCacheSync returns a function that can be used to wait for the
@@ -717,7 +770,7 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, 
 	for i, hr := range list.Items {
 		// If the HelmRelease is ready and the revision of the artifact equals to the
 		// last attempted revision, we should not make a request for this HelmRelease
-		if conditions.IsReady(&list.Items[i]) && hc.GetArtifact().HasRevision(hr.Status.LastAttemptedRevision) {
+		if conditions.IsReady(&list.Items[i]) && hc.GetArtifact().HasRevision(hr.Status.GetLastAttemptedRevision()) {
 			continue
 		}
 		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
@@ -725,28 +778,181 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, 
 	return reqs
 }
 
-// isHelmChartReady returns true if the given HelmChart is ready, and a reason
-// why it is not ready otherwise.
-func isHelmChartReady(obj *sourcev1.HelmChart) (bool, string) {
+func (r *HelmReleaseReconciler) requestsForOCIRrepositoryChange(ctx context.Context, o client.Object) []reconcile.Request {
+	or, ok := o.(*sourcev1.OCIRepository)
+	if !ok {
+		err := fmt.Errorf("expected an OCIRepository, got %T", o)
+		ctrl.LoggerFrom(ctx).Error(err, "failed to get requests for OCIRepository change")
+		return nil
+	}
+	// If we do not have an artifact, we have no requests to make
+	if or.GetArtifact() == nil {
+		return nil
+	}
+
+	var list v2.HelmReleaseList
+	if err := r.List(ctx, &list, client.MatchingFields{
+		v2.SourceIndexKey: client.ObjectKeyFromObject(or).String(),
+	}); err != nil {
+		ctrl.LoggerFrom(ctx).Error(err, "failed to list HelmReleases for OCIRepository change")
+		return nil
+	}
+
+	var reqs []reconcile.Request
+	for i, hr := range list.Items {
+		// If the HelmRelease is ready and the digest of the artifact equals to the
+		// last attempted revision digest, we should not make a request for this HelmRelease,
+		// likewise if we cannot retrieve the artifact digest.
+		digest := extractDigest(or.GetArtifact().Revision)
+		if digest == "" {
+			ctrl.LoggerFrom(ctx).Error(fmt.Errorf("wrong digest for %T", or), "failed to get requests for OCIRepository change")
+			continue
+		}
+
+		if digest == hr.Status.LastAttemptedRevisionDigest {
+			continue
+		}
+
+		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
+	}
+	return reqs
+}
+
+func isSourceReady(obj source.Source) (bool, string) {
+	if o, ok := obj.(conditions.Getter); ok {
+		return isReady(o, obj.GetArtifact())
+	}
+	return false, fmt.Sprintf("unknown source type: %T", obj)
+}
+
+func isReady(obj conditions.Getter, artifact *source.Artifact) (bool, string) {
+	observedGen, err := object.GetStatusObservedGeneration(obj)
+	if err != nil {
+		return false, err.Error()
+	}
+
+	kind := obj.GetObjectKind().GroupVersionKind().Kind
+
 	switch {
-	case obj.Generation != obj.Status.ObservedGeneration:
+	case obj.GetGeneration() != observedGen:
 		msg := "latest generation of object has not been reconciled"
 
-		// If the chart is not ready, we can likely provide a more
-		// concise reason why.
-		// We do not do this while the Generation matches the Observed
-		// Generation, as we could then potentially stall on e.g.
-		// temporary errors which do not have an impact as long as
-		// there is an Artifact for the current Generation.
 		if conditions.IsFalse(obj, meta.ReadyCondition) {
 			msg = conditions.GetMessage(obj, meta.ReadyCondition)
 		}
-		return false, msg
+		return false, fmt.Sprintf("%s '%s/%s' is not ready: %s",
+			kind, obj.GetNamespace(), obj.GetName(), msg)
 	case conditions.IsStalled(obj):
-		return false, conditions.GetMessage(obj, meta.StalledCondition)
-	case obj.Status.Artifact == nil:
-		return false, "does not have an artifact"
+		return false, fmt.Sprintf("%s '%s/%s' is not ready: %s",
+			kind, obj.GetNamespace(), obj.GetName(), conditions.GetMessage(obj, meta.StalledCondition))
+	case artifact == nil:
+		return false, fmt.Sprintf("%s '%s/%s' is not ready: %s",
+			kind, obj.GetNamespace(), obj.GetName(), "does not have an artifact")
 	default:
 		return true, ""
+	}
+}
+
+func isValidChartRef(obj *v2.HelmRelease) bool {
+	return (obj.HasChartRef() && !obj.HasChartTemplate()) ||
+		(!obj.HasChartRef() && obj.HasChartTemplate())
+}
+
+func getNamespacedName(obj *v2.HelmRelease) (types.NamespacedName, error) {
+	namespacedName := types.NamespacedName{}
+	switch {
+	case obj.HasChartRef() && !obj.HasChartTemplate():
+		namespacedName.Namespace = obj.Spec.ChartRef.Namespace
+		if namespacedName.Namespace == "" {
+			namespacedName.Namespace = obj.GetNamespace()
+		}
+		namespacedName.Name = obj.Spec.ChartRef.Name
+	case !obj.HasChartRef() && obj.HasChartTemplate():
+		namespacedName.Namespace = obj.Spec.Chart.GetNamespace(obj.GetNamespace())
+		namespacedName.Name = obj.GetHelmChartName()
+	default:
+		return namespacedName, fmt.Errorf("one of chartRef or chart must be present")
+	}
+
+	return namespacedName, nil
+}
+
+func mutateChartWithSourceRevision(chart *chart.Chart, source source.Source) (string, error) {
+	// If the source is an OCIRepository, we can try to mutate the chart version
+	// with the artifact revision. The revision is either a <tag>@<digest> or
+	// just a digest.
+	obj, ok := source.(*sourcev1.OCIRepository)
+	if !ok {
+		// if not make sure to return an empty string to delete the digest of the
+		// last attempted revision
+		return "", nil
+	}
+	ver, err := semver.NewVersion(chart.Metadata.Version)
+	if err != nil {
+		return "", err
+	}
+
+	var ociDigest string
+	revision := obj.GetArtifact().Revision
+	switch {
+	case strings.Contains(revision, "@"):
+		tagD := strings.Split(revision, "@")
+		if len(tagD) != 2 || tagD[0] != chart.Metadata.Version {
+			return "", fmt.Errorf("artifact revision %s does not match chart version %s", tagD[0], chart.Metadata.Version)
+		}
+		// algotithm are sha256, sha384, sha512 with the canonical being sha256
+		// So every digest starts with a sha algorithm and a colon
+		sha, err := extractDigestSubString(tagD[1])
+		if err != nil {
+			return "", err
+		}
+		// add the digest to the chart version to make sure mutable tags are detected
+		*ver, err = ver.SetMetadata(sha)
+		if err != nil {
+			return "", err
+		}
+		ociDigest = tagD[1]
+	default:
+		// default to the digest
+		sha, err := extractDigestSubString(revision)
+		if err != nil {
+			return "", err
+		}
+		*ver, err = ver.SetMetadata(sha)
+		if err != nil {
+			return "", err
+		}
+		ociDigest = revision
+	}
+
+	chart.Metadata.Version = ver.String()
+	return ociDigest, nil
+}
+
+func extractDigestSubString(revision string) (string, error) {
+	var sha string
+	// expects a revision in the <algorithm>:<digest> format
+	if pair := strings.Split(revision, ":"); len(pair) != 2 {
+		return "", fmt.Errorf("invalid artifact revision %s", revision)
+	} else {
+		sha = pair[1]
+	}
+	if len(sha) < 12 {
+		return "", fmt.Errorf("invalid artifact revision %s", revision)
+	}
+	return sha[0:12], nil
+}
+
+func extractDigest(revision string) string {
+	if strings.Contains(revision, "@") {
+		// expects a revision in the <version>@<algorithm>:<digest> format
+		tagD := strings.Split(revision, "@")
+		if len(tagD) != 2 {
+			return ""
+		}
+		return tagD[1]
+	} else {
+		// revision in the <algorithm>:<digest> format
+		return revision
 	}
 }

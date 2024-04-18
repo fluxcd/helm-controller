@@ -83,7 +83,7 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	_, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values)
 
 	// Record the history of releases observed during the upgrade.
-	obsReleases.recordOnObject(req.Object)
+	obsReleases.recordOnObject(req.Object, mutateOCIDigest)
 
 	if err != nil {
 		r.failure(req, logBuf, err)
@@ -144,7 +144,8 @@ func (r *Upgrade) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Condition summary.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(req.Chart.Metadata.Version, chartutil.DigestValues(digest.Canonical, req.Values).String()),
+		eventMeta(req.Chart.Metadata.Version, chartutil.DigestValues(digest.Canonical, req.Values).String(),
+			addOCIDigest(req.Object.Status.LastAttemptedRevisionDigest)),
 		corev1.EventTypeWarning,
 		v2.UpgradeFailedReason,
 		eventMessageWithLog(msg, buffer),
@@ -171,7 +172,7 @@ func (r *Upgrade) success(req *Request) {
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(cur.ChartVersion, cur.ConfigDigest),
+		eventMeta(cur.ChartVersion, cur.ConfigDigest, addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.UpgradeSucceededReason,
 		msg,

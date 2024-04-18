@@ -376,6 +376,38 @@ func Test_observeTest(t *testing.T) {
 		}))
 	})
 
+	t.Run("test with current OCI Digest", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
+				History: v2.Snapshots{
+					&v2.Snapshot{
+						Name:      mockReleaseName,
+						Namespace: mockReleaseNamespace,
+						Version:   1,
+						OCIDigest: "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6",
+					},
+				},
+			},
+		}
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Version:   1,
+		}, testutil.ReleaseWithHooks(testHookFixtures))
+
+		obs := release.ObserveRelease(rls)
+		obs.OCIDigest = "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6"
+		expect := release.ObservedToSnapshot(obs)
+		expect.SetTestHooks(release.TestHooksFromRelease(rls))
+
+		observeTest(obj)(rls)
+		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
+			expect,
+		}))
+	})
+
 	t.Run("test targeting different version than latest", func(t *testing.T) {
 		g := NewWithT(t)
 
