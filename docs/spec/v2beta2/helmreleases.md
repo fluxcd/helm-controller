@@ -280,7 +280,7 @@ metadata:
 spec:
   interval: 10m
   chartRef:
-    kind: OCIRepository
+    kind: HelmChart
     name: podinfo
     namespace: default
   values:
