@@ -205,16 +205,17 @@ HelmRelease object.
 
 ### Chart reference
 
-`.spec.chartRef` is an optional field used to refer to an [OCIRepository resource](https://fluxcd.io/flux/components/source/ocirepositories/)
+`.spec.chartRef` is an optional field used to refer to an [OCIRepository resource](https://fluxcd.io/flux/components/source/ocirepositories/) or a [HelmChart resource](https://fluxcd.io/flux/components/source/helmcharts/)
 from which to fetch the Helm chart. The chart is fetched by the controller with the
-information provided by `.status.artifact` of the OCIRepository.
+information provided by `.status.artifact` of the referenced resource.
 
-The chart version of the last release attempt is reported in `.status.lastAttemptedRevision`.
-The version is in the format `<version>+<digest[0:12]>`. The digest of the OCI artifact
-is appended to the version to ensure that a change in the artifact content triggers
-a new release. The controller will automatically perform a Helm upgrade when the
-OCIRepository detects a new digest in the OCI artifact stored in registry, even if
-the version inside `Chart.yaml` is unchanged.
+For a referenced resource of `kind OCIRepository`, the chart version of the last
+release attempt is reported in `.status.lastAttemptedRevision`. The version is in
+the format `<version>+<digest[0:12]>`. The digest of the OCI artifact is appended
+to the version to ensure that a change in the artifact content triggers a new release.
+The controller will automatically perform a Helm upgrade when the `OCIRepository`
+detects a new digest in the OCI artifact stored in registry, even if the version
+inside `Chart.yaml` is unchanged.
 
 **Warning:** One of `.spec.chart` or `.spec.chartRef` must be set, but not both.
 When switching from `.spec.chart` to `.spec.chartRef`, the controller will perform
@@ -224,6 +225,8 @@ an Helm upgrade and will garbage collect the old HelmChart object.
 references with the `--no-cross-namespace-refs=true` controller flag. When this flag is
 set, the HelmRelease can only refer to OCIRepositories in the same namespace as the
 HelmRelease object.
+
+#### OCIRepository reference example
 
 ```yaml
 apiVersion: source.toolkit.fluxcd.io/v1beta2
@@ -246,6 +249,38 @@ spec:
   interval: 10m
   chartRef:
     kind: OCIRepository
+    name: podinfo
+    namespace: default
+  values:
+    replicaCount: 2
+```
+
+#### HelmChart reference example
+
+```yaml
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmChart
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 5m0s
+  chart: podinfo
+  reconcileStrategy: ChartVersion
+  sourceRef:
+    kind: HelmRepository
+    name: podinfo
+  version: '5.*'
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 10m
+  chartRef:
+    kind: HelmChart
     name: podinfo
     namespace: default
   values:

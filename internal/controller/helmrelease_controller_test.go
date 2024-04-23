@@ -846,6 +846,322 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 	})
 }
 
+func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T) {
+	t.Run("handles chartRef and Chart definition failure", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				ChartRef: &v2.CrossNamespaceSourceReference{
+					Kind:      sourcev1b2.HelmChartKind,
+					Name:      "chart",
+					Namespace: "mock",
+				},
+				Chart: v2.HelmChartTemplate{
+					Spec: v2.HelmChartTemplateSpec{
+						Chart: "mychart",
+						SourceRef: v2.CrossNamespaceObjectReference{
+							Name: "something",
+						},
+					},
+				},
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(obj).
+				Build(),
+		}
+
+		res, err := r.Reconcile(context.TODO(), reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Namespace: obj.GetNamespace(),
+				Name:      obj.GetName(),
+			},
+		})
+
+		// only chartRef or Chart must be set
+		g.Expect(errors.Is(err, reconcile.TerminalError(fmt.Errorf("invalid Chart reference")))).To(BeTrue())
+		g.Expect(res.IsZero()).To(BeTrue())
+	})
+
+	t.Run("handles ChartRef get failure", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				ChartRef: &v2.CrossNamespaceSourceReference{
+					Kind:      sourcev1b2.HelmChartKind,
+					Name:      "chart",
+					Namespace: "mock",
+				},
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(obj).
+				Build(),
+			EventRecorder: record.NewFakeRecorder(32),
+		}
+
+		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		g.Expect(err).To(HaveOccurred())
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, "Fulfilling prerequisites"),
+			*conditions.FalseCondition(meta.ReadyCondition, v2.ArtifactFailedReason, "could not get Source object"),
+		}))
+	})
+
+	t.Run("handles ACL error for ChartRef", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				ChartRef: &v2.CrossNamespaceSourceReference{
+					Kind:      sourcev1b2.HelmChartKind,
+					Name:      "chart",
+					Namespace: "mock-other",
+				},
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(obj).
+				Build(),
+			EventRecorder: record.NewFakeRecorder(32),
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
+		g.Expect(res.IsZero()).To(BeTrue())
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.StalledCondition, acl.AccessDeniedReason, "cross-namespace references are not allowed"),
+			*conditions.FalseCondition(meta.ReadyCondition, acl.AccessDeniedReason, "cross-namespace references are not allowed"),
+		}))
+	})
+
+	t.Run("waits for ChartRef to have an Artifact", func(t *testing.T) {
+		g := NewWithT(t)
+
+		chart := &sourcev1b2.HelmChart{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: sourcev1b2.GroupVersion.String(),
+				Kind:       sourcev1b2.HelmChartKind,
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  "mock",
+				Generation: 2,
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 2,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				ChartRef: &v2.CrossNamespaceSourceReference{
+					Kind:      sourcev1b2.HelmChartKind,
+					Name:      "chart",
+					Namespace: "mock",
+				},
+				Interval: metav1.Duration{Duration: 1 * time.Second},
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(chart, obj).
+				Build(),
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		g.Expect(err).To(Equal(errWaitForChart))
+		g.Expect(res.RequeueAfter).To(Equal(obj.Spec.Interval.Duration))
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "HelmChart 'mock/chart' is not ready"),
+		}))
+	})
+
+	t.Run("reports Helm chart load failure", func(t *testing.T) {
+		g := NewWithT(t)
+
+		chart := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  "mock",
+				Generation: 2,
+			},
+			Spec: sourcev1b2.HelmChartSpec{
+				Interval: metav1.Duration{Duration: 1 * time.Second},
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 2,
+				Artifact: &sourcev1.Artifact{
+					URL: testServer.URL() + "/does-not-exist",
+				},
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				ChartRef: &v2.CrossNamespaceSourceReference{
+					Kind:      sourcev1b2.HelmChartKind,
+					Name:      "chart",
+					Namespace: "mock",
+				},
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(chart, obj).
+				Build(),
+			requeueDependency: 10 * time.Second,
+			EventRecorder:     record.NewFakeRecorder(32),
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		g.Expect(err).To(Equal(errWaitForDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.FalseCondition(meta.ReadyCondition, v2.ArtifactFailedReason, "Source not ready"),
+		}))
+	})
+	t.Run("report helmChart load failure when switching from existing HelmChat to chartRef", func(t *testing.T) {
+		g := NewWithT(t)
+
+		chart := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  "mock",
+				Generation: 1,
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 1,
+				Artifact:           &sourcev1.Artifact{},
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		sharedChart := &sourcev1b2.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "sharedChart",
+				Namespace:  "mock",
+				Generation: 2,
+			},
+			Spec: sourcev1b2.HelmChartSpec{
+				Interval: metav1.Duration{Duration: 1 * time.Second},
+			},
+			Status: sourcev1b2.HelmChartStatus{
+				ObservedGeneration: 2,
+				Artifact: &sourcev1.Artifact{
+					URL: testServer.URL() + "/does-not-exist",
+				},
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				ChartRef: &v2.CrossNamespaceSourceReference{
+					Kind:      sourcev1b2.HelmChartKind,
+					Name:      "sharedChart",
+					Namespace: "mock",
+				},
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart: "mock/chart",
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(chart, sharedChart, obj).
+				Build(),
+			requeueDependency: 10 * time.Second,
+			EventRecorder:     record.NewFakeRecorder(32),
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		g.Expect(err).To(Equal(errWaitForDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.FalseCondition(meta.ReadyCondition, v2.ArtifactFailedReason, "Source not ready"),
+		}))
+	})
+}
+
 func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testing.T) {
 
 	t.Run("handles chartRef and Chart definition failure", func(t *testing.T) {
