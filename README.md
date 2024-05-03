@@ -24,7 +24,7 @@ operator.
 * Supports `HelmChart` artifacts produced from `HelmRepository`,
   `GitRepository` and `Bucket` sources
 * Fetches artifacts produced by [source-controller][] from `HelmChart`
-  objects
+  and `OCIRepository` objects
 * Watches `HelmChart` objects for revision changes (including semver
   ranges for charts from `HelmRepository` sources)
 * Performs automated Helm actions, including Helm tests, rollbacks and
@@ -49,7 +49,7 @@ operator.
 
 ## Specifications
 
-* [API](docs/spec/v2beta2/README.md)
+* [API](docs/spec/v2/README.md)
 * [Controller](docs/spec/README.md)
 
 [source-controller]: https://github.com/fluxcd/source-controller
