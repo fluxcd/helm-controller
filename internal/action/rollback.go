@@ -19,7 +19,7 @@ package action
 import (
 	helmaction "helm.sh/helm/v3/pkg/action"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
 
 // RollbackOption can be used to modify Helm's action.Rollback after the

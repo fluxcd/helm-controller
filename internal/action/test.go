@@ -22,7 +22,7 @@ import (
 	helmaction "helm.sh/helm/v3/pkg/action"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
 
 // TestOption can be used to modify Helm's action.ReleaseTesting after the

@@ -19,7 +19,7 @@ package postrender
 import (
 	helmpostrender "helm.sh/helm/v3/pkg/postrender"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
 
 // BuildPostRenderers creates the post-renderer instances from a HelmRelease

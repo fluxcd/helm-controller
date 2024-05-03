@@ -25,7 +25,7 @@ import (
 	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/postrender"
 	"github.com/fluxcd/helm-controller/internal/release"

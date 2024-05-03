@@ -32,7 +32,7 @@ import (
 
 	"github.com/fluxcd/pkg/runtime/transform"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
 
 // ErrValuesRefReason is the descriptive reason for an ErrValuesReference.

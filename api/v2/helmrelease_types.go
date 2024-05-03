@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v2beta2
+package v2
 
 import (
 	"strings"
@@ -1081,11 +1081,11 @@ const (
 // +genclient
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=hr
+// +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
-// +kubebuilder:deprecatedversion:warning="v2beta2 HelmRelease is deprecated, upgrade to v2"
 
 // HelmRelease is the Schema for the helmreleases API
 type HelmRelease struct {

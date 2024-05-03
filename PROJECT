@@ -7,5 +7,8 @@ resources:
 - group: helm
   kind: HelmRelease
   version: v2beta2
-storageVersion: v2beta2
+- group: helm
+  kind: HelmRelease
+  version: v2
+storageVersion: v2
 version: "2"
