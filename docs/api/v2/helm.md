@@ -792,21 +792,6 @@ the first. Ignored when omitted.</p>
 </tr>
 <tr>
 <td>
-<code>valuesFile</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Alternative values file to use as the default chart values, expected to
-be a relative path in the SourceRef. Deprecated in favor of ValuesFiles,
-for backwards compatibility the file defined here is merged before the
-ValuesFiles items. Ignored when omitted.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>ignoreMissingValuesFiles</code><br>
 <em>
 bool
@@ -992,21 +977,6 @@ Defaults to ChartVersion when omitted.</p>
 is not included by default), expected to be a relative path in the SourceRef.
 Values files are merged in the order of this list with the last file overriding
 the first. Ignored when omitted.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>valuesFile</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Alternative values file to use as the default chart values, expected to
-be a relative path in the SourceRef. Deprecated in favor of ValuesFiles,
-for backwards compatibility the file defined here is merged before the
-ValuesFiles items. Ignored when omitted.</p>
 </td>
 </tr>
 <tr>

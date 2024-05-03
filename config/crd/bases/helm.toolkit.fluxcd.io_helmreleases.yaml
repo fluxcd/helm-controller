@@ -136,13 +136,6 @@ spec:
                         required:
                         - name
                         type: object
-                      valuesFile:
-                        description: |-
-                          Alternative values file to use as the default chart values, expected to
-                          be a relative path in the SourceRef. Deprecated in favor of ValuesFiles,
-                          for backwards compatibility the file defined here is merged before the
-                          ValuesFiles items. Ignored when omitted.
-                        type: string
                       valuesFiles:
                         description: |-
                           Alternative list of values files to use as the chart values (values.yaml

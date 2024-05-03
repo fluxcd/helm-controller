@@ -368,14 +368,6 @@ type HelmChartTemplateSpec struct {
 	// +optional
 	ValuesFiles []string `json:"valuesFiles,omitempty"`
 
-	// Alternative values file to use as the default chart values, expected to
-	// be a relative path in the SourceRef. Deprecated in favor of ValuesFiles,
-	// for backwards compatibility the file defined here is merged before the
-	// ValuesFiles items. Ignored when omitted.
-	// +optional
-	// +deprecated
-	ValuesFile string `json:"valuesFile,omitempty"`
-
 	// IgnoreMissingValuesFiles controls whether to silently ignore missing values files rather than failing.
 	// +optional
 	IgnoreMissingValuesFiles bool `json:"ignoreMissingValuesFiles,omitempty"`
