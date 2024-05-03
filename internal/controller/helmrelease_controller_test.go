@@ -24,14 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fluxcd/pkg/apis/acl"
-	aclv1 "github.com/fluxcd/pkg/apis/acl"
-	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/conditions"
-	feathelper "github.com/fluxcd/pkg/runtime/features"
-	"github.com/fluxcd/pkg/runtime/patch"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	sourcev1b2 "github.com/fluxcd/source-controller/api/v1beta2"
 	. "github.com/onsi/gomega"
 	"github.com/opencontainers/go-digest"
 	"helm.sh/helm/v3/pkg/chart"
@@ -52,6 +44,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/yaml"
+
+	"github.com/fluxcd/pkg/apis/acl"
+	aclv1 "github.com/fluxcd/pkg/apis/acl"
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
+	feathelper "github.com/fluxcd/pkg/runtime/features"
+	"github.com/fluxcd/pkg/runtime/patch"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
@@ -185,17 +186,17 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 	t.Run("waits for HelmChart to have an Artifact", func(t *testing.T) {
 		g := NewWithT(t)
 
-		chart := &sourcev1b2.HelmChart{
+		chart := &sourcev1.HelmChart{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: sourcev1b2.GroupVersion.String(),
-				Kind:       sourcev1b2.HelmChartKind,
+				APIVersion: sourcev1.GroupVersion.String(),
+				Kind:       sourcev1.HelmChartKind,
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 2,
 				Artifact:           nil,
 				Conditions: []metav1.Condition{
@@ -241,17 +242,17 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 	t.Run("waits for HelmChart ObservedGeneration to equal Generation", func(t *testing.T) {
 		g := NewWithT(t)
 
-		chart := &sourcev1b2.HelmChart{
+		chart := &sourcev1.HelmChart{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: sourcev1b2.GroupVersion.String(),
-				Kind:       sourcev1b2.HelmChartKind,
+				APIVersion: sourcev1.GroupVersion.String(),
+				Kind:       sourcev1.HelmChartKind,
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           &sourcev1.Artifact{},
 				Conditions: []metav1.Condition{
@@ -297,16 +298,16 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 	t.Run("reports values composition failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		chart := &sourcev1b2.HelmChart{
+		chart := &sourcev1.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Spec: sourcev1b2.HelmChartSpec{
+			Spec: sourcev1.HelmChartSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 2,
 				Artifact:           &sourcev1.Artifact{},
 				Conditions: []metav1.Condition{
@@ -357,13 +358,13 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 	t.Run("reports Helm chart load failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		chart := &sourcev1b2.HelmChart{
+		chart := &sourcev1.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  "mock",
 				Generation: 1,
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact: &sourcev1.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
@@ -424,21 +425,21 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		chart := &sourcev1b2.HelmChart{
+		chart := &sourcev1.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "adopt-release",
 				Namespace:  ns.Name,
 				Generation: 1,
 			},
-			Spec: sourcev1b2.HelmChartSpec{
+			Spec: sourcev1.HelmChartSpec{
 				Chart:   "testdata/test-helmrepo",
 				Version: "0.1.0",
-				SourceRef: sourcev1b2.LocalHelmChartSourceReference{
-					Kind: sourcev1b2.HelmRepositoryKind,
+				SourceRef: sourcev1.LocalHelmChartSourceReference{
+					Kind: sourcev1.HelmRepositoryKind,
 					Name: "reconcile-delete",
 				},
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           chartArtifact,
 				Conditions: []metav1.Condition{
@@ -517,13 +518,13 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		chart := &sourcev1b2.HelmChart{
+		chart := &sourcev1.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  "mock",
 				Generation: 1,
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           chartArtifact,
 				Conditions: []metav1.Condition{
@@ -589,13 +590,13 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		chart := &sourcev1b2.HelmChart{
+		chart := &sourcev1.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  "mock",
 				Generation: 1,
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           chartArtifact,
 				Conditions: []metav1.Condition{
@@ -659,13 +660,13 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		chart := &sourcev1b2.HelmChart{
+		chart := &sourcev1.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  "mock",
 				Generation: 1,
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           chartArtifact,
 				Conditions: []metav1.Condition{
@@ -739,21 +740,21 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		chart := &sourcev1b2.HelmChart{
+		chart := &sourcev1.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "error-recovery",
 				Namespace:  ns.Name,
 				Generation: 1,
 			},
-			Spec: sourcev1b2.HelmChartSpec{
+			Spec: sourcev1.HelmChartSpec{
 				Chart:   "testdata/test-helmrepo",
 				Version: "0.1.0",
-				SourceRef: sourcev1b2.LocalHelmChartSourceReference{
-					Kind: sourcev1b2.HelmRepositoryKind,
+				SourceRef: sourcev1.LocalHelmChartSourceReference{
+					Kind: sourcev1.HelmRepositoryKind,
 					Name: "error-recovery",
 				},
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           chartArtifact,
 				Conditions: []metav1.Condition{
@@ -857,7 +858,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
-					Kind:      sourcev1b2.HelmChartKind,
+					Kind:      sourcev1.HelmChartKind,
 					Name:      "chart",
 					Namespace: "mock",
 				},
@@ -902,7 +903,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
-					Kind:      sourcev1b2.HelmChartKind,
+					Kind:      sourcev1.HelmChartKind,
 					Name:      "chart",
 					Namespace: "mock",
 				},
@@ -937,7 +938,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
-					Kind:      sourcev1b2.HelmChartKind,
+					Kind:      sourcev1.HelmChartKind,
 					Name:      "chart",
 					Namespace: "mock-other",
 				},
@@ -967,17 +968,17 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 	t.Run("waits for ChartRef to have an Artifact", func(t *testing.T) {
 		g := NewWithT(t)
 
-		chart := &sourcev1b2.HelmChart{
+		chart := &sourcev1.HelmChart{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: sourcev1b2.GroupVersion.String(),
-				Kind:       sourcev1b2.HelmChartKind,
+				APIVersion: sourcev1.GroupVersion.String(),
+				Kind:       sourcev1.HelmChartKind,
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 2,
 				Conditions: []metav1.Condition{
 					{
@@ -995,7 +996,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
-					Kind:      sourcev1b2.HelmChartKind,
+					Kind:      sourcev1.HelmChartKind,
 					Name:      "chart",
 					Namespace: "mock",
 				},
@@ -1024,16 +1025,16 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 	t.Run("reports Helm chart load failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		chart := &sourcev1b2.HelmChart{
+		chart := &sourcev1.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Spec: sourcev1b2.HelmChartSpec{
+			Spec: sourcev1.HelmChartSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 2,
 				Artifact: &sourcev1.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
@@ -1054,7 +1055,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
-					Kind:      sourcev1b2.HelmChartKind,
+					Kind:      sourcev1.HelmChartKind,
 					Name:      "chart",
 					Namespace: "mock",
 				},
@@ -1083,13 +1084,13 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 	t.Run("report helmChart load failure when switching from existing HelmChat to chartRef", func(t *testing.T) {
 		g := NewWithT(t)
 
-		chart := &sourcev1b2.HelmChart{
+		chart := &sourcev1.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  "mock",
 				Generation: 1,
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           &sourcev1.Artifact{},
 				Conditions: []metav1.Condition{
@@ -1101,16 +1102,16 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 		}
 
-		sharedChart := &sourcev1b2.HelmChart{
+		sharedChart := &sourcev1.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "sharedChart",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Spec: sourcev1b2.HelmChartSpec{
+			Spec: sourcev1.HelmChartSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 2,
 				Artifact: &sourcev1.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
@@ -1131,7 +1132,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
-					Kind:      sourcev1b2.HelmChartKind,
+					Kind:      sourcev1.HelmChartKind,
 					Name:      "sharedChart",
 					Namespace: "mock",
 				},
@@ -1283,17 +1284,17 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 	t.Run("waits for ChartRef to have an Artifact", func(t *testing.T) {
 		g := NewWithT(t)
 
-		ocirepo := &sourcev1b2.OCIRepository{
+		ocirepo := &sourcev1beta2.OCIRepository{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: sourcev1b2.GroupVersion.String(),
-				Kind:       sourcev1b2.OCIRepositoryKind,
+				APIVersion: sourcev1beta2.GroupVersion.String(),
+				Kind:       sourcev1beta2.OCIRepositoryKind,
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Status: sourcev1b2.OCIRepositoryStatus{
+			Status: sourcev1beta2.OCIRepositoryStatus{
 				ObservedGeneration: 2,
 				Conditions: []metav1.Condition{
 					{
@@ -1340,16 +1341,16 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 	t.Run("reports values composition failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		ocirepo := &sourcev1b2.OCIRepository{
+		ocirepo := &sourcev1beta2.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Spec: sourcev1b2.OCIRepositorySpec{
+			Spec: sourcev1beta2.OCIRepositorySpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1b2.OCIRepositoryStatus{
+			Status: sourcev1beta2.OCIRepositoryStatus{
 				ObservedGeneration: 2,
 				Artifact:           &sourcev1.Artifact{},
 				Conditions: []metav1.Condition{
@@ -1402,16 +1403,16 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 	t.Run("reports Helm chart load failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		ocirepo := &sourcev1b2.OCIRepository{
+		ocirepo := &sourcev1beta2.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Spec: sourcev1b2.OCIRepositorySpec{
+			Spec: sourcev1beta2.OCIRepositorySpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1b2.OCIRepositoryStatus{
+			Status: sourcev1beta2.OCIRepositoryStatus{
 				ObservedGeneration: 2,
 				Artifact: &sourcev1.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
@@ -1461,13 +1462,13 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 	t.Run("report helmChart load failure when switching from existing HelmChat to chartRef", func(t *testing.T) {
 		g := NewWithT(t)
 
-		chart := &sourcev1b2.HelmChart{
+		chart := &sourcev1.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  "mock",
 				Generation: 1,
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           &sourcev1.Artifact{},
 				Conditions: []metav1.Condition{
@@ -1479,16 +1480,16 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 		}
 
-		ocirepo := &sourcev1b2.OCIRepository{
+		ocirepo := &sourcev1beta2.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Spec: sourcev1b2.OCIRepositorySpec{
+			Spec: sourcev1beta2.OCIRepositorySpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1b2.OCIRepositoryStatus{
+			Status: sourcev1beta2.OCIRepositoryStatus{
 				ObservedGeneration: 2,
 				Artifact: &sourcev1.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
@@ -1548,16 +1549,16 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		g.Expect(err).ToNot(HaveOccurred())
 		chartArtifact.Revision += "@" + chartArtifact.Digest
 
-		ocirepo := &sourcev1b2.OCIRepository{
+		ocirepo := &sourcev1beta2.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  "mock",
 				Generation: 1,
 			},
-			Spec: sourcev1b2.OCIRepositorySpec{
+			Spec: sourcev1beta2.OCIRepositorySpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1b2.OCIRepositoryStatus{
+			Status: sourcev1beta2.OCIRepositoryStatus{
 				ObservedGeneration: 1,
 				Artifact:           chartArtifact,
 				Conditions: []metav1.Condition{
@@ -1639,21 +1640,21 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		})
 
 		// hc is the HelmChart object created by the HelmRelease object.
-		hc := &sourcev1b2.HelmChart{
+		hc := &sourcev1.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "chart",
 				Namespace:  ns.Name,
 				Generation: 1,
 			},
-			Spec: sourcev1b2.HelmChartSpec{
+			Spec: sourcev1.HelmChartSpec{
 				Chart:   "testdata/test-helmrepo",
 				Version: "0.1.0",
-				SourceRef: sourcev1b2.LocalHelmChartSourceReference{
-					Kind: sourcev1b2.HelmRepositoryKind,
+				SourceRef: sourcev1.LocalHelmChartSourceReference{
+					Kind: sourcev1.HelmRepositoryKind,
 					Name: "test-helmrepo",
 				},
 			},
-			Status: sourcev1b2.HelmChartStatus{
+			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           chartArtifact,
 				Conditions: []metav1.Condition{
@@ -1666,17 +1667,17 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		}
 
 		// ocirepo is the chartRef object to switch to.
-		ocirepo := &sourcev1b2.OCIRepository{
+		ocirepo := &sourcev1beta2.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  ns.Name,
 				Generation: 1,
 			},
-			Spec: sourcev1b2.OCIRepositorySpec{
+			Spec: sourcev1beta2.OCIRepositorySpec{
 				URL:      "oci://test-example.com",
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1b2.OCIRepositoryStatus{
+			Status: sourcev1beta2.OCIRepositoryStatus{
 				ObservedGeneration: 1,
 				Artifact:           ociArtifact,
 				Conditions: []metav1.Condition{
@@ -1773,16 +1774,16 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 		})
 
 		// Create HelmChart mock.
-		hc := &sourcev1b2.HelmChart{
+		hc := &sourcev1.HelmChart{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "reconcile-delete",
 				Namespace: ns.Name,
 			},
-			Spec: sourcev1b2.HelmChartSpec{
+			Spec: sourcev1.HelmChartSpec{
 				Chart:   "testdata/test-helmrepo",
 				Version: "0.1.0",
-				SourceRef: sourcev1b2.LocalHelmChartSourceReference{
-					Kind: sourcev1b2.HelmRepositoryKind,
+				SourceRef: sourcev1.LocalHelmChartSourceReference{
+					Kind: sourcev1.HelmRepositoryKind,
 					Name: "reconcile-delete",
 				},
 			},
@@ -1847,7 +1848,7 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 			err = testEnv.Get(context.TODO(), client.ObjectKey{
 				Namespace: hc.Namespace,
 				Name:      hc.Name,
-			}, &sourcev1b2.HelmChart{})
+			}, &sourcev1.HelmChart{})
 			g.Expect(err).To(HaveOccurred())
 			g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 		}).Should(Succeed())
@@ -2827,7 +2828,7 @@ users:
 func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
 	g := NewWithT(t)
 
-	chart := &sourcev1b2.HelmChart{
+	chart := &sourcev1.HelmChart{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "some-namespace",
 			Name:      "some-chart-name",
@@ -2837,7 +2838,7 @@ func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
 	tests := []struct {
 		name            string
 		rel             *v2.HelmRelease
-		chart           *sourcev1b2.HelmChart
+		chart           *sourcev1.HelmChart
 		expectChart     bool
 		wantErr         bool
 		disallowCrossNS bool
@@ -2914,7 +2915,7 @@ func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
 				return
 			}
 			g.Expect(err).ToNot(HaveOccurred())
-			hc, ok := got.(*sourcev1b2.HelmChart)
+			hc, ok := got.(*sourcev1.HelmChart)
 			g.Expect(ok).To(BeTrue())
 			expect := g.Expect(hc.ObjectMeta)
 			if tt.expectChart {
@@ -3203,17 +3204,17 @@ func TestValuesReferenceValidation(t *testing.T) {
 }
 
 func Test_isHelmChartReady(t *testing.T) {
-	mock := &sourcev1b2.HelmChart{
+	mock := &sourcev1.HelmChart{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HelmChart",
-			APIVersion: sourcev1b2.GroupVersion.String(),
+			APIVersion: sourcev1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "mock",
 			Namespace:  "default",
 			Generation: 2,
 		},
-		Status: sourcev1b2.HelmChartStatus{
+		Status: sourcev1.HelmChartStatus{
 			ObservedGeneration: 2,
 			Conditions: []metav1.Condition{
 				{
@@ -3227,7 +3228,7 @@ func Test_isHelmChartReady(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		obj        *sourcev1b2.HelmChart
+		obj        *sourcev1.HelmChart
 		want       bool
 		wantReason string
 	}{
@@ -3238,7 +3239,7 @@ func Test_isHelmChartReady(t *testing.T) {
 		},
 		{
 			name: "chart generation differs from observed generation while Ready=True",
-			obj: func() *sourcev1b2.HelmChart {
+			obj: func() *sourcev1.HelmChart {
 				m := mock.DeepCopy()
 				m.Generation = 3
 				return m
@@ -3248,7 +3249,7 @@ func Test_isHelmChartReady(t *testing.T) {
 		},
 		{
 			name: "chart generation differs from observed generation while Ready=False",
-			obj: func() *sourcev1b2.HelmChart {
+			obj: func() *sourcev1.HelmChart {
 				m := mock.DeepCopy()
 				m.Generation = 3
 				conditions.MarkFalse(m, meta.ReadyCondition, "Reason", "some reason")
@@ -3259,7 +3260,7 @@ func Test_isHelmChartReady(t *testing.T) {
 		},
 		{
 			name: "chart has Stalled=True",
-			obj: func() *sourcev1b2.HelmChart {
+			obj: func() *sourcev1.HelmChart {
 				m := mock.DeepCopy()
 				conditions.MarkFalse(m, meta.ReadyCondition, "Reason", "some reason")
 				conditions.MarkStalled(m, "Reason", "some stalled reason")
@@ -3270,7 +3271,7 @@ func Test_isHelmChartReady(t *testing.T) {
 		},
 		{
 			name: "chart does not have an Artifact",
-			obj: func() *sourcev1b2.HelmChart {
+			obj: func() *sourcev1.HelmChart {
 				m := mock.DeepCopy()
 				m.Status.Artifact = nil
 				return m
@@ -3293,17 +3294,17 @@ func Test_isHelmChartReady(t *testing.T) {
 }
 
 func Test_isOCIRepositoryReady(t *testing.T) {
-	mock := &sourcev1b2.OCIRepository{
+	mock := &sourcev1beta2.OCIRepository{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "OCIRepository",
-			APIVersion: sourcev1b2.GroupVersion.String(),
+			Kind:       sourcev1beta2.OCIRepositoryKind,
+			APIVersion: sourcev1beta2.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "mock",
 			Namespace:  "default",
 			Generation: 2,
 		},
-		Status: sourcev1b2.OCIRepositoryStatus{
+		Status: sourcev1beta2.OCIRepositoryStatus{
 			ObservedGeneration: 2,
 			Conditions: []metav1.Condition{
 				{
@@ -3317,7 +3318,7 @@ func Test_isOCIRepositoryReady(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		obj        *sourcev1b2.OCIRepository
+		obj        *sourcev1beta2.OCIRepository
 		want       bool
 		wantReason string
 	}{
@@ -3328,7 +3329,7 @@ func Test_isOCIRepositoryReady(t *testing.T) {
 		},
 		{
 			name: "OCIRepository generation differs from observed generation while Ready=True",
-			obj: func() *sourcev1b2.OCIRepository {
+			obj: func() *sourcev1beta2.OCIRepository {
 				m := mock.DeepCopy()
 				m.Generation = 3
 				return m
@@ -3338,7 +3339,7 @@ func Test_isOCIRepositoryReady(t *testing.T) {
 		},
 		{
 			name: "OCIRepository generation differs from observed generation while Ready=False",
-			obj: func() *sourcev1b2.OCIRepository {
+			obj: func() *sourcev1beta2.OCIRepository {
 				m := mock.DeepCopy()
 				m.Generation = 3
 				conditions.MarkFalse(m, meta.ReadyCondition, "Reason", "some reason")
@@ -3349,7 +3350,7 @@ func Test_isOCIRepositoryReady(t *testing.T) {
 		},
 		{
 			name: "OCIRepository has Stalled=True",
-			obj: func() *sourcev1b2.OCIRepository {
+			obj: func() *sourcev1beta2.OCIRepository {
 				m := mock.DeepCopy()
 				conditions.MarkFalse(m, meta.ReadyCondition, "Reason", "some reason")
 				conditions.MarkStalled(m, "Reason", "some stalled reason")
@@ -3360,7 +3361,7 @@ func Test_isOCIRepositoryReady(t *testing.T) {
 		},
 		{
 			name: "OCIRepository does not have an Artifact",
-			obj: func() *sourcev1b2.OCIRepository {
+			obj: func() *sourcev1beta2.OCIRepository {
 				m := mock.DeepCopy()
 				m.Status.Artifact = nil
 				return m
@@ -3430,8 +3431,8 @@ func Test_TryMutateChartWithSourceRevision(t *testing.T) {
 				},
 			}
 
-			s := &sourcev1b2.OCIRepository{
-				Status: sourcev1b2.OCIRepositoryStatus{
+			s := &sourcev1beta2.OCIRepository{
+				Status: sourcev1beta2.OCIRepositoryStatus{
 					Artifact: &sourcev1.Artifact{
 						Revision: tt.revision,
 					},
