@@ -2434,7 +2434,7 @@ string
 </div>
 </div>
 <h3 id="helm.toolkit.fluxcd.io/v2.Snapshots">Snapshots
-(<code>[]*github.com/fluxcd/helm-controller/api/v2.Snapshot</code> alias)</h3>
+(<code>[]*./api/v2.Snapshot</code> alias)</h3>
 <p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseStatus">HelmReleaseStatus</a>)
