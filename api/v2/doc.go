@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Flux authors
+Copyright 2024 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v2 contains API Schema definitions for the helm v2beta2 API group
+// Package v2 contains API Schema definitions for the helm v2 API group
 // +kubebuilder:object:generate=true
 // +groupName=helm.toolkit.fluxcd.io
 package v2

@@ -6,7 +6,7 @@
 </li>
 </ul>
 <h2 id="helm.toolkit.fluxcd.io/v2">helm.toolkit.fluxcd.io/v2</h2>
-<p>Package v2 contains API Schema definitions for the helm v2beta2 API group</p>
+<p>Package v2 contains API Schema definitions for the helm v2 API group</p>
 Resource Types:
 <ul class="simple"><li>
 <a href="#helm.toolkit.fluxcd.io/v2.HelmRelease">HelmRelease</a>
