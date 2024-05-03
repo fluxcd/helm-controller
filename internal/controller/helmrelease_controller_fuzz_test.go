@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/fluxcd/pkg/runtime/patch"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 )

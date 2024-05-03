@@ -22,15 +22,15 @@ require (
 	github.com/fluxcd/pkg/apis/event v0.9.0
 	github.com/fluxcd/pkg/apis/kustomize v1.5.0
 	github.com/fluxcd/pkg/apis/meta v1.5.0
-	github.com/fluxcd/pkg/runtime v0.47.0
-	github.com/fluxcd/pkg/ssa v0.39.0
+	github.com/fluxcd/pkg/runtime v0.47.1
+	github.com/fluxcd/pkg/ssa v0.39.1
 	github.com/fluxcd/pkg/testserver v0.7.0
-	github.com/fluxcd/source-controller/api v1.2.5
+	github.com/fluxcd/source-controller/api v1.3.0
 	github.com/go-logr/logr v1.4.1
 	github.com/google/go-cmp v0.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.5
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/onsi/gomega v1.32.0
+	github.com/onsi/gomega v1.33.1
 	github.com/opencontainers/go-digest v1.0.1-0.20231025023718-d50d2fec9c98
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20231212064514-429d0316a3dd
 	github.com/spf13/pflag v1.0.5
@@ -44,7 +44,7 @@ require (
 	k8s.io/client-go v0.30.0
 	k8s.io/kubectl v0.30.0
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57
-	sigs.k8s.io/controller-runtime v0.18.0
+	sigs.k8s.io/controller-runtime v0.18.1
 	sigs.k8s.io/kustomize/api v0.17.1
 	sigs.k8s.io/kustomize/kyaml v0.17.0
 	sigs.k8s.io/yaml v1.4.0

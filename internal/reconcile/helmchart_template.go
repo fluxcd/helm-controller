@@ -32,7 +32,7 @@ import (
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/ssa"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/helm-controller/internal/acl"
@@ -229,7 +229,6 @@ func buildHelmChartFromTemplate(obj *v2.HelmRelease) *sourcev1.HelmChart {
 			Interval:          template.GetInterval(obj.Spec.Interval),
 			ReconcileStrategy: template.Spec.ReconcileStrategy,
 			ValuesFiles:       template.Spec.ValuesFiles,
-			ValuesFile:        template.Spec.ValuesFile,
 		},
 	}
 	if verifyTpl := template.Spec.Verify; verifyTpl != nil {

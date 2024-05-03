@@ -55,8 +55,8 @@ import (
 	"github.com/fluxcd/pkg/runtime/object"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/runtime/predicates"
-	source "github.com/fluxcd/source-controller/api/v1"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
@@ -139,7 +139,7 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
 		Watches(
-			&sourcev1.OCIRepository{},
+			&sourcev1beta2.OCIRepository{},
 			handler.EnqueueRequestsFromMapFunc(r.requestsForOCIRrepositoryChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
@@ -683,10 +683,10 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *
 // using the chartRef in the spec, or by looking up the HelmChart
 // referenced in the status object.
 // It returns the source object or an error.
-func (r *HelmReleaseReconciler) getSource(ctx context.Context, obj *v2.HelmRelease) (source.Source, error) {
+func (r *HelmReleaseReconciler) getSource(ctx context.Context, obj *v2.HelmRelease) (sourcev1.Source, error) {
 	var name, namespace string
 	if obj.HasChartRef() {
-		if obj.Spec.ChartRef.Kind == sourcev1.OCIRepositoryKind {
+		if obj.Spec.ChartRef.Kind == sourcev1beta2.OCIRepositoryKind {
 			return r.getSourceFromOCIRef(ctx, obj)
 		}
 		name, namespace = obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
@@ -710,18 +710,18 @@ func (r *HelmReleaseReconciler) getSource(ctx context.Context, obj *v2.HelmRelea
 	return &hc, nil
 }
 
-func (r *HelmReleaseReconciler) getSourceFromOCIRef(ctx context.Context, obj *v2.HelmRelease) (source.Source, error) {
+func (r *HelmReleaseReconciler) getSourceFromOCIRef(ctx context.Context, obj *v2.HelmRelease) (sourcev1.Source, error) {
 	name, namespace := obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
 	if namespace == "" {
 		namespace = obj.GetNamespace()
 	}
 	ociRepoRef := types.NamespacedName{Namespace: namespace, Name: name}
 
-	if err := intacl.AllowsAccessTo(obj, sourcev1.OCIRepositoryKind, ociRepoRef); err != nil {
+	if err := intacl.AllowsAccessTo(obj, sourcev1beta2.OCIRepositoryKind, ociRepoRef); err != nil {
 		return nil, err
 	}
 
-	or := sourcev1.OCIRepository{}
+	or := sourcev1beta2.OCIRepository{}
 	if err := r.Client.Get(ctx, ociRepoRef, &or); err != nil {
 		return nil, err
 	}
@@ -779,7 +779,7 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, 
 }
 
 func (r *HelmReleaseReconciler) requestsForOCIRrepositoryChange(ctx context.Context, o client.Object) []reconcile.Request {
-	or, ok := o.(*sourcev1.OCIRepository)
+	or, ok := o.(*sourcev1beta2.OCIRepository)
 	if !ok {
 		err := fmt.Errorf("expected an OCIRepository, got %T", o)
 		ctrl.LoggerFrom(ctx).Error(err, "failed to get requests for OCIRepository change")
@@ -818,14 +818,14 @@ func (r *HelmReleaseReconciler) requestsForOCIRrepositoryChange(ctx context.Cont
 	return reqs
 }
 
-func isSourceReady(obj source.Source) (bool, string) {
+func isSourceReady(obj sourcev1.Source) (bool, string) {
 	if o, ok := obj.(conditions.Getter); ok {
 		return isReady(o, obj.GetArtifact())
 	}
-	return false, fmt.Sprintf("unknown source type: %T", obj)
+	return false, fmt.Sprintf("unknown sourcev1 type: %T", obj)
 }
 
-func isReady(obj conditions.Getter, artifact *source.Artifact) (bool, string) {
+func isReady(obj conditions.Getter, artifact *sourcev1.Artifact) (bool, string) {
 	observedGen, err := object.GetStatusObservedGeneration(obj)
 	if err != nil {
 		return false, err.Error()
@@ -877,11 +877,11 @@ func getNamespacedName(obj *v2.HelmRelease) (types.NamespacedName, error) {
 	return namespacedName, nil
 }
 
-func mutateChartWithSourceRevision(chart *chart.Chart, source source.Source) (string, error) {
+func mutateChartWithSourceRevision(chart *chart.Chart, source sourcev1.Source) (string, error) {
 	// If the source is an OCIRepository, we can try to mutate the chart version
 	// with the artifact revision. The revision is either a <tag>@<digest> or
 	// just a digest.
-	obj, ok := source.(*sourcev1.OCIRepository)
+	obj, ok := source.(*sourcev1beta2.OCIRepository)
 	if !ok {
 		// if not make sure to return an empty string to delete the digest of the
 		// last attempted revision
