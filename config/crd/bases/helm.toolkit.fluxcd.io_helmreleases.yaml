@@ -1320,6 +1320,10 @@ spec:
                         maxLength: 2048
                         minLength: 1
                         type: string
+                      ignoreMissingValuesFiles:
+                        description: IgnoreMissingValuesFiles controls whether to
+                          silently ignore missing values files rather than failing.
+                        type: boolean
                       interval:
                         description: |-
                           Interval at which to check the v1.Source for updates. Defaults to

@@ -226,9 +226,10 @@ func buildHelmChartFromTemplate(obj *v2.HelmRelease) *sourcev1.HelmChart {
 				Name: template.Spec.SourceRef.Name,
 				Kind: template.Spec.SourceRef.Kind,
 			},
-			Interval:          template.GetInterval(obj.Spec.Interval),
-			ReconcileStrategy: template.Spec.ReconcileStrategy,
-			ValuesFiles:       template.Spec.ValuesFiles,
+			Interval:                 template.GetInterval(obj.Spec.Interval),
+			ReconcileStrategy:        template.Spec.ReconcileStrategy,
+			ValuesFiles:              template.Spec.ValuesFiles,
+			IgnoreMissingValuesFiles: template.Spec.IgnoreMissingValuesFiles,
 		},
 	}
 	if verifyTpl := template.Spec.Verify; verifyTpl != nil {

@@ -807,6 +807,18 @@ ValuesFiles items. Ignored when omitted.</p>
 </tr>
 <tr>
 <td>
+<code>ignoreMissingValuesFiles</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>IgnoreMissingValuesFiles controls whether to silently ignore missing values files rather than failing.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>verify</code><br>
 <em>
 <a href="#helm.toolkit.fluxcd.io/v2beta2.HelmChartTemplateVerification">
@@ -995,6 +1007,18 @@ string
 be a relative path in the SourceRef. Deprecated in favor of ValuesFiles,
 for backwards compatibility the file defined here is merged before the
 ValuesFiles items. Ignored when omitted.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ignoreMissingValuesFiles</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>IgnoreMissingValuesFiles controls whether to silently ignore missing values files rather than failing.</p>
 </td>
 </tr>
 <tr>
