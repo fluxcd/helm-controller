@@ -235,10 +235,13 @@ metadata:
   name: podinfo
   namespace: default
 spec:
-  interval: 30s
+  interval: 10m
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
   url: oci://ghcr.io/stefanprodan/charts/podinfo
   ref:
-    tag: 6.6.0
+    semver: ">= 6.0.0"
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -264,13 +267,14 @@ metadata:
   name: podinfo
   namespace: default
 spec:
-  interval: 5m0s
+  interval: 10m
   chart: podinfo
-  reconcileStrategy: ChartVersion
   sourceRef:
     kind: HelmRepository
     name: podinfo
-  version: '5.*'
+  version: "6.x"
+  valuesFiles:
+    - values-prod.yaml
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
