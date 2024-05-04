@@ -991,12 +991,6 @@ type HelmReleaseStatus struct {
 	// +optional
 	UpgradeFailures int64 `json:"upgradeFailures,omitempty"`
 
-	// LastAppliedRevision is the revision of the last successfully applied
-	// source.
-	// Deprecated: the revision can now be found in the History.
-	// +optional
-	LastAppliedRevision string `json:"lastAppliedRevision,omitempty"`
-
 	// LastAttemptedRevision is the Source revision of the last reconciliation
 	// attempt. For OCIRepository  sources, the 12 first characters of the digest are
 	// appended to the chart version e.g. "1.2.3+1234567890ab".
@@ -1247,18 +1241,12 @@ func (in *HelmRelease) SetConditions(conditions []metav1.Condition) {
 	in.Status.Conditions = conditions
 }
 
-// GetStatusConditions returns a pointer to the Status.Conditions slice.
-// Deprecated: use GetConditions instead.
-func (in *HelmRelease) GetStatusConditions() *[]metav1.Condition {
-	return &in.Status.Conditions
-}
-
-// IsChartRefPresent returns true if the HelmRelease has a ChartRef.
+// HasChartRef returns true if the HelmRelease has a ChartRef.
 func (in *HelmRelease) HasChartRef() bool {
 	return in.Spec.ChartRef != nil
 }
 
-// IsChartTemplatePresent returns true if the HelmRelease has a ChartTemplate.
+// HasChartTemplate returns true if the HelmRelease has a ChartTemplate.
 func (in *HelmRelease) HasChartTemplate() bool {
 	return in.Spec.Chart.Spec.Chart != ""
 }

@@ -1556,20 +1556,6 @@ state. It is reset after a successful reconciliation.</p>
 </tr>
 <tr>
 <td>
-<code>lastAppliedRevision</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>LastAppliedRevision is the revision of the last successfully applied
-source.
-Deprecated: the revision can now be found in the History.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>lastAttemptedRevision</code><br>
 <em>
 string
