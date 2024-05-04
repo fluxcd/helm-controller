@@ -49,16 +49,6 @@ type Kustomize struct {
 	// +optional
 	Patches []kustomize.Patch `json:"patches,omitempty"`
 
-	// Strategic merge patches, defined as inline YAML objects.
-	// Deprecated: use Patches instead.
-	// +optional
-	PatchesStrategicMerge []apiextensionsv1.JSON `json:"patchesStrategicMerge,omitempty"`
-
-	// JSON 6902 patches, defined as inline YAML objects.
-	// Deprecated: use Patches instead.
-	// +optional
-	PatchesJSON6902 []kustomize.JSON6902Patch `json:"patchesJson6902,omitempty"`
-
 	// Images is a list of (image name, new name, new tag or digest)
 	// for changing image names, tags or digests. This can also be achieved with a
 	// patch, but this operator is simpler to specify.

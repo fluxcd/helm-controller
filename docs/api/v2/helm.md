@@ -1983,36 +1983,6 @@ capable of targeting objects based on kind, label and annotation selectors.</p>
 </tr>
 <tr>
 <td>
-<code>patchesStrategicMerge</code><br>
-<em>
-<a href="https://pkg.go.dev/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1?tab=doc#JSON">
-[]Kubernetes pkg/apis/apiextensions/v1.JSON
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Strategic merge patches, defined as inline YAML objects.
-Deprecated: use Patches instead.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>patchesJson6902</code><br>
-<em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/kustomize#JSON6902Patch">
-[]github.com/fluxcd/pkg/apis/kustomize.JSON6902Patch
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>JSON 6902 patches, defined as inline YAML objects.
-Deprecated: use Patches instead.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>images</code><br>
 <em>
 <a href="https://godoc.org/github.com/fluxcd/pkg/apis/kustomize#Image">

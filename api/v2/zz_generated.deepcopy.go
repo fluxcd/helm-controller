@@ -23,8 +23,8 @@ package v2
 import (
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -151,7 +151,7 @@ func (in *HelmChartTemplateSpec) DeepCopyInto(out *HelmChartTemplateSpec) {
 	out.SourceRef = in.SourceRef
 	if in.Interval != nil {
 		in, out := &in.Interval, &out.Interval
-		*out = new(metav1.Duration)
+		*out = new(v1.Duration)
 		**out = **in
 	}
 	if in.ValuesFiles != nil {
@@ -277,7 +277,7 @@ func (in *HelmReleaseSpec) DeepCopyInto(out *HelmReleaseSpec) {
 	}
 	if in.Timeout != nil {
 		in, out := &in.Timeout, &out.Timeout
-		*out = new(metav1.Duration)
+		*out = new(v1.Duration)
 		**out = **in
 	}
 	if in.MaxHistory != nil {
@@ -327,7 +327,7 @@ func (in *HelmReleaseSpec) DeepCopyInto(out *HelmReleaseSpec) {
 	}
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values
-		*out = new(v1.JSON)
+		*out = new(apiextensionsv1.JSON)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.PostRenderers != nil {
@@ -354,7 +354,7 @@ func (in *HelmReleaseStatus) DeepCopyInto(out *HelmReleaseStatus) {
 	*out = *in
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]metav1.Condition, len(*in))
+		*out = make([]v1.Condition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -413,7 +413,7 @@ func (in *Install) DeepCopyInto(out *Install) {
 	*out = *in
 	if in.Timeout != nil {
 		in, out := &in.Timeout, &out.Timeout
-		*out = new(metav1.Duration)
+		*out = new(v1.Duration)
 		**out = **in
 	}
 	if in.Remediation != nil {
@@ -468,20 +468,6 @@ func (in *Kustomize) DeepCopyInto(out *Kustomize) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.PatchesStrategicMerge != nil {
-		in, out := &in.PatchesStrategicMerge, &out.PatchesStrategicMerge
-		*out = make([]v1.JSON, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
-	}
-	if in.PatchesJSON6902 != nil {
-		in, out := &in.PatchesJSON6902, &out.PatchesJSON6902
-		*out = make([]kustomize.JSON6902Patch, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
-	}
 	if in.Images != nil {
 		in, out := &in.Images, &out.Images
 		*out = make([]kustomize.Image, len(*in))
@@ -524,7 +510,7 @@ func (in *Rollback) DeepCopyInto(out *Rollback) {
 	*out = *in
 	if in.Timeout != nil {
 		in, out := &in.Timeout, &out.Timeout
-		*out = new(metav1.Duration)
+		*out = new(v1.Duration)
 		**out = **in
 	}
 }
@@ -607,7 +593,7 @@ func (in *Test) DeepCopyInto(out *Test) {
 	*out = *in
 	if in.Timeout != nil {
 		in, out := &in.Timeout, &out.Timeout
-		*out = new(metav1.Duration)
+		*out = new(v1.Duration)
 		**out = **in
 	}
 	if in.Filters != nil {
@@ -653,7 +639,7 @@ func (in *Uninstall) DeepCopyInto(out *Uninstall) {
 	*out = *in
 	if in.Timeout != nil {
 		in, out := &in.Timeout, &out.Timeout
-		*out = new(metav1.Duration)
+		*out = new(v1.Duration)
 		**out = **in
 	}
 	if in.DeletionPropagation != nil {
@@ -678,7 +664,7 @@ func (in *Upgrade) DeepCopyInto(out *Upgrade) {
 	*out = *in
 	if in.Timeout != nil {
 		in, out := &in.Timeout, &out.Timeout
-		*out = new(metav1.Duration)
+		*out = new(v1.Duration)
 		**out = **in
 	}
 	if in.Remediation != nil {
