@@ -1110,6 +1110,11 @@ spec:
                   to reconcile.
                 format: int64
                 type: integer
+              lastAttemptedPostRenderersDigest:
+                description: |-
+                  LastAttemptedPostRenderersDigest is the digest for the post-renderers of
+                  the last reconciliation attempt.
+                type: string
               lastAttemptedReleaseAction:
                 description: |-
                   LastAttemptedReleaseAction is the last release action performed for this
@@ -2344,6 +2349,11 @@ spec:
                   by v2beta1 HelmReleases.
                 format: int64
                 type: integer
+              lastAttemptedPostRenderersDigest:
+                description: |-
+                  LastAttemptedPostRenderersDigest is the digest for the post-renderers of
+                  the last reconciliation attempt.
+                type: string
               lastAttemptedReleaseAction:
                 description: |-
                   LastAttemptedReleaseAction is the last release action performed for this
@@ -3627,6 +3637,11 @@ spec:
                   to reconcile.
                 format: int64
                 type: integer
+              lastAttemptedPostRenderersDigest:
+                description: |-
+                  LastAttemptedPostRenderersDigest is the digest for the post-renderers of
+                  the last reconciliation attempt.
+                type: string
               lastAttemptedReleaseAction:
                 description: |-
                   LastAttemptedReleaseAction is the last release action performed for this

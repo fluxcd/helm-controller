@@ -60,9 +60,11 @@ import (
 	"github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/kube"
+	"github.com/fluxcd/helm-controller/internal/postrender"
 	intreconcile "github.com/fluxcd/helm-controller/internal/reconcile"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/testutil"
+	"github.com/fluxcd/pkg/apis/kustomize"
 )
 
 func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
@@ -1160,6 +1162,163 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
 			*conditions.FalseCondition(meta.ReadyCondition, v2.ArtifactFailedReason, "Source not ready"),
 		}))
+	})
+
+	t.Run("reports postrenderer changes", func(t *testing.T) {
+		g := NewWithT(t)
+
+		patches := `
+- target:
+    version: v1
+    kind: ConfigMap
+    name: cm
+  patch: |
+    - op: add
+      path: /metadata/annotations/foo
+      value: bar
+`
+
+		patches2 := `
+- target:
+    version: v1
+    kind: ConfigMap
+    name: cm
+  patch: |
+    - op: add
+      path: /metadata/annotations/foo2
+      value: bar2
+`
+
+		var targeted []kustomize.Patch
+		err := yaml.Unmarshal([]byte(patches), &targeted)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Create HelmChart mock.
+		chartMock := testutil.BuildChart()
+		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
+		g.Expect(err).ToNot(HaveOccurred())
+		// copy the artifact to mutate the revision
+		ociArtifact := chartArtifact.DeepCopy()
+		ociArtifact.Revision += "@" + chartArtifact.Digest
+
+		ns, err := testEnv.CreateNamespace(context.TODO(), "mock")
+		g.Expect(err).ToNot(HaveOccurred())
+		t.Cleanup(func() {
+			_ = testEnv.Delete(context.TODO(), ns)
+		})
+
+		hc := &sourcev1.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  ns.Name,
+				Generation: 1,
+			},
+			Spec: sourcev1.HelmChartSpec{
+				Chart:   "testdata/test-helmrepo",
+				Version: "0.1.0",
+				SourceRef: sourcev1.LocalHelmChartSourceReference{
+					Kind: sourcev1.HelmRepositoryKind,
+					Name: "test-helmrepo",
+				},
+			},
+			Status: sourcev1.HelmChartStatus{
+				ObservedGeneration: 1,
+				Artifact:           chartArtifact,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		// Create a test Helm release storage mock.
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      "release",
+			Namespace: ns.Name,
+			Version:   1,
+			Chart:     chartMock,
+			Status:    helmrelease.StatusDeployed,
+		})
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: ns.Name,
+			},
+			Spec: v2.HelmReleaseSpec{
+				ChartRef: &v2.CrossNamespaceSourceReference{
+					Kind: sourcev1.HelmChartKind,
+					Name: hc.Name,
+				},
+				PostRenderers: []v2.PostRenderer{
+					{
+						Kustomize: &v2.Kustomize{
+							Patches: targeted,
+						},
+					},
+				},
+			},
+			Status: v2.HelmReleaseStatus{
+				StorageNamespace: ns.Name,
+				History: v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(rls)),
+				},
+				HelmChart: hc.Namespace + "/" + hc.Name,
+			},
+		}
+
+		obj.Status.LastAttemptedPostRenderersDigest = postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()
+		obj.Status.LastAttemptedConfigDigest = chartutil.DigestValues(digest.Canonical, chartMock.Values).String()
+
+		c := fake.NewClientBuilder().
+			WithScheme(NewTestScheme()).
+			WithStatusSubresource(&v2.HelmRelease{}).
+			WithObjects(hc, obj).
+			Build()
+
+		r := &HelmReleaseReconciler{
+			Client:           c,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
+		}
+
+		//Store the Helm release mock in the test namespace.
+		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		g.Expect(err).ToNot(HaveOccurred())
+
+		store := helmstorage.Init(cfg.Driver)
+		g.Expect(store.Create(rls)).To(Succeed())
+
+		// update the postrenderers
+		err = yaml.Unmarshal([]byte(patches2), &targeted)
+		g.Expect(err).ToNot(HaveOccurred())
+		obj.Spec.PostRenderers[0].Kustomize.Patches = targeted
+
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify attempted values are set.
+		g.Expect(obj.Status.LastAttemptedGeneration).To(Equal(obj.Generation))
+		g.Expect(obj.Status.LastAttemptedPostRenderersDigest).To(Equal(postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()))
+
+		// verify upgrade succeeded
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingWithRetryReason, "Helm upgrade succeeded for release %s with chart %s",
+				fmt.Sprintf("%s/%s.v%d", rls.Namespace, rls.Name, rls.Version+1), fmt.Sprintf("%s@%s", chartMock.Name(),
+					chartMock.Metadata.Version)),
+			*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded for release %s with chart %s",
+				fmt.Sprintf("%s/%s.v%d", rls.Namespace, rls.Name, rls.Version+1), fmt.Sprintf("%s@%s", chartMock.Name(),
+					chartMock.Metadata.Version)),
+			*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded for release %s with chart %s",
+				fmt.Sprintf("%s/%s.v%d", rls.Namespace, rls.Name, rls.Version+1), fmt.Sprintf("%s@%s", chartMock.Name(),
+					chartMock.Metadata.Version)),
+		}))
+
 	})
 }
 

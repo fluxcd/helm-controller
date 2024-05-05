@@ -950,6 +950,11 @@ type HelmReleaseStatus struct {
 	// +optional
 	LastAttemptedConfigDigest string `json:"lastAttemptedConfigDigest,omitempty"`
 
+	// LastAttemptedPostRenderersDigest is the digest for the post-renderers of
+	// the last reconciliation attempt.
+	// +optional
+	LastAttemptedPostRenderersDigest string `json:"lastAttemptedPostRenderersDigest,omitempty"`
+
 	// LastAttemptedReleaseAction is the last release action performed for this
 	// HelmRelease. It is used to determine the active remediation strategy.
 	//

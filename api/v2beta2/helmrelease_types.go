@@ -1034,6 +1034,11 @@ type HelmReleaseStatus struct {
 	// +optional
 	LastAttemptedConfigDigest string `json:"lastAttemptedConfigDigest,omitempty"`
 
+	// LastAttemptedPostRenderersDigest is the digest for the post-renderers of
+	// the last reconciliation attempt.
+	// +optional
+	LastAttemptedPostRenderersDigest string `json:"lastAttemptedPostRenderersDigest,omitempty"`
+
 	// LastHandledForceAt holds the value of the most recent force request
 	// value, so a change of the annotation value can be detected.
 	// +optional

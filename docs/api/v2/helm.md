@@ -1623,6 +1623,19 @@ string
 </tr>
 <tr>
 <td>
+<code>lastAttemptedPostRenderersDigest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastAttemptedPostRenderersDigest is the digest for the post-renderers of
+the last reconciliation attempt.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>lastHandledForceAt</code><br>
 <em>
 string

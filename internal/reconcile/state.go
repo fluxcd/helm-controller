@@ -141,6 +141,11 @@ func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *
 			}
 		}
 
+		// Verify if postrender digest has changed
+		if req.PreviousPostrendersDigest != req.Object.Status.LastAttemptedPostRenderersDigest {
+			return ReleaseState{Status: ReleaseStatusOutOfSync, Reason: "postrender digest has changed"}, nil
+		}
+
 		// For the further determination of test results, we look at the
 		// observed state of the object. As tests can be run manually by
 		// users running e.g. `helm test`.

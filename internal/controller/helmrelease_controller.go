@@ -67,6 +67,7 @@ import (
 	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/loader"
+	"github.com/fluxcd/helm-controller/internal/postrender"
 	intpredicates "github.com/fluxcd/helm-controller/internal/predicates"
 	intreconcile "github.com/fluxcd/helm-controller/internal/reconcile"
 	"github.com/fluxcd/helm-controller/internal/release"
@@ -360,6 +361,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		if err := r.adoptLegacyRelease(ctx, getter, obj); err != nil {
 			log.Error(err, "failed to adopt v2beta1 release state")
 		}
+		r.adoptPostRenderersStatus(obj)
 	}
 
 	// If the release target configuration has changed, we need to uninstall the
@@ -391,6 +393,15 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	obj.Status.LastAttemptedRevisionDigest = ociDigest
 	obj.Status.LastAttemptedConfigDigest = chartutil.DigestValues(digest.Canonical, values).String()
 	obj.Status.LastAttemptedValuesChecksum = ""
+	// Keep track of the post-renderers digest used during the last reconciliation.
+	// This is used to determine if the post-renderers have changed.
+	oldPostRenderersDigest := obj.Status.LastAttemptedPostRenderersDigest
+	// remove stale post-renderers digest
+	obj.Status.LastAttemptedPostRenderersDigest = ""
+	if obj.Spec.PostRenderers != nil {
+		// Update the post-renderers digest if the post-renderers exist.
+		obj.Status.LastAttemptedPostRenderersDigest = postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()
+	}
 	obj.Status.LastReleaseRevision = 0
 
 	// Construct config factory for any further Helm actions.
@@ -409,9 +420,10 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 
 	// Off we go!
 	if err = intreconcile.NewAtomicRelease(patchHelper, cfg, r.EventRecorder, r.FieldManager).Reconcile(ctx, &intreconcile.Request{
-		Object: obj,
-		Chart:  loadedChart,
-		Values: values,
+		Object:                    obj,
+		Chart:                     loadedChart,
+		Values:                    values,
+		PreviousPostrendersDigest: oldPostRenderersDigest,
 	}); err != nil {
 		if errors.Is(err, intreconcile.ErrMustRequeue) {
 			return ctrl.Result{Requeue: true}, nil
@@ -644,6 +656,20 @@ func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter g
 	obj.Status.LastReleaseRevision = 0
 
 	return nil
+}
+
+// adoptPostRenderersStatus attempts to set obj.Status.LastAttemptedPostRenderersDigest
+// for v1beta1 and v1beta2 HelmReleases.
+func (*HelmReleaseReconciler) adoptPostRenderersStatus(obj *v2.HelmRelease) {
+	if obj.GetGeneration() != obj.Status.ObservedGeneration {
+		return
+	}
+
+	// if we have a reconciled object with PostRenderers not reflected in the
+	// status, we need to update the status.
+	if obj.Spec.PostRenderers != nil && obj.Status.LastAttemptedPostRenderersDigest == "" {
+		obj.Status.LastAttemptedPostRenderersDigest = postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()
+	}
 }
 
 func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {
