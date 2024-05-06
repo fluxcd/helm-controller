@@ -34,7 +34,7 @@ import (
 	"github.com/fluxcd/pkg/ssa"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/acl"
 	"github.com/fluxcd/helm-controller/internal/strings"
 )
@@ -43,22 +43,22 @@ import (
 // based on the given Request data.
 //
 // It does this by building a v1beta2.HelmChart from the template declared in
-// the v2beta2.HelmRelease, and then reconciling that v1beta2.HelmChart using
+// the v2.HelmRelease, and then reconciling that v1beta2.HelmChart using
 // a server-side apply.
 //
 // When the server-side apply succeeds, the namespaced name of the chart is
-// written to the Status.HelmChart field of the v2beta2.HelmRelease. If the
+// written to the Status.HelmChart field of the v2.HelmRelease. If the
 // server-side apply fails, the error is returned to the caller and indicates
 // they should retry.
 //
 // When at the beginning of the reconciliation the deletion timestamp is set
-// on the v2beta2.HelmRelease, or the Status.HelmChart differs from the
+// on the v2.HelmRelease, or the Status.HelmChart differs from the
 // namespaced name of the chart to be applied, the existing chart is deleted.
 // The deletion is observed, and when it completes, the Status.HelmChart is
 // cleared. If the deletion fails, the error is returned to the caller and
 // indicates they should retry.
 //
-// In case the v2beta2.HelmRelease is marked for deletion, the reconciler will
+// In case the v2.HelmRelease is marked for deletion, the reconciler will
 // not continue to attempt to create or update the v1beta2.HelmChart.
 type HelmChartTemplate struct {
 	client        client.Client

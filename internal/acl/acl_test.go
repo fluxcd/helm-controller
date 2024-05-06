@@ -17,11 +17,13 @@ limitations under the License.
 package acl
 
 import (
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	"testing"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"testing"
+
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
 
 func TestAllowsAccessTo(t *testing.T) {

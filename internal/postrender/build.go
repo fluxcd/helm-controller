@@ -19,7 +19,7 @@ package postrender
 import (
 	helmpostrender "helm.sh/helm/v3/pkg/postrender"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
 
 // BuildPostRenderers creates the post-renderer instances from a HelmRelease
@@ -32,10 +32,8 @@ func BuildPostRenderers(rel *v2.HelmRelease) helmpostrender.PostRenderer {
 	for _, r := range rel.Spec.PostRenderers {
 		if r.Kustomize != nil {
 			renderers = append(renderers, &Kustomize{
-				Patches:               r.Kustomize.Patches,
-				PatchesStrategicMerge: r.Kustomize.PatchesStrategicMerge,
-				PatchesJSON6902:       r.Kustomize.PatchesJSON6902,
-				Images:                r.Kustomize.Images,
+				Patches: r.Kustomize.Patches,
+				Images:  r.Kustomize.Images,
 			})
 		}
 	}

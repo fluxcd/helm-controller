@@ -91,6 +91,14 @@ jobs:
           kubectl -n helm-system rollout status deploy/helm-controller --timeout=1m
         env:
           KUBEBUILDER_ASSETS: ${{ github.workspace }}/kubebuilder/bin
+      - name: Test samples
+        run: |
+          kubectl create ns samples
+          kubectl -n samples apply -f config/samples
+          kubectl -n samples wait hr/podinfo-ocirepository --for=condition=ready --timeout=4m
+          kubectl -n samples wait hr/podinfo-gitrepository --for=condition=ready --timeout=4m
+          kubectl -n samples wait hr/podinfo-helmrepository --for=condition=ready --timeout=4m
+          kubectl delete ns samples
       - name: Install sources
         run: |
           kubectl -n helm-system apply -f config/testdata/sources

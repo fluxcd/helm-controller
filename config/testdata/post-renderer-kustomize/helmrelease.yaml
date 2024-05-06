@@ -16,20 +16,20 @@ spec:
     fullnameOverride: mypodinfo
   postRenderers:
   - kustomize: 
-      patchesStrategicMerge:
-      - kind: Deployment
-        apiVersion: apps/v1
-        metadata:
-          name: mypodinfo
-          labels:
-            xxxx: yyyy
-      patchesJson6902:
+      patches:
+      - patch: |
+          kind: Deployment
+          apiVersion: apps/v1
+          metadata:
+            name: mypodinfo
+            labels:
+              xxxx: yyyy
       - target:
           group: apps
           version: v1
           kind: Deployment
           name: mypodinfo
-        patch:
-        - op: add
-          path: /metadata/labels/yyyy
-          value: xxxx
+        patch: |
+          - op: add
+            path: /metadata/labels/yyyy
+            value: xxxx

@@ -22,16 +22,16 @@ import (
 	helmaction "helm.sh/helm/v3/pkg/action"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
 
 // TestOption can be used to modify Helm's action.ReleaseTesting after the
-// instructions from the v2beta2.HelmRelease have been applied. This is for
+// instructions from the v2.HelmRelease have been applied. This is for
 // example useful to enable the dry-run setting as a CLI.
 type TestOption func(action *helmaction.ReleaseTesting)
 
 // Test runs the Helm test action with the provided config, using the
-// v2beta2.HelmReleaseSpec of the given object to determine the target release
+// v2.HelmReleaseSpec of the given object to determine the target release
 // and test configuration.
 //
 // It does not determine if there is a desire to perform the action, this is

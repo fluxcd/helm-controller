@@ -25,19 +25,19 @@ import (
 	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/postrender"
 	"github.com/fluxcd/helm-controller/internal/release"
 )
 
 // UpgradeOption can be used to modify Helm's action.Upgrade after the instructions
-// from the v2beta2.HelmRelease have been applied. This is for example useful to
+// from the v2.HelmRelease have been applied. This is for example useful to
 // enable the dry-run setting as a CLI.
 type UpgradeOption func(upgrade *helmaction.Upgrade)
 
 // Upgrade runs the Helm upgrade action with the provided config, using the
-// v2beta2.HelmReleaseSpec of the given object to determine the target release
+// v2.HelmReleaseSpec of the given object to determine the target release
 // and upgrade configuration.
 //
 // It performs the upgrade according to the spec, which includes upgrading the

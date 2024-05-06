@@ -58,7 +58,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/chartutil"
@@ -424,7 +424,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}), nil
 }
 
-// reconcileDelete deletes the v1beta2.HelmChart of the v2beta2.HelmRelease,
+// reconcileDelete deletes the v1beta2.HelmChart of the v2.HelmRelease,
 // and uninstalls the Helm release if the resource has not been suspended.
 func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, obj *v2.HelmRelease) (ctrl.Result, error) {
 	// Only uninstall the release and delete the HelmChart resource if the
@@ -566,7 +566,7 @@ func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter g
 	return intreconcile.NewUninstall(cfg, r.EventRecorder).Reconcile(ctx, &intreconcile.Request{Object: obj})
 }
 
-// checkDependencies checks if the dependencies of the given v2beta2.HelmRelease
+// checkDependencies checks if the dependencies of the given v2.HelmRelease
 // are Ready.
 // It returns an error if a dependency can not be retrieved or is not Ready,
 // otherwise nil.
@@ -592,10 +592,10 @@ func (r *HelmReleaseReconciler) checkDependencies(ctx context.Context, obj *v2.H
 	return nil
 }
 
-// adoptLegacyRelease attempts to adopt a v2beta1 release into a v2beta2
+// adoptLegacyRelease attempts to adopt a v2beta1 release into a v2
 // release.
 // This is done by retrieving the last successful release from the Helm storage
-// and converting it to a v2beta2 release snapshot.
+// and converting it to a v2 release snapshot.
 // If the v2beta1 release has already been adopted, this function is a no-op.
 func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter genericclioptions.RESTClientGetter, obj *v2.HelmRelease) error {
 	if obj.Status.LastReleaseRevision < 1 || len(obj.Status.History) > 0 {
@@ -628,7 +628,7 @@ func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter g
 		return err
 	}
 
-	// Convert it to a v2beta2 release snapshot.
+	// Convert it to a v2 release snapshot.
 	snap := release.ObservedToSnapshot(release.ObserveRelease(rls))
 
 	// If tests are enabled, include them as well.
@@ -730,7 +730,7 @@ func (r *HelmReleaseReconciler) getSourceFromOCIRef(ctx context.Context, obj *v2
 
 // waitForHistoryCacheSync returns a function that can be used to wait for the
 // cache backing the Kubernetes client to be in sync with the current state of
-// the v2beta2.HelmRelease.
+// the v2.HelmRelease.
 // This is a trade-off between not caching at all, and introducing a slight
 // delay to ensure we always have the latest history state.
 func (r *HelmReleaseReconciler) waitForHistoryCacheSync(obj *v2.HelmRelease) wait.ConditionWithContextFunc {

@@ -1,4 +1,4 @@
-apiVersion: helm.toolkit.fluxcd.io/v2beta2
+apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: podinfo-gitrepository
@@ -10,9 +10,3 @@ spec:
       sourceRef:
         kind: GitRepository
         name: podinfo
-      interval: 1m
-  upgrade:
-    remediation:
-      remediateLastFailure: true
-  test:
-    enable: true

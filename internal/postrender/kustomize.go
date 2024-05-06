@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"sync"
 
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/resmap"
 	kustypes "sigs.k8s.io/kustomize/api/types"
@@ -34,12 +33,6 @@ import (
 type Kustomize struct {
 	// Patches is a list of patches to apply to the rendered manifests.
 	Patches []kustomize.Patch
-	// PatchesStrategicMerge is a list of strategic merge patches to apply to
-	// the rendered manifests.
-	PatchesStrategicMerge []apiextensionsv1.JSON
-	// PatchesJSON6902 is a list of JSON patches to apply to the rendered
-	// manifests.
-	PatchesJSON6902 []kustomize.JSON6902Patch
 	// Images is a list of images to replace in the rendered manifests.
 	Images []kustomize.Image
 }
@@ -63,23 +56,6 @@ func (k *Kustomize) Run(renderedManifests *bytes.Buffer) (modifiedManifests *byt
 		cfg.Patches = append(cfg.Patches, kustypes.Patch{
 			Patch:  m.Patch,
 			Target: adaptSelector(m.Target),
-		})
-	}
-
-	// Add strategic merge patches.
-	for _, m := range k.PatchesStrategicMerge {
-		cfg.PatchesStrategicMerge = append(cfg.PatchesStrategicMerge, kustypes.PatchStrategicMerge(m.Raw))
-	}
-
-	// Add JSON 6902 patches.
-	for i, m := range k.PatchesJSON6902 {
-		patch, err := json.Marshal(m.Patch)
-		if err != nil {
-			return nil, err
-		}
-		cfg.PatchesJson6902 = append(cfg.PatchesJson6902, kustypes.Patch{
-			Patch:  string(patch),
-			Target: adaptSelector(&k.PatchesJSON6902[i].Target),
 		})
 	}
 

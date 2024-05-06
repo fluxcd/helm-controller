@@ -27,7 +27,7 @@ import (
 
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/release"
 )
@@ -90,7 +90,7 @@ func LastRelease(config *helmaction.Configuration, releaseName string) (*helmrel
 	return rls, nil
 }
 
-// VerifySnapshot verifies the data of the given v2beta2.Snapshot
+// VerifySnapshot verifies the data of the given v2.Snapshot
 // matches the release object in the Helm storage. It returns the verified
 // release, or an error of type ErrReleaseNotFound, ErrReleaseDisappeared,
 // ErrReleaseDigest or ErrReleaseNotObserved indicating the reason for the
@@ -114,7 +114,7 @@ func VerifySnapshot(config *helmaction.Configuration, snapshot *v2.Snapshot) (rl
 	return rls, nil
 }
 
-// VerifyReleaseObject verifies the data of the given v2beta2.Snapshot
+// VerifyReleaseObject verifies the data of the given v2.Snapshot
 // matches the given Helm release object. It returns an error of type
 // ErrReleaseDigest or ErrReleaseNotObserved indicating the reason for the
 // verification failure, or nil.

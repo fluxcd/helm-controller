@@ -18,16 +18,14 @@ package postrender
 
 import (
 	"bytes"
-	"encoding/json"
 	"testing"
 
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/yaml"
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
 
 const replaceImageMock = `apiVersion: v1
@@ -61,14 +59,12 @@ spec:
 
 func Test_postRendererKustomize_Run(t *testing.T) {
 	tests := []struct {
-		name                  string
-		renderedManifests     string
-		patches               string
-		patchesStrategicMerge string
-		patchesJson6902       string
-		images                string
-		expectManifests       string
-		expectErr             bool
+		name              string
+		renderedManifests string
+		patches           string
+		images            string
+		expectManifests   string
+		expectErr         bool
 	}{
 		{
 			name:              "image tag",
@@ -121,12 +117,12 @@ spec:
 		{
 			name:              "json 6902",
 			renderedManifests: json6902Mock,
-			patchesJson6902: `
+			patches: `
 - target:
     version: v1
     kind: Pod
     name: json6902
-  patch:
+  patch: |
     - op: test
       path: /metadata/annotations/c
       value: foo
@@ -191,33 +187,6 @@ metadata:
 `,
 		},
 		{
-			name:              "strategic merge test",
-			renderedManifests: strategicMergeMock,
-			patchesStrategicMerge: `
-- apiVersion: apps/v1
-  kind: Deployment
-  metadata:
-    name: nginx
-  spec:
-    template:
-      spec:
-        containers:
-          - name: nginx
-            image: nignx:latest
-`,
-			expectManifests: `apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: nginx
-spec:
-  template:
-    spec:
-      containers:
-      - image: nignx:latest
-        name: nginx
-`,
-		},
-		{
 			name:              "targeted strategic merge test",
 			renderedManifests: strategicMergeMock,
 			patches: `
@@ -255,14 +224,12 @@ spec:
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			spec, err := mockKustomize(tt.patches, tt.patchesStrategicMerge, tt.patchesJson6902, tt.images)
+			spec, err := mockKustomize(tt.patches, tt.images)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			k := &Kustomize{
-				Patches:               spec.Patches,
-				PatchesStrategicMerge: spec.PatchesStrategicMerge,
-				PatchesJSON6902:       spec.PatchesJSON6902,
-				Images:                spec.Images,
+				Patches: spec.Patches,
+				Images:  spec.Images,
 			}
 			gotModifiedManifests, err := k.Run(bytes.NewBufferString(tt.renderedManifests))
 			if tt.expectErr {
@@ -277,21 +244,9 @@ spec:
 	}
 }
 
-func mockKustomize(patches, patchesStrategicMerge, patchesJson6902, images string) (*v2.Kustomize, error) {
+func mockKustomize(patches, images string) (*v2.Kustomize, error) {
 	var targeted []kustomize.Patch
 	if err := yaml.Unmarshal([]byte(patches), &targeted); err != nil {
-		return nil, err
-	}
-	b, err := yaml.YAMLToJSON([]byte(patchesStrategicMerge))
-	if err != nil {
-		return nil, err
-	}
-	var strategicMerge []v1.JSON
-	if err := json.Unmarshal(b, &strategicMerge); err != nil {
-		return nil, err
-	}
-	var json6902 []kustomize.JSON6902Patch
-	if err := yaml.Unmarshal([]byte(patchesJson6902), &json6902); err != nil {
 		return nil, err
 	}
 	var imgs []kustomize.Image
@@ -299,9 +254,7 @@ func mockKustomize(patches, patchesStrategicMerge, patchesJson6902, images strin
 		return nil, err
 	}
 	return &v2.Kustomize{
-		Patches:               targeted,
-		PatchesStrategicMerge: strategicMerge,
-		PatchesJSON6902:       json6902,
-		Images:                imgs,
+		Patches: targeted,
+		Images:  imgs,
 	}, nil
 }

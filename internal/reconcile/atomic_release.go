@@ -35,7 +35,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2beta2"
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/diff"
 	interrors "github.com/fluxcd/helm-controller/internal/errors"
@@ -314,10 +314,6 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 			ignoreFailures = remediation.MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures)
 		}
 		req.Object.Status.History.Truncate(ignoreFailures)
-
-		// TODO(hidde): this allows existing UIs to continue to display this
-		//  field, but should be removed in a future release.
-		req.Object.Status.LastAppliedRevision = req.Object.Status.History.Latest().ChartVersion
 
 		if forceRequested {
 			log.Info(msgWithReason("forcing upgrade for in-sync release", "force requested through annotation"))

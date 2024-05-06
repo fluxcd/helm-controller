@@ -54,7 +54,7 @@ const (
 
 	// AdoptLegacyReleases enables the adoption of the historical Helm release
 	// based on the status fields from a v2beta1 HelmRelease object.
-	// This is enabled by default to support an upgrade path from v2beta1 to v2beta2
+	// This is enabled by default to support an upgrade path from v2beta1 to v2
 	// without the need to upgrade the Helm release. But it can be disabled to
 	// avoid potential abuse of the adoption mechanism.
 	AdoptLegacyReleases = "AdoptLegacyReleases"
