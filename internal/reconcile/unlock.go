@@ -41,7 +41,7 @@ import (
 // This write to the Helm storage is observed, and updates the Status.History
 // field if the persisted object targets the same release version.
 //
-// Any pending state marks the v2beta2.HelmRelease object with
+// Any pending state marks the v2.HelmRelease object with
 // ReleasedCondition=False, even if persisting the object to the Helm storage
 // fails.
 //

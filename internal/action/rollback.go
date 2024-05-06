@@ -23,7 +23,7 @@ import (
 )
 
 // RollbackOption can be used to modify Helm's action.Rollback after the
-// instructions from the v2beta2.HelmRelease have been applied. This is for
+// instructions from the v2.HelmRelease have been applied. This is for
 // example useful to enable the dry-run setting as a CLI.
 type RollbackOption func(*helmaction.Rollback)
 

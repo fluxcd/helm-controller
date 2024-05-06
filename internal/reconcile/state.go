@@ -31,7 +31,7 @@ import (
 )
 
 // ReleaseStatus represents the status of a Helm release as determined by
-// comparing the Helm storage with the v2beta2.HelmRelease object.
+// comparing the Helm storage with the v2.HelmRelease object.
 type ReleaseStatus string
 
 // String returns the string representation of the release status.
@@ -47,10 +47,10 @@ const (
 	// Helm storage.
 	ReleaseStatusAbsent ReleaseStatus = "Absent"
 	// ReleaseStatusUnmanaged indicates that the release is present in the Helm
-	// storage, but is not managed by the v2beta2.HelmRelease object.
+	// storage, but is not managed by the v2.HelmRelease object.
 	ReleaseStatusUnmanaged ReleaseStatus = "Unmanaged"
 	// ReleaseStatusOutOfSync indicates that the release is present in the Helm
-	// storage, but is not in sync with the v2beta2.HelmRelease object.
+	// storage, but is not in sync with the v2.HelmRelease object.
 	ReleaseStatusOutOfSync ReleaseStatus = "OutOfSync"
 	// ReleaseStatusDrifted indicates that the release is present in the Helm
 	// storage, but the cluster state has drifted from the manifest in the
@@ -63,7 +63,7 @@ const (
 	// storage, but has not been tested.
 	ReleaseStatusUntested ReleaseStatus = "Untested"
 	// ReleaseStatusInSync indicates that the release is present in the Helm
-	// storage, and is in sync with the v2beta2.HelmRelease object.
+	// storage, and is in sync with the v2.HelmRelease object.
 	ReleaseStatusInSync ReleaseStatus = "InSync"
 	// ReleaseStatusFailed indicates that the release is present in the Helm
 	// storage, but has failed.
@@ -71,7 +71,7 @@ const (
 )
 
 // ReleaseState represents the state of a Helm release as determined by
-// comparing the Helm storage with the v2beta2.HelmRelease object.
+// comparing the Helm storage with the v2.HelmRelease object.
 type ReleaseState struct {
 	// Status is the status of the release.
 	Status ReleaseStatus
@@ -83,7 +83,7 @@ type ReleaseState struct {
 }
 
 // DetermineReleaseState determines the state of the Helm release as compared
-// to the v2beta2.HelmRelease object. It returns a ReleaseState that indicates
+// to the v2.HelmRelease object. It returns a ReleaseState that indicates
 // the status of the release, and an error if the state could not be determined.
 func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *Request) (ReleaseState, error) {
 	rls, err := action.LastRelease(cfg.Build(nil), req.Object.GetReleaseName())
