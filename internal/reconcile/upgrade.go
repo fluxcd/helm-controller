@@ -145,7 +145,7 @@ func (r *Upgrade) failure(req *Request, buffer *action.LogBuffer, err error) {
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
 		eventMeta(req.Chart.Metadata.Version, chartutil.DigestValues(digest.Canonical, req.Values).String(),
-			addOCIDigest(req.Object.Status.LastAttemptedRevisionDigest)),
+			addAppVersion(req.Chart.AppVersion()), addOCIDigest(req.Object.Status.LastAttemptedRevisionDigest)),
 		corev1.EventTypeWarning,
 		v2.UpgradeFailedReason,
 		eventMessageWithLog(msg, buffer),
@@ -172,7 +172,7 @@ func (r *Upgrade) success(req *Request) {
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
-		eventMeta(cur.ChartVersion, cur.ConfigDigest, addOCIDigest(cur.OCIDigest)),
+		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.UpgradeSucceededReason,
 		msg,

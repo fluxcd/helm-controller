@@ -161,6 +161,7 @@ func ObservedToSnapshot(rls Observation) *v2.Snapshot {
 		Name:          rls.Name,
 		Namespace:     rls.Namespace,
 		Version:       rls.Version,
+		AppVersion:    rls.ChartMetadata.AppVersion,
 		ChartName:     rls.ChartMetadata.Name,
 		ChartVersion:  rls.ChartMetadata.Version,
 		ConfigDigest:  chartutil.DigestValues(digest.Canonical, rls.Config).String(),

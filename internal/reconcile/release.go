@@ -203,6 +203,9 @@ type addMeta func(map[string]string)
 // metaOCIDigestKey is the key for the OCI digest metadata.
 const metaOCIDigestKey = "oci-digest"
 
+// metaAppVersionKey is the key for the app version found in chart metadata.
+const metaAppVersionKey = "app-version"
+
 // eventMeta returns the event (annotation) metadata based on the given
 // parameters.
 func eventMeta(revision, token string, metas ...addMeta) map[string]string {
@@ -231,6 +234,17 @@ func addOCIDigest(digest string) addMeta {
 				m = make(map[string]string)
 			}
 			m[eventMetaGroupKey(metaOCIDigestKey)] = digest
+		}
+	}
+}
+
+func addAppVersion(appVersion string) addMeta {
+	return func(m map[string]string) {
+		if appVersion != "" {
+			if m == nil {
+				m = make(map[string]string)
+			}
+			m[eventMetaGroupKey(metaAppVersionKey)] = appVersion
 		}
 	}
 }

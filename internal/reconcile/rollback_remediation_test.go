@@ -414,6 +414,7 @@ func TestRollbackRemediation_failure(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						eventMetaGroupKey(eventv1.MetaRevisionKey): prev.Chart.Metadata.Version,
+						eventMetaGroupKey(metaAppVersionKey):       prev.Chart.Metadata.AppVersion,
 						eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
 					},
 				},
@@ -473,6 +474,7 @@ func TestRollbackRemediation_success(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					eventMetaGroupKey(eventv1.MetaRevisionKey): prev.Chart.Metadata.Version,
+					eventMetaGroupKey(metaAppVersionKey):       prev.Chart.Metadata.AppVersion,
 					eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
 				},
 			},

@@ -2243,6 +2243,18 @@ int
 </tr>
 <tr>
 <td>
+<code>appVersion</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Version is the version of the release object in storage.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>status</code><br>
 <em>
 string
