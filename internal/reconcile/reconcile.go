@@ -83,9 +83,6 @@ type Request struct {
 	// Values is the Helm chart values to be used for the installation or
 	// upgrade.
 	Values helmchartutil.Values
-	// PreviousPostrendersDigest is the digest of the post-renderers that were used
-	// during the last reconciliation.
-	PreviousPostrendersDigest string
 }
 
 // ActionReconciler is an interface which defines the methods that a reconciler

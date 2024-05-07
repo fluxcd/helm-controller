@@ -875,6 +875,11 @@ type HelmReleaseStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// ObservedPostRenderersDigest is the digest for the post-renderers of
+	// the last successful reconciliation attempt.
+	// +optional
+	ObservedPostRenderersDigest string `json:"ObservedPostRenderersDigest,omitempty"`
+
 	meta.ReconcileRequestStatus `json:",inline"`
 
 	// Conditions holds the conditions for the HelmRelease.
@@ -949,11 +954,6 @@ type HelmReleaseStatus struct {
 	// by v2beta1 HelmReleases.
 	// +optional
 	LastAttemptedConfigDigest string `json:"lastAttemptedConfigDigest,omitempty"`
-
-	// LastAttemptedPostRenderersDigest is the digest for the post-renderers of
-	// the last reconciliation attempt.
-	// +optional
-	LastAttemptedPostRenderersDigest string `json:"lastAttemptedPostRenderersDigest,omitempty"`
 
 	// LastAttemptedReleaseAction is the last release action performed for this
 	// HelmRelease. It is used to determine the active remediation strategy.

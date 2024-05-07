@@ -1434,6 +1434,19 @@ int64
 </tr>
 <tr>
 <td>
+<code>ObservedPostRenderersDigest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ObservedPostRenderersDigest is the digest for the post-renderers of
+the last successful reconciliation attempt.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>lastAttemptedGeneration</code><br>
 <em>
 int64
@@ -1619,19 +1632,6 @@ string
 <em>(Optional)</em>
 <p>LastAttemptedConfigDigest is the digest for the config (better known as
 &ldquo;values&rdquo;) of the last reconciliation attempt.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>lastAttemptedPostRenderersDigest</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>LastAttemptedPostRenderersDigest is the digest for the post-renderers of
-the last reconciliation attempt.</p>
 </td>
 </tr>
 <tr>

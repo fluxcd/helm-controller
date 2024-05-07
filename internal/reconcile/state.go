@@ -27,7 +27,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/fluxcd/helm-controller/internal/action"
+	"github.com/fluxcd/helm-controller/internal/digest"
 	interrors "github.com/fluxcd/helm-controller/internal/errors"
+	"github.com/fluxcd/helm-controller/internal/postrender"
 )
 
 // ReleaseStatus represents the status of a Helm release as determined by
@@ -142,7 +144,11 @@ func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *
 		}
 
 		// Verify if postrender digest has changed
-		if req.PreviousPostrendersDigest != req.Object.Status.LastAttemptedPostRenderersDigest {
+		var postrenderersDigest string
+		if req.Object.Spec.PostRenderers != nil {
+			postrenderersDigest = postrender.Digest(digest.Canonical, req.Object.Spec.PostRenderers).String()
+		}
+		if postrenderersDigest != req.Object.Status.ObservedPostRenderersDigest {
 			return ReleaseState{Status: ReleaseStatusOutOfSync, Reason: "postrender digest has changed"}, nil
 		}
 

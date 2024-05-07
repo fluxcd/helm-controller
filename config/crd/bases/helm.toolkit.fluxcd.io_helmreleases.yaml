@@ -906,6 +906,11 @@ spec:
               observedGeneration: -1
             description: HelmReleaseStatus defines the observed state of a HelmRelease.
             properties:
+              ObservedPostRenderersDigest:
+                description: |-
+                  ObservedPostRenderersDigest is the digest for the post-renderers of
+                  the last successful reconciliation attempt.
+                type: string
               conditions:
                 description: Conditions holds the conditions for the HelmRelease.
                 items:
@@ -1110,11 +1115,6 @@ spec:
                   to reconcile.
                 format: int64
                 type: integer
-              lastAttemptedPostRenderersDigest:
-                description: |-
-                  LastAttemptedPostRenderersDigest is the digest for the post-renderers of
-                  the last reconciliation attempt.
-                type: string
               lastAttemptedReleaseAction:
                 description: |-
                   LastAttemptedReleaseAction is the last release action performed for this
@@ -2129,6 +2129,11 @@ spec:
               observedGeneration: -1
             description: HelmReleaseStatus defines the observed state of a HelmRelease.
             properties:
+              ObservedPostRenderersDigest:
+                description: |-
+                  ObservedPostRenderersDigest is the digest for the post-renderers of
+                  the last successful reconciliation attempt.
+                type: string
               conditions:
                 description: Conditions holds the conditions for the HelmRelease.
                 items:
@@ -2349,11 +2354,6 @@ spec:
                   by v2beta1 HelmReleases.
                 format: int64
                 type: integer
-              lastAttemptedPostRenderersDigest:
-                description: |-
-                  LastAttemptedPostRenderersDigest is the digest for the post-renderers of
-                  the last reconciliation attempt.
-                type: string
               lastAttemptedReleaseAction:
                 description: |-
                   LastAttemptedReleaseAction is the last release action performed for this
@@ -3427,6 +3427,11 @@ spec:
               observedGeneration: -1
             description: HelmReleaseStatus defines the observed state of a HelmRelease.
             properties:
+              ObservedPostRenderersDigest:
+                description: |-
+                  ObservedPostRenderersDigest is the digest for the post-renderers of
+                  the last successful reconciliation attempt.
+                type: string
               conditions:
                 description: Conditions holds the conditions for the HelmRelease.
                 items:
@@ -3637,11 +3642,6 @@ spec:
                   to reconcile.
                 format: int64
                 type: integer
-              lastAttemptedPostRenderersDigest:
-                description: |-
-                  LastAttemptedPostRenderersDigest is the digest for the post-renderers of
-                  the last reconciliation attempt.
-                type: string
               lastAttemptedReleaseAction:
                 description: |-
                   LastAttemptedReleaseAction is the last release action performed for this

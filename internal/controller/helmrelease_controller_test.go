@@ -1269,7 +1269,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 		}
 
-		obj.Status.LastAttemptedPostRenderersDigest = postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()
+		obj.Status.ObservedPostRenderersDigest = postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()
 		obj.Status.LastAttemptedConfigDigest = chartutil.DigestValues(digest.Canonical, chartMock.Values).String()
 
 		c := fake.NewClientBuilder().
@@ -1304,13 +1304,10 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 
 		// Verify attempted values are set.
 		g.Expect(obj.Status.LastAttemptedGeneration).To(Equal(obj.Generation))
-		g.Expect(obj.Status.LastAttemptedPostRenderersDigest).To(Equal(postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()))
+		g.Expect(obj.Status.ObservedPostRenderersDigest).To(Equal(postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()))
 
 		// verify upgrade succeeded
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
-			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingWithRetryReason, "Helm upgrade succeeded for release %s with chart %s",
-				fmt.Sprintf("%s/%s.v%d", rls.Namespace, rls.Name, rls.Version+1), fmt.Sprintf("%s@%s", chartMock.Name(),
-					chartMock.Metadata.Version)),
 			*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded for release %s with chart %s",
 				fmt.Sprintf("%s/%s.v%d", rls.Namespace, rls.Name, rls.Version+1), fmt.Sprintf("%s@%s", chartMock.Name(),
 					chartMock.Metadata.Version)),

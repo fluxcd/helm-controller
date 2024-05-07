@@ -933,6 +933,11 @@ type HelmReleaseStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// ObservedPostRenderersDigest is the digest for the post-renderers of
+	// the last successful reconciliation attempt.
+	// +optional
+	ObservedPostRenderersDigest string `json:"ObservedPostRenderersDigest,omitempty"`
+
 	// LastAttemptedGeneration is the last generation the controller attempted
 	// to reconcile.
 	// +optional
@@ -1007,11 +1012,6 @@ type HelmReleaseStatus struct {
 	// "values") of the last reconciliation attempt.
 	// +optional
 	LastAttemptedConfigDigest string `json:"lastAttemptedConfigDigest,omitempty"`
-
-	// LastAttemptedPostRenderersDigest is the digest for the post-renderers of
-	// the last reconciliation attempt.
-	// +optional
-	LastAttemptedPostRenderersDigest string `json:"lastAttemptedPostRenderersDigest,omitempty"`
 
 	// LastHandledForceAt holds the value of the most recent force request
 	// value, so a change of the annotation value can be detected.

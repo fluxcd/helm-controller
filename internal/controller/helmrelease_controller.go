@@ -393,15 +393,6 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	obj.Status.LastAttemptedRevisionDigest = ociDigest
 	obj.Status.LastAttemptedConfigDigest = chartutil.DigestValues(digest.Canonical, values).String()
 	obj.Status.LastAttemptedValuesChecksum = ""
-	// Keep track of the post-renderers digest used during the last reconciliation.
-	// This is used to determine if the post-renderers have changed.
-	oldPostRenderersDigest := obj.Status.LastAttemptedPostRenderersDigest
-	// remove stale post-renderers digest
-	obj.Status.LastAttemptedPostRenderersDigest = ""
-	if obj.Spec.PostRenderers != nil {
-		// Update the post-renderers digest if the post-renderers exist.
-		obj.Status.LastAttemptedPostRenderersDigest = postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()
-	}
 	obj.Status.LastReleaseRevision = 0
 
 	// Construct config factory for any further Helm actions.
@@ -420,10 +411,9 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 
 	// Off we go!
 	if err = intreconcile.NewAtomicRelease(patchHelper, cfg, r.EventRecorder, r.FieldManager).Reconcile(ctx, &intreconcile.Request{
-		Object:                    obj,
-		Chart:                     loadedChart,
-		Values:                    values,
-		PreviousPostrendersDigest: oldPostRenderersDigest,
+		Object: obj,
+		Chart:  loadedChart,
+		Values: values,
 	}); err != nil {
 		if errors.Is(err, intreconcile.ErrMustRequeue) {
 			return ctrl.Result{Requeue: true}, nil
@@ -658,8 +648,8 @@ func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter g
 	return nil
 }
 
-// adoptPostRenderersStatus attempts to set obj.Status.LastAttemptedPostRenderersDigest
-// for v1beta1 and v1beta2 HelmReleases.
+// adoptPostRenderersStatus attempts to set obj.Status.ObservedPostRenderersDigest
+// for v2beta1 and v2beta2 HelmReleases.
 func (*HelmReleaseReconciler) adoptPostRenderersStatus(obj *v2.HelmRelease) {
 	if obj.GetGeneration() != obj.Status.ObservedGeneration {
 		return
@@ -667,8 +657,8 @@ func (*HelmReleaseReconciler) adoptPostRenderersStatus(obj *v2.HelmRelease) {
 
 	// if we have a reconciled object with PostRenderers not reflected in the
 	// status, we need to update the status.
-	if obj.Spec.PostRenderers != nil && obj.Status.LastAttemptedPostRenderersDigest == "" {
-		obj.Status.LastAttemptedPostRenderersDigest = postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()
+	if obj.Spec.PostRenderers != nil && obj.Status.ObservedPostRenderersDigest == "" {
+		obj.Status.ObservedPostRenderersDigest = postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()
 	}
 }
 
