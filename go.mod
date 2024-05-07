@@ -35,7 +35,7 @@ require (
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20231212064514-429d0316a3dd
 	github.com/spf13/pflag v1.0.5
 	github.com/wI2L/jsondiff v0.5.2
-	golang.org/x/text v0.14.0
+	golang.org/x/text v0.15.0
 	helm.sh/helm/v3 v3.14.4
 	k8s.io/api v0.30.0
 	k8s.io/apiextensions-apiserver v0.30.0
