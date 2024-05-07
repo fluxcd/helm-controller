@@ -35,7 +35,9 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
+	"github.com/fluxcd/helm-controller/internal/digest"
 	"github.com/fluxcd/helm-controller/internal/kube"
+	"github.com/fluxcd/helm-controller/internal/postrender"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/testutil"
 )
@@ -448,6 +450,34 @@ func Test_DetermineReleaseState(t *testing.T) {
 			},
 			chart:  testutil.BuildChart(),
 			values: map[string]interface{}{"bar": "foo"},
+			want: ReleaseState{
+				Status: ReleaseStatusOutOfSync,
+			},
+		},
+		{
+			name: "postRenderers changed",
+			releases: []*helmrelease.Release{
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   1,
+					Status:    helmrelease.StatusDeployed,
+					Chart:     testutil.BuildChart(),
+				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.PostRenderers = postRenderers2
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					ObservedPostRenderersDigest: postrender.Digest(digest.Canonical, postRenderers).String(),
+				}
+			},
+			chart:  testutil.BuildChart(),
+			values: map[string]interface{}{"foo": "bar"},
 			want: ReleaseState{
 				Status: ReleaseStatusOutOfSync,
 			},

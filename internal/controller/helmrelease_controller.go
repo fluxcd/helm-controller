@@ -353,11 +353,13 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
-	// Attempt to adopt "legacy" v2beta1 release state on a best-effort basis.
-	// If this fails, the controller will fall back to performing an upgrade
-	// to settle on the desired state.
-	// TODO(hidde): remove this in a future release.
+	// Keep feature flagged code paths separate from the main reconciliation
+	// logic to ensure easy removal when the feature flag is removed.
 	if ok, _ := features.Enabled(features.AdoptLegacyReleases); ok {
+		// Attempt to adopt "legacy" v2beta1 release state on a best-effort basis.
+		// If this fails, the controller will fall back to performing an upgrade
+		// to settle on the desired state.
+		// TODO(hidde): remove this in a future release.
 		if err := r.adoptLegacyRelease(ctx, getter, obj); err != nil {
 			log.Error(err, "failed to adopt v2beta1 release state")
 		}

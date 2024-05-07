@@ -192,10 +192,12 @@ func summarize(req *Request) {
 	})
 
 	// remove stale post-renderers digest
-	req.Object.Status.ObservedPostRenderersDigest = ""
-	if req.Object.Spec.PostRenderers != nil {
-		// Update the post-renderers digest if the post-renderers exist.
-		req.Object.Status.ObservedPostRenderersDigest = postrender.Digest(digest.Canonical, req.Object.Spec.PostRenderers).String()
+	if conditions.Get(req.Object, meta.ReadyCondition).Status == metav1.ConditionTrue {
+		req.Object.Status.ObservedPostRenderersDigest = ""
+		if req.Object.Spec.PostRenderers != nil {
+			// Update the post-renderers digest if the post-renderers exist.
+			req.Object.Status.ObservedPostRenderersDigest = postrender.Digest(digest.Canonical, req.Object.Spec.PostRenderers).String()
+		}
 	}
 }
 

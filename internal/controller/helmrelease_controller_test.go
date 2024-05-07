@@ -1197,9 +1197,6 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		chartMock := testutil.BuildChart()
 		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
 		g.Expect(err).ToNot(HaveOccurred())
-		// copy the artifact to mutate the revision
-		ociArtifact := chartArtifact.DeepCopy()
-		ociArtifact.Revision += "@" + chartArtifact.Digest
 
 		ns, err := testEnv.CreateNamespace(context.TODO(), "mock")
 		g.Expect(err).ToNot(HaveOccurred())

@@ -906,11 +906,6 @@ spec:
               observedGeneration: -1
             description: HelmReleaseStatus defines the observed state of a HelmRelease.
             properties:
-              ObservedPostRenderersDigest:
-                description: |-
-                  ObservedPostRenderersDigest is the digest for the post-renderers of
-                  the last successful reconciliation attempt.
-                type: string
               conditions:
                 description: Conditions holds the conditions for the HelmRelease.
                 items:
@@ -1165,6 +1160,11 @@ spec:
                 description: ObservedGeneration is the last observed generation.
                 format: int64
                 type: integer
+              observedPostRenderersDigest:
+                description: |-
+                  ObservedPostRenderersDigest is the digest for the post-renderers of
+                  the last successful reconciliation attempt.
+                type: string
               storageNamespace:
                 description: |-
                   StorageNamespace is the namespace of the Helm release storage for the
@@ -2129,11 +2129,6 @@ spec:
               observedGeneration: -1
             description: HelmReleaseStatus defines the observed state of a HelmRelease.
             properties:
-              ObservedPostRenderersDigest:
-                description: |-
-                  ObservedPostRenderersDigest is the digest for the post-renderers of
-                  the last successful reconciliation attempt.
-                type: string
               conditions:
                 description: Conditions holds the conditions for the HelmRelease.
                 items:
@@ -2404,6 +2399,11 @@ spec:
                 description: ObservedGeneration is the last observed generation.
                 format: int64
                 type: integer
+              observedPostRenderersDigest:
+                description: |-
+                  ObservedPostRenderersDigest is the digest for the post-renderers of
+                  the last successful reconciliation attempt.
+                type: string
               storageNamespace:
                 description: |-
                   StorageNamespace is the namespace of the Helm release storage for the
@@ -3427,11 +3427,6 @@ spec:
               observedGeneration: -1
             description: HelmReleaseStatus defines the observed state of a HelmRelease.
             properties:
-              ObservedPostRenderersDigest:
-                description: |-
-                  ObservedPostRenderersDigest is the digest for the post-renderers of
-                  the last successful reconciliation attempt.
-                type: string
               conditions:
                 description: Conditions holds the conditions for the HelmRelease.
                 items:
@@ -3692,6 +3687,11 @@ spec:
                 description: ObservedGeneration is the last observed generation.
                 format: int64
                 type: integer
+              observedPostRenderersDigest:
+                description: |-
+                  ObservedPostRenderersDigest is the digest for the post-renderers of
+                  the last successful reconciliation attempt.
+                type: string
               storageNamespace:
                 description: |-
                   StorageNamespace is the namespace of the Helm release storage for the

@@ -19,10 +19,10 @@ package postrender
 import (
 	"encoding/json"
 
+	"github.com/opencontainers/go-digest"
 	helmpostrender "helm.sh/helm/v3/pkg/postrender"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
-	"github.com/opencontainers/go-digest"
 )
 
 // BuildPostRenderers creates the post-renderer instances from a HelmRelease

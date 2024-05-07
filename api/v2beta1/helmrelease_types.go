@@ -878,7 +878,7 @@ type HelmReleaseStatus struct {
 	// ObservedPostRenderersDigest is the digest for the post-renderers of
 	// the last successful reconciliation attempt.
 	// +optional
-	ObservedPostRenderersDigest string `json:"ObservedPostRenderersDigest,omitempty"`
+	ObservedPostRenderersDigest string `json:"observedPostRenderersDigest,omitempty"`
 
 	meta.ReconcileRequestStatus `json:",inline"`
 
