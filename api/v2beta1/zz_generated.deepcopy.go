@@ -21,6 +21,7 @@ limitations under the License.
 package v2beta1
 
 import (
+	"github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/api/v2beta2"
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -306,11 +307,11 @@ func (in *HelmReleaseStatus) DeepCopyInto(out *HelmReleaseStatus) {
 	}
 	if in.History != nil {
 		in, out := &in.History, &out.History
-		*out = make(v2beta2.Snapshots, len(*in))
+		*out = make(v2.Snapshots, len(*in))
 		for i := range *in {
 			if (*in)[i] != nil {
 				in, out := &(*in)[i], &(*out)[i]
-				*out = new(v2beta2.Snapshot)
+				*out = new(v2.Snapshot)
 				(*in).DeepCopyInto(*out)
 			}
 		}

@@ -1003,8 +1003,8 @@ spec:
                         this field will be used to distinguish between the old and new methods.
                       type: string
                     appVersion:
-                      description: Version is the version of the release object in
-                        storage.
+                      description: AppVersion is the chart app version of the release
+                        object in storage.
                       type: string
                     chartName:
                       description: ChartName is the chart name of the release object
@@ -2223,6 +2223,10 @@ spec:
                         APIVersion is the API version of the Snapshot.
                         Provisional: when the calculation method of the Digest field is changed,
                         this field will be used to distinguish between the old and new methods.
+                      type: string
+                    appVersion:
+                      description: AppVersion is the chart app version of the release
+                        object in storage.
                       type: string
                     chartName:
                       description: ChartName is the chart name of the release object
@@ -3508,6 +3512,10 @@ spec:
                         APIVersion is the API version of the Snapshot.
                         Provisional: when the calculation method of the Digest field is changed,
                         this field will be used to distinguish between the old and new methods.
+                      type: string
+                    appVersion:
+                      description: AppVersion is the chart app version of the release
+                        object in storage.
                       type: string
                     chartName:
                       description: ChartName is the chart name of the release object

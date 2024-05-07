@@ -27,6 +27,8 @@ import (
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
+
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
 
 const (
@@ -976,7 +978,7 @@ type HelmReleaseStatus struct {
 	// History holds the history of Helm releases performed for this HelmRelease
 	// up to the last successfully completed release.
 	// +optional
-	History Snapshots `json:"history,omitempty"`
+	History v2.Snapshots `json:"history,omitempty"`
 
 	// LastAttemptedReleaseAction is the last release action performed for this
 	// HelmRelease. It is used to determine the active remediation strategy.
