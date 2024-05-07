@@ -1,5 +1,92 @@
 # Changelog
 
+## 1.0.0.rc1
+
+**Release date:** 2024-04-08
+
+This release candidate promotes the `HelmRelease` API from `v2beta2` to `v2`, and
+comes with new features, improvements and bug fixes.
+
+### Highlights
+
+Support for `OCIRepository`and `HelmChart` CRDs referenced in `HelmRelease` resources
+has been added. This allows to reuse a single `source`across multiple `HelmRelease`
+resources. The `OCIRepository` support also provides more flexibility in managing
+Helm charts, as it allows to target a Helm chart with a `tag`, `semver` or a digest.
+It also provides a way to filter tags, hence allowing to target a specific version
+of a Helm chart.
+The recommended way to reference a Helm chart is now through an `OCIRepository`.
+
+The notification mechanism has been improved to provide more detailed metadata
+in the notification payload. The controller now provides the `appVersion` and
+`version` of the Helm chart, and the `oci digest` of the Helm chart artifact when
+available.
+
+In addition, the controller has been updated to Kubernetes v1.30.0,
+Helm v3.14.4, and various other dependencies to their latest version
+to patch upstream CVEs.
+
+#### API changes
+
+The `helm.toolkit.fluxcd.io` CRD contains the following versions:
+- v2 (storage version)
+- v2beta2 (deprecated)
+- v2beta1 (deprecated)
+
+#### Upgrade procedure
+
+The `HelmRelease` v2 API is backwards compatible with v2beta2, except for the following:
+- the deprecated field `.spec.chart.spec.valuesFile` was removed
+- the deprecated field `.spec.postRenders.[].kustomize.patchesStrategicMerge` was removed
+- the deprecated field `.spec.postRenders.[].kustomize.patchesJson6902` was removed
+
+To upgrade from v2beta2, after deploying the new CRD and controller,
+set  `apiVersion: helm.toolkit.fluxcd.io/v2` in the YAML files that
+contain `HelmRelease` definitions and remove the deprecated fields if any.
+Bumping the API version in manifests can be done gradually.
+It is advised to not delay this procedure as the beta versions will be removed after 6 months.
+
+### Full changelog
+
+Improvements:
+- Add the chart app version to status and events metadata 
+  [#968](https://github.com/fluxcd/helm-controller/pull/968)
+- Promote HelmRelease API to v2 (GA) 
+  [#963](https://github.com/fluxcd/helm-controller/pull/963)
+- Add `.spec.ignoreMissingValuesFiles` to HelmChartTemplate API
+  [#942](https://github.com/fluxcd/helm-controller/pull/942)
+- Update HelmChart API to v1 (GA)
+  [#962](https://github.com/fluxcd/helm-controller/pull/962)
+- Update dependencies to Kubernetes 1.30.0
+  [#944](https://github.com/fluxcd/helm-controller/pull/944)
+- Add support for HelmChart as chartRef
+  [#945](https://github.com/fluxcd/helm-controller/pull/945)
+- Add support for OCIRepository as chartRef
+  [#905](https://github.com/fluxcd/helm-controller/pull/905)
+- Update dependencies to Kustomize v5.4.0
+  [#932](https://github.com/fluxcd/helm-controller/pull/932)
+- Add notation verification provider to API
+  [#930](https://github.com/fluxcd/helm-controller/pull/930)
+- Update controller to Helm v3.14.3 and Kubernetes v1.29.0 
+  [#879](https://github.com/fluxcd/helm-controller/pull/879)
+- Update controller-gen to v0.14.0
+  [#910](https://github.com/fluxcd/helm-controller/pull/910)
+- Remove genclient:Namespaced tag 
+  [#901](https://github.com/fluxcd/helm-controller/pull/901)
+
+Fixes:
+- Track changes in `.spec.postRenderers`
+  [#965](https://github.com/fluxcd/helm-controller/pull/965)
+- Update Ready condition during drift correction
+  [#885](https://github.com/fluxcd/helm-controller/pull/885)
+- Fix patching on drift detection
+  [#935](https://github.com/fluxcd/helm-controller/pull/935)
+- Use corev1 event type for sending events
+  [#908](https://github.com/fluxcd/helm-controller/pull/908)
+- Reintroduce missing events for helmChart reconciliation failures 
+  [#907](https://github.com/fluxcd/helm-controller/pull/907)
+
+
 ## 0.37.4
 
 **Release date:** 2024-02-05
