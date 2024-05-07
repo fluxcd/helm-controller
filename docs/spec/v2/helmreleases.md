@@ -1385,7 +1385,7 @@ LAST SEEN   TYPE      REASON             OBJECT                MESSAGE
 88s         Normal    HelmChartInSync    HelmRelease/podinfo   HelmChart/podinfo/podinfo-podinfo with SourceRef 'HelmRepository/podinfo/podinfo' is in-sync
 83s         Normal    InstallSucceeded   HelmRelease/podinfo   Helm install succeeded for release podinfo/podinfo.v1 with chart podinfo@6.5.3
 78s         Warning   TestFailed         HelmRelease/podinfo   Helm test failed for release podinfo/podinfo.v1 with chart podinfo@6.5.3: 1 error occurred:
-            * pod podinfo-fault-test-a0tew failed
+                                                               * pod podinfo-fault-test-a0tew failed
 ```
 
 Besides being reported in Events, the controller may also log reconciliation
@@ -1393,6 +1393,44 @@ errors. The Flux CLI offers commands for filtering the logs for a specific
 HelmRelease, e.g. `flux logs --level=error --kind=HelmRelease --name=<release-name>.`
 
 ## HelmRelease Status
+
+### Events
+
+The controller emits Kubernetes Events to report the result of each Helm action
+performed for a HelmRelease. These events can be used to monitor the progress
+of the HelmRelease and can be forwarded to external systems using 
+[notification-controller alerts](https://fluxcd.io/flux/monitoring/alerts/).
+
+The controller annotates the events with the Helm chart version, app version,
+and with the chart OCI digest if available.
+
+#### Event example
+
+```yaml
+apiVersion: v1
+kind: Event
+metadata:
+  annotations:
+    helm.toolkit.fluxcd.io/app-version: 6.6.1
+    helm.toolkit.fluxcd.io/revision: 6.6.1+0cc9a8446c95
+    helm.toolkit.fluxcd.io/oci-digest: sha256:0cc9a8446c95009ef382f5eade883a67c257f77d50f84e78ecef2aac9428d1e5
+  creationTimestamp: "2024-05-07T05:02:34Z"
+  name: podinfo.17cd1c4e15d474bb
+  namespace: default
+firstTimestamp: "2024-05-07T05:02:34Z"
+involvedObject:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  name: podinfo
+  namespace: default
+lastTimestamp: "2024-05-07T05:02:34Z"
+message: 'Helm test succeeded for release podinfo/podinfo.v2 with chart podinfo@6.6.1+0cc9a8446c95:
+  3 test hooks completed successfully'
+reason: TestSucceeded
+source:
+  component: helm-controller
+type: Normal
+```
 
 ### History
 
@@ -1414,52 +1452,40 @@ metadata:
   name: <release-name>
 status:
   history:
-    - chartName: podinfo
-      chartVersion: 6.5.3
-      configDigest: sha256:803f06d4673b07668ff270301ca54ca5829da3133c1219f47bd9f52a60b22f9f
-      digest: sha256:3036cf7c06fd35b8ccb15c426fed9ce8a059a0a4befab1a47170b6e962c4d784
-      firstDeployed: '2023-12-06T20:38:47Z'
-      lastDeployed: '2023-12-06T20:52:06Z'
+    - appVersion: 6.6.1
+      chartName: podinfo
+      chartVersion: 6.6.1+0cc9a8446c95
+      configDigest: sha256:e15c415d62760896bd8bec192a44c5716dc224db9e0fc609b9ac14718f8f9e56
+      digest: sha256:e59349a6d8cf01d625de9fe73efd94b5e2a8cc8453d1b893ec367cfa2105bae9
+      firstDeployed: "2024-05-07T04:54:21Z"
+      lastDeployed: "2024-05-07T04:54:55Z"
       name: podinfo
       namespace: podinfo
+      ociDigest: sha256:0cc9a8446c95009ef382f5eade883a67c257f77d50f84e78ecef2aac9428d1e5
       status: deployed
       testHooks:
-        podinfo-grpc-test-qulpw:
-          lastCompleted: '2023-12-06T20:52:09Z'
-          lastStarted: '2023-12-06T20:52:07Z'
-          phase: Succeeded
-        podinfo-jwt-test-xe0ch:
-          lastCompleted: '2023-12-06T20:52:12Z'
-          lastStarted: '2023-12-06T20:52:09Z'
-          phase: Succeeded
-        podinfo-service-test-eh6x2:
-          lastCompleted: '2023-12-06T20:52:14Z'
-          lastStarted: '2023-12-06T20:52:12Z'
-          phase: Succeeded
-      version: 3
-    - chartName: podinfo
-      chartVersion: 6.5.3
-      configDigest: sha256:e15c415d62760896bd8bec192a44c5716dc224db9e0fc609b9ac14718f8f9e56
-      digest: sha256:858b157a63889b25379e287e24a9b38beb09a8ae21f31ae2cf7ad53d70744375
-      firstDeployed: '2023-12-06T20:38:47Z'
-      lastDeployed: '2023-12-06T20:39:02Z'
-      name: podinfo
-      namespace: podinfo
-      status: superseded
-      testHooks:
-        podinfo-grpc-test-aiuee:
-          lastCompleted: '2023-12-06T20:39:04Z'
-          lastStarted: '2023-12-06T20:39:02Z'
-          phase: Succeeded
-        podinfo-jwt-test-dme3b:
-          lastCompleted: '2023-12-06T20:39:07Z'
-          lastStarted: '2023-12-06T20:39:04Z'
-          phase: Succeeded
-        podinfo-service-test-fgvte:
-          lastCompleted: '2023-12-06T20:39:09Z'
-          lastStarted: '2023-12-06T20:39:07Z'
+        podinfo-grpc-test-goyey:
+          lastCompleted: "2024-05-07T04:55:11Z"
+          lastStarted: "2024-05-07T04:55:09Z"
           phase: Succeeded
       version: 2
+    - appVersion: 6.6.0
+      chartName: podinfo
+      chartVersion: 6.6.0+cdd538a0167e
+      configDigest: sha256:e15c415d62760896bd8bec192a44c5716dc224db9e0fc609b9ac14718f8f9e56
+      digest: sha256:9be0d34ced6b890a72026749bc0f1f9e3c1a89673e17921bbcc0f27774f31c3a
+      firstDeployed: "2024-05-07T04:54:21Z"
+      lastDeployed: "2024-05-07T04:54:21Z"
+      name: podinfo
+      namespace: podinfo
+      ociDigest: sha256:cdd538a0167e4b51152b71a477e51eb6737553510ce8797dbcc537e1342311bb
+      status: superseded
+      testHooks:
+        podinfo-grpc-test-q0ucx:
+          lastCompleted: "2024-05-07T04:54:25Z"
+          lastStarted: "2024-05-07T04:54:23Z"
+          phase: Succeeded
+      version: 1
 ```
 
 ### Conditions
@@ -1657,6 +1683,14 @@ to perform a Helm install or upgrade with in the
 
 The revision is used by the controller to determine if it should reset the
 [failure counters](#failure-counters) due to a change in the chart version.
+
+### Last Attempted Revision Digest
+
+The helm-controller reports the OCI artifact digest of the Helm chart it last attempted
+to perform a Helm install or upgrade with in the
+`.status.lastAttemptedRevisionDigest` field.
+
+This field is present in status only when `.spec.chartRef.type` is set to `OCIRepository`.
 
 ### Last Attempted Release Action
 
