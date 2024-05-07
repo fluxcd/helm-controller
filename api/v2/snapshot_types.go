@@ -138,6 +138,9 @@ type Snapshot struct {
 	// storage.
 	// +required
 	ChartVersion string `json:"chartVersion"`
+	// AppVersion is the chart app version of the release object in storage.
+	// +optional
+	AppVersion string `json:"appVersion,omitempty"`
 	// ConfigDigest is the checksum of the config (better known as
 	// "values") of the release object in storage.
 	// It has the format of `<algo>:<checksum>`.

@@ -100,6 +100,7 @@ func BuildChart(opts ...ChartOption) *helmchart.Chart {
 				APIVersion: "v1",
 				Name:       "hello",
 				Version:    "0.1.0",
+				AppVersion: "1.2.3",
 			},
 			// This adds a basic template and hooks.
 			Templates: []*helmchart.File{

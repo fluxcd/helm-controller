@@ -342,6 +342,7 @@ func TestInstall_failure(t *testing.T) {
 					Annotations: map[string]string{
 						eventMetaGroupKey(metaOCIDigestKey):        obj.Status.LastAttemptedRevisionDigest,
 						eventMetaGroupKey(eventv1.MetaRevisionKey): chrt.Metadata.Version,
+						eventMetaGroupKey(metaAppVersionKey):       chrt.Metadata.AppVersion,
 						eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
 					},
 				},
@@ -413,6 +414,7 @@ func TestInstall_success(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.Status.History.Latest().ChartVersion,
+						eventMetaGroupKey(metaAppVersionKey):       obj.Status.History.Latest().AppVersion,
 						eventMetaGroupKey(eventv1.MetaTokenKey):    obj.Status.History.Latest().ConfigDigest,
 					},
 				},

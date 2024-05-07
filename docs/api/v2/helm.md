@@ -2277,6 +2277,18 @@ storage.</p>
 </tr>
 <tr>
 <td>
+<code>appVersion</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AppVersion is the chart app version of the release object in storage.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>configDigest</code><br>
 <em>
 string

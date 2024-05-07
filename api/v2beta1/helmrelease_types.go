@@ -29,6 +29,7 @@ import (
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
 
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/api/v2beta2"
 )
 
@@ -931,7 +932,7 @@ type HelmReleaseStatus struct {
 	// Note: this field is provisional to the v2beta2 API, and not actively used
 	// by v2beta1 HelmReleases.
 	// +optional
-	History v2beta2.Snapshots `json:"history,omitempty"`
+	History v2.Snapshots `json:"history,omitempty"`
 
 	// LastAttemptedGeneration is the last generation the controller attempted
 	// to reconcile.

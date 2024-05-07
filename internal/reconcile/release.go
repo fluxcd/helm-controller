@@ -200,8 +200,13 @@ func eventMessageWithLog(msg string, log *action.LogBuffer) string {
 // addMeta is a function that adds metadata to an event map.
 type addMeta func(map[string]string)
 
-// metaOCIDigestKey is the key for the OCI digest metadata.
-const metaOCIDigestKey = "oci-digest"
+const (
+	// metaOCIDigestKey is the key for the chart OCI artifact digest.
+	metaOCIDigestKey = "oci-digest"
+
+	// metaAppVersionKey is the key for the app version found in chart metadata.
+	metaAppVersionKey = "app-version"
+)
 
 // eventMeta returns the event (annotation) metadata based on the given
 // parameters.
@@ -231,6 +236,17 @@ func addOCIDigest(digest string) addMeta {
 				m = make(map[string]string)
 			}
 			m[eventMetaGroupKey(metaOCIDigestKey)] = digest
+		}
+	}
+}
+
+func addAppVersion(appVersion string) addMeta {
+	return func(m map[string]string) {
+		if appVersion != "" {
+			if m == nil {
+				m = make(map[string]string)
+			}
+			m[eventMetaGroupKey(metaAppVersionKey)] = appVersion
 		}
 	}
 }
