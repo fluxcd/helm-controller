@@ -1666,6 +1666,16 @@ The helm-controller reports an observed generation in the HelmRelease's
 `.metadata.generation` which resulted in either a [ready state](#ready-helmrelease),
 or stalled due to error it can not recover from without human intervention.
 
+### Observed Post Renderers Digest
+
+The helm-controller reports the digest for the [post renderers](#post-renderers)
+it last rendered the Helm chart with in the for a successful Helm install or
+upgrade in the `.status.observedPostRenderersDigest` field.
+
+This field is used by the controller to determine if a deployed Helm release
+is in sync with the HelmRelease `spec.postRenderers` configuration and whether
+it should trigger a Helm upgrade.
+
 ### Last Attempted Config Digest
 
 The helm-controller reports the digest for the [values](#values) it last

@@ -67,6 +67,7 @@ import (
 	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/loader"
+	"github.com/fluxcd/helm-controller/internal/postrender"
 	intpredicates "github.com/fluxcd/helm-controller/internal/predicates"
 	intreconcile "github.com/fluxcd/helm-controller/internal/reconcile"
 	"github.com/fluxcd/helm-controller/internal/release"
@@ -352,14 +353,17 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
-	// Attempt to adopt "legacy" v2beta1 release state on a best-effort basis.
-	// If this fails, the controller will fall back to performing an upgrade
-	// to settle on the desired state.
-	// TODO(hidde): remove this in a future release.
+	// Keep feature flagged code paths separate from the main reconciliation
+	// logic to ensure easy removal when the feature flag is removed.
 	if ok, _ := features.Enabled(features.AdoptLegacyReleases); ok {
+		// Attempt to adopt "legacy" v2beta1 release state on a best-effort basis.
+		// If this fails, the controller will fall back to performing an upgrade
+		// to settle on the desired state.
+		// TODO(hidde): remove this in a future release.
 		if err := r.adoptLegacyRelease(ctx, getter, obj); err != nil {
 			log.Error(err, "failed to adopt v2beta1 release state")
 		}
+		r.adoptPostRenderersStatus(obj)
 	}
 
 	// If the release target configuration has changed, we need to uninstall the
@@ -644,6 +648,20 @@ func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter g
 	obj.Status.LastReleaseRevision = 0
 
 	return nil
+}
+
+// adoptPostRenderersStatus attempts to set obj.Status.ObservedPostRenderersDigest
+// for v2beta1 and v2beta2 HelmReleases.
+func (*HelmReleaseReconciler) adoptPostRenderersStatus(obj *v2.HelmRelease) {
+	if obj.GetGeneration() != obj.Status.ObservedGeneration {
+		return
+	}
+
+	// if we have a reconciled object with PostRenderers not reflected in the
+	// status, we need to update the status.
+	if obj.Spec.PostRenderers != nil && obj.Status.ObservedPostRenderersDigest == "" {
+		obj.Status.ObservedPostRenderersDigest = postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()
+	}
 }
 
 func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {

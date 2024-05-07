@@ -1160,6 +1160,11 @@ spec:
                 description: ObservedGeneration is the last observed generation.
                 format: int64
                 type: integer
+              observedPostRenderersDigest:
+                description: |-
+                  ObservedPostRenderersDigest is the digest for the post-renderers of
+                  the last successful reconciliation attempt.
+                type: string
               storageNamespace:
                 description: |-
                   StorageNamespace is the namespace of the Helm release storage for the
@@ -2394,6 +2399,11 @@ spec:
                 description: ObservedGeneration is the last observed generation.
                 format: int64
                 type: integer
+              observedPostRenderersDigest:
+                description: |-
+                  ObservedPostRenderersDigest is the digest for the post-renderers of
+                  the last successful reconciliation attempt.
+                type: string
               storageNamespace:
                 description: |-
                   StorageNamespace is the namespace of the Helm release storage for the
@@ -3677,6 +3687,11 @@ spec:
                 description: ObservedGeneration is the last observed generation.
                 format: int64
                 type: integer
+              observedPostRenderersDigest:
+                description: |-
+                  ObservedPostRenderersDigest is the digest for the post-renderers of
+                  the last successful reconciliation attempt.
+                type: string
               storageNamespace:
                 description: |-
                   StorageNamespace is the namespace of the Helm release storage for the

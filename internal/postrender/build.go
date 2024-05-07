@@ -17,6 +17,9 @@ limitations under the License.
 package postrender
 
 import (
+	"encoding/json"
+
+	"github.com/opencontainers/go-digest"
 	helmpostrender "helm.sh/helm/v3/pkg/postrender"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -42,4 +45,13 @@ func BuildPostRenderers(rel *v2.HelmRelease) helmpostrender.PostRenderer {
 		return nil
 	}
 	return NewCombined(renderers...)
+}
+
+func Digest(algo digest.Algorithm, postrenders []v2.PostRenderer) digest.Digest {
+	digester := algo.Digester()
+	enc := json.NewEncoder(digester.Hash())
+	if err := enc.Encode(postrenders); err != nil {
+		return ""
+	}
+	return digester.Digest()
 }

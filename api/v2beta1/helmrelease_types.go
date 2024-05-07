@@ -875,6 +875,11 @@ type HelmReleaseStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// ObservedPostRenderersDigest is the digest for the post-renderers of
+	// the last successful reconciliation attempt.
+	// +optional
+	ObservedPostRenderersDigest string `json:"observedPostRenderersDigest,omitempty"`
+
 	meta.ReconcileRequestStatus `json:",inline"`
 
 	// Conditions holds the conditions for the HelmRelease.

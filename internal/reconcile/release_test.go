@@ -25,11 +25,14 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
+	"github.com/fluxcd/helm-controller/internal/digest"
+	"github.com/fluxcd/helm-controller/internal/postrender"
 )
 
 const (
@@ -37,67 +40,121 @@ const (
 	mockReleaseNamespace = "mock-ns"
 )
 
+var (
+	postRenderers = []v2.PostRenderer{
+		{
+			Kustomize: &v2.Kustomize{
+				Patches: []kustomize.Patch{
+					{
+						Target: &kustomize.Selector{
+							Kind: "Deployment",
+							Name: "test",
+						},
+						Patch: `|-
+						apiVersion: apps/v1
+						kind: Deployment
+						metadata:
+							name: test
+						spec:
+							replicas: 2
+					`,
+					},
+				},
+			},
+		},
+	}
+
+	postRenderers2 = []v2.PostRenderer{
+		{
+			Kustomize: &v2.Kustomize{
+				Patches: []kustomize.Patch{
+					{
+						Target: &kustomize.Selector{
+							Kind: "Deployment",
+							Name: "test",
+						},
+						Patch: `|-
+						apiVersion: apps/v1
+						kind: Deployment
+						metadata:
+							name: test
+						spec:
+							replicas: 3
+					`,
+					},
+				},
+			},
+		},
+	}
+)
+
 func Test_summarize(t *testing.T) {
 	tests := []struct {
-		name       string
-		generation int64
-		spec       *v2.HelmReleaseSpec
-		conditions []metav1.Condition
-		expect     []metav1.Condition
+		name           string
+		generation     int64
+		spec           *v2.HelmReleaseSpec
+		status         v2.HelmReleaseStatus
+		expectedStatus *v2.HelmReleaseStatus
 	}{
 		{
 			name:       "summarize conditions",
 			generation: 1,
-			conditions: []metav1.Condition{
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.InstallSucceededReason,
-					Message:            "Install complete",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.TestSuccessCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.TestFailedReason,
-					Message:            "test hook(s) failure",
-					ObservedGeneration: 1,
+			status: v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.TestSuccessCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.TestFailedReason,
+						Message:            "test hook(s) failure",
+						ObservedGeneration: 1,
+					},
 				},
 			},
-			expect: []metav1.Condition{
-				{
-					Type:               meta.ReadyCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.InstallSucceededReason,
-					Message:            "Install complete",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.InstallSucceededReason,
-					Message:            "Install complete",
-					ObservedGeneration: 1,
+			expectedStatus: &v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               meta.ReadyCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
 				},
 			},
 		},
 		{
 			name:       "with tests enabled",
 			generation: 1,
-			conditions: []metav1.Condition{
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.InstallSucceededReason,
-					Message:            "Install complete",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.TestSuccessCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.TestSucceededReason,
-					Message:            "test hook(s) succeeded",
-					ObservedGeneration: 1,
+			status: v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.TestSuccessCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.TestSucceededReason,
+						Message:            "test hook(s) succeeded",
+						ObservedGeneration: 1,
+					},
 				},
 			},
 			spec: &v2.HelmReleaseSpec{
@@ -105,47 +162,51 @@ func Test_summarize(t *testing.T) {
 					Enable: true,
 				},
 			},
-			expect: []metav1.Condition{
-				{
-					Type:               meta.ReadyCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.TestSucceededReason,
-					Message:            "test hook(s) succeeded",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.InstallSucceededReason,
-					Message:            "Install complete",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.TestSuccessCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.TestSucceededReason,
-					Message:            "test hook(s) succeeded",
-					ObservedGeneration: 1,
+			expectedStatus: &v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               meta.ReadyCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.TestSucceededReason,
+						Message:            "test hook(s) succeeded",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.TestSuccessCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.TestSucceededReason,
+						Message:            "test hook(s) succeeded",
+						ObservedGeneration: 1,
+					},
 				},
 			},
 		},
 		{
 			name:       "with tests enabled and failure tests",
 			generation: 1,
-			conditions: []metav1.Condition{
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.InstallSucceededReason,
-					Message:            "Install complete",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.TestSuccessCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.TestFailedReason,
-					Message:            "test hook(s) failure",
-					ObservedGeneration: 1,
+			status: v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.TestSuccessCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.TestFailedReason,
+						Message:            "test hook(s) failure",
+						ObservedGeneration: 1,
+					},
 				},
 			},
 			spec: &v2.HelmReleaseSpec{
@@ -153,46 +214,50 @@ func Test_summarize(t *testing.T) {
 					Enable: true,
 				},
 			},
-			expect: []metav1.Condition{
-				{
-					Type:               meta.ReadyCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.TestFailedReason,
-					Message:            "test hook(s) failure",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.InstallSucceededReason,
-					Message:            "Install complete",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.TestSuccessCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.TestFailedReason,
-					Message:            "test hook(s) failure",
-					ObservedGeneration: 1,
+			expectedStatus: &v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               meta.ReadyCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.TestFailedReason,
+						Message:            "test hook(s) failure",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.TestSuccessCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.TestFailedReason,
+						Message:            "test hook(s) failure",
+						ObservedGeneration: 1,
+					},
 				},
 			},
 		},
 		{
 			name: "with test hooks enabled and pending tests",
-			conditions: []metav1.Condition{
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.InstallSucceededReason,
-					Message:            "Install complete",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.TestSuccessCondition,
-					Status:             metav1.ConditionUnknown,
-					Reason:             "AwaitingTests",
-					Message:            "Release is awaiting tests",
-					ObservedGeneration: 1,
+			status: v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.TestSuccessCondition,
+						Status:             metav1.ConditionUnknown,
+						Reason:             "AwaitingTests",
+						Message:            "Release is awaiting tests",
+						ObservedGeneration: 1,
+					},
 				},
 			},
 			spec: &v2.HelmReleaseSpec{
@@ -200,54 +265,58 @@ func Test_summarize(t *testing.T) {
 					Enable: true,
 				},
 			},
-			expect: []metav1.Condition{
-				{
-					Type:               meta.ReadyCondition,
-					Status:             metav1.ConditionUnknown,
-					Reason:             "AwaitingTests",
-					Message:            "Release is awaiting tests",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.InstallSucceededReason,
-					Message:            "Install complete",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.TestSuccessCondition,
-					Status:             metav1.ConditionUnknown,
-					Reason:             "AwaitingTests",
-					Message:            "Release is awaiting tests",
-					ObservedGeneration: 1,
+			expectedStatus: &v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               meta.ReadyCondition,
+						Status:             metav1.ConditionUnknown,
+						Reason:             "AwaitingTests",
+						Message:            "Release is awaiting tests",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.TestSuccessCondition,
+						Status:             metav1.ConditionUnknown,
+						Reason:             "AwaitingTests",
+						Message:            "Release is awaiting tests",
+						ObservedGeneration: 1,
+					},
 				},
 			},
 		},
 		{
 			name:       "with remediation failure",
 			generation: 1,
-			conditions: []metav1.Condition{
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.InstallSucceededReason,
-					Message:            "Install complete",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.TestSuccessCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.TestFailedReason,
-					Message:            "test hook(s) failure",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.RemediatedCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.UninstallFailedReason,
-					Message:            "Uninstall failure",
-					ObservedGeneration: 1,
+			status: v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.TestSuccessCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.TestFailedReason,
+						Message:            "test hook(s) failure",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.RemediatedCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.UninstallFailedReason,
+						Message:            "Uninstall failure",
+						ObservedGeneration: 1,
+					},
 				},
 			},
 			spec: &v2.HelmReleaseSpec{
@@ -255,112 +324,122 @@ func Test_summarize(t *testing.T) {
 					Enable: true,
 				},
 			},
-			expect: []metav1.Condition{
-				{
-					Type:               meta.ReadyCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.UninstallFailedReason,
-					Message:            "Uninstall failure",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.InstallSucceededReason,
-					Message:            "Install complete",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.TestSuccessCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.TestFailedReason,
-					Message:            "test hook(s) failure",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.RemediatedCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.UninstallFailedReason,
-					Message:            "Uninstall failure",
-					ObservedGeneration: 1,
+			expectedStatus: &v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               meta.ReadyCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.UninstallFailedReason,
+						Message:            "Uninstall failure",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.TestSuccessCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.TestFailedReason,
+						Message:            "test hook(s) failure",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.RemediatedCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.UninstallFailedReason,
+						Message:            "Uninstall failure",
+						ObservedGeneration: 1,
+					},
 				},
 			},
 		},
 		{
 			name:       "with remediation success",
 			generation: 1,
-			conditions: []metav1.Condition{
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.UpgradeFailedReason,
-					Message:            "Upgrade failure",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.RemediatedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.RollbackSucceededReason,
-					Message:            "Uninstall complete",
-					ObservedGeneration: 1,
+			status: v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.UpgradeFailedReason,
+						Message:            "Upgrade failure",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.RemediatedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.RollbackSucceededReason,
+						Message:            "Uninstall complete",
+						ObservedGeneration: 1,
+					},
 				},
 			},
-			expect: []metav1.Condition{
-				{
-					Type:               meta.ReadyCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.RollbackSucceededReason,
-					Message:            "Uninstall complete",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.UpgradeFailedReason,
-					Message:            "Upgrade failure",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.RemediatedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.RollbackSucceededReason,
-					Message:            "Uninstall complete",
-					ObservedGeneration: 1,
+			expectedStatus: &v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               meta.ReadyCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.RollbackSucceededReason,
+						Message:            "Uninstall complete",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.UpgradeFailedReason,
+						Message:            "Upgrade failure",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.RemediatedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.RollbackSucceededReason,
+						Message:            "Uninstall complete",
+						ObservedGeneration: 1,
+					},
 				},
 			},
 		},
 		{
 			name:       "with stale ready",
 			generation: 1,
-			conditions: []metav1.Condition{
-				{
-					Type:    meta.ReadyCondition,
-					Status:  metav1.ConditionFalse,
-					Reason:  "ChartNotFound",
-					Message: "chart not found",
-				},
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.UpgradeSucceededReason,
-					Message:            "Upgrade finished",
-					ObservedGeneration: 1,
+			status: v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:    meta.ReadyCondition,
+						Status:  metav1.ConditionFalse,
+						Reason:  "ChartNotFound",
+						Message: "chart not found",
+					},
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.UpgradeSucceededReason,
+						Message:            "Upgrade finished",
+						ObservedGeneration: 1,
+					},
 				},
 			},
-			expect: []metav1.Condition{
-				{
-					Type:               meta.ReadyCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.UpgradeSucceededReason,
-					Message:            "Upgrade finished",
-					ObservedGeneration: 1,
-				},
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.UpgradeSucceededReason,
-					Message:            "Upgrade finished",
-					ObservedGeneration: 1,
+			expectedStatus: &v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               meta.ReadyCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.UpgradeSucceededReason,
+						Message:            "Upgrade finished",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.UpgradeSucceededReason,
+						Message:            "Upgrade finished",
+						ObservedGeneration: 1,
+					},
 				},
 			},
 		},
@@ -372,61 +451,156 @@ func Test_summarize(t *testing.T) {
 					Enable: true,
 				},
 			},
-			conditions: []metav1.Condition{
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.UpgradeSucceededReason,
-					Message:            "Upgrade finished",
-					ObservedGeneration: 4,
-				},
-				{
-					Type:               v2.RemediatedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.RollbackSucceededReason,
-					Message:            "Rollback finished",
-					ObservedGeneration: 3,
-				},
-				{
-					Type:               v2.TestSuccessCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.TestFailedReason,
-					Message:            "test hook(s) failure",
-					ObservedGeneration: 2,
+			status: v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.UpgradeSucceededReason,
+						Message:            "Upgrade finished",
+						ObservedGeneration: 4,
+					},
+					{
+						Type:               v2.RemediatedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.RollbackSucceededReason,
+						Message:            "Rollback finished",
+						ObservedGeneration: 3,
+					},
+					{
+						Type:               v2.TestSuccessCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.TestFailedReason,
+						Message:            "test hook(s) failure",
+						ObservedGeneration: 2,
+					},
 				},
 			},
-			expect: []metav1.Condition{
-				{
-					Type:               meta.ReadyCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.UpgradeSucceededReason,
-					Message:            "Upgrade finished",
-					ObservedGeneration: 5,
-				},
-				{
-					Type:               v2.ReleasedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.UpgradeSucceededReason,
-					Message:            "Upgrade finished",
-					ObservedGeneration: 4,
-				},
-				{
-					Type:               v2.RemediatedCondition,
-					Status:             metav1.ConditionTrue,
-					Reason:             v2.RollbackSucceededReason,
-					Message:            "Rollback finished",
-					ObservedGeneration: 3,
-				},
-				{
-					Type:               v2.TestSuccessCondition,
-					Status:             metav1.ConditionFalse,
-					Reason:             v2.TestFailedReason,
-					Message:            "test hook(s) failure",
-					ObservedGeneration: 2,
+			expectedStatus: &v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               meta.ReadyCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.UpgradeSucceededReason,
+						Message:            "Upgrade finished",
+						ObservedGeneration: 5,
+					},
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.UpgradeSucceededReason,
+						Message:            "Upgrade finished",
+						ObservedGeneration: 4,
+					},
+					{
+						Type:               v2.RemediatedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.RollbackSucceededReason,
+						Message:            "Rollback finished",
+						ObservedGeneration: 3,
+					},
+					{
+						Type:               v2.TestSuccessCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.TestFailedReason,
+						Message:            "test hook(s) failure",
+						ObservedGeneration: 2,
+					},
 				},
 			},
 		},
+		{
+			name:       "with postrender",
+			generation: 1,
+			status: v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
+				},
+				ObservedPostRenderersDigest: postrender.Digest(digest.Canonical, postRenderers).String(),
+			},
+			spec: &v2.HelmReleaseSpec{
+				PostRenderers: postRenderers2,
+			},
+			expectedStatus: &v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               meta.ReadyCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.InstallSucceededReason,
+						Message:            "Install complete",
+						ObservedGeneration: 1,
+					},
+				},
+				ObservedPostRenderersDigest: postrender.Digest(digest.Canonical, postRenderers2).String(),
+			},
+		},
+		{
+			name:       "with PostRenderers and Remediaction success",
+			generation: 1,
+			status: v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.UpgradeFailedReason,
+						Message:            "Upgrade failure",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.RemediatedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.RollbackSucceededReason,
+						Message:            "Uninstall complete",
+						ObservedGeneration: 1,
+					},
+				},
+				ObservedPostRenderersDigest: postrender.Digest(digest.Canonical, postRenderers).String(),
+			},
+			spec: &v2.HelmReleaseSpec{
+				PostRenderers: postRenderers2,
+			},
+			expectedStatus: &v2.HelmReleaseStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               meta.ReadyCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.RollbackSucceededReason,
+						Message:            "Uninstall complete",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.ReleasedCondition,
+						Status:             metav1.ConditionFalse,
+						Reason:             v2.UpgradeFailedReason,
+						Message:            "Upgrade failure",
+						ObservedGeneration: 1,
+					},
+					{
+						Type:               v2.RemediatedCondition,
+						Status:             metav1.ConditionTrue,
+						Reason:             v2.RollbackSucceededReason,
+						Message:            "Uninstall complete",
+						ObservedGeneration: 1,
+					},
+				},
+				ObservedPostRenderersDigest: postrender.Digest(digest.Canonical, postRenderers).String(),
+			},
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
@@ -435,16 +609,15 @@ func Test_summarize(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Generation: tt.generation,
 				},
-				Status: v2.HelmReleaseStatus{
-					Conditions: tt.conditions,
-				},
+				Status: tt.status,
 			}
 			if tt.spec != nil {
 				obj.Spec = *tt.spec.DeepCopy()
 			}
 			summarize(&Request{Object: obj})
 
-			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(tt.expect))
+			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(tt.expectedStatus.Conditions))
+			g.Expect(obj.Status.ObservedPostRenderersDigest).To(Equal(tt.expectedStatus.ObservedPostRenderersDigest))
 		})
 	}
 }
