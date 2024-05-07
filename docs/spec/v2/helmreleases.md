@@ -1675,6 +1675,16 @@ attempted to perform a Helm install or upgrade with in the
 The digest is used to determine if the controller should reset the
 [failure counters](#failure-counters) due to a change in the values.
 
+### Last Attempted Post Renderers Digest
+
+The helm-controller reports the digest for the [post renderers](#post-renderers)
+it last attempted to perform a Helm install or upgrade with in the
+`.status.lastAttemptedPostRenderersDigest` field.
+
+This field is used by the controller to determine if a deployed Helm release
+is in sync with the HelmRelease `spec.PostRenderers` configuration and whether
+it should trigger a Helm upgrade.
+
 ### Last Attempted Revision
 
 The helm-controller reports the revision of the Helm chart it last attempted
