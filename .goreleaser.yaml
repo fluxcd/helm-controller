@@ -6,7 +6,7 @@ builds:
 release:
   extra_files:
     - glob: config/release/*.yaml
-  prerelease: "true"
+  prerelease: "auto"
   header: |
     ## Changelog
 
