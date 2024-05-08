@@ -13,8 +13,6 @@
 - name: area/oci
   description: OCI related issues and pull requests
   color: '#c739ff'
-
-# TODO: enable this when we have a release/v1.0.x branch
-#- name: backport:release/v1.0.x
-#  description: To be backported to release/v1.0.x
-#  color: '#ffd700'
+- name: backport:release/v1.0.x
+  description: To be backported to release/v1.0.x
+  color: '#ffd700'
