@@ -28,8 +28,6 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
-	"github.com/fluxcd/helm-controller/internal/digest"
-	"github.com/fluxcd/helm-controller/internal/postrender"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
 )
@@ -190,15 +188,6 @@ func summarize(req *Request) {
 		Message:            conds[0].Message,
 		ObservedGeneration: req.Object.Generation,
 	})
-
-	// remove stale post-renderers digest
-	if conditions.Get(req.Object, meta.ReadyCondition).Status == metav1.ConditionTrue {
-		req.Object.Status.ObservedPostRenderersDigest = ""
-		if req.Object.Spec.PostRenderers != nil {
-			// Update the post-renderers digest if the post-renderers exist.
-			req.Object.Status.ObservedPostRenderersDigest = postrender.Digest(digest.Canonical, req.Object.Spec.PostRenderers).String()
-		}
-	}
 }
 
 // eventMessageWithLog returns an event message composed out of the given
