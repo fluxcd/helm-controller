@@ -31,8 +31,6 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
-	"github.com/fluxcd/helm-controller/internal/digest"
-	"github.com/fluxcd/helm-controller/internal/postrender"
 )
 
 const (
@@ -50,14 +48,14 @@ var (
 							Kind: "Deployment",
 							Name: "test",
 						},
-						Patch: `|-
-						apiVersion: apps/v1
-						kind: Deployment
-						metadata:
-							name: test
-						spec:
-							replicas: 2
-					`,
+						Patch: `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test
+spec:
+  replicas: 2
+`,
 					},
 				},
 			},
@@ -73,14 +71,14 @@ var (
 							Kind: "Deployment",
 							Name: "test",
 						},
-						Patch: `|-
-						apiVersion: apps/v1
-						kind: Deployment
-						metadata:
-							name: test
-						spec:
-							replicas: 3
-					`,
+						Patch: `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test
+spec:
+  replicas: 3
+`,
 					},
 				},
 			},
@@ -507,96 +505,6 @@ func Test_summarize(t *testing.T) {
 						ObservedGeneration: 2,
 					},
 				},
-			},
-		},
-		{
-			name:       "with postrender",
-			generation: 1,
-			status: v2.HelmReleaseStatus{
-				Conditions: []metav1.Condition{
-					{
-						Type:               v2.ReleasedCondition,
-						Status:             metav1.ConditionTrue,
-						Reason:             v2.InstallSucceededReason,
-						Message:            "Install complete",
-						ObservedGeneration: 1,
-					},
-				},
-				ObservedPostRenderersDigest: postrender.Digest(digest.Canonical, postRenderers).String(),
-			},
-			spec: &v2.HelmReleaseSpec{
-				PostRenderers: postRenderers2,
-			},
-			expectedStatus: &v2.HelmReleaseStatus{
-				Conditions: []metav1.Condition{
-					{
-						Type:               meta.ReadyCondition,
-						Status:             metav1.ConditionTrue,
-						Reason:             v2.InstallSucceededReason,
-						Message:            "Install complete",
-						ObservedGeneration: 1,
-					},
-					{
-						Type:               v2.ReleasedCondition,
-						Status:             metav1.ConditionTrue,
-						Reason:             v2.InstallSucceededReason,
-						Message:            "Install complete",
-						ObservedGeneration: 1,
-					},
-				},
-				ObservedPostRenderersDigest: postrender.Digest(digest.Canonical, postRenderers2).String(),
-			},
-		},
-		{
-			name:       "with PostRenderers and Remediaction success",
-			generation: 1,
-			status: v2.HelmReleaseStatus{
-				Conditions: []metav1.Condition{
-					{
-						Type:               v2.ReleasedCondition,
-						Status:             metav1.ConditionFalse,
-						Reason:             v2.UpgradeFailedReason,
-						Message:            "Upgrade failure",
-						ObservedGeneration: 1,
-					},
-					{
-						Type:               v2.RemediatedCondition,
-						Status:             metav1.ConditionTrue,
-						Reason:             v2.RollbackSucceededReason,
-						Message:            "Uninstall complete",
-						ObservedGeneration: 1,
-					},
-				},
-				ObservedPostRenderersDigest: postrender.Digest(digest.Canonical, postRenderers).String(),
-			},
-			spec: &v2.HelmReleaseSpec{
-				PostRenderers: postRenderers2,
-			},
-			expectedStatus: &v2.HelmReleaseStatus{
-				Conditions: []metav1.Condition{
-					{
-						Type:               meta.ReadyCondition,
-						Status:             metav1.ConditionFalse,
-						Reason:             v2.RollbackSucceededReason,
-						Message:            "Uninstall complete",
-						ObservedGeneration: 1,
-					},
-					{
-						Type:               v2.ReleasedCondition,
-						Status:             metav1.ConditionFalse,
-						Reason:             v2.UpgradeFailedReason,
-						Message:            "Upgrade failure",
-						ObservedGeneration: 1,
-					},
-					{
-						Type:               v2.RemediatedCondition,
-						Status:             metav1.ConditionTrue,
-						Reason:             v2.RollbackSucceededReason,
-						Message:            "Uninstall complete",
-						ObservedGeneration: 1,
-					},
-				},
-				ObservedPostRenderersDigest: postrender.Digest(digest.Canonical, postRenderers).String(),
 			},
 		},
 	}

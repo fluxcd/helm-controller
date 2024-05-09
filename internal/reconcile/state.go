@@ -21,6 +21,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
 	"helm.sh/helm/v3/pkg/kube"
 	helmrelease "helm.sh/helm/v3/pkg/release"
@@ -143,13 +145,22 @@ func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *
 			}
 		}
 
-		// Verify if postrender digest has changed
-		var postrenderersDigest string
-		if req.Object.Spec.PostRenderers != nil {
-			postrenderersDigest = postrender.Digest(digest.Canonical, req.Object.Spec.PostRenderers).String()
-		}
-		if postrenderersDigest != req.Object.Status.ObservedPostRenderersDigest {
-			return ReleaseState{Status: ReleaseStatusOutOfSync, Reason: "postrender digest has changed"}, nil
+		// Verify if postrender digest has changed if config has not been
+		// processed. For the processed or partially processed generation, the
+		// updated observation will only be reflected at the end of a successful
+		// reconciliation.  Comparing here would result the reconciliation to
+		// get stuck in this check due to a mismatch forever.  The value can't
+		// change without a new generation. Hence, compare the observed digest
+		// for new generations only.
+		ready := conditions.Get(req.Object, meta.ReadyCondition)
+		if ready != nil && ready.ObservedGeneration != req.Object.Generation {
+			var postrenderersDigest string
+			if req.Object.Spec.PostRenderers != nil {
+				postrenderersDigest = postrender.Digest(digest.Canonical, req.Object.Spec.PostRenderers).String()
+			}
+			if postrenderersDigest != req.Object.Status.ObservedPostRenderersDigest {
+				return ReleaseState{Status: ReleaseStatusOutOfSync, Reason: "postrenderers digest has changed"}, nil
+			}
 		}
 
 		// For the further determination of test results, we look at the
