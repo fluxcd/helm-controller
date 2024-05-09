@@ -37,7 +37,7 @@ func TestDigest(t *testing.T) {
 			rel: Observation{
 				Name: "foo",
 			},
-			exp: "sha256:ca8901e499a79368647134cc4f1c2118f8e7ec64c8a4703b281d17fb01acfbed",
+			exp: "sha256:91b6773f7696d3eb405708a07e2daedc6e69664dabac8e10af7d570d09f947d5",
 		},
 	}
 	for _, tt := range tests {
