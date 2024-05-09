@@ -80,7 +80,7 @@ type Observation struct {
 	// Namespace is the Kubernetes namespace of the release.
 	Namespace string `json:"namespace"`
 	// OCIDigest is the digest of the OCI artifact that was used to
-	OCIDigest string `json:"ociDigest"`
+	OCIDigest string `json:"ociDigest,omitempty"`
 }
 
 // Targets returns if the release matches the given name, namespace and
