@@ -27,8 +27,10 @@ import (
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
 	ssanormalize "github.com/fluxcd/pkg/ssa/normalize"
 	ssautil "github.com/fluxcd/pkg/ssa/utils"
@@ -474,12 +476,54 @@ func Test_DetermineReleaseState(t *testing.T) {
 						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
 					ObservedPostRenderersDigest: postrender.Digest(digest.Canonical, postRenderers).String(),
+					Conditions: []metav1.Condition{
+						{
+							Type:               meta.ReadyCondition,
+							Status:             metav1.ConditionTrue,
+							ObservedGeneration: 1,
+						},
+					},
 				}
 			},
 			chart:  testutil.BuildChart(),
 			values: map[string]interface{}{"foo": "bar"},
 			want: ReleaseState{
 				Status: ReleaseStatusOutOfSync,
+			},
+		},
+		{
+			name: "postRenderers mismatch ignored for processed generation",
+			releases: []*helmrelease.Release{
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   1,
+					Status:    helmrelease.StatusDeployed,
+					Chart:     testutil.BuildChart(),
+				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.PostRenderers = postRenderers2
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					ObservedPostRenderersDigest: postrender.Digest(digest.Canonical, postRenderers).String(),
+					Conditions: []metav1.Condition{
+						{
+							Type:               meta.ReadyCondition,
+							Status:             metav1.ConditionTrue,
+							ObservedGeneration: 2,
+						},
+					},
+				}
+			},
+			chart:  testutil.BuildChart(),
+			values: map[string]interface{}{"foo": "bar"},
+			want: ReleaseState{
+				Status: ReleaseStatusInSync,
 			},
 		},
 	}
@@ -495,6 +539,10 @@ func Test_DetermineReleaseState(t *testing.T) {
 					StorageNamespace: mockReleaseNamespace,
 				},
 			}
+			// Set a non-zero generation so that old observations can be set on
+			// the object status.
+			obj.Generation = 2
+
 			if tt.spec != nil {
 				tt.spec(&obj.Spec)
 			}

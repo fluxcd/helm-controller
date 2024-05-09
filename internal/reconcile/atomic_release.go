@@ -38,7 +38,9 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/diff"
+	"github.com/fluxcd/helm-controller/internal/digest"
 	interrors "github.com/fluxcd/helm-controller/internal/errors"
+	"github.com/fluxcd/helm-controller/internal/postrender"
 )
 
 // OwnedConditions is a list of Condition types owned by the HelmRelease object.
@@ -209,6 +211,15 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 				// Always summarize; this ensures we restore transient errors
 				// written to Ready.
 				summarize(req)
+
+				// remove stale post-renderers digest on successful reconciliation.
+				if conditions.IsReady(req.Object) {
+					req.Object.Status.ObservedPostRenderersDigest = ""
+					if req.Object.Spec.PostRenderers != nil {
+						// Update the post-renderers digest if the post-renderers exist.
+						req.Object.Status.ObservedPostRenderersDigest = postrender.Digest(digest.Canonical, req.Object.Spec.PostRenderers).String()
+					}
+				}
 
 				return nil
 			}
