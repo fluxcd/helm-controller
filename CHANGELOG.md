@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.1
+
+**Release date:** 2024-05-10
+
+This prerelease fixes a backwards compatibility issue that could occur when trying
+to move from the `v2beta1` to `v2` API while specifing `.spec.chartRef`.
+
+Fixes:
+- Fix: Allow upgrading from v2beta1 to v2 (GA)
+  [#982](https://github.com/fluxcd/helm-controller/pull/982)
+- Fix: Make HelmChartTemplate a pointer in .spec.chart
+  [#980](https://github.com/fluxcd/helm-controller/pull/980)
+
 ## 1.0.0
 
 **Release date:** 2024-05-08
