@@ -79,7 +79,7 @@ HelmChartTemplate
 </td>
 <td>
 <em>(Optional)</em>
-<p>Chart defines the template of the v1beta2.HelmChart that should be created
+<p>Chart defines the template of the v1.HelmChart that should be created
 for this HelmRelease.</p>
 </td>
 </tr>
@@ -668,7 +668,7 @@ bool
 <a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
 </p>
 <p>HelmChartTemplate defines the template from which the controller will
-generate a v1beta2.HelmChart object in the same namespace as the referenced
+generate a v1.HelmChart object in the same namespace as the referenced
 v1.Source.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
@@ -704,7 +704,7 @@ HelmChartTemplateSpec
 </em>
 </td>
 <td>
-<p>Spec holds the template for the v1beta2.HelmChartSpec for this HelmRelease.</p>
+<p>Spec holds the template for the v1.HelmChartSpec for this HelmRelease.</p>
 <br/>
 <br/>
 <table>
@@ -728,7 +728,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Version semver expression, ignored for charts from v1beta2.GitRepository and
+<p>Version semver expression, ignored for charts from v1.GitRepository and
 v1beta2.Bucket sources. Defaults to latest when omitted.</p>
 </td>
 </tr>
@@ -835,7 +835,7 @@ are not verified.</p>
 <a href="#helm.toolkit.fluxcd.io/v2.HelmChartTemplate">HelmChartTemplate</a>)
 </p>
 <p>HelmChartTemplateObjectMeta defines the template for the ObjectMeta of a
-v1beta2.HelmChart.</p>
+v1.HelmChart.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -886,7 +886,7 @@ More info: <a href="https://kubernetes.io/docs/concepts/overview/working-with-ob
 <a href="#helm.toolkit.fluxcd.io/v2.HelmChartTemplate">HelmChartTemplate</a>)
 </p>
 <p>HelmChartTemplateSpec defines the template from which the controller will
-generate a v1beta2.HelmChartSpec object.</p>
+generate a v1.HelmChartSpec object.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -917,7 +917,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Version semver expression, ignored for charts from v1beta2.GitRepository and
+<p>Version semver expression, ignored for charts from v1.GitRepository and
 v1beta2.Bucket sources. Defaults to latest when omitted.</p>
 </td>
 </tr>
@@ -1089,7 +1089,7 @@ HelmChartTemplate
 </td>
 <td>
 <em>(Optional)</em>
-<p>Chart defines the template of the v1beta2.HelmChart that should be created
+<p>Chart defines the template of the v1.HelmChart that should be created
 for this HelmRelease.</p>
 </td>
 </tr>

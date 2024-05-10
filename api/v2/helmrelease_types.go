@@ -66,7 +66,7 @@ type PostRenderer struct {
 // HelmReleaseSpec defines the desired state of a Helm release.
 // +kubebuilder:validation:XValidation:rule="(has(self.chart) && !has(self.chartRef)) || (!has(self.chart) && has(self.chartRef))", message="either chart or chartRef must be set"
 type HelmReleaseSpec struct {
-	// Chart defines the template of the v1beta2.HelmChart that should be created
+	// Chart defines the template of the v1.HelmChart that should be created
 	// for this HelmRelease.
 	// +optional
 	Chart *HelmChartTemplate `json:"chart,omitempty"`
@@ -287,20 +287,20 @@ func (d DriftDetection) MustDetectChanges() bool {
 }
 
 // HelmChartTemplate defines the template from which the controller will
-// generate a v1beta2.HelmChart object in the same namespace as the referenced
+// generate a v1.HelmChart object in the same namespace as the referenced
 // v1.Source.
 type HelmChartTemplate struct {
 	// ObjectMeta holds the template for metadata like labels and annotations.
 	// +optional
 	ObjectMeta *HelmChartTemplateObjectMeta `json:"metadata,omitempty"`
 
-	// Spec holds the template for the v1beta2.HelmChartSpec for this HelmRelease.
+	// Spec holds the template for the v1.HelmChartSpec for this HelmRelease.
 	// +required
 	Spec HelmChartTemplateSpec `json:"spec"`
 }
 
 // HelmChartTemplateObjectMeta defines the template for the ObjectMeta of a
-// v1beta2.HelmChart.
+// v1.HelmChart.
 type HelmChartTemplateObjectMeta struct {
 	// Map of string keys and values that can be used to organize and categorize
 	// (scope and select) objects.
@@ -317,7 +317,7 @@ type HelmChartTemplateObjectMeta struct {
 }
 
 // HelmChartTemplateSpec defines the template from which the controller will
-// generate a v1beta2.HelmChartSpec object.
+// generate a v1.HelmChartSpec object.
 type HelmChartTemplateSpec struct {
 	// The name or path the Helm chart is available at in the SourceRef.
 	// +kubebuilder:validation:MinLength=1
@@ -325,7 +325,7 @@ type HelmChartTemplateSpec struct {
 	// +required
 	Chart string `json:"chart"`
 
-	// Version semver expression, ignored for charts from v1beta2.GitRepository and
+	// Version semver expression, ignored for charts from v1.GitRepository and
 	// v1beta2.Bucket sources. Defaults to latest when omitted.
 	// +kubebuilder:default:=*
 	// +optional
@@ -372,7 +372,7 @@ type HelmChartTemplateSpec struct {
 	Verify *HelmChartTemplateVerification `json:"verify,omitempty"`
 }
 
-// GetInterval returns the configured interval for the v1beta2.HelmChart,
+// GetInterval returns the configured interval for the v1.HelmChart,
 // or the given default.
 func (in HelmChartTemplate) GetInterval(defaultInterval metav1.Duration) metav1.Duration {
 	if in.Spec.Interval == nil {
@@ -382,7 +382,7 @@ func (in HelmChartTemplate) GetInterval(defaultInterval metav1.Duration) metav1.
 }
 
 // GetNamespace returns the namespace targeted namespace for the
-// v1beta2.HelmChart, or the given default.
+// v1.HelmChart, or the given default.
 func (in HelmChartTemplate) GetNamespace(defaultNamespace string) string {
 	if in.Spec.SourceRef.Namespace == "" {
 		return defaultNamespace
