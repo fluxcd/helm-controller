@@ -70,7 +70,15 @@ type HelmReleaseSpec struct {
 	// Chart defines the template of the v1beta2.HelmChart that should be created
 	// for this HelmRelease.
 	// +required
-	Chart HelmChartTemplate `json:"chart"`
+	Chart *HelmChartTemplate `json:"chart,omitempty"`
+
+	// ChartRef holds a reference to a source controller resource containing the
+	// Helm chart artifact.
+	//
+	// Note: this field is provisional to the v2 API, and not actively used
+	// by v2beta1 HelmReleases.
+	// +optional
+	ChartRef *v2.CrossNamespaceSourceReference `json:"chartRef,omitempty"`
 
 	// Interval at which to reconcile the Helm release.
 	// This interval is approximate and may be subject to jitter to ensure
