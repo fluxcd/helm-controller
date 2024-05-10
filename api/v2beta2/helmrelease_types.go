@@ -85,6 +85,9 @@ type HelmReleaseSpec struct {
 
 	// ChartRef holds a reference to a source controller resource containing the
 	// Helm chart artifact.
+	//
+	// Note: this field is provisional to the v2 API, and not actively used
+	// by v2beta2 HelmReleases.
 	// +optional
 	ChartRef *CrossNamespaceSourceReference `json:"chartRef,omitempty"`
 

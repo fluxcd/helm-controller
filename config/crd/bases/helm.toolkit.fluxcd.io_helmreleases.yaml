@@ -53,7 +53,7 @@ spec:
             properties:
               chart:
                 description: |-
-                  Chart defines the template of the v1beta2.HelmChart that should be created
+                  Chart defines the template of the v1.HelmChart that should be created
                   for this HelmRelease.
                 properties:
                   metadata:
@@ -79,7 +79,7 @@ spec:
                         type: object
                     type: object
                   spec:
-                    description: Spec holds the template for the v1beta2.HelmChartSpec
+                    description: Spec holds the template for the v1.HelmChartSpec
                       for this HelmRelease.
                     properties:
                       chart:
@@ -179,7 +179,7 @@ spec:
                       version:
                         default: '*'
                         description: |-
-                          Version semver expression, ignored for charts from v1beta2.GitRepository and
+                          Version semver expression, ignored for charts from v1.GitRepository and
                           v1beta2.Bucket sources. Defaults to latest when omitted.
                         type: string
                     required:
@@ -1358,6 +1358,40 @@ spec:
                 required:
                 - spec
                 type: object
+              chartRef:
+                description: |-
+                  ChartRef holds a reference to a source controller resource containing the
+                  Helm chart artifact.
+
+
+                  Note: this field is provisional to the v2 API, and not actively used
+                  by v2beta1 HelmReleases.
+                properties:
+                  apiVersion:
+                    description: APIVersion of the referent.
+                    type: string
+                  kind:
+                    description: Kind of the referent.
+                    enum:
+                    - OCIRepository
+                    - HelmChart
+                    type: string
+                  name:
+                    description: Name of the referent.
+                    maxLength: 253
+                    minLength: 1
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace of the referent, defaults to the namespace of the Kubernetes
+                      resource object that contains the reference.
+                    maxLength: 63
+                    minLength: 1
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
               dependsOn:
                 description: |-
                   DependsOn may contain a meta.NamespacedObjectReference slice with
@@ -2121,7 +2155,6 @@ spec:
                   type: object
                 type: array
             required:
-            - chart
             - interval
             type: object
           status:
@@ -2611,6 +2644,10 @@ spec:
                 description: |-
                   ChartRef holds a reference to a source controller resource containing the
                   Helm chart artifact.
+
+
+                  Note: this field is provisional to the v2 API, and not actively used
+                  by v2beta2 HelmReleases.
                 properties:
                   apiVersion:
                     description: APIVersion of the referent.
