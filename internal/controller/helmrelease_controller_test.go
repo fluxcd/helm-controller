@@ -864,7 +864,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 					Name:      "chart",
 					Namespace: "mock",
 				},
-				Chart: v2.HelmChartTemplate{
+				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
 						Chart: "mychart",
 						SourceRef: v2.CrossNamespaceObjectReference{
@@ -1332,7 +1332,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 					Name:      "ocirepo",
 					Namespace: "mock",
 				},
-				Chart: v2.HelmChartTemplate{
+				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
 						Chart: "mychart",
 						SourceRef: v2.CrossNamespaceObjectReference{
@@ -2424,6 +2424,9 @@ func TestHelmReleaseReconciler_reconcileChartTemplate(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
+			Spec: v2.HelmReleaseSpec{
+				Chart: &v2.HelmChartTemplate{},
+			},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: "default",
 			},
@@ -3334,7 +3337,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 				},
 				Spec: v2.HelmReleaseSpec{
 					Interval: metav1.Duration{Duration: 5 * time.Minute},
-					Chart: v2.HelmChartTemplate{
+					Chart: &v2.HelmChartTemplate{
 						Spec: v2.HelmChartTemplateSpec{
 							Chart: "mychart",
 							SourceRef: v2.CrossNamespaceObjectReference{
