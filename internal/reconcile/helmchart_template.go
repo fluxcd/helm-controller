@@ -79,11 +79,13 @@ func NewHelmChartTemplate(client client.Client, recorder record.EventRecorder, f
 func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 	var (
 		obj      = req.Object
-		chartRef = types.NamespacedName{
-			Namespace: obj.Spec.Chart.GetNamespace(obj.Namespace),
-			Name:      obj.GetHelmChartName(),
-		}
+		chartRef = types.NamespacedName{}
 	)
+
+	if obj.Spec.Chart != nil {
+		chartRef.Name = obj.GetHelmChartName()
+		chartRef.Namespace = obj.Spec.Chart.GetNamespace(obj.Namespace)
+	}
 
 	// The HelmChart name and/or namespace diverges or the HelmRelease is
 	// being deleted, delete the HelmChart.

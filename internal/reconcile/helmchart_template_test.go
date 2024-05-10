@@ -144,7 +144,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				Name:      "release-with-existing-chart",
 			},
 			Spec: v2.HelmReleaseSpec{
-				Chart: v2.HelmChartTemplate{
+				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
 						Chart: "foo",
 						SourceRef: v2.CrossNamespaceObjectReference{
@@ -194,7 +194,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 			},
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
-				Chart: v2.HelmChartTemplate{
+				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
 						SourceRef: v2.CrossNamespaceObjectReference{
 							Kind: sourcev1.HelmRepositoryKind,
@@ -265,7 +265,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 			},
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
-				Chart: v2.HelmChartTemplate{
+				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
 						Chart: "foo",
 						SourceRef: v2.CrossNamespaceObjectReference{
@@ -336,7 +336,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 			},
 			Spec: v2.HelmReleaseSpec{
 				Interval: existingChart.Spec.Interval,
-				Chart: v2.HelmChartTemplate{
+				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
 						Chart: existingChart.Spec.Chart,
 						SourceRef: v2.CrossNamespaceObjectReference{
@@ -380,7 +380,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 			},
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
-				Chart: v2.HelmChartTemplate{
+				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
 						SourceRef: v2.CrossNamespaceObjectReference{
 							Kind: sourcev1.HelmRepositoryKind,
@@ -424,7 +424,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				Namespace: "default",
 			},
 			Spec: v2.HelmReleaseSpec{
-				Chart: v2.HelmChartTemplate{
+				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
 						SourceRef: v2.CrossNamespaceObjectReference{
 							Name:      "chart",
@@ -661,7 +661,7 @@ func Test_buildHelmChartFromTemplate(t *testing.T) {
 		},
 		Spec: v2.HelmReleaseSpec{
 			Interval: metav1.Duration{Duration: time.Minute},
-			Chart: v2.HelmChartTemplate{
+			Chart: &v2.HelmChartTemplate{
 				Spec: v2.HelmChartTemplateSpec{
 					Chart:   "chart",
 					Version: "1.0.0",
