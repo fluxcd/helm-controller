@@ -524,7 +524,7 @@ The field offers the following subfields:
   operation (like Jobs for hooks) during the upgrade of the release.
   Defaults to the [global timeout value](#timeout).
 - `.crds` (Optional): The Custom Resource Definition upgrade policy to use.
-  Valid values are `Skip`, `Create` and `CreateReplace`. Default is `None`.
+  Valid values are `Skip`, `Create` and `CreateReplace`. Default is `Skip`.
   Refer to [Custom Resource Definition lifecycle](#controlling-the-lifecycle-of-custom-resource-definitions)
   for more information.
 - `.cleanupOnFail` (Optional): Allows deletion of new resources created during
