@@ -915,7 +915,11 @@ func mutateChartWithSourceRevision(chart *chart.Chart, source sourcev1.Source) (
 	switch {
 	case strings.Contains(revision, "@"):
 		tagD := strings.Split(revision, "@")
-		if len(tagD) != 2 || tagD[0] != chart.Metadata.Version {
+		tagVer, err := semver.NewVersion(tagD[0])
+		if err != nil {
+			return "", fmt.Errorf("failed parsing artifact revision %s", tagD[0])
+		}
+		if len(tagD) != 2 || !tagVer.Equal(ver) {
 			return "", fmt.Errorf("artifact revision %s does not match chart version %s", tagD[0], chart.Metadata.Version)
 		}
 		// algotithm are sha256, sha384, sha512 with the canonical being sha256
