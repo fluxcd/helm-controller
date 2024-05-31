@@ -999,11 +999,13 @@ type HelmReleaseStatus struct {
 
 	// LastAttemptedValuesChecksum is the SHA1 checksum for the values of the last
 	// reconciliation attempt.
+	//
 	// Deprecated: Use LastAttemptedConfigDigest instead.
 	// +optional
 	LastAttemptedValuesChecksum string `json:"lastAttemptedValuesChecksum,omitempty"`
 
 	// LastReleaseRevision is the revision of the last successful Helm release.
+	//
 	// Deprecated: Use History instead.
 	// +optional
 	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`

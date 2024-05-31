@@ -52,11 +52,13 @@ type Kustomize struct {
 	Patches []kustomize.Patch `json:"patches,omitempty"`
 
 	// Strategic merge patches, defined as inline YAML objects.
+	//
 	// Deprecated: use Patches instead.
 	// +optional
 	PatchesStrategicMerge []apiextensionsv1.JSON `json:"patchesStrategicMerge,omitempty"`
 
 	// JSON 6902 patches, defined as inline YAML objects.
+	//
 	// Deprecated: use Patches instead.
 	// +optional
 	PatchesJSON6902 []kustomize.JSON6902Patch `json:"patchesJson6902,omitempty"`
@@ -1011,6 +1013,7 @@ type HelmReleaseStatus struct {
 
 	// LastAppliedRevision is the revision of the last successfully applied
 	// source.
+	//
 	// Deprecated: the revision can now be found in the History.
 	// +optional
 	LastAppliedRevision string `json:"lastAppliedRevision,omitempty"`
@@ -1028,11 +1031,13 @@ type HelmReleaseStatus struct {
 
 	// LastAttemptedValuesChecksum is the SHA1 checksum for the values of the last
 	// reconciliation attempt.
+	//
 	// Deprecated: Use LastAttemptedConfigDigest instead.
 	// +optional
 	LastAttemptedValuesChecksum string `json:"lastAttemptedValuesChecksum,omitempty"`
 
 	// LastReleaseRevision is the revision of the last successful Helm release.
+	//
 	// Deprecated: Use History instead.
 	// +optional
 	LastReleaseRevision int `json:"lastReleaseRevision,omitempty"`
@@ -1266,6 +1271,7 @@ func (in *HelmRelease) SetConditions(conditions []metav1.Condition) {
 }
 
 // GetStatusConditions returns a pointer to the Status.Conditions slice.
+//
 // Deprecated: use GetConditions instead.
 func (in *HelmRelease) GetStatusConditions() *[]metav1.Condition {
 	return &in.Status.Conditions
