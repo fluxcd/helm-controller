@@ -1147,6 +1147,7 @@ spec:
                 description: |-
                   LastAttemptedValuesChecksum is the SHA1 checksum for the values of the last
                   reconciliation attempt.
+
                   Deprecated: Use LastAttemptedConfigDigest instead.
                 type: string
               lastHandledForceAt:
@@ -1169,6 +1170,7 @@ spec:
               lastReleaseRevision:
                 description: |-
                   LastReleaseRevision is the revision of the last successful Helm release.
+
                   Deprecated: Use History instead.
                 type: integer
               observedCommonMetadataDigest:
@@ -3021,6 +3023,7 @@ spec:
                         patchesJson6902:
                           description: |-
                             JSON 6902 patches, defined as inline YAML objects.
+
                             Deprecated: use Patches instead.
                           items:
                             description: JSON6902Patch contains a JSON6902 patch and
@@ -3117,6 +3120,7 @@ spec:
                         patchesStrategicMerge:
                           description: |-
                             Strategic merge patches, defined as inline YAML objects.
+
                             Deprecated: use Patches instead.
                           items:
                             x-kubernetes-preserve-unknown-fields: true
@@ -3626,6 +3630,7 @@ spec:
                 description: |-
                   LastAppliedRevision is the revision of the last successfully applied
                   source.
+
                   Deprecated: the revision can now be found in the History.
                 type: string
               lastAttemptedConfigDigest:
@@ -3662,6 +3667,7 @@ spec:
                 description: |-
                   LastAttemptedValuesChecksum is the SHA1 checksum for the values of the last
                   reconciliation attempt.
+
                   Deprecated: Use LastAttemptedConfigDigest instead.
                 type: string
               lastHandledForceAt:
@@ -3683,6 +3689,7 @@ spec:
               lastReleaseRevision:
                 description: |-
                   LastReleaseRevision is the revision of the last successful Helm release.
+
                   Deprecated: Use History instead.
                 type: integer
               observedGeneration:
