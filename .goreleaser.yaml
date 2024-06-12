@@ -23,7 +23,7 @@ release:
     To verify the images and their provenance (SLSA level 3), please see the [security documentation](https://fluxcd.io/flux/security/).
 
 changelog:
-  skip: true
+  disable: true
 
 checksum:
   extra_files:
