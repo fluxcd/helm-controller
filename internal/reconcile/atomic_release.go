@@ -388,8 +388,13 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 				log.V(logger.DebugLevel).Info("resource deleted",
 					"resource", diff.ResourceName(change.DesiredObject))
 			case jsondiff.DiffTypeUpdate:
+				patch := change.Patch
+				if change.DesiredObject.GetObjectKind().GroupVersionKind().Kind == "Secret" {
+					patch = jsondiff.MaskSecretPatchData(change.Patch)
+				}
 				log.V(logger.DebugLevel).Info("resource modified",
-					"resource", diff.ResourceName(change.DesiredObject))
+					"resource", diff.ResourceName(change.DesiredObject),
+					"patch", patch)
 			}
 		}
 
