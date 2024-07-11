@@ -138,10 +138,7 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	// Handle any error.
 	if err != nil {
 		r.failure(req, logBuf, err)
-		if req.Object.Status.History.Latest().Digest == cur.Digest {
-			return err
-		}
-		return nil
+		return err
 	}
 
 	// Mark success.
