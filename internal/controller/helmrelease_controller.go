@@ -252,7 +252,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		if err := r.checkDependencies(ctx, obj); err != nil {
 			msg := fmt.Sprintf("dependencies do not meet ready condition (%s): retrying in %s",
 				err.Error(), r.requeueDependency.String())
-			conditions.MarkFalse(obj, meta.ReadyCondition, v2.DependencyNotReadyReason, err.Error())
+			conditions.MarkFalse(obj, meta.ReadyCondition, v2.DependencyNotReadyReason, "%s", err)
 			r.Eventf(obj, corev1.EventTypeNormal, v2.DependencyNotReadyReason, err.Error())
 			log.Info(msg)
 
@@ -272,8 +272,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	source, err := r.getSource(ctx, obj)
 	if err != nil {
 		if acl.IsAccessDenied(err) {
-			conditions.MarkStalled(obj, aclv1.AccessDeniedReason, err.Error())
-			conditions.MarkFalse(obj, meta.ReadyCondition, aclv1.AccessDeniedReason, err.Error())
+			conditions.MarkStalled(obj, aclv1.AccessDeniedReason, "%s", err)
+			conditions.MarkFalse(obj, meta.ReadyCondition, aclv1.AccessDeniedReason, "%s", err)
 			conditions.Delete(obj, meta.ReconcilingCondition)
 			r.Eventf(obj, corev1.EventTypeWarning, aclv1.AccessDeniedReason, err.Error())
 
@@ -284,7 +284,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		}
 
 		msg := fmt.Sprintf("could not get Source object: %s", err.Error())
-		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, msg)
+		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "%s", msg)
 		return ctrl.Result{}, err
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.
@@ -295,7 +295,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	// Check if the source is ready.
 	if ready, msg := isSourceReady(source); !ready {
 		log.Info(msg)
-		conditions.MarkFalse(obj, meta.ReadyCondition, "SourceNotReady", msg)
+		conditions.MarkFalse(obj, meta.ReadyCondition, "SourceNotReady", "%s", msg)
 		// Do not requeue immediately, when the artifact is created
 		// the watcher should trigger a reconciliation.
 		return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}), errWaitForChart
@@ -308,7 +308,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	// Compose values based from the spec and references.
 	values, err := chartutil.ChartValuesFromReferences(ctx, r.Client, obj.Namespace, obj.GetValues(), obj.Spec.ValuesFrom...)
 	if err != nil {
-		conditions.MarkFalse(obj, meta.ReadyCondition, "ValuesError", err.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, "ValuesError", "%s", err)
 		r.Eventf(obj, corev1.EventTypeWarning, "ValuesError", err.Error())
 		return ctrl.Result{}, err
 	}
@@ -322,12 +322,12 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	if err != nil {
 		if errors.Is(err, loader.ErrFileNotFound) {
 			msg := fmt.Sprintf("Source not ready: artifact not found. Retrying in %s", r.requeueDependency.String())
-			conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, msg)
+			conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "%s", msg)
 			log.Info(msg)
 			return ctrl.Result{RequeueAfter: r.requeueDependency}, errWaitForDependency
 		}
 
-		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, fmt.Sprintf("Could not load chart: %s", err.Error()))
+		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "Could not load chart: %s", err)
 		r.Eventf(obj, corev1.EventTypeWarning, v2.ArtifactFailedReason, err.Error())
 		return ctrl.Result{}, err
 	}
@@ -338,14 +338,14 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 
 	ociDigest, err := mutateChartWithSourceRevision(loadedChart, source)
 	if err != nil {
-		conditions.MarkFalse(obj, meta.ReadyCondition, "ChartMutateError", err.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, "ChartMutateError", "%s", err)
 		return ctrl.Result{}, err
 	}
 
 	// Build the REST client getter.
 	getter, err := r.buildRESTClientGetter(ctx, obj)
 	if err != nil {
-		conditions.MarkFalse(obj, meta.ReadyCondition, "RESTClientError", err.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, "RESTClientError", "%s", err)
 		return ctrl.Result{}, err
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.
@@ -403,7 +403,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
 	)
 	if err != nil {
-		conditions.MarkFalse(obj, meta.ReadyCondition, "FactoryError", err.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, "FactoryError", "%s", err)
 		return ctrl.Result{}, err
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.
@@ -491,7 +491,7 @@ func (r *HelmReleaseReconciler) reconcileReleaseDeletion(ctx context.Context, ob
 		}
 
 		conditions.MarkFalse(obj, meta.ReadyCondition, v2.UninstallFailedReason,
-			"failed to build REST client getter to uninstall release: %s", err.Error())
+			"failed to build REST client getter to uninstall release: %s", err)
 		return err
 	}
 
@@ -525,7 +525,7 @@ func (r *HelmReleaseReconciler) reconcileReleaseDeletion(ctx context.Context, ob
 				}
 
 				conditions.MarkFalse(obj, meta.ReadyCondition, v2.UninstallFailedReason,
-					"failed to confirm ServiceAccount '%s' can be used to uninstall release: %s", serviceAccount, err.Error())
+					"failed to confirm ServiceAccount '%s' can be used to uninstall release: %s", serviceAccount, err)
 				return err
 			}
 		}
@@ -562,7 +562,7 @@ func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter g
 		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
 	)
 	if err != nil {
-		conditions.MarkFalse(obj, meta.ReadyCondition, "ConfigFactoryErr", err.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, "ConfigFactoryErr", "%s", err)
 		return err
 	}
 
