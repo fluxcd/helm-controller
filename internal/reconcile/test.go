@@ -139,7 +139,7 @@ func (r *Test) failure(req *Request, err error) {
 
 	// Mark test failure on object.
 	req.Object.Status.Failures++
-	conditions.MarkFalse(req.Object, v2.TestSuccessCondition, v2.TestFailedReason, msg)
+	conditions.MarkFalse(req.Object, v2.TestSuccessCondition, v2.TestFailedReason, "%s", msg)
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
@@ -176,7 +176,7 @@ func (r *Test) success(req *Request) {
 	msg := fmt.Sprintf(fmtTestSuccess, cur.FullReleaseName(), cur.VersionedChartName(), hookMsg)
 
 	// Mark test success on object.
-	conditions.MarkTrue(req.Object, v2.TestSuccessCondition, v2.TestSucceededReason, msg)
+	conditions.MarkTrue(req.Object, v2.TestSuccessCondition, v2.TestSucceededReason, "%s", msg)
 
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
