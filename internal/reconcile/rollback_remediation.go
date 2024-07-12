@@ -137,7 +137,7 @@ func (r *RollbackRemediation) failure(req *Request, prev *v2.Snapshot, buffer *a
 
 	// Mark remediation failure on object.
 	req.Object.Status.Failures++
-	conditions.MarkFalse(req.Object, v2.RemediatedCondition, v2.RollbackFailedReason, msg)
+	conditions.MarkFalse(req.Object, v2.RemediatedCondition, v2.RollbackFailedReason, "%s", msg)
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
@@ -158,7 +158,7 @@ func (r *RollbackRemediation) success(req *Request, prev *v2.Snapshot) {
 	msg := fmt.Sprintf(fmtRollbackRemediationSuccess, prev.FullReleaseName(), prev.VersionedChartName())
 
 	// Mark remediation success on object.
-	conditions.MarkTrue(req.Object, v2.RemediatedCondition, v2.RollbackSucceededReason, msg)
+	conditions.MarkTrue(req.Object, v2.RemediatedCondition, v2.RollbackSucceededReason, "%s", msg)
 
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(

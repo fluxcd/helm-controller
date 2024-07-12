@@ -114,7 +114,7 @@ func (r *Unlock) failure(req *Request, cur *v2.Snapshot, status helmrelease.Stat
 
 	// Mark unlock failure on object.
 	req.Object.Status.Failures++
-	conditions.MarkFalse(req.Object, v2.ReleasedCondition, "PendingRelease", msg)
+	conditions.MarkFalse(req.Object, v2.ReleasedCondition, "PendingRelease", "%s", msg)
 
 	// Record warning event.
 	r.eventRecorder.AnnotatedEventf(
@@ -133,7 +133,7 @@ func (r *Unlock) success(req *Request, cur *v2.Snapshot, status helmrelease.Stat
 	msg := fmt.Sprintf(fmtUnlockSuccess, cur.FullReleaseName(), cur.VersionedChartName(), status.String())
 
 	// Mark unlock success on object.
-	conditions.MarkFalse(req.Object, v2.ReleasedCondition, "PendingRelease", msg)
+	conditions.MarkFalse(req.Object, v2.ReleasedCondition, "PendingRelease", "%s", msg)
 
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(

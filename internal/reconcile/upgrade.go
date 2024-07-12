@@ -138,7 +138,7 @@ func (r *Upgrade) failure(req *Request, buffer *action.LogBuffer, err error) {
 
 	// Mark upgrade failure on object.
 	req.Object.Status.Failures++
-	conditions.MarkFalse(req.Object, v2.ReleasedCondition, v2.UpgradeFailedReason, msg)
+	conditions.MarkFalse(req.Object, v2.ReleasedCondition, v2.UpgradeFailedReason, "%s", msg)
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
@@ -163,7 +163,7 @@ func (r *Upgrade) success(req *Request) {
 	msg := fmt.Sprintf(fmtUpgradeSuccess, cur.FullReleaseName(), cur.VersionedChartName())
 
 	// Mark upgrade success on object.
-	conditions.MarkTrue(req.Object, v2.ReleasedCondition, v2.UpgradeSucceededReason, msg)
+	conditions.MarkTrue(req.Object, v2.ReleasedCondition, v2.UpgradeSucceededReason, "%s", msg)
 	if req.Object.GetTest().Enable && !cur.HasBeenTested() {
 		conditions.MarkUnknown(req.Object, v2.TestSuccessCondition, "AwaitingTests", fmtTestPending,
 			cur.FullReleaseName(), cur.VersionedChartName())
