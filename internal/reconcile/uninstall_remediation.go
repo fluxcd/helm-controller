@@ -148,7 +148,7 @@ func (r *UninstallRemediation) failure(req *Request, buffer *action.LogBuffer, e
 
 	// Mark uninstall failure on object.
 	req.Object.Status.Failures++
-	conditions.MarkFalse(req.Object, v2.RemediatedCondition, v2.UninstallFailedReason, msg)
+	conditions.MarkFalse(req.Object, v2.RemediatedCondition, v2.UninstallFailedReason, "%s", msg)
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
@@ -170,7 +170,7 @@ func (r *UninstallRemediation) success(req *Request) {
 	msg := fmt.Sprintf(fmtUninstallRemediationSuccess, cur.FullReleaseName(), cur.VersionedChartName())
 
 	// Mark remediation success on object.
-	conditions.MarkTrue(req.Object, v2.RemediatedCondition, v2.UninstallSucceededReason, msg)
+	conditions.MarkTrue(req.Object, v2.RemediatedCondition, v2.UninstallSucceededReason, "%s", msg)
 
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(

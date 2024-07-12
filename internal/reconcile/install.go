@@ -148,7 +148,7 @@ func (r *Install) failure(req *Request, buffer *action.LogBuffer, err error) {
 
 	// Mark install failure on object.
 	req.Object.Status.Failures++
-	conditions.MarkFalse(req.Object, v2.ReleasedCondition, v2.InstallFailedReason, msg)
+	conditions.MarkFalse(req.Object, v2.ReleasedCondition, v2.InstallFailedReason, "%s", msg)
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
@@ -173,7 +173,7 @@ func (r *Install) success(req *Request) {
 	msg := fmt.Sprintf(fmtInstallSuccess, cur.FullReleaseName(), cur.VersionedChartName())
 
 	// Mark install success on object.
-	conditions.MarkTrue(req.Object, v2.ReleasedCondition, v2.InstallSucceededReason, msg)
+	conditions.MarkTrue(req.Object, v2.ReleasedCondition, v2.InstallSucceededReason, "%s", msg)
 	if req.Object.GetTest().Enable && !cur.HasBeenTested() {
 		conditions.MarkUnknown(req.Object, v2.TestSuccessCondition, "AwaitingTests", fmtTestPending,
 			cur.FullReleaseName(), cur.VersionedChartName())
