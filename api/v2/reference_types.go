@@ -16,6 +16,14 @@ limitations under the License.
 
 package v2
 
+import (
+	"fmt"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	"github.com/openfluxcd/artifact/utils"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+)
+
 // CrossNamespaceObjectReference contains enough information to let you locate
 // the typed referenced object at cluster level.
 type CrossNamespaceObjectReference struct {
@@ -67,6 +75,42 @@ type CrossNamespaceSourceReference struct {
 	// +kubebuilder:validation:Optional
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
+}
+
+func (s *CrossNamespaceSourceReference) GetObjectKey() ctrlclient.ObjectKey {
+	return ctrlclient.ObjectKey{
+		Namespace: s.Namespace,
+		Name:      s.Name,
+	}
+}
+
+func (s *CrossNamespaceSourceReference) GetGroupKind() schema.GroupKind {
+	if s.APIVersion == "" {
+		return schema.GroupKind{
+			Group: sourcev1.GroupVersion.Group,
+			Kind:  s.Kind,
+		}
+	}
+
+	return schema.GroupKind{
+		Group: utils.ExtractGroupName(s.APIVersion),
+		Kind:  s.Kind,
+	}
+}
+
+func (s *CrossNamespaceSourceReference) GetName() string {
+	return s.Name
+}
+
+func (s *CrossNamespaceSourceReference) GetNamespace() string {
+	return s.Namespace
+}
+
+func (s *CrossNamespaceSourceReference) String() string {
+	if s.GetNamespace() != "" {
+		return fmt.Sprintf("%s/%s/%s/%s", s.GetGroupKind().Group, s.GetGroupKind().Kind, s.GetNamespace(), s.GetName())
+	}
+	return fmt.Sprintf("%s/%s/%s", s.GetGroupKind().Group, s.GetGroupKind().Kind, s.GetName())
 }
 
 // ValuesReference contains a reference to a resource containing Helm values,

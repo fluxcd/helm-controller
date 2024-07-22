@@ -87,7 +87,9 @@ for this HelmRelease.</p>
 <td>
 <code>chartRef</code><br>
 <em>
-github.com/openfluxcd/artifact/api/commonv1.SourceRef
+<a href="#helm.toolkit.fluxcd.io/v2.CrossNamespaceSourceReference">
+CrossNamespaceSourceReference
+</a>
 </em>
 </td>
 <td>
@@ -417,6 +419,10 @@ HelmReleaseStatus
 installing or upgrading a HelmRelease.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.CrossNamespaceObjectReference">CrossNamespaceObjectReference
 </h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmChartTemplateSpec">HelmChartTemplateSpec</a>)
+</p>
 <p>CrossNamespaceObjectReference contains enough information to let you locate
 the typed referenced object at cluster level.</p>
 <div class="md-typeset__scrollwrap">
@@ -481,6 +487,10 @@ string
 </div>
 <h3 id="helm.toolkit.fluxcd.io/v2.CrossNamespaceSourceReference">CrossNamespaceSourceReference
 </h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
 <p>CrossNamespaceSourceReference contains enough information to let you locate
 the typed referenced object at cluster level.</p>
 <div class="md-typeset__scrollwrap">
@@ -722,7 +732,9 @@ v1beta2.Bucket sources. Defaults to latest when omitted.</p>
 <td>
 <code>sourceRef</code><br>
 <em>
-github.com/openfluxcd/artifact/api/commonv1.SourceRef
+<a href="#helm.toolkit.fluxcd.io/v2.CrossNamespaceObjectReference">
+CrossNamespaceObjectReference
+</a>
 </em>
 </td>
 <td>
@@ -909,7 +921,9 @@ v1beta2.Bucket sources. Defaults to latest when omitted.</p>
 <td>
 <code>sourceRef</code><br>
 <em>
-github.com/openfluxcd/artifact/api/commonv1.SourceRef
+<a href="#helm.toolkit.fluxcd.io/v2.CrossNamespaceObjectReference">
+CrossNamespaceObjectReference
+</a>
 </em>
 </td>
 <td>
@@ -1079,7 +1093,9 @@ for this HelmRelease.</p>
 <td>
 <code>chartRef</code><br>
 <em>
-github.com/openfluxcd/artifact/api/commonv1.SourceRef
+<a href="#helm.toolkit.fluxcd.io/v2.CrossNamespaceSourceReference">
+CrossNamespaceSourceReference
+</a>
 </em>
 </td>
 <td>

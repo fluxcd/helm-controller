@@ -6,7 +6,7 @@ require (
 	github.com/fluxcd/pkg/apis/kustomize v1.5.0
 	github.com/fluxcd/pkg/apis/meta v1.5.0
 	github.com/fluxcd/source-controller/api v1.3.0
-	github.com/openfluxcd/artifact v0.0.0-20240716155959-1444c21d5f7c
+	github.com/openfluxcd/artifact v0.0.0-20240731144814-1700a8a69770
 	k8s.io/apiextensions-apiserver v0.30.0
 	k8s.io/apimachinery v0.30.0
 	sigs.k8s.io/controller-runtime v0.18.2

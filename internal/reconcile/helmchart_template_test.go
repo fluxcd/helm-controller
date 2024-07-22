@@ -19,7 +19,6 @@ package reconcile
 import (
 	"context"
 	"fmt"
-	"github.com/openfluxcd/artifact/api/commonv1"
 	"testing"
 	"time"
 
@@ -148,7 +147,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
 						Chart: "foo",
-						SourceRef: &commonv1.SourceRef{
+						SourceRef: v2.CrossNamespaceObjectReference{
 							Kind: sourcev1.HelmRepositoryKind,
 							Name: "foo-repository",
 						},
@@ -197,7 +196,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
 				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
-						SourceRef: &commonv1.SourceRef{
+						SourceRef: v2.CrossNamespaceObjectReference{
 							Kind: sourcev1.HelmRepositoryKind,
 							Name: "mock",
 						},
@@ -269,7 +268,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
 						Chart: "foo",
-						SourceRef: &commonv1.SourceRef{
+						SourceRef: v2.CrossNamespaceObjectReference{
 							Kind: sourcev1.HelmRepositoryKind,
 							Name: "foo-repository",
 						},
@@ -340,7 +339,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
 						Chart: existingChart.Spec.Chart,
-						SourceRef: &commonv1.SourceRef{
+						SourceRef: v2.CrossNamespaceObjectReference{
 							Kind: existingChart.Spec.SourceRef.Kind,
 							Name: existingChart.Spec.SourceRef.Name,
 						},
@@ -383,7 +382,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
 				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
-						SourceRef: &commonv1.SourceRef{
+						SourceRef: v2.CrossNamespaceObjectReference{
 							Kind: sourcev1.HelmRepositoryKind,
 							Name: "mock",
 						},
@@ -427,7 +426,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 			Spec: v2.HelmReleaseSpec{
 				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
-						SourceRef: &commonv1.SourceRef{
+						SourceRef: v2.CrossNamespaceObjectReference{
 							Name:      "chart",
 							Namespace: "other",
 						},
@@ -477,6 +476,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 			eventRecorder: recorder,
 			fieldManager:  testFieldManager,
 		}
+
 		obj := &v2.HelmRelease{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: namespace.GetName(),
@@ -484,7 +484,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 			},
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
-				ChartRef: &commonv1.SourceRef{
+				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind: sourcev1beta2.OCIRepositoryKind,
 					Name: "oci-repository",
 				},
@@ -665,7 +665,7 @@ func Test_buildHelmChartFromTemplate(t *testing.T) {
 				Spec: v2.HelmChartTemplateSpec{
 					Chart:   "chart",
 					Version: "1.0.0",
-					SourceRef: &commonv1.SourceRef{
+					SourceRef: v2.CrossNamespaceObjectReference{
 						Name: "test-repository",
 						Kind: "HelmRepository",
 					},

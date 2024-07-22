@@ -19,7 +19,6 @@ package v2
 import (
 	"fmt"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	"github.com/openfluxcd/artifact/api/commonv1"
 	"github.com/openfluxcd/artifact/utils"
 	"strings"
 	"time"
@@ -78,7 +77,7 @@ type HelmReleaseSpec struct {
 	// ChartRef holds a reference to a source controller resource containing the
 	// Helm chart artifact.
 	// +optional
-	ChartRef *commonv1.SourceRef `json:"chartRef,omitempty"`
+	ChartRef *CrossNamespaceSourceReference `json:"chartRef,omitempty"`
 
 	// Interval at which to reconcile the Helm release.
 	// +kubebuilder:validation:Type=string
@@ -337,7 +336,7 @@ type HelmChartTemplateSpec struct {
 
 	// The name and namespace of the v1.Source the chart is available at.
 	// +required
-	SourceRef *commonv1.SourceRef `json:"sourceRef"`
+	SourceRef CrossNamespaceObjectReference `json:"sourceRef"`
 
 	// Interval at which to check the v1.Source for updates. Defaults to
 	// 'HelmReleaseSpec.Interval'.
