@@ -87,9 +87,7 @@ for this HelmRelease.</p>
 <td>
 <code>chartRef</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2.CrossNamespaceSourceReference">
-CrossNamespaceSourceReference
-</a>
+github.com/openfluxcd/artifact/api/commonv1.SourceRef
 </em>
 </td>
 <td>
@@ -419,10 +417,6 @@ HelmReleaseStatus
 installing or upgrading a HelmRelease.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.CrossNamespaceObjectReference">CrossNamespaceObjectReference
 </h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2.HelmChartTemplateSpec">HelmChartTemplateSpec</a>)
-</p>
 <p>CrossNamespaceObjectReference contains enough information to let you locate
 the typed referenced object at cluster level.</p>
 <div class="md-typeset__scrollwrap">
@@ -487,10 +481,6 @@ string
 </div>
 <h3 id="helm.toolkit.fluxcd.io/v2.CrossNamespaceSourceReference">CrossNamespaceSourceReference
 </h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
-</p>
 <p>CrossNamespaceSourceReference contains enough information to let you locate
 the typed referenced object at cluster level.</p>
 <div class="md-typeset__scrollwrap">
@@ -619,10 +609,6 @@ handle differences between the manifest in the Helm storage and the resources
 currently existing in the cluster.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.Filter">Filter
 </h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2.Test">Test</a>)
-</p>
 <p>Filter holds the configuration for individual Helm test filters.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
@@ -736,9 +722,7 @@ v1beta2.Bucket sources. Defaults to latest when omitted.</p>
 <td>
 <code>sourceRef</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2.CrossNamespaceObjectReference">
-CrossNamespaceObjectReference
-</a>
+github.com/openfluxcd/artifact/api/commonv1.SourceRef
 </em>
 </td>
 <td>
@@ -925,9 +909,7 @@ v1beta2.Bucket sources. Defaults to latest when omitted.</p>
 <td>
 <code>sourceRef</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2.CrossNamespaceObjectReference">
-CrossNamespaceObjectReference
-</a>
+github.com/openfluxcd/artifact/api/commonv1.SourceRef
 </em>
 </td>
 <td>
@@ -1097,9 +1079,7 @@ for this HelmRelease.</p>
 <td>
 <code>chartRef</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2.CrossNamespaceSourceReference">
-CrossNamespaceSourceReference
-</a>
+github.com/openfluxcd/artifact/api/commonv1.SourceRef
 </em>
 </td>
 <td>
@@ -2357,9 +2337,7 @@ Kubernetes meta/v1.Time
 <td>
 <code>testHooks</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2.TestHookStatus">
-TestHookStatus
-</a>
+map[string]*./api/v2.TestHookStatus
 </em>
 </td>
 <td>
@@ -2454,8 +2432,8 @@ actions in &lsquo;Install.IgnoreTestFailures&rsquo; and &lsquo;Upgrade.IgnoreTes
 <td>
 <code>filters</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2.Filter">
-Filter
+<a href="#helm.toolkit.fluxcd.io/v2.[]./api/v2.Filter">
+[]./api/v2.Filter
 </a>
 </em>
 </td>
@@ -2469,10 +2447,6 @@ Filter
 </div>
 <h3 id="helm.toolkit.fluxcd.io/v2.TestHookStatus">TestHookStatus
 </h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2.Snapshot">Snapshot</a>)
-</p>
 <p>TestHookStatus holds the status information for a test hook as observed
 to be run by the controller.</p>
 <div class="md-typeset__scrollwrap">

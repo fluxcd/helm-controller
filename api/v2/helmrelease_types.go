@@ -17,6 +17,10 @@ limitations under the License.
 package v2
 
 import (
+	"fmt"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	"github.com/openfluxcd/artifact/api/commonv1"
+	"github.com/openfluxcd/artifact/utils"
 	"strings"
 	"time"
 
@@ -74,7 +78,7 @@ type HelmReleaseSpec struct {
 	// ChartRef holds a reference to a source controller resource containing the
 	// Helm chart artifact.
 	// +optional
-	ChartRef *CrossNamespaceSourceReference `json:"chartRef,omitempty"`
+	ChartRef *commonv1.SourceRef `json:"chartRef,omitempty"`
 
 	// Interval at which to reconcile the Helm release.
 	// +kubebuilder:validation:Type=string
@@ -333,7 +337,7 @@ type HelmChartTemplateSpec struct {
 
 	// The name and namespace of the v1.Source the chart is available at.
 	// +required
-	SourceRef CrossNamespaceObjectReference `json:"sourceRef"`
+	SourceRef *commonv1.SourceRef `json:"sourceRef"`
 
 	// Interval at which to check the v1.Source for updates. Defaults to
 	// 'HelmReleaseSpec.Interval'.
@@ -1244,6 +1248,22 @@ func (in *HelmRelease) HasChartRef() bool {
 // HasChartTemplate returns true if the HelmRelease has a ChartTemplate.
 func (in *HelmRelease) HasChartTemplate() bool {
 	return in.Spec.Chart != nil
+}
+
+func (in HelmRelease) GetSourceRef() (utils.SourceRefProvider, error) {
+	switch {
+	case in.HasChartRef() && !in.HasChartTemplate():
+		return in.Spec.ChartRef, nil
+	case !in.HasChartRef() && in.HasChartTemplate():
+		return utils.NewSourceRef(
+			sourcev1.GroupVersion.Group,
+			sourcev1.HelmChartKind,
+			in.Spec.Chart.GetNamespace(in.Namespace),
+			in.GetHelmChartName(),
+		), nil
+	default:
+		return nil, fmt.Errorf("one of chartRef or chart must be present")
+	}
 }
 
 // +kubebuilder:object:root=true

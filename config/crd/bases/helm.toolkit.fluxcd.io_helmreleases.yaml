@@ -114,26 +114,21 @@ spec:
                           is available at.
                         properties:
                           apiVersion:
-                            description: APIVersion of the referent.
+                            description: API version of the referent.
                             type: string
                           kind:
                             description: Kind of the referent.
-                            enum:
-                            - HelmRepository
-                            - GitRepository
-                            - Bucket
                             type: string
                           name:
                             description: Name of the referent.
-                            maxLength: 253
-                            minLength: 1
                             type: string
                           namespace:
-                            description: Namespace of the referent.
-                            maxLength: 63
-                            minLength: 1
+                            description: |-
+                              Namespace of the referent, defaults to the namespace of the Kubernetes
+                              resource object that contains the reference.
                             type: string
                         required:
+                        - kind
                         - name
                         type: object
                       valuesFiles:
@@ -195,25 +190,18 @@ spec:
                   Helm chart artifact.
                 properties:
                   apiVersion:
-                    description: APIVersion of the referent.
+                    description: API version of the referent.
                     type: string
                   kind:
                     description: Kind of the referent.
-                    enum:
-                    - OCIRepository
-                    - HelmChart
                     type: string
                   name:
                     description: Name of the referent.
-                    maxLength: 253
-                    minLength: 1
                     type: string
                   namespace:
                     description: |-
                       Namespace of the referent, defaults to the namespace of the Kubernetes
                       resource object that contains the reference.
-                    maxLength: 63
-                    minLength: 1
                     type: string
                 required:
                 - kind

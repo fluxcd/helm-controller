@@ -20,9 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/openfluxcd/artifact/utils"
 	"strings"
 	"time"
 
+	actionctrl "github.com/openfluxcd/artifact/action"
+	artifactv1 "github.com/openfluxcd/artifact/api/v1alpha1"
 	"helm.sh/helm/v3/pkg/chart"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -34,12 +37,9 @@ import (
 	"k8s.io/client-go/rest"
 	kuberecorder "k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -54,7 +54,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/object"
 	"github.com/fluxcd/pkg/runtime/patch"
-	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 
@@ -68,7 +67,6 @@ import (
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/loader"
 	"github.com/fluxcd/helm-controller/internal/postrender"
-	intpredicates "github.com/fluxcd/helm-controller/internal/predicates"
 	intreconcile "github.com/fluxcd/helm-controller/internal/reconcile"
 	"github.com/fluxcd/helm-controller/internal/release"
 )
@@ -111,39 +109,35 @@ var (
 )
 
 func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
-	// Index the HelmRelease by the Source reference they point to.
-	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2.HelmRelease{}, v2.SourceIndexKey,
-		func(o client.Object) []string {
-			obj := o.(*v2.HelmRelease)
-			namespacedName, err := getNamespacedName(obj)
-			if err != nil {
-				return nil
+
+	bldr, err := actionctrl.Setup[v2.HelmRelease](ctx, mgr, r.Client, actionctrl.WithTriggerPredicate(func(action actionctrl.ActionResource, art actionctrl.ArtifactSource) bool {
+		rel := action.(*v2.HelmRelease)
+		switch art.(type) {
+		case *sourcev1beta2.OCIRepository:
+			// If the HelmRelease is ready and the digest of the artifact equals to the
+			// last attempted revision digest, we should not make a request for this HelmRelease,
+			// likewise if we cannot retrieve the artifact digest.
+			dig := extractDigest(art.GetArtifact().Revision)
+			if dig == "" {
+				ctrl.LoggerFrom(ctx).Error(fmt.Errorf("wrong digest for %T", art), "failed to get requests for OCIRepository change")
+				return false
 			}
-			return []string{
-				namespacedName.String(),
-			}
-		},
-	); err != nil {
+
+			return !(dig == rel.Status.LastAttemptedRevisionDigest)
+		default:
+			// If the HelmRelease is ready and the revision of the artifact equals to the
+			// last attempted revision, we should not make a request for this HelmRelease
+			return !conditions.IsReady(rel) && art.GetArtifact().HasRevision(rel.Status.GetLastAttemptedRevision())
+		}
+	}))
+	if err != nil {
 		return err
 	}
 
 	r.requeueDependency = opts.DependencyRequeueInterval
 	r.artifactFetchRetries = opts.HTTPRetry
 
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&v2.HelmRelease{}, builder.WithPredicates(
-			predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{}),
-		)).
-		Watches(
-			&sourcev1.HelmChart{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForHelmChartChange),
-			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
-		).
-		Watches(
-			&sourcev1beta2.OCIRepository{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForOCIRrepositoryChange),
-			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
-		).
+	return bldr.
 		WithOptions(controller.Options{
 			RateLimiter: opts.RateLimiter,
 		}).
@@ -269,7 +263,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	}
 
 	// Get the source object containing the HelmChart.
-	source, err := r.getSource(ctx, obj)
+	source, err := r.getSource(ctx, obj) //actionctrl.GetSource(ctx, r.Client, obj, actionctrl.WithNoCrossNamespaceRefs(!intacl.AllowCrossNamespaceRef))
 	if err != nil {
 		if acl.IsAccessDenied(err) {
 			conditions.MarkStalled(obj, aclv1.AccessDeniedReason, "%s", err)
@@ -701,15 +695,52 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *
 // using the chartRef in the spec, or by looking up the HelmChart
 // referenced in the status object.
 // It returns the source object or an error.
-func (r *HelmReleaseReconciler) getSource(ctx context.Context, obj *v2.HelmRelease) (sourcev1.Source, error) {
+func (r *HelmReleaseReconciler) getSource(ctx context.Context, obj *v2.HelmRelease) (actionctrl.ArtifactSource, error) {
 	var name, namespace string
+
 	if obj.HasChartRef() {
-		if obj.Spec.ChartRef.Kind == sourcev1beta2.OCIRepositoryKind {
+		switch obj.Spec.ChartRef.Kind {
+		case sourcev1beta2.OCIRepositoryKind:
 			return r.getSourceFromOCIRef(ctx, obj)
-		}
-		name, namespace = obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
-		if namespace == "" {
-			namespace = obj.GetNamespace()
+		case sourcev1beta2.HelmChartKind:
+			return r.getSourceFromHelmChartRef(ctx, obj)
+		default:
+			artList := &artifactv1.ArtifactList{}
+			sourceref, err := obj.GetSourceRef()
+			if err != nil {
+				return nil, err
+			}
+			sourceref = utils.NormalizedSourceRef(sourceref, obj.GetNamespace())
+
+			namespacedName := types.NamespacedName{Namespace: sourceref.GetNamespace()}
+
+			key := utils.KeyForReference(obj, sourceref)
+			if key != "" {
+				err := r.Client.List(ctx, artList, client.MatchingFields{
+					actionctrl.ArtifactOwnerIndexKey: key,
+				})
+				if err != nil {
+					return nil, err
+				}
+				switch len(artList.Items) {
+				case 0:
+					return nil, fmt.Errorf("no artifact resource found for %s", key)
+				case 1:
+					namespacedName.Name = artList.Items[0].Name
+				default:
+					return nil, fmt.Errorf("multiple artifacts found for %s", key)
+				}
+
+				var art artifactv1.Artifact
+				err = r.Client.Get(ctx, namespacedName, &art)
+				if err != nil {
+					if apierrors.IsNotFound(err) {
+						return nil, err
+					}
+					return nil, fmt.Errorf("unable to get source '%s': %w", namespacedName, err)
+				}
+				return &art, nil
+			}
 		}
 	} else {
 		namespace, name = obj.Status.GetHelmChart()
@@ -744,6 +775,25 @@ func (r *HelmReleaseReconciler) getSourceFromOCIRef(ctx context.Context, obj *v2
 		return nil, err
 	}
 	return &or, nil
+}
+
+func (r *HelmReleaseReconciler) getSourceFromHelmChartRef(ctx context.Context, obj *v2.HelmRelease) (sourcev1.Source, error) {
+	name, namespace := obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
+	if namespace == "" {
+		namespace = obj.GetNamespace()
+	}
+
+	chartRef := types.NamespacedName{Namespace: namespace, Name: name}
+
+	if err := intacl.AllowsAccessTo(obj, sourcev1.HelmChartKind, chartRef); err != nil {
+		return nil, err
+	}
+
+	hc := sourcev1.HelmChart{}
+	if err := r.Client.Get(ctx, chartRef, &hc); err != nil {
+		return nil, err
+	}
+	return &hc, nil
 }
 
 // waitForHistoryCacheSync returns a function that can be used to wait for the
@@ -836,7 +886,7 @@ func (r *HelmReleaseReconciler) requestsForOCIRrepositoryChange(ctx context.Cont
 	return reqs
 }
 
-func isSourceReady(obj sourcev1.Source) (bool, string) {
+func isSourceReady(obj actionctrl.ArtifactSource) (bool, string) {
 	if o, ok := obj.(conditions.Getter); ok {
 		return isReady(o, obj.GetArtifact())
 	}
@@ -895,7 +945,7 @@ func getNamespacedName(obj *v2.HelmRelease) (types.NamespacedName, error) {
 	return namespacedName, nil
 }
 
-func mutateChartWithSourceRevision(chart *chart.Chart, source sourcev1.Source) (string, error) {
+func mutateChartWithSourceRevision(chart *chart.Chart, source actionctrl.ArtifactSource) (string, error) {
 	// If the source is an OCIRepository, we can try to mutate the chart version
 	// with the artifact revision. The revision is either a <tag>@<digest> or
 	// just a digest.

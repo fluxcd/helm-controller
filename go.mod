@@ -14,6 +14,8 @@ replace (
 	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.17.0
 )
 
+replace github.com/openfluxcd/artifact => ../artifact
+
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/fluxcd/cli-utils v0.36.0-flux.7
@@ -33,6 +35,7 @@ require (
 	github.com/onsi/gomega v1.33.1
 	github.com/opencontainers/go-digest v1.0.1-0.20231025023718-d50d2fec9c98
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20231212064514-429d0316a3dd
+	github.com/openfluxcd/artifact v0.0.0-20240716155959-1444c21d5f7c
 	github.com/spf13/pflag v1.0.5
 	github.com/wI2L/jsondiff v0.5.2
 	golang.org/x/text v0.15.0
@@ -44,7 +47,7 @@ require (
 	k8s.io/client-go v0.30.0
 	k8s.io/kubectl v0.30.0
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57
-	sigs.k8s.io/controller-runtime v0.18.1
+	sigs.k8s.io/controller-runtime v0.18.2
 	sigs.k8s.io/kustomize/api v0.17.1
 	sigs.k8s.io/kustomize/kyaml v0.17.0
 	sigs.k8s.io/yaml v1.4.0

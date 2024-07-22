@@ -566,8 +566,8 @@ k8s.io/utils v0.0.0-20240310230437-4693a0247e57 h1:gbqbevonBh57eILzModw6mrkbwM0g
 k8s.io/utils v0.0.0-20240310230437-4693a0247e57/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
 oras.land/oras-go v1.2.4 h1:djpBY2/2Cs1PV87GSJlxv4voajVOMZxqqtq9AB8YNvY=
 oras.land/oras-go v1.2.4/go.mod h1:DYcGfb3YF1nKjcezfX2SNlDAeQFKSXmf+qrFmrh4324=
-sigs.k8s.io/controller-runtime v0.18.1 h1:RpWbigmuiylbxOCLy0tGnq1cU1qWPwNIQzoJk+QeJx4=
-sigs.k8s.io/controller-runtime v0.18.1/go.mod h1:tuAt1+wbVsXIT8lPtk5RURxqAnq7xkpv2Mhttslg7Hw=
+sigs.k8s.io/controller-runtime v0.18.2 h1:RqVW6Kpeaji67CY5nPEfRz6ZfFMk0lWQlNrLqlNpx+Q=
+sigs.k8s.io/controller-runtime v0.18.2/go.mod h1:tuAt1+wbVsXIT8lPtk5RURxqAnq7xkpv2Mhttslg7Hw=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd/go.mod h1:B8JuhiUyNFVKdsE8h686QcCxMaH6HrOAZj4vswFpcB0=
 sigs.k8s.io/kustomize/api v0.17.0 h1:AygX5EzZ+2NDxCWkeHy4IK2oftvl4odZZJmq1rK4HYU=
