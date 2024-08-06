@@ -49,7 +49,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
-	artifactv1 "github.com/openfluxcd/artifact/api/v1alpha1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	intdigest "github.com/fluxcd/helm-controller/internal/digest"
