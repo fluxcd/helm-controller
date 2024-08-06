@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	artifactv1 "github.com/openfluxcd/artifact/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -52,6 +53,7 @@ func NewTestScheme() *runtime.Scheme {
 	utilruntime.Must(sourcev1.AddToScheme(s))
 	utilruntime.Must(sourcev1beta2.AddToScheme(s))
 	utilruntime.Must(v2.AddToScheme(s))
+	utilruntime.Must(artifactv1.AddToScheme(s))
 	return s
 }
 

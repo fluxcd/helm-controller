@@ -21,6 +21,7 @@ import (
 	"os"
 	"time"
 
+	artifactv1 "github.com/openfluxcd/artifact/api/v1alpha1"
 	flag "github.com/spf13/pflag"
 	"helm.sh/helm/v3/pkg/kube"
 	corev1 "k8s.io/api/core/v1"

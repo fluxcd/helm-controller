@@ -886,11 +886,13 @@ func (r *HelmReleaseReconciler) requestsForOCIRrepositoryChange(ctx context.Cont
 	return reqs
 }
 
-func isSourceReady(obj actionctrl.ArtifactSource) (bool, string) {
-	if o, ok := obj.(conditions.Getter); ok {
-		return isReady(o, obj.GetArtifact())
+func isSourceReady(src actionctrl.ArtifactSource) (bool, string) {
+	if o, ok := src.(conditions.Getter); ok {
+		return isReady(o, src.GetArtifact())
+	} else if _, ok := src.(*artifactv1.Artifact); ok {
+		return true, fmt.Sprintf("artifact resource found")
 	}
-	return false, fmt.Sprintf("unknown sourcev1 type: %T", obj)
+	return false, fmt.Sprintf("unknown type: %T does not provide condition information", src)
 }
 
 func isReady(obj conditions.Getter, artifact *sourcev1.Artifact) (bool, string) {
