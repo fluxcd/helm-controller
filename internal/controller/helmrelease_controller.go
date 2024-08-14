@@ -91,6 +91,7 @@ type HelmReleaseReconciler struct {
 	GetClusterConfig func() (*rest.Config, error)
 	ClientOpts       runtimeClient.Options
 	KubeConfigOpts   runtimeClient.KubeConfigOptions
+	LeaderElection   *bool
 
 	FieldManager          string
 	DefaultServiceAccount string
@@ -145,7 +146,8 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
 		WithOptions(controller.Options{
-			RateLimiter: opts.RateLimiter,
+			RateLimiter:        opts.RateLimiter,
+			NeedLeaderElection: r.LeaderElection,
 		}).
 		Complete(r)
 }

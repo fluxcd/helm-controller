@@ -33,10 +33,11 @@ CRD_DEP_ROOT ?= $(BUILD_DIR)/config/crd/bases
 # Keep a record of the version of the downloaded source CRDs. It is used to
 # detect and download new CRDs when the SOURCE_VER changes.
 SOURCE_VER ?= $(shell go list -m all | grep github.com/fluxcd/source-controller/api | awk '{print $$2}')
+SOURCE_BRANCH ?= main
 SOURCE_CRD_VER = $(CRD_DEP_ROOT)/.src-crd-$(SOURCE_VER)
 
 # HelmChart source CRD.
-HELMCHART_SOURCE_CRD ?= $(CRD_DEP_ROOT)/source.toolkit.fluxcd.io_helmcharts.yaml
+HELMCHART_SOURCE_CRD ?= $(CRD_DEP_ROOT)/cd.qdrant.io_helmcharts.yaml
 
 # API (doc) generation utilities
 CONTROLLER_GEN_VERSION ?= v0.15.0
@@ -46,7 +47,7 @@ all: manager
 
 # Run tests
 KUBEBUILDER_ASSETS?="$(shell $(ENVTEST) --arch=$(ENVTEST_ARCH) use -i $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p path)"
-test: tidy generate fmt vet manifests api-docs install-envtest download-crd-deps
+test: tidy generate fmt vet manifests install-envtest download-crd-deps
 	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) go test ./... -coverprofile cover.out
 	cd api; go test ./... -coverprofile cover.out
 
@@ -133,7 +134,7 @@ $(SOURCE_CRD_VER):
 	touch $(SOURCE_CRD_VER)
 
 $(HELMCHART_SOURCE_CRD):
-	curl -s https://raw.githubusercontent.com/fluxcd/source-controller/${SOURCE_VER}/config/crd/bases/source.toolkit.fluxcd.io_helmcharts.yaml > $(HELMCHART_SOURCE_CRD)
+	curl -s https://raw.githubusercontent.com/qdrant/fluxcd-source-controller/${SOURCE_BRANCH}/config/crd/bases/cd.qdrant.io_helmcharts.yaml > $(HELMCHART_SOURCE_CRD)
 
 # Download the CRDs the controller depends on
 download-crd-deps: $(SOURCE_CRD_VER) $(HELMCHART_SOURCE_CRD)
