@@ -34,7 +34,7 @@ import (
 )
 
 const HelmReleaseKind = "HelmRelease"
-const HelmReleaseFinalizer = "finalizers.fluxcd.io"
+const HelmReleaseFinalizer = "finalizers.qdrant.io"
 
 // Kustomize Helm PostRenderer specification.
 type Kustomize struct {
@@ -1096,7 +1096,7 @@ const (
 
 // +genclient
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:shortName=hr
+// +kubebuilder:resource:shortName=qdranthr
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""

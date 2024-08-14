@@ -36,7 +36,7 @@ const (
 	HelmReleaseKind = "HelmRelease"
 	// HelmReleaseFinalizer is set on a HelmRelease when it is first handled by
 	// the controller, and removed when this object is deleted.
-	HelmReleaseFinalizer = "finalizers.fluxcd.io"
+	HelmReleaseFinalizer = "finalizers.qdrant.io"
 )
 
 const (
@@ -1090,7 +1090,7 @@ const (
 
 // +genclient
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:shortName=hr
+// +kubebuilder:resource:shortName=qdranthr
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""

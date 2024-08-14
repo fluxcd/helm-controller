@@ -9,7 +9,7 @@ spec:
   ref:
     digest: "sha256:cdd538a0167e4b51152b71a477e51eb6737553510ce8797dbcc537e1342311bb"
 ---
-apiVersion: helm.toolkit.fluxcd.io/v2beta2
+apiVersion: cd.qdrant.io/v2beta2
 kind: HelmRelease
 metadata:
   name: upgrade-from-ocirepo-source

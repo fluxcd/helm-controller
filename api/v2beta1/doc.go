@@ -16,5 +16,5 @@ limitations under the License.
 
 // Package v2beta1 contains API Schema definitions for the helm v2beta1 API group
 // +kubebuilder:object:generate=true
-// +groupName=helm.toolkit.fluxcd.io
+// +groupName=cd.qdrant.io
 package v2beta1

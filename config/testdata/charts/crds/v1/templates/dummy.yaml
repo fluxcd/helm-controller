@@ -1,6 +1,6 @@
 ---
 kind: CrdUpgradeTesta
-apiVersion: crd-upgrades.helmreleases.helm.toolkit.fluxcd.io/v2beta1
+apiVersion: crd-upgrades.helmreleases.cd.qdrant.io/v2beta1
 metadata:
   name: a
 spec: {}

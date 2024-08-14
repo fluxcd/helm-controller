@@ -1,13 +1,13 @@
-domain: toolkit.fluxcd.io
+domain: qdrant.io
 repo: github.com/fluxcd/helm-controller
 resources:
-- group: helm
+- group: cd
   kind: HelmRelease
   version: v2beta1
-- group: helm
+- group: cd
   kind: HelmRelease
   version: v2beta2
-- group: helm
+- group: cd
   kind: HelmRelease
   version: v2
 storageVersion: v2

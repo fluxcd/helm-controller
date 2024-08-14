@@ -50,8 +50,8 @@ func Test_OriginLabels_Run(t *testing.T) {
 kind: Pod
 metadata:
   labels:
-    helm.toolkit.fluxcd.io/name: name
-    helm.toolkit.fluxcd.io/namespace: namespace
+    cd.qdrant.io/name: name
+    cd.qdrant.io/namespace: namespace
   name: pod-without-labels
 ---
 apiVersion: v1
@@ -69,7 +69,7 @@ metadata:
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			k := NewOriginLabels("helm.toolkit.fluxcd.io", "namespace", "name")
+			k := NewOriginLabels("cd.qdrant.io", "namespace", "name")
 			gotModifiedManifests, err := k.Run(bytes.NewBufferString(tt.renderedManifests))
 			if tt.expectErr {
 				g.Expect(err).To(HaveOccurred())

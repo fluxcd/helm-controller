@@ -1,7 +1,7 @@
 {{- if .Values.a }}
 ---
 kind: CrdUpgradeTesta
-apiVersion: crd-upgrades.helmreleases.helm.toolkit.fluxcd.io/{{.Values.a}}
+apiVersion: crd-upgrades.helmreleases.cd.qdrant.io/{{.Values.a}}
 metadata:
   name: a
 spec: {}
@@ -9,7 +9,7 @@ spec: {}
 {{- if .Values.b }}
 ---
 kind: CrdUpgradeTestb
-apiVersion: crd-upgrades.helmreleases.helm.toolkit.fluxcd.io/{{.Values.b}}
+apiVersion: crd-upgrades.helmreleases.cd.qdrant.io/{{.Values.b}}
 metadata:
   name: b
 spec: {}
@@ -17,7 +17,7 @@ spec: {}
 {{- if .Values.c }}
 ---
 kind: CrdUpgradeTestc
-apiVersion: crd-upgrades.helmreleases.helm.toolkit.fluxcd.io/{{.Values.c}}
+apiVersion: crd-upgrades.helmreleases.cd.qdrant.io/{{.Values.c}}
 metadata:
   name: c
 spec: {}
@@ -25,7 +25,7 @@ spec: {}
 {{- if .Values.d }}
 ---
 kind: CrdUpgradeTestd
-apiVersion: crd-upgrades.helmreleases.helm.toolkit.fluxcd.io/{{.Values.d}}
+apiVersion: crd-upgrades.helmreleases.cd.qdrant.io/{{.Values.d}}
 metadata:
   name: d
 spec: {}

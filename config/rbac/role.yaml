@@ -12,7 +12,7 @@ rules:
   - create
   - patch
 - apiGroups:
-  - helm.toolkit.fluxcd.io
+  - cd.qdrant.io
   resources:
   - helmreleases
   verbs:
@@ -24,7 +24,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - helm.toolkit.fluxcd.io
+  - cd.qdrant.io
   resources:
   - helmreleases/finalizers
   verbs:
@@ -34,7 +34,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - helm.toolkit.fluxcd.io
+  - cd.qdrant.io
   resources:
   - helmreleases/status
   verbs:
