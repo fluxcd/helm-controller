@@ -114,8 +114,6 @@ github.com/fluxcd/pkg/ssa v0.39.1 h1:xPYRKqgqB5p+5jgz2xBkXCE/7i1FIOa+nA3Wr7Gu2Ek
 github.com/fluxcd/pkg/ssa v0.39.1/go.mod h1:AkhMoFxipMf3WoO3lkXjj2nHNIz6sA5yQ50aBodtxnk=
 github.com/fluxcd/pkg/testserver v0.7.0 h1:kNVAn+3bAF2rfR9cT6SxzgEz2o84i+o7zKY3XRKTXmk=
 github.com/fluxcd/pkg/testserver v0.7.0/go.mod h1:Ih5IK3Y5G3+a6c77BTqFkdPDCY1Yj1A1W5cXQqkCs9s=
-github.com/fluxcd/source-controller/api v1.3.0 h1:Z5Lq0aJY87yg0cQDEuwGLKS60GhdErCHtsi546HUt10=
-github.com/fluxcd/source-controller/api v1.3.0/go.mod h1:+tfd0vltjcVs/bbnq9AlYR9AAHSVfM/Z4v4TpQmdJf4=
 github.com/foxcpp/go-mockdns v1.0.0 h1:7jBqxd3WDWwi/6WhDvacvH1XsN3rOLXyHM1uhvIx6FI=
 github.com/foxcpp/go-mockdns v1.0.0/go.mod h1:lgRN6+KxQBawyIghpnl5CezHFGS9VLzvtVlwxvzXTQ4=
 github.com/frankban/quicktest v1.14.3 h1:FJKSZTDHjyhriyC81FLQ0LY93eSai0ZyR/ZIkd3ZUKE=
@@ -347,6 +345,8 @@ github.com/prometheus/procfs v0.0.2/go.mod h1:TjEm7ze935MbeOT/UhFTIMYKhuLP4wbCsT
 github.com/prometheus/procfs v0.0.3/go.mod h1:4A/X28fw3Fc593LaREMrKMqOKvUAntwMDaekg4FpcdQ=
 github.com/prometheus/procfs v0.14.0 h1:Lw4VdGGoKEZilJsayHf0B+9YgLGREba2C6xr+Fdfq6s=
 github.com/prometheus/procfs v0.14.0/go.mod h1:XL+Iwz8k8ZabyZfMFHPiilCniixqQarAy5Mu67pHlNQ=
+github.com/qdrant/fluxcd-source-controller/api v0.0.0-20240814110651-c292ee968c96 h1:VBdL7YZ2zFz8Zq/u8glT43lSmR3F+J+zzu3ZiMHU67w=
+github.com/qdrant/fluxcd-source-controller/api v0.0.0-20240814110651-c292ee968c96/go.mod h1:+tfd0vltjcVs/bbnq9AlYR9AAHSVfM/Z4v4TpQmdJf4=
 github.com/rogpeppe/go-internal v1.11.0 h1:cWPaGQEPrBb5/AsnsZesgZZ9yb1OQ+GOISoDNXVBh4M=
 github.com/rogpeppe/go-internal v1.11.0/go.mod h1:ddIwULY96R17DhadqLgMfk9H9tvdUzkipdSkR5nkCZA=
 github.com/rubenv/sql-migrate v1.5.2 h1:bMDqOnrJVV/6JQgQ/MxOpU+AdO8uzYYA/TxFUBzFtS0=
