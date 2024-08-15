@@ -33,6 +33,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	kuberecorder "k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,7 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/Masterminds/semver"
@@ -102,7 +102,7 @@ type HelmReleaseReconciler struct {
 type HelmReleaseReconcilerOptions struct {
 	HTTPRetry                 int
 	DependencyRequeueInterval time.Duration
-	RateLimiter               ratelimiter.RateLimiter
+	RateLimiter               workqueue.TypedRateLimiter[reconcile.Request]
 }
 
 var (
