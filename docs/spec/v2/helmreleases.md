@@ -413,7 +413,8 @@ Changes to the combined values will trigger a new Helm release.
 `.spec.valuesFrom` is an optional list to refer to ConfigMap and Secret
 resources from which to take values. The values are merged in the order given,
 with the later values overwriting earlier, and then [inline values](#inline-values)
-overwriting those.
+overwriting those. When `targetPath` is set, it will overwrite everything before,
+including inline values.
 
 An item on the list offers the following subkeys:
 

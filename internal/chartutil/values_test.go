@@ -104,6 +104,47 @@ other: values
 			},
 		},
 		{
+			name: "target path precedence over all",
+			resources: []runtime.Object{
+				mockConfigMap("values", map[string]string{
+					"values.yaml": `flat: value
+nested:
+  configuration:
+  - one
+  - two
+  - three
+`,
+				}),
+				mockSecret("values", map[string][]byte{"key": []byte("value")}),
+			},
+			references: []v2.ValuesReference{
+				{
+					Kind:       kindSecret,
+					Name:       "values",
+					ValuesKey:  "key",
+					TargetPath: "nested.configuration[0]",
+				},
+				{
+					Kind: kindConfigMap,
+					Name: "values",
+				},
+			},
+
+			values: `
+nested:
+  configuration:
+  - list
+  - item
+  - option
+`,
+			want: chartutil.Values{
+				"flat": "value",
+				"nested": map[string]interface{}{
+					"configuration": []interface{}{"value", "item", "option"},
+				},
+			},
+		},
+		{
 			name: "target path for string type array item",
 			resources: []runtime.Object{
 				mockConfigMap("values", map[string]string{
