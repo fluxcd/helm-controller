@@ -75,6 +75,7 @@ func newInstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []In
 	install.Replace = obj.GetInstall().Replace
 	install.Devel = true
 	install.SkipCRDs = true
+	install.TakeOwnership = true
 
 	if obj.Spec.TargetNamespace != "" {
 		install.CreateNamespace = obj.GetInstall().CreateNamespace
