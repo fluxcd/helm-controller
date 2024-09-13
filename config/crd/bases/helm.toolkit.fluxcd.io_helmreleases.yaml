@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.15.0
+    controller-gen.kubebuilder.io/version: v0.16.1
   name: helmreleases.helm.toolkit.fluxcd.io
 spec:
   group: helm.toolkit.fluxcd.io
@@ -134,6 +134,7 @@ spec:
                             minLength: 1
                             type: string
                         required:
+                        - kind
                         - name
                         type: object
                       valuesFiles:
@@ -333,16 +334,12 @@ spec:
                       `Create` or `CreateReplace`. Default is `Create` and if omitted
                       CRDs are installed but not updated.
 
-
                       Skip: do neither install nor replace (update) any CRDs.
-
 
                       Create: new CRDs are created, existing CRDs are neither updated nor deleted.
 
-
                       CreateReplace: new CRDs are created, existing CRDs are updated (replaced)
                       but not deleted.
-
 
                       By default, CRDs are applied (installed) during Helm install action.
                       With this option users can opt in to CRD replace existing CRDs on Helm
@@ -411,7 +408,6 @@ spec:
                       SkipCRDs tells the Helm install action to not install any CRDs. By default,
                       CRDs are installed if not already present.
 
-
                       Deprecated use CRD policy (`crds`) attribute with value `Skip` instead.
                     type: boolean
                   timeout:
@@ -472,12 +468,10 @@ spec:
                   duration of the reconciliation, instead of being created and destroyed
                   for each (step of a) Helm action.
 
-
                   This can improve performance, but may cause issues with some Helm charts
                   that for example do create Custom Resource Definitions during installation
                   outside Helm's CRD lifecycle hooks, which are then not observed to be
                   available by e.g. post-install hooks.
-
 
                   If not set, it defaults to true.
                 type: boolean
@@ -756,16 +750,12 @@ spec:
                       `Create` or `CreateReplace`. Default is `Skip` and if omitted
                       CRDs are neither installed nor upgraded.
 
-
                       Skip: do neither install nor replace (update) any CRDs.
-
 
                       Create: new CRDs are created, existing CRDs are neither updated nor deleted.
 
-
                       CreateReplace: new CRDs are created, existing CRDs are updated (replaced)
                       but not deleted.
-
 
                       By default, CRDs are not applied during Helm upgrade action. With this
                       option users can opt-in to CRD upgrade, which is not (yet) natively supported by Helm.
@@ -909,16 +899,8 @@ spec:
               conditions:
                 description: Conditions holds the conditions for the HelmRelease.
                 items:
-                  description: "Condition contains details for one aspect of the current
-                    state of this API Resource.\n---\nThis struct is intended for
-                    direct use as an array at the field path .status.conditions.  For
-                    example,\n\n\n\ttype FooStatus struct{\n\t    // Represents the
-                    observations of a foo's current state.\n\t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\"\n\t    //
-                    +patchMergeKey=type\n\t    // +patchStrategy=merge\n\t    // +listType=map\n\t
-                    \   // +listMapKey=type\n\t    Conditions []metav1.Condition `json:\"conditions,omitempty\"
-                    patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`\n\n\n\t
-                    \   // other fields\n\t}"
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-
@@ -959,12 +941,7 @@ spec:
                       - Unknown
                       type: string
                     type:
-                      description: |-
-                        type of condition in CamelCase or in foo.example.com/CamelCase.
-                        ---
-                        Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be
-                        useful (see .node.status.conditions), the ability to deconflict is important.
-                        The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
                       maxLength: 316
                       pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string
@@ -1298,6 +1275,7 @@ spec:
                             minLength: 1
                             type: string
                         required:
+                        - kind
                         - name
                         type: object
                       valuesFile:
@@ -1363,7 +1341,6 @@ spec:
                   ChartRef holds a reference to a source controller resource containing the
                   Helm chart artifact.
 
-
                   Note: this field is provisional to the v2 API, and not actively used
                   by v2beta1 HelmReleases.
                 properties:
@@ -1418,7 +1395,6 @@ spec:
                   DriftDetection holds the configuration for detecting and handling
                   differences between the manifest in the Helm storage and the resources
                   currently existing in the cluster.
-
 
                   Note: this field is provisional to the v2beta2 API, and not actively used
                   by v2beta1 HelmReleases.
@@ -1510,16 +1486,12 @@ spec:
                       `Create` or `CreateReplace`. Default is `Create` and if omitted
                       CRDs are installed but not updated.
 
-
                       Skip: do neither install nor replace (update) any CRDs.
-
 
                       Create: new CRDs are created, existing CRDs are neither updated nor deleted.
 
-
                       CreateReplace: new CRDs are created, existing CRDs are updated (replaced)
                       but not deleted.
-
 
                       By default, CRDs are applied (installed) during Helm install action.
                       With this option users can opt-in to CRD replace existing CRDs on Helm
@@ -1588,7 +1560,6 @@ spec:
                       SkipCRDs tells the Helm install action to not install any CRDs. By default,
                       CRDs are installed if not already present.
 
-
                       Deprecated use CRD policy (`crds`) attribute with value `Skip` instead.
                     type: boolean
                   timeout:
@@ -1652,12 +1623,10 @@ spec:
                   duration of the reconciliation, instead of being created and destroyed
                   for each (step of a) Helm action.
 
-
                   This can improve performance, but may cause issues with some Helm charts
                   that for example do create Custom Resource Definitions during installation
                   outside Helm's CRD lifecycle hooks, which are then not observed to be
                   available by e.g. post-install hooks.
-
 
                   If not set, it defaults to true.
                 type: boolean
@@ -2014,16 +1983,12 @@ spec:
                       `Create` or `CreateReplace`. Default is `Skip` and if omitted
                       CRDs are neither installed nor upgraded.
 
-
                       Skip: do neither install nor replace (update) any CRDs.
-
 
                       Create: new CRDs are created, existing CRDs are neither updated nor deleted.
 
-
                       CreateReplace: new CRDs are created, existing CRDs are updated (replaced)
                       but not deleted.
-
 
                       By default, CRDs are not applied during Helm upgrade action. With this
                       option users can opt-in to CRD upgrade, which is not (yet) natively supported by Helm.
@@ -2155,6 +2120,7 @@ spec:
                   type: object
                 type: array
             required:
+            - chart
             - interval
             type: object
           status:
@@ -2165,16 +2131,8 @@ spec:
               conditions:
                 description: Conditions holds the conditions for the HelmRelease.
                 items:
-                  description: "Condition contains details for one aspect of the current
-                    state of this API Resource.\n---\nThis struct is intended for
-                    direct use as an array at the field path .status.conditions.  For
-                    example,\n\n\n\ttype FooStatus struct{\n\t    // Represents the
-                    observations of a foo's current state.\n\t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\"\n\t    //
-                    +patchMergeKey=type\n\t    // +patchStrategy=merge\n\t    // +listType=map\n\t
-                    \   // +listMapKey=type\n\t    Conditions []metav1.Condition `json:\"conditions,omitempty\"
-                    patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`\n\n\n\t
-                    \   // other fields\n\t}"
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-
@@ -2215,12 +2173,7 @@ spec:
                       - Unknown
                       type: string
                     type:
-                      description: |-
-                        type of condition in CamelCase or in foo.example.com/CamelCase.
-                        ---
-                        Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be
-                        useful (see .node.status.conditions), the ability to deconflict is important.
-                        The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
                       maxLength: 316
                       pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string
@@ -2247,7 +2200,6 @@ spec:
                 description: |-
                   History holds the history of Helm releases performed for this HelmRelease
                   up to the last successfully completed release.
-
 
                   Note: this field is provisional to the v2beta2 API, and not actively used
                   by v2beta1 HelmReleases.
@@ -2368,7 +2320,6 @@ spec:
                   LastAttemptedConfigDigest is the digest for the config (better known as
                   "values") of the last reconciliation attempt.
 
-
                   Note: this field is provisional to the v2beta2 API, and not actively used
                   by v2beta1 HelmReleases.
                 type: string
@@ -2376,7 +2327,6 @@ spec:
                 description: |-
                   LastAttemptedGeneration is the last generation the controller attempted
                   to reconcile.
-
 
                   Note: this field is provisional to the v2beta2 API, and not actively used
                   by v2beta1 HelmReleases.
@@ -2386,7 +2336,6 @@ spec:
                 description: |-
                   LastAttemptedReleaseAction is the last release action performed for this
                   HelmRelease. It is used to determine the active remediation strategy.
-
 
                   Note: this field is provisional to the v2beta2 API, and not actively used
                   by v2beta1 HelmReleases.
@@ -2405,7 +2354,6 @@ spec:
                   LastHandledForceAt holds the value of the most recent force request
                   value, so a change of the annotation value can be detected.
 
-
                   Note: this field is provisional to the v2beta2 API, and not actively used
                   by v2beta1 HelmReleases.
                 type: string
@@ -2419,7 +2367,6 @@ spec:
                 description: |-
                   LastHandledResetAt holds the value of the most recent reset request
                   value, so a change of the annotation value can be detected.
-
 
                   Note: this field is provisional to the v2beta2 API, and not actively used
                   by v2beta1 HelmReleases.
@@ -2441,7 +2388,6 @@ spec:
                 description: |-
                   StorageNamespace is the namespace of the Helm release storage for the
                   current release.
-
 
                   Note: this field is provisional to the v2beta2 API, and not actively used
                   by v2beta1 HelmReleases.
@@ -2578,6 +2524,7 @@ spec:
                             minLength: 1
                             type: string
                         required:
+                        - kind
                         - name
                         type: object
                       valuesFile:
@@ -2644,7 +2591,6 @@ spec:
                 description: |-
                   ChartRef holds a reference to a source controller resource containing the
                   Helm chart artifact.
-
 
                   Note: this field is provisional to the v2 API, and not actively used
                   by v2beta2 HelmReleases.
@@ -2788,16 +2734,12 @@ spec:
                       `Create` or `CreateReplace`. Default is `Create` and if omitted
                       CRDs are installed but not updated.
 
-
                       Skip: do neither install nor replace (update) any CRDs.
-
 
                       Create: new CRDs are created, existing CRDs are neither updated nor deleted.
 
-
                       CreateReplace: new CRDs are created, existing CRDs are updated (replaced)
                       but not deleted.
-
 
                       By default, CRDs are applied (installed) during Helm install action.
                       With this option users can opt in to CRD replace existing CRDs on Helm
@@ -2866,7 +2808,6 @@ spec:
                       SkipCRDs tells the Helm install action to not install any CRDs. By default,
                       CRDs are installed if not already present.
 
-
                       Deprecated use CRD policy (`crds`) attribute with value `Skip` instead.
                     type: boolean
                   timeout:
@@ -2927,12 +2868,10 @@ spec:
                   duration of the reconciliation, instead of being created and destroyed
                   for each (step of a) Helm action.
 
-
                   This can improve performance, but may cause issues with some Helm charts
                   that for example do create Custom Resource Definitions during installation
                   outside Helm's CRD lifecycle hooks, which are then not observed to be
                   available by e.g. post-install hooks.
-
 
                   If not set, it defaults to true.
                 type: boolean
@@ -3314,16 +3253,12 @@ spec:
                       `Create` or `CreateReplace`. Default is `Skip` and if omitted
                       CRDs are neither installed nor upgraded.
 
-
                       Skip: do neither install nor replace (update) any CRDs.
-
 
                       Create: new CRDs are created, existing CRDs are neither updated nor deleted.
 
-
                       CreateReplace: new CRDs are created, existing CRDs are updated (replaced)
                       but not deleted.
-
 
                       By default, CRDs are not applied during Helm upgrade action. With this
                       option users can opt-in to CRD upgrade, which is not (yet) natively supported by Helm.
@@ -3467,16 +3402,8 @@ spec:
               conditions:
                 description: Conditions holds the conditions for the HelmRelease.
                 items:
-                  description: "Condition contains details for one aspect of the current
-                    state of this API Resource.\n---\nThis struct is intended for
-                    direct use as an array at the field path .status.conditions.  For
-                    example,\n\n\n\ttype FooStatus struct{\n\t    // Represents the
-                    observations of a foo's current state.\n\t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\"\n\t    //
-                    +patchMergeKey=type\n\t    // +patchStrategy=merge\n\t    // +listType=map\n\t
-                    \   // +listMapKey=type\n\t    Conditions []metav1.Condition `json:\"conditions,omitempty\"
-                    patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`\n\n\n\t
-                    \   // other fields\n\t}"
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-
@@ -3517,12 +3444,7 @@ spec:
                       - Unknown
                       type: string
                     type:
-                      description: |-
-                        type of condition in CamelCase or in foo.example.com/CamelCase.
-                        ---
-                        Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be
-                        useful (see .node.status.conditions), the ability to deconflict is important.
-                        The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
                       maxLength: 316
                       pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string

@@ -45,19 +45,6 @@ rules:
   - source.toolkit.fluxcd.io
   resources:
   - helmcharts
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - source.toolkit.fluxcd.io
-  resources:
-  - helmcharts/status
-  verbs:
-  - get
-- apiGroups:
-  - source.toolkit.fluxcd.io
-  resources:
   - ocirepositories
   verbs:
   - get
@@ -66,6 +53,7 @@ rules:
 - apiGroups:
   - source.toolkit.fluxcd.io
   resources:
+  - helmcharts/status
   - ocirepositories/status
   verbs:
   - get

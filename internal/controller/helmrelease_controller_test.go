@@ -47,6 +47,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/acl"
 	aclv1 "github.com/fluxcd/pkg/apis/acl"
+	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	feathelper "github.com/fluxcd/pkg/runtime/features"
@@ -64,7 +65,6 @@ import (
 	intreconcile "github.com/fluxcd/helm-controller/internal/reconcile"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/testutil"
-	"github.com/fluxcd/pkg/apis/kustomize"
 )
 
 func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
@@ -3496,6 +3496,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 							Chart: "mychart",
 							SourceRef: v2.CrossNamespaceObjectReference{
 								Name: "something",
+								Kind: "HelmRepository",
 							},
 						},
 					},
