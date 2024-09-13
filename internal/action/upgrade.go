@@ -76,6 +76,7 @@ func newUpgrade(config *helmaction.Configuration, obj *v2.HelmRelease, opts []Up
 	upgrade.Force = obj.GetUpgrade().Force
 	upgrade.CleanupOnFail = obj.GetUpgrade().CleanupOnFail
 	upgrade.Devel = true
+	upgrade.TakeOwnership = true
 
 	// If the user opted-in to allow DNS lookups, enable it.
 	if allowDNS, _ := features.Enabled(features.AllowDNSLookups); allowDNS {
