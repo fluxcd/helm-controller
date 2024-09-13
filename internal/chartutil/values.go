@@ -149,8 +149,9 @@ const (
 
 // ChartValuesFromReferences attempts to construct new chart values by resolving
 // the provided references using the client, merging them in the order given.
-// If provided, the values map is merged in last. Overwriting values from
-// references. It returns the merged values, or an ErrValuesReference error.
+// If provided, the values map is merged in last overwriting values from references,
+// unless a reference has a targetPath specified, in which case it will overwrite all.
+// It returns the merged values, or an ErrValuesReference error.
 func ChartValuesFromReferences(ctx context.Context, client kubeclient.Client, namespace string,
 	values map[string]interface{}, refs ...v2.ValuesReference) (chartutil.Values, error) {
 
@@ -234,6 +235,8 @@ func ChartValuesFromReferences(ctx context.Context, client kubeclient.Client, na
 		}
 
 		if ref.TargetPath != "" {
+			result = transform.MergeMaps(result, values)
+
 			// TODO(hidde): this is a bit of hack, as it mimics the way the option string is passed
 			// 	to Helm from a CLI perspective. Given the parser is however not publicly accessible
 			// 	while it contains all logic around parsing the target path, it is a fair trade-off.
