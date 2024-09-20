@@ -365,6 +365,11 @@ spec:
                       DisableOpenAPIValidation prevents the Helm install action from validating
                       rendered templates against the Kubernetes OpenAPI Schema.
                     type: boolean
+                  disableSchemaValidation:
+                    description: |-
+                      DisableSchemaValidation prevents the Helm install action from validating
+                      the values against the JSON Schema.
+                    type: boolean
                   disableWait:
                     description: |-
                       DisableWait disables the waiting for resources to be ready after a Helm
@@ -773,6 +778,11 @@ spec:
                     description: |-
                       DisableOpenAPIValidation prevents the Helm upgrade action from validating
                       rendered templates against the Kubernetes OpenAPI Schema.
+                    type: boolean
+                  disableSchemaValidation:
+                    description: |-
+                      DisableSchemaValidation prevents the Helm upgrade action from validating
+                      the values against the JSON Schema.
                     type: boolean
                   disableWait:
                     description: |-

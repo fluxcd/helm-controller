@@ -1832,6 +1832,19 @@ rendered templates against the Kubernetes OpenAPI Schema.</p>
 </tr>
 <tr>
 <td>
+<code>disableSchemaValidation</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableSchemaValidation prevents the Helm install action from validating
+the values against the JSON Schema.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>replace</code><br>
 <em>
 bool
@@ -2716,6 +2729,19 @@ bool
 <em>(Optional)</em>
 <p>DisableOpenAPIValidation prevents the Helm upgrade action from validating
 rendered templates against the Kubernetes OpenAPI Schema.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>disableSchemaValidation</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableSchemaValidation prevents the Helm upgrade action from validating
+the values against the JSON Schema.</p>
 </td>
 </tr>
 <tr>

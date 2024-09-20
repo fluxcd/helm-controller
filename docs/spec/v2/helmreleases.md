@@ -492,6 +492,8 @@ The field offers the following subfields:
   from running during the installation of the chart. Defaults to `false`.
 - `.disableOpenAPIValidation` (Optional): Prevents Helm from validating the
   rendered templates against the Kubernetes OpenAPI Schema. Defaults to `false`.
+- `.disableSchemaValidation` (Optional): Prevents Helm from validating the
+  values against the JSON Schema. Defaults to `false`.
 - `.disableWait` (Optional): Disables waiting for resources to be ready after
   the installation of the chart. Defaults to `false`.
 - `.disableWaitForJobs` (Optional): Disables waiting for any Jobs to complete
@@ -534,6 +536,8 @@ The field offers the following subfields:
   from running during the upgrade of the release. Defaults to `false`.
 - `.disableOpenAPIValidation` (Optional): Prevents Helm from validating the
   rendered templates against the Kubernetes OpenAPI Schema. Defaults to `false`.
+- `.disableSchemaValidation` (Optional): Prevents Helm from validating the
+  values against the JSON Schema. Defaults to `false`.
 - `.disableWait` (Optional): Disables waiting for resources to be ready after
   upgrading the release. Defaults to `false`.
 - `.disableWaitForJobs` (Optional): Disables waiting for any Jobs to complete

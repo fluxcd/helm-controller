@@ -451,6 +451,11 @@ type Install struct {
 	// +optional
 	DisableOpenAPIValidation bool `json:"disableOpenAPIValidation,omitempty"`
 
+	// DisableSchemaValidation prevents the Helm install action from validating
+	// the values against the JSON Schema.
+	// +optional
+	DisableSchemaValidation bool `json:"disableSchemaValidation,omitempty"`
+
 	// Replace tells the Helm install action to re-use the 'ReleaseName', but only
 	// if that name is a deleted release which remains in the history.
 	// +optional
@@ -623,6 +628,11 @@ type Upgrade struct {
 	// rendered templates against the Kubernetes OpenAPI Schema.
 	// +optional
 	DisableOpenAPIValidation bool `json:"disableOpenAPIValidation,omitempty"`
+
+	// DisableSchemaValidation prevents the Helm upgrade action from validating
+	// the values against the JSON Schema.
+	// +optional
+	DisableSchemaValidation bool `json:"disableSchemaValidation,omitempty"`
 
 	// Force forces resource updates through a replacement strategy.
 	// +optional
