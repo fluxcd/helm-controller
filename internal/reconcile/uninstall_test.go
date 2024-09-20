@@ -61,6 +61,10 @@ func TestUninstall_Reconcile(t *testing.T) {
 		status func(releases []*helmrelease.Release) v2.HelmReleaseStatus
 		// wantErr is the error that is expected to be returned.
 		wantErr error
+		// wantErrString is the error string that is expected to be in the
+		// returned error. This is used for scenarios that return
+		// untyped/unwrapped error that can't be asserted for their value.
+		wantErrString string
 		// expectedConditions are the conditions that are expected to be set on
 		// the HelmRelease after running rollback.
 		expectConditions []metav1.Condition
@@ -150,6 +154,7 @@ func TestUninstall_Reconcile(t *testing.T) {
 				}
 			},
 			expectFailures: 1,
+			wantErrString:  "timed out waiting",
 		},
 		{
 			name: "uninstall failure without storage update",
@@ -244,6 +249,7 @@ func TestUninstall_Reconcile(t *testing.T) {
 				}
 			},
 			expectFailures: 1,
+			wantErrString:  "Failed to purge the release",
 		},
 		{
 			name: "uninstall without current",
@@ -482,6 +488,8 @@ func TestUninstall_Reconcile(t *testing.T) {
 			})
 			if tt.wantErr != nil {
 				g.Expect(errors.Is(got, tt.wantErr)).To(BeTrue())
+			} else if tt.wantErrString != "" {
+				g.Expect(got.Error()).To(ContainSubstring(tt.wantErrString))
 			} else {
 				g.Expect(got).ToNot(HaveOccurred())
 			}

@@ -1224,6 +1224,60 @@ Using `flux`:
 flux reconcile helmrelease <helmrelease-name> --reset
 ```
 
+### Handling failed uninstall
+
+At times, a Helm uninstall may fail due to the resource deletion taking a long
+time, resources getting stuck in deleting phase due to some resource delete
+policy in the cluster or some failing delete hooks. Depending on the scenario,
+this can be handled in a few different ways.
+
+For resources that take long to delete but are certain to get deleted without
+any intervention, failed uninstall will be retried until they succeeds. The
+HelmRelease object will remain in a failed state until the uninstall succeeds.
+Once uninstall is successful, the HelmRelease object will get deleted.
+
+If resources get stuck at deletion due to some dependency on some other
+resource or policy, the controller will keep retrying to delete the resources.
+The HelmRelease object will remain in a failed state. Once the cause of resource
+deletion issue is resolved by intervention, HelmRelease uninstallation will
+succeed and the HelmRelease object will get deleted. In case the cause of the
+deletion issue can't be resolved, the HelmRelease can be force deleted by
+manually deleting the [Helm storage
+secret](https://helm.sh/docs/topics/advanced/#storage-backends) from the
+respective release namespace. When the controller retries uninstall and cannot
+find the release, it assumes that the release has been deleted, Helm uninstall
+succeeds and the HelmRelease object gets deleted. This leaves behind all the
+release resources. They have to be manually deleted.
+
+If a chart with pre-delete hooks fail, the controller will re-run the hooks
+until they succeed and unblock the uninstallation. The Helm uninstall error
+will be present in the status of HelmRelease. This can be used to identify which
+hook is failing. If the hook failure persists, to run uninstall without the
+hooks, equivalent of running `helm uninstall --no-hooks`, update the HelmRelease
+to set `.spec.uninstall.disableHooks` to `true`.
+
+```yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+...
+spec:
+  ...
+  uninstall:
+    disableHooks: true
+```
+
+In the next reconciliation, the controller will run Helm uninstall without the
+hooks. On success, the HelmRelease will get deleted. Otherwise, check the status
+of the HelmRelease for other failure that may be blocking the uninstall.
+
+In case of charts with post-delete hooks, since the hook runs after the deletion
+of the resources and the Helm storage, the hook failure will result in an
+initial uninstall failure. In the subsequent reconciliation to retry uninstall,
+since the Helm storage for the release got deleted, uninstall will succeed and
+the HelmRelease object will get deleted.
+
+Any leftover pre or post-delete hook resources have to be manually deleted.
+
 ### Waiting for `Ready`
 
 When a change is applied, it is possible to wait for the HelmRelease to reach a

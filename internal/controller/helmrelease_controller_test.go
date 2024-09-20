@@ -2628,6 +2628,70 @@ func TestHelmReleaseReconciler_reconcileUninstall(t *testing.T) {
 		g.Expect(conditions.GetMessage(obj, meta.ReadyCondition)).To(ContainSubstring("no namespace provided"))
 		g.Expect(obj.GetConditions()).To(HaveLen(1))
 	})
+
+	t.Run("error due to failing delete hook", func(t *testing.T) {
+		g := NewWithT(t)
+
+		ns, err := testEnv.CreateNamespace(context.TODO(), "reconcile-uninstall")
+		g.Expect(err).ToNot(HaveOccurred())
+		t.Cleanup(func() {
+			_ = testEnv.Delete(context.TODO(), ns)
+		})
+
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      "reconcile-uninstall",
+			Namespace: ns.Name,
+			Version:   1,
+			Chart:     testutil.BuildChart(testutil.ChartWithFailingHook()),
+			Status:    helmrelease.StatusDeployed,
+		}, testutil.ReleaseWithFailingHook())
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "reconcile-uninstall",
+				Namespace:         ns.Name,
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+			Spec: v2.HelmReleaseSpec{
+				Uninstall: &v2.Uninstall{
+					KeepHistory: true,
+					Timeout:     &metav1.Duration{Duration: time.Millisecond},
+				},
+			},
+			Status: v2.HelmReleaseStatus{
+				StorageNamespace: ns.Name,
+				History: v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(rls)),
+				},
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client:           testEnv.Client,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
+		}
+
+		// Store the Helm release mock in the test namespace.
+		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		g.Expect(err).ToNot(HaveOccurred())
+
+		store := helmstorage.Init(cfg.Driver)
+		g.Expect(store.Create(rls)).To(Succeed())
+
+		err = r.reconcileUninstall(context.TODO(), getter, obj)
+		g.Expect(err).To(HaveOccurred())
+
+		// Verify status of Helm release has not been updated.
+		g.Expect(obj.Status.StorageNamespace).ToNot(BeEmpty())
+
+		// Verify Helm release has not been uninstalled.
+		_, err = store.History(rls.Name)
+		g.Expect(err).ToNot(HaveOccurred())
+	})
 }
 
 func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
