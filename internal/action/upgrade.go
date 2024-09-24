@@ -73,6 +73,7 @@ func newUpgrade(config *helmaction.Configuration, obj *v2.HelmRelease, opts []Up
 	upgrade.WaitForJobs = !obj.GetUpgrade().DisableWaitForJobs
 	upgrade.DisableHooks = obj.GetUpgrade().DisableHooks
 	upgrade.DisableOpenAPIValidation = obj.GetUpgrade().DisableOpenAPIValidation
+	upgrade.SkipSchemaValidation = obj.GetUpgrade().DisableSchemaValidation
 	upgrade.Force = obj.GetUpgrade().Force
 	upgrade.CleanupOnFail = obj.GetUpgrade().CleanupOnFail
 	upgrade.Devel = true

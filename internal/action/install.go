@@ -72,6 +72,7 @@ func newInstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []In
 	install.WaitForJobs = !obj.GetInstall().DisableWaitForJobs
 	install.DisableHooks = obj.GetInstall().DisableHooks
 	install.DisableOpenAPIValidation = obj.GetInstall().DisableOpenAPIValidation
+	install.SkipSchemaValidation = obj.GetInstall().DisableSchemaValidation
 	install.Replace = obj.GetInstall().Replace
 	install.Devel = true
 	install.SkipCRDs = true
