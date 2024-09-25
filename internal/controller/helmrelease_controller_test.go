@@ -111,6 +111,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			EventRecorder:     record.NewFakeRecorder(32),
 			requeueDependency: 5 * time.Second,
 		}
+		r.APIReader = r.Client
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
@@ -142,6 +143,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				WithObjects(obj).
 				Build(),
 		}
+		r.APIReader = r.Client
 
 		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(HaveOccurred())
@@ -173,6 +175,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				Build(),
 			EventRecorder: record.NewFakeRecorder(32),
 		}
+		r.APIReader = r.Client
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(HaveOccurred())
@@ -286,6 +289,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				WithObjects(chart, obj).
 				Build(),
 		}
+		r.APIReader = r.Client
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForChart))
@@ -347,6 +351,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				Build(),
 			EventRecorder: record.NewFakeRecorder(32),
 		}
+		r.APIReader = r.Client
 
 		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(HaveOccurred())
@@ -398,6 +403,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				Build(),
 			requeueDependency: 10 * time.Second,
 		}
+		r.APIReader = r.Client
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
@@ -486,6 +492,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		r := &HelmReleaseReconciler{
 			Client:           c,
+			APIReader:        c,
 			GetClusterConfig: GetTestClusterConfig,
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
@@ -566,6 +573,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		r := &HelmReleaseReconciler{
 			Client:           c,
+			APIReader:        c,
 			GetClusterConfig: GetTestClusterConfig,
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
@@ -641,6 +649,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		r := &HelmReleaseReconciler{
 			Client:           c,
+			APIReader:        c,
 			GetClusterConfig: GetTestClusterConfig,
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
@@ -712,6 +721,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		r := &HelmReleaseReconciler{
 			Client:           c,
+			APIReader:        c,
 			GetClusterConfig: GetTestClusterConfig,
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
@@ -801,6 +811,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		r := &HelmReleaseReconciler{
 			Client:           c,
+			APIReader:        c,
 			GetClusterConfig: GetTestClusterConfig,
 			EventRecorder:    record.NewFakeRecorder(32),
 			FieldManager:     "test",
@@ -2127,6 +2138,7 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 
 		r := &HelmReleaseReconciler{
 			Client:           testEnv.Client,
+			APIReader:        testEnv.Client,
 			GetClusterConfig: GetTestClusterConfig,
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
@@ -2237,6 +2249,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 
 		r := &HelmReleaseReconciler{
 			Client:           testEnv.Client,
+			APIReader:        testEnv.Client,
 			GetClusterConfig: GetTestClusterConfig,
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
@@ -2299,6 +2312,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 
 		r := &HelmReleaseReconciler{
 			Client:           testEnv.Client,
+			APIReader:        testEnv.Client,
 			GetClusterConfig: GetTestClusterConfig,
 		}
 
@@ -2399,6 +2413,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 
 		r := &HelmReleaseReconciler{
 			Client:           testEnv.Client,
+			APIReader:        testEnv.Client,
 			GetClusterConfig: GetTestClusterConfig,
 		}
 
@@ -2526,6 +2541,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 
 		r := &HelmReleaseReconciler{
 			Client:           testEnv.Client,
+			APIReader:        testEnv.Client,
 			GetClusterConfig: GetTestClusterConfig,
 		}
 
@@ -2668,6 +2684,7 @@ func TestHelmReleaseReconciler_reconcileUninstall(t *testing.T) {
 
 		r := &HelmReleaseReconciler{
 			Client:           testEnv.Client,
+			APIReader:        testEnv.Client,
 			GetClusterConfig: GetTestClusterConfig,
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
@@ -2886,7 +2903,8 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 			}
 
 			r := &HelmReleaseReconciler{
-				Client: c.Build(),
+				Client:    c.Build(),
+				APIReader: c.Build(),
 			}
 
 			err := r.checkDependencies(context.TODO(), tt.obj)
@@ -3029,6 +3047,7 @@ func TestHelmReleaseReconciler_adoptLegacyRelease(t *testing.T) {
 
 			r := &HelmReleaseReconciler{
 				Client:           testEnv.Client,
+				APIReader:        testEnv.Client,
 				GetClusterConfig: GetTestClusterConfig,
 			}
 

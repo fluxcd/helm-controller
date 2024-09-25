@@ -91,6 +91,7 @@ type HelmReleaseReconciler struct {
 	GetClusterConfig func() (*rest.Config, error)
 	ClientOpts       runtimeClient.Options
 	KubeConfigOpts   runtimeClient.KubeConfigOptions
+	APIReader        client.Reader
 
 	FieldManager          string
 	DefaultServiceAccount string
@@ -585,7 +586,7 @@ func (r *HelmReleaseReconciler) checkDependencies(ctx context.Context, obj *v2.H
 		}
 
 		dHr := &v2.HelmRelease{}
-		if err := r.Get(ctx, ref, dHr); err != nil {
+		if err := r.APIReader.Get(ctx, ref, dHr); err != nil {
 			return fmt.Errorf("unable to get '%s' dependency: %w", ref, err)
 		}
 
