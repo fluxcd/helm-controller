@@ -270,6 +270,7 @@ func main() {
 
 	if err = (&controller.HelmReleaseReconciler{
 		Client:           mgr.GetClient(),
+		APIReader:        mgr.GetAPIReader(),
 		EventRecorder:    eventRecorder,
 		Metrics:          metricsH,
 		GetClusterConfig: ctrl.GetConfig,
