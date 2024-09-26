@@ -121,8 +121,8 @@ github.com/fluxcd/pkg/ssa v0.41.1 h1:VW87zsLYAKUvCxJhuEH7VzxVh3SxaU+PyApCT6gKjTk
 github.com/fluxcd/pkg/ssa v0.41.1/go.mod h1:7cbyLHqFd5FpcKvhxbHG3DkMm3cZteW45Mi78B0hg8g=
 github.com/fluxcd/pkg/testserver v0.7.0 h1:kNVAn+3bAF2rfR9cT6SxzgEz2o84i+o7zKY3XRKTXmk=
 github.com/fluxcd/pkg/testserver v0.7.0/go.mod h1:Ih5IK3Y5G3+a6c77BTqFkdPDCY1Yj1A1W5cXQqkCs9s=
-github.com/fluxcd/source-controller/api v1.4.0 h1:PCCrD9aSIqaqfl3O/ug5ZLl5NSAFKTrNFFNFjNUt4yQ=
-github.com/fluxcd/source-controller/api v1.4.0/go.mod h1:gSjg57T+IG66SsBR0aquv+DFrm4YyBNpKIJVDnu3Ya8=
+github.com/fluxcd/source-controller/api v1.4.1 h1:zV01D7xzHOXWbYXr36lXHWWYS7POARsjLt61Nbh3kVY=
+github.com/fluxcd/source-controller/api v1.4.1/go.mod h1:gSjg57T+IG66SsBR0aquv+DFrm4YyBNpKIJVDnu3Ya8=
 github.com/foxcpp/go-mockdns v1.1.0 h1:jI0rD8M0wuYAxL7r/ynTrCQQq0BVqfB99Vgk7DlmewI=
 github.com/foxcpp/go-mockdns v1.1.0/go.mod h1:IhLeSFGed3mJIAXPH2aiRQB+kqz7oqu8ld2qVbOu7Wk=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
