@@ -3,10 +3,10 @@ module github.com/fluxcd/helm-controller/api
 go 1.22.0
 
 require (
-	github.com/fluxcd/pkg/apis/kustomize v1.6.0
-	github.com/fluxcd/pkg/apis/meta v1.6.0
-	k8s.io/apiextensions-apiserver v0.31.0
-	k8s.io/apimachinery v0.31.0
+	github.com/fluxcd/pkg/apis/kustomize v1.6.1
+	github.com/fluxcd/pkg/apis/meta v1.6.1
+	k8s.io/apiextensions-apiserver v0.31.1
+	k8s.io/apimachinery v0.31.1
 	sigs.k8s.io/controller-runtime v0.19.0
 	sigs.k8s.io/yaml v1.4.0
 )
