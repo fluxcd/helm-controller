@@ -1,10 +1,71 @@
 # Changelog
 
+## 1.1.0
+
+**Release date:** 2024-09-26
+
+This minor release comes with various bug fixes and improvements.
+
+The chart [values schema](https://helm.sh/docs/topics/charts/#schema-files)
+validation can now be disabled for install and upgrade actions by setting
+`disableSchemaValidation` under `.spec.install` and `.spec.upgrade` of a
+`HelmRelease` object.
+
+HelmReleases that result in failure during uninstall will now be retried until
+the uninstall succeeds without any error. See [handling failed
+uninstall](https://fluxcd.io/flux/components/helm/helmreleases/#handling-failed-uninstall)
+docs for various remediations based on the cause of the failure.
+
+helm-controller in [sharded
+deployment](https://fluxcd.io/flux/installation/configuration/sharding/)
+configuration now supports cross-shard dependency check. This allows a
+HelmRelease to depend on other HelmReleases managed by different controller
+shards.
+
+In addition, the Kubernetes dependencies have been updated to v1.31.1, Helm has
+been updated to v3.16.1 and various other controller dependencies have been
+updated to their latest version. The controller is now built with Go 1.23.
+
+Fixes:
+- fix: remove digest check to never ignore helm uninstall errors
+  [#1024](https://github.com/fluxcd/helm-controller/pull/1024)
+- Allow overwriting inline values with targetPath
+  [#1060](https://github.com/fluxcd/helm-controller/pull/1060)
+- Fix incorrect use of format strings with the conditions package
+  [#1025](https://github.com/fluxcd/helm-controller/pull/1025)
+- Re-enable logging json patch on StatusDrifted
+  [#1010](https://github.com/fluxcd/helm-controller/pull/1010)
+- Ignore 'v' version prefix in OCI artifact and Helm chart
+  [#990](https://github.com/fluxcd/helm-controller/pull/990)
+- doc: fix HelmRelease default value for .spec.upgrade.crds
+  [#986](https://github.com/fluxcd/helm-controller/pull/986)
+
+Improvements:
+- Allow cross-shard dependency check
+  [#1070](https://github.com/fluxcd/helm-controller/pull/1070)
+- Add disableSchemaValidation to Helm install/upgrade actions
+  [#1068](https://github.com/fluxcd/helm-controller/pull/1068)
+- Update Helm to v3.16.1 and enable the adoption of existing resources
+  [#1062](https://github.com/fluxcd/helm-controller/pull/1062)
+- Build with Go 1.23
+  [#1049](https://github.com/fluxcd/helm-controller/pull/1049)
+- Various dependency updates
+  [#987](https://github.com/fluxcd/helm-controller/pull/987)
+  [#991](https://github.com/fluxcd/helm-controller/pull/991)
+  [#994](https://github.com/fluxcd/helm-controller/pull/994)
+  [#1004](https://github.com/fluxcd/helm-controller/pull/1004)
+  [#1046](https://github.com/fluxcd/helm-controller/pull/1046)
+  [#1048](https://github.com/fluxcd/helm-controller/pull/1048)
+  [#1052](https://github.com/fluxcd/helm-controller/pull/1052)
+  [#1064](https://github.com/fluxcd/helm-controller/pull/1064)
+  [#1072](https://github.com/fluxcd/helm-controller/pull/1072)
+  [#1073](https://github.com/fluxcd/helm-controller/pull/1073)
+
 ## 1.0.1
 
 **Release date:** 2024-05-10
 
-This prerelease fixes a backwards compatibility issue that could occur when trying
+This patch release fixes a backwards compatibility issue that could occur when trying
 to move from the `v2beta1` to `v2` API while specifing `.spec.chartRef`.
 
 Fixes:
