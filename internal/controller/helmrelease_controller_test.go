@@ -2745,9 +2745,8 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 						Namespace:  "some-namespace",
 					},
 					Status: v2.HelmReleaseStatus{
-						ObservedGeneration: 1,
 						Conditions: []metav1.Condition{
-							{Type: meta.ReadyCondition, Status: metav1.ConditionTrue},
+							{Type: meta.ReadyCondition, Status: metav1.ConditionTrue, ObservedGeneration: 1},
 						},
 					},
 				},
@@ -2758,9 +2757,8 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 						Namespace:  "some-other-namespace",
 					},
 					Status: v2.HelmReleaseStatus{
-						ObservedGeneration: 2,
 						Conditions: []metav1.Condition{
-							{Type: meta.ReadyCondition, Status: metav1.ConditionTrue},
+							{Type: meta.ReadyCondition, Status: metav1.ConditionTrue, ObservedGeneration: 2},
 						},
 					},
 				},
@@ -2792,9 +2790,8 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 						Namespace:  "some-namespace",
 					},
 					Status: v2.HelmReleaseStatus{
-						ObservedGeneration: 1,
 						Conditions: []metav1.Condition{
-							{Type: meta.ReadyCondition, Status: metav1.ConditionTrue},
+							{Type: meta.ReadyCondition, Status: metav1.ConditionTrue, ObservedGeneration: 1},
 						},
 					},
 				},
@@ -2827,9 +2824,8 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 						Namespace:  "some-namespace",
 					},
 					Status: v2.HelmReleaseStatus{
-						ObservedGeneration: 1,
 						Conditions: []metav1.Condition{
-							{Type: meta.ReadyCondition, Status: metav1.ConditionFalse},
+							{Type: meta.ReadyCondition, Status: metav1.ConditionFalse, ObservedGeneration: 1},
 						},
 					},
 				},
@@ -2861,9 +2857,7 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 						Name:       "dependency-1",
 						Namespace:  "some-namespace",
 					},
-					Status: v2.HelmReleaseStatus{
-						ObservedGeneration: 1,
-					},
+					Status: v2.HelmReleaseStatus{},
 				},
 			},
 			expect: func(g *WithT, err error) {
