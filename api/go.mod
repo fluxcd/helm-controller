@@ -13,8 +13,6 @@ require (
 	sigs.k8s.io/yaml v1.4.0
 )
 
-replace github.com/openfluxcd/artifact => ../../artifact
-
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.12.0 // indirect
