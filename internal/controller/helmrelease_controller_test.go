@@ -1786,6 +1786,99 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		g.Expect(obj.Status.LastAttemptedValuesChecksum).To(BeEmpty())
 	})
 
+	t.Run("convert '_' to '+' in OCIRepository tag for semver compatibility", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Create HelmChart mock.
+		chartMock := testutil.BuildChart(testutil.ChartWithVersion("0.1.0+20241101123015"))
+		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
+		g.Expect(err).ToNot(HaveOccurred())
+		// copy the artifact to mutate the revision to have an underscore (_) in the tag
+		ociArtifact := chartArtifact.DeepCopy()
+		ociArtifact.Revision = "0.1.0_20241101123015"
+		ociArtifact.Revision += "@" + chartArtifact.Digest
+
+		ns, err := testEnv.CreateNamespace(context.TODO(), "mock")
+		g.Expect(err).ToNot(HaveOccurred())
+		t.Cleanup(func() {
+			_ = testEnv.Delete(context.TODO(), ns)
+		})
+
+		// ocirepo is the chartRef object to switch to.
+		ocirepo := &sourcev1beta2.OCIRepository{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "ocirepo",
+				Namespace:  ns.Name,
+				Generation: 1,
+			},
+			Spec: sourcev1beta2.OCIRepositorySpec{
+				URL:      "oci://test-example.com",
+				Interval: metav1.Duration{Duration: 1 * time.Second},
+			},
+			Status: sourcev1beta2.OCIRepositoryStatus{
+				ObservedGeneration: 1,
+				Artifact:           ociArtifact,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: ns.Name,
+			},
+			Spec: v2.HelmReleaseSpec{
+				ChartRef: &v2.CrossNamespaceSourceReference{
+					Kind: "OCIRepository",
+					Name: "ocirepo",
+				},
+			},
+		}
+
+		c := fake.NewClientBuilder().
+			WithScheme(NewTestScheme()).
+			WithStatusSubresource(&v2.HelmRelease{}).
+			WithObjects(ocirepo, obj).
+			Build()
+
+		r := &HelmReleaseReconciler{
+			Client:           c,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
+		}
+
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify attempted values are set.
+		g.Expect(obj.Status.LastAttemptedGeneration).To(Equal(obj.Generation))
+		dig := strings.Split(ociArtifact.Revision, ":")[1][0:12]
+		// Expect the revision with underscore converted to plus in the final result
+		// to only have the leading 12 chars digest as build metadata (initial tag metadata overwritten)
+		g.Expect(obj.Status.LastAttemptedRevision).To(Equal("0.1.0" + "+" + dig))
+		g.Expect(obj.Status.LastAttemptedConfigDigest).To(Equal("sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"))
+		g.Expect(obj.Status.LastAttemptedValuesChecksum).To(BeEmpty())
+
+		// change the chart revision with a new version (build metadata) to simulate a new digest
+		chartArtifact.Revision = "0.1.0_20241102104025" + "@" + "sha256:adebc5e3cbcd6a0918bd470f3a6c9855bfe95d506c74726bc0f2edb0aecb1f4e"
+		ocirepo.Status.Artifact = chartArtifact
+		r.Client.Update(context.Background(), ocirepo)
+		r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+
+		// Verify attempted values are set.
+		g.Expect(obj.Status.LastAttemptedGeneration).To(Equal(obj.Generation))
+		// Expect the revision with underscore converted to plus in the final result
+		// to only have the leading 12 chars digest as build metadata (initial tag metadata overwritten)
+		g.Expect(obj.Status.LastAttemptedRevision).To(Equal("0.1.0" + "+" + "adebc5e3cbcd"))
+		g.Expect(obj.Status.LastAttemptedConfigDigest).To(Equal("sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"))
+		g.Expect(obj.Status.LastAttemptedValuesChecksum).To(BeEmpty())
+	})
+
 	t.Run("ignore 'v' prefix in OCIRepository tag", func(t *testing.T) {
 		g := NewWithT(t)
 
