@@ -33,7 +33,7 @@ require (
 	github.com/onsi/gomega v1.33.1
 	github.com/opencontainers/go-digest v1.0.1-0.20231025023718-d50d2fec9c98
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20231212064514-429d0316a3dd
-	github.com/openfluxcd/artifact v0.1.1-0.20240806190250-be1173260e41
+	github.com/openfluxcd/artifact v0.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/wI2L/jsondiff v0.5.2
 	golang.org/x/text v0.15.0
