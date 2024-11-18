@@ -205,8 +205,9 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			log.Error(err, "failed to wait for object to sync in-cache after patching")
 		}
 
-		// Record the duration of the reconciliation.
+		// Record Prometheus metrics.
 		r.Metrics.RecordDuration(ctx, obj, start)
+		r.Metrics.RecordSuspend(ctx, obj, obj.Spec.Suspend)
 	}()
 
 	// Examine if the object is under deletion.
