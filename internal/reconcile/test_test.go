@@ -38,10 +38,10 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
-	"github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/digest"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/testutil"
+	"github.com/fluxcd/pkg/chartutil"
 )
 
 // testHookFixtures is a list of release.Hook in every possible LastRun state.

@@ -189,7 +189,7 @@ type HelmReleaseSpec struct {
 
 	// ValuesFrom holds references to resources containing Helm values for this HelmRelease,
 	// and information about how they should be merged.
-	ValuesFrom []ValuesReference `json:"valuesFrom,omitempty"`
+	ValuesFrom []meta.ValuesReference `json:"valuesFrom,omitempty"`
 
 	// Values holds the values for this Helm release.
 	// +optional

@@ -58,10 +58,11 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 
+	"github.com/fluxcd/pkg/chartutil"
+
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
 	"github.com/fluxcd/helm-controller/internal/action"
-	"github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/digest"
 	interrors "github.com/fluxcd/helm-controller/internal/errors"
 	"github.com/fluxcd/helm-controller/internal/features"
@@ -307,7 +308,12 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	}
 
 	// Compose values based from the spec and references.
-	values, err := chartutil.ChartValuesFromReferences(ctx, r.Client, obj.Namespace, obj.GetValues(), obj.Spec.ValuesFrom...)
+	values, err := chartutil.ChartValuesFromReferences(ctx,
+		log,
+		r.Client,
+		obj.Namespace,
+		obj.GetValues(),
+		obj.Spec.ValuesFrom...)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "ValuesError", "%s", err)
 		r.Eventf(obj, corev1.EventTypeWarning, "ValuesError", err.Error())

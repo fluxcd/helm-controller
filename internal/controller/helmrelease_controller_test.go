@@ -49,6 +49,7 @@ import (
 	aclv1 "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/chartutil"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	feathelper "github.com/fluxcd/pkg/runtime/features"
 	"github.com/fluxcd/pkg/runtime/patch"
@@ -58,7 +59,6 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
 	"github.com/fluxcd/helm-controller/internal/action"
-	"github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/postrender"
@@ -331,7 +331,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				Namespace: "mock",
 			},
 			Spec: v2.HelmReleaseSpec{
-				ValuesFrom: []v2.ValuesReference{
+				ValuesFrom: []meta.ValuesReference{
 					{
 						Kind: "Secret",
 						Name: "missing",
@@ -1537,7 +1537,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 					Name:      "ocirepo",
 					Namespace: "mock",
 				},
-				ValuesFrom: []v2.ValuesReference{
+				ValuesFrom: []meta.ValuesReference{
 					{
 						Kind: "Secret",
 						Name: "missing",
@@ -3526,12 +3526,12 @@ func Test_waitForHistoryCacheSync(t *testing.T) {
 func TestValuesReferenceValidation(t *testing.T) {
 	tests := []struct {
 		name       string
-		references []v2.ValuesReference
+		references []meta.ValuesReference
 		wantErr    bool
 	}{
 		{
 			name: "valid ValuesKey",
-			references: []v2.ValuesReference{
+			references: []meta.ValuesReference{
 				{
 					Kind:      "Secret",
 					Name:      "values",
@@ -3542,7 +3542,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 		},
 		{
 			name: "valid ValuesKey: empty",
-			references: []v2.ValuesReference{
+			references: []meta.ValuesReference{
 				{
 					Kind:      "Secret",
 					Name:      "values",
@@ -3553,7 +3553,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 		},
 		{
 			name: "valid ValuesKey: long",
-			references: []v2.ValuesReference{
+			references: []meta.ValuesReference{
 				{
 					Kind:      "Secret",
 					Name:      "values",
@@ -3564,7 +3564,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 		},
 		{
 			name: "invalid ValuesKey",
-			references: []v2.ValuesReference{
+			references: []meta.ValuesReference{
 				{
 					Kind:      "Secret",
 					Name:      "values",
@@ -3575,7 +3575,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 		},
 		{
 			name: "invalid ValuesKey: too long",
-			references: []v2.ValuesReference{
+			references: []meta.ValuesReference{
 				{
 					Kind:      "Secret",
 					Name:      "values",
@@ -3586,7 +3586,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 		},
 		{
 			name: "valid target path: empty",
-			references: []v2.ValuesReference{
+			references: []meta.ValuesReference{
 				{
 					Kind:       "Secret",
 					Name:       "values",
@@ -3597,7 +3597,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 		},
 		{
 			name: "valid target path",
-			references: []v2.ValuesReference{
+			references: []meta.ValuesReference{
 				{
 					Kind:       "Secret",
 					Name:       "values",
@@ -3608,7 +3608,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 		},
 		{
 			name: "valid target path: long",
-			references: []v2.ValuesReference{
+			references: []meta.ValuesReference{
 				{
 					Kind:       "Secret",
 					Name:       "values",
@@ -3619,7 +3619,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 		},
 		{
 			name: "invalid target path: too long",
-			references: []v2.ValuesReference{
+			references: []meta.ValuesReference{
 				{
 					Kind:       "Secret",
 					Name:       "values",
@@ -3630,7 +3630,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 		},
 		{
 			name: "invalid target path: opened index",
-			references: []v2.ValuesReference{
+			references: []meta.ValuesReference{
 				{
 					Kind:       "Secret",
 					Name:       "values",
@@ -3642,7 +3642,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 		},
 		{
 			name: "invalid target path: incorrect index syntax",
-			references: []v2.ValuesReference{
+			references: []meta.ValuesReference{
 				{
 					Kind:       "Secret",
 					Name:       "values",
