@@ -113,10 +113,12 @@ github.com/fluxcd/pkg/apis/event v0.11.0 h1:blvUbgko8EqqjMn1mju2U8aBXUntn3EWbMNc
 github.com/fluxcd/pkg/apis/event v0.11.0/go.mod h1:AjoDg8Au7RpZbk8B5t3Q2Kq/6kXgmhtdXz6P1y2teAU=
 github.com/fluxcd/pkg/apis/kustomize v1.7.0 h1:4N23LccihQ3Ose/1FYZGwhrFSh63C9uOVFhwmSInOfQ=
 github.com/fluxcd/pkg/apis/kustomize v1.7.0/go.mod h1:CqWLBcY2ZPW5f3k2sEypSfjIhz2hFs70PTTYIdKTMaY=
-github.com/fluxcd/pkg/apis/meta v1.7.0 h1:pDbPrBGgsiWV4bx8j+hodwv1Ysbj/pHP+FH46aTZOfs=
-github.com/fluxcd/pkg/apis/meta v1.7.0/go.mod h1:OJGH7I//SNO6zcso80oBRuf5H8oU8etZDeTgCcH7qHo=
-github.com/fluxcd/pkg/runtime v0.50.0 h1:FKJQaOFv8SKp/t7yRE0EkHxA4RIr650SGTLJa1HY3AU=
-github.com/fluxcd/pkg/runtime v0.50.0/go.mod h1:NEjX8/1DL8B/dsjH1/FD9PjCLPhgdvsffSvzuFrgjys=
+github.com/fluxcd/pkg/apis/meta v1.8.0 h1:wF7MJ3mu5ds9Y/exWU1yU0YyDb8s1VwwQnZYuMWli3c=
+github.com/fluxcd/pkg/apis/meta v1.8.0/go.mod h1:OJGH7I//SNO6zcso80oBRuf5H8oU8etZDeTgCcH7qHo=
+github.com/fluxcd/pkg/chartutil v1.0.0 h1:Hj5mPiUp/nanZPVK7Ur0TDN4BCMhuoxKjvAmBbnX7DE=
+github.com/fluxcd/pkg/chartutil v1.0.0/go.mod h1:GBo3G78aiK48BppJ/YoDUv8L1NDLHrMpK3K5uiazQ0A=
+github.com/fluxcd/pkg/runtime v0.50.1 h1:VQeIJ2iq/BjsboGATRTCUQYMU737R0DboKXWVGyBhAI=
+github.com/fluxcd/pkg/runtime v0.50.1/go.mod h1:lBLhK6y/3kppfBsqmBs8wZ97dEmd44WzLp0iCci4DnY=
 github.com/fluxcd/pkg/ssa v0.41.1 h1:VW87zsLYAKUvCxJhuEH7VzxVh3SxaU+PyApCT6gKjTk=
 github.com/fluxcd/pkg/ssa v0.41.1/go.mod h1:7cbyLHqFd5FpcKvhxbHG3DkMm3cZteW45Mi78B0hg8g=
 github.com/fluxcd/pkg/testserver v0.8.0 h1:ndlCjNpIueEmsLbyg97Dbkq/0Mfzxn4Kq4HSPEb71V8=

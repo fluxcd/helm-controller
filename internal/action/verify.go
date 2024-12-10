@@ -28,8 +28,8 @@ import (
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
-	"github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/release"
+	"github.com/fluxcd/pkg/chartutil"
 )
 
 var (

@@ -21,8 +21,9 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.4.0
 	github.com/fluxcd/pkg/apis/event v0.11.0
 	github.com/fluxcd/pkg/apis/kustomize v1.7.0
-	github.com/fluxcd/pkg/apis/meta v1.7.0
-	github.com/fluxcd/pkg/runtime v0.50.0
+	github.com/fluxcd/pkg/apis/meta v1.8.0
+	github.com/fluxcd/pkg/chartutil v1.0.0
+	github.com/fluxcd/pkg/runtime v0.50.1
 	github.com/fluxcd/pkg/ssa v0.41.1
 	github.com/fluxcd/pkg/testserver v0.8.0
 	github.com/fluxcd/source-controller/api v1.4.1
