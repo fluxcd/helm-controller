@@ -24,6 +24,7 @@ import (
 
 	helmaction "helm.sh/helm/v3/pkg/action"
 	helmchart "helm.sh/helm/v3/pkg/chart"
+	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
 	helmkube "helm.sh/helm/v3/pkg/kube"
 	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -64,7 +65,9 @@ func (*rootScoped) Name() apimeta.RESTScopeName {
 	return apimeta.RESTScopeNameRoot
 }
 
-func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmchart.Chart, visitorFunc ...resource.VisitorFunc) error {
+func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmchart.Chart,
+	vals helmchartutil.Values, visitorFunc ...resource.VisitorFunc) error {
+
 	if len(chrt.CRDObjects()) == 0 {
 		return nil
 	}
@@ -72,6 +75,10 @@ func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmch
 	if policy == v2.Skip {
 		cfg.Log("skipping CustomResourceDefinition apply: policy is set to %s", policy)
 		return nil
+	}
+
+	if err := helmchartutil.ProcessDependenciesWithMerge(chrt, vals); err != nil {
+		return fmt.Errorf("failed to process chart dependencies: %w", err)
 	}
 
 	// Collect all CRDs from all files in `crds` directory.
