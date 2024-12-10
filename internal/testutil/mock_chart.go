@@ -31,6 +31,15 @@ data:
   foo: bar
 `
 
+var manifestWithCustomNameTmpl = `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-%[1]s
+  namespace: %[2]s
+data:
+  foo: bar
+`
+
 var manifestWithHookTmpl = `apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -80,6 +89,38 @@ spec:
     image: alpine
     command: ["/bin/sh", "-c", "exit 1"]
   restartPolicy: Never
+`
+
+var crdManifest = `apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: crontabs.stable.example.com
+spec:
+  group: stable.example.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                cronSpec:
+                  type: string
+                image:
+                  type: string
+                replicas:
+                  type: integer
+  scope: Namespaced
+  names:
+    plural: crontabs
+    singular: crontab
+    kind: CronTab
+    shortNames:
+    - ct
 `
 
 // ChartOptions is a helper to build a Helm chart object.
@@ -164,5 +205,29 @@ func ChartWithFailingTestHook() ChartOption {
 			Name: "templates/test-hooks",
 			Data: []byte(fmt.Sprintf(manifestWithFailingTestHookTmpl, "{{ default .Release.Namespace }}")),
 		})
+	}
+}
+
+// ChartWithManifestWithCustomName sets the name of the manifest.
+func ChartWithManifestWithCustomName(name string) ChartOption {
+	return func(opts *ChartOptions) {
+		opts.Templates = []*helmchart.File{
+			{
+				Name: "templates/manifest",
+				Data: []byte(fmt.Sprintf(manifestWithCustomNameTmpl, name, "{{ default .Release.Namespace }}")),
+			},
+		}
+	}
+}
+
+// ChartWithCRD appends a CRD to the chart.
+func ChartWithCRD() ChartOption {
+	return func(opts *ChartOptions) {
+		opts.Files = []*helmchart.File{
+			{
+				Name: "crds/crd.yaml",
+				Data: []byte(crdManifest),
+			},
+		}
 	}
 }
