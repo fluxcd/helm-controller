@@ -302,21 +302,25 @@ func TestInstall_Reconcile(t *testing.T) {
 	}
 }
 
-func TestInstall_Reconcile_withoutSubchartCRDWhenConditionIsFalse(t *testing.T) {
-	subChart := testutil.BuildChart(
-		testutil.ChartWithName("subchart"),
-		testutil.ChartWithManifestWithCustomName("sub-chart"),
-		testutil.ChartWithCRD())
-	mainChart := testutil.BuildChart(testutil.ChartWithManifestWithCustomName("main-chart"))
-	mainChart.Metadata.Dependencies = []*chart.Dependency{{
-		Name:      "subchart",
-		Condition: "subchart.enabled",
-	}}
-	mainChart.AddDependency(subChart)
-	values := helmchartutil.Values{
-		"subchart": map[string]any{
-			"enabled": false,
-		},
+func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
+	buildChart := func() *chart.Chart {
+		subChart := testutil.BuildChart(
+			testutil.ChartWithName("subchart"),
+			testutil.ChartWithManifestWithCustomName("sub-chart"),
+			testutil.ChartWithCRD(),
+			testutil.ChartWithValues(helmchartutil.Values{"foo": "bar"}))
+		mainChart := testutil.BuildChart(
+			testutil.ChartWithManifestWithCustomName("main-chart"),
+			testutil.ChartWithValues(helmchartutil.Values{"foo": "baz"}),
+			testutil.ChartWithDependency(&chart.Dependency{
+				Name:      "subchart",
+				Condition: "subchart.enabled",
+			}, subChart))
+		return mainChart
+	}
+
+	getValues := func(subchartValues map[string]any) helmchartutil.Values {
+		return helmchartutil.Values{"subchart": subchartValues}
 	}
 
 	expectConditions := []metav1.Condition{
@@ -332,77 +336,117 @@ func TestInstall_Reconcile_withoutSubchartCRDWhenConditionIsFalse(t *testing.T) 
 		}
 	}
 
-	g := NewWithT(t)
-
-	namedNS, err := testEnv.CreateNamespace(context.TODO(), mockReleaseNamespace)
-	g.Expect(err).NotTo(HaveOccurred())
-	t.Cleanup(func() {
-		_ = testEnv.Delete(context.TODO(), namedNS)
-	})
-	releaseNamespace := namedNS.Name
-
-	obj := &v2.HelmRelease{
-		Spec: v2.HelmReleaseSpec{
-			ReleaseName:      mockReleaseName,
-			TargetNamespace:  releaseNamespace,
-			StorageNamespace: releaseNamespace,
-			Timeout:          &metav1.Duration{Duration: 100 * time.Millisecond},
+	for _, tt := range []struct {
+		name                     string
+		subchartValues           map[string]any
+		subchartResourcesPresent bool
+		expectedMainChartValues  map[string]any
+	}{
+		{
+			name:                     "subchart disabled should not deploy resources, including CRDs",
+			subchartValues:           map[string]any{"enabled": false},
+			subchartResourcesPresent: false,
+			expectedMainChartValues:  map[string]any{"foo": "baz"},
 		},
-	}
-
-	getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
-	g.Expect(err).ToNot(HaveOccurred())
-
-	cfg, err := action.NewConfigFactory(getter,
-		action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
-	)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	store := helmstorage.Init(cfg.Driver)
-
-	recorder := new(record.FakeRecorder)
-	got := (NewInstall(cfg, recorder)).Reconcile(context.TODO(), &Request{
-		Object: obj,
-		Chart:  mainChart,
-		Values: values,
-	})
-	g.Expect(got).ToNot(HaveOccurred())
-
-	g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(expectConditions))
-
-	releases, _ := store.History(mockReleaseName)
-	releaseutil.SortByRevision(releases)
-
-	g.Expect(obj.Status.History).To(testutil.Equal(expectHistory(releases)))
-
-	// Assert main chart configmap is present.
-	mainChartCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cm-main-chart",
-			Namespace: releaseNamespace,
+		{
+			name:                     "subchart enabled should deploy resources, including CRDs",
+			subchartValues:           map[string]any{"enabled": true},
+			subchartResourcesPresent: true,
+			expectedMainChartValues: map[string]any{
+				"foo": "baz",
+				"subchart": map[string]any{
+					"foo":    "bar",
+					"global": map[string]any{},
+				},
+			},
 		},
-	}
-	err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(mainChartCM), mainChartCM)
-	g.Expect(err).NotTo(HaveOccurred())
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
 
-	// Assert subchart configmap is absent.
-	subChartCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cm-sub-chart",
-			Namespace: releaseNamespace,
-		},
-	}
-	err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(subChartCM), subChartCM)
-	g.Expect(err).To(HaveOccurred())
+			namedNS, err := testEnv.CreateNamespace(context.TODO(), mockReleaseNamespace)
+			g.Expect(err).NotTo(HaveOccurred())
+			t.Cleanup(func() {
+				_ = testEnv.Delete(context.TODO(), namedNS)
+			})
+			releaseNamespace := namedNS.Name
 
-	// Assert subchart CRD is absent.
-	subChartCRD := &apiextensionsv1.CustomResourceDefinition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "crontabs.stable.example.com",
-		},
+			obj := &v2.HelmRelease{
+				Spec: v2.HelmReleaseSpec{
+					ReleaseName:      mockReleaseName,
+					TargetNamespace:  releaseNamespace,
+					StorageNamespace: releaseNamespace,
+					Timeout:          &metav1.Duration{Duration: 100 * time.Millisecond},
+				},
+			}
+
+			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
+			g.Expect(err).ToNot(HaveOccurred())
+
+			cfg, err := action.NewConfigFactory(getter,
+				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
+			)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			store := helmstorage.Init(cfg.Driver)
+
+			chart := buildChart()
+			recorder := new(record.FakeRecorder)
+			got := (NewInstall(cfg, recorder)).Reconcile(context.TODO(), &Request{
+				Object: obj,
+				Chart:  chart,
+				Values: getValues(tt.subchartValues),
+			})
+			g.Expect(got).ToNot(HaveOccurred())
+
+			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(expectConditions))
+
+			releases, _ := store.History(mockReleaseName)
+			releaseutil.SortByRevision(releases)
+
+			g.Expect(obj.Status.History).To(testutil.Equal(expectHistory(releases)))
+
+			// Assert main chart configmap is present.
+			mainChartCM := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cm-main-chart",
+					Namespace: releaseNamespace,
+				},
+			}
+			err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(mainChartCM), mainChartCM)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			// Assert subchart configmap is absent or present.
+			subChartCM := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cm-sub-chart",
+					Namespace: releaseNamespace,
+				},
+			}
+			err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(subChartCM), subChartCM)
+			if tt.subchartResourcesPresent {
+				g.Expect(err).NotTo(HaveOccurred())
+			} else {
+				g.Expect(err).To(HaveOccurred())
+			}
+
+			// Assert subchart CRD is absent or present.
+			subChartCRD := &apiextensionsv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "crontabs.stable.example.com",
+				},
+			}
+			err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(subChartCRD), subChartCRD)
+			if tt.subchartResourcesPresent {
+				g.Expect(err).NotTo(HaveOccurred())
+			} else {
+				g.Expect(err).To(HaveOccurred())
+			}
+
+			// Assert main chart values.
+			g.Expect(chart.Values).To(testutil.Equal(tt.expectedMainChartValues))
+		})
 	}
-	err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(subChartCRD), subChartCRD)
-	g.Expect(err).To(HaveOccurred())
 }
 
 func TestInstall_failure(t *testing.T) {

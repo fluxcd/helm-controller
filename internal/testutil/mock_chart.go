@@ -231,3 +231,18 @@ func ChartWithCRD() ChartOption {
 		}
 	}
 }
+
+// ChartWithDependency appends a dependency to the chart.
+func ChartWithDependency(md *helmchart.Dependency, chrt *helmchart.Chart) ChartOption {
+	return func(opts *ChartOptions) {
+		opts.Metadata.Dependencies = append(opts.Metadata.Dependencies, md)
+		opts.AddDependency(chrt)
+	}
+}
+
+// ChartWithValues sets the values.yaml file of the chart.
+func ChartWithValues(values map[string]any) ChartOption {
+	return func(opts *ChartOptions) {
+		opts.Values = values
+	}
+}
