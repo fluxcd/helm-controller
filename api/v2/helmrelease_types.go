@@ -42,27 +42,6 @@ const (
 	defaultMaxHistory = 5
 )
 
-// Kustomize Helm PostRenderer specification.
-type Kustomize struct {
-	// Strategic merge and JSON patches, defined as inline YAML objects,
-	// capable of targeting objects based on kind, label and annotation selectors.
-	// +optional
-	Patches []kustomize.Patch `json:"patches,omitempty"`
-
-	// Images is a list of (image name, new name, new tag or digest)
-	// for changing image names, tags or digests. This can also be achieved with a
-	// patch, but this operator is simpler to specify.
-	// +optional
-	Images []kustomize.Image `json:"images,omitempty" json:"images,omitempty"`
-}
-
-// PostRenderer contains a Helm PostRenderer specification.
-type PostRenderer struct {
-	// Kustomization to apply as PostRenderer.
-	// +optional
-	Kustomize *Kustomize `json:"kustomize,omitempty"`
-}
-
 // HelmReleaseSpec defines the desired state of a Helm release.
 // +kubebuilder:validation:XValidation:rule="(has(self.chart) && !has(self.chartRef)) || (!has(self.chart) && has(self.chartRef))", message="either chart or chartRef must be set"
 type HelmReleaseSpec struct {
@@ -189,7 +168,7 @@ type HelmReleaseSpec struct {
 
 	// ValuesFrom holds references to resources containing Helm values for this HelmRelease,
 	// and information about how they should be merged.
-	ValuesFrom []meta.ValuesReference `json:"valuesFrom,omitempty"`
+	ValuesFrom []ValuesReference `json:"valuesFrom,omitempty"`
 
 	// Values holds the values for this Helm release.
 	// +optional
@@ -199,6 +178,30 @@ type HelmReleaseSpec struct {
 	// of their definition.
 	// +optional
 	PostRenderers []PostRenderer `json:"postRenderers,omitempty"`
+}
+
+// +kubebuilder:object:generate=false
+type ValuesReference = meta.ValuesReference
+
+// Kustomize Helm PostRenderer specification.
+type Kustomize struct {
+	// Strategic merge and JSON patches, defined as inline YAML objects,
+	// capable of targeting objects based on kind, label and annotation selectors.
+	// +optional
+	Patches []kustomize.Patch `json:"patches,omitempty"`
+
+	// Images is a list of (image name, new name, new tag or digest)
+	// for changing image names, tags or digests. This can also be achieved with a
+	// patch, but this operator is simpler to specify.
+	// +optional
+	Images []kustomize.Image `json:"images,omitempty" json:"images,omitempty"`
+}
+
+// PostRenderer contains a Helm PostRenderer specification.
+type PostRenderer struct {
+	// Kustomization to apply as PostRenderer.
+	// +optional
+	Kustomize *Kustomize `json:"kustomize,omitempty"`
 }
 
 // DriftDetectionMode represents the modes in which a controller can detect and
