@@ -1451,6 +1451,23 @@ Besides being reported in Events, the controller may also log reconciliation
 errors. The Flux CLI offers commands for filtering the logs for a specific
 HelmRelease, e.g. `flux logs --level=error --kind=HelmRelease --name=<release-name>.`
 
+#### Rendering the final Values locally
+
+When using multiple [values references](#values-references) in a
+HelmRelease, it can be useful to inspect the final values computed from the various sources.
+This can be done by pointing the Flux CLI to the in-cluster HelmRelease object:
+
+```shell
+flux debug hr <release-name> -n <namespace> --show-values
+```
+
+The command will output the final values by merging the in-line values from the HelmRelease
+with the values from the referenced ConfigMaps and/or Secrets.
+
+**Note:** The debug command will print sensitive information if Kubernetes Secrets
+are referenced in the HelmRelease `.spec.valuesFrom` field, so exercise caution
+when using this command.
+
 ## HelmRelease Status
 
 ### Events
