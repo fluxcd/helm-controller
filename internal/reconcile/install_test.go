@@ -308,13 +308,27 @@ func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
 			testutil.ChartWithName("subchart"),
 			testutil.ChartWithManifestWithCustomName("sub-chart"),
 			testutil.ChartWithCRD(),
-			testutil.ChartWithValues(helmchartutil.Values{"foo": "bar"}))
+			testutil.ChartWithValues(helmchartutil.Values{
+				"foo":     "bar",
+				"exports": map[string]any{"data": map[string]any{"myint": 123}},
+				"default": map[string]any{"data": map[string]any{"myint": 456}},
+			}))
 		mainChart := testutil.BuildChart(
 			testutil.ChartWithManifestWithCustomName("main-chart"),
-			testutil.ChartWithValues(helmchartutil.Values{"foo": "baz"}),
+			testutil.ChartWithValues(helmchartutil.Values{
+				"foo":       "baz",
+				"myimports": map[string]any{"myint": 0},
+			}),
 			testutil.ChartWithDependency(&chart.Dependency{
 				Name:      "subchart",
 				Condition: "subchart.enabled",
+				ImportValues: []any{
+					"data",
+					map[string]any{
+						"child":  "default.data",
+						"parent": "myimports",
+					},
+				},
 			}, subChart))
 		return mainChart
 	}
@@ -346,17 +360,24 @@ func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
 			name:                     "subchart disabled should not deploy resources, including CRDs",
 			subchartValues:           map[string]any{"enabled": false},
 			subchartResourcesPresent: false,
-			expectedMainChartValues:  map[string]any{"foo": "baz"},
+			expectedMainChartValues: map[string]any{
+				"foo":       "baz",
+				"myimports": map[string]any{"myint": 0},
+			},
 		},
 		{
 			name:                     "subchart enabled should deploy resources, including CRDs",
 			subchartValues:           map[string]any{"enabled": true},
 			subchartResourcesPresent: true,
 			expectedMainChartValues: map[string]any{
-				"foo": "baz",
+				"foo":       "baz",
+				"myint":     123,
+				"myimports": map[string]any{"myint": 0},
 				"subchart": map[string]any{
-					"foo":    "bar",
-					"global": map[string]any{},
+					"foo":     "bar",
+					"global":  map[string]any{},
+					"exports": map[string]any{"data": map[string]any{"myint": 123}},
+					"default": map[string]any{"data": map[string]any{"myint": 456}},
 				},
 			},
 		},
