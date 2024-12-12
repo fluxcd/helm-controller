@@ -372,7 +372,7 @@ func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
 			expectedMainChartValues: map[string]any{
 				"foo":       "baz",
 				"myint":     123,
-				"myimports": map[string]any{"myint": 0},
+				"myimports": map[string]any{"myint": 0}, // should be 456: https://github.com/helm/helm/issues/13223
 				"subchart": map[string]any{
 					"foo":     "bar",
 					"global":  map[string]any{},
