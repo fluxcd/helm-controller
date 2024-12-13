@@ -303,36 +303,6 @@ func TestInstall_Reconcile(t *testing.T) {
 }
 
 func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
-	buildChart := func() *chart.Chart {
-		subChart := testutil.BuildChart(
-			testutil.ChartWithName("subchart"),
-			testutil.ChartWithManifestWithCustomName("sub-chart"),
-			testutil.ChartWithCRD(),
-			testutil.ChartWithValues(helmchartutil.Values{
-				"foo":     "bar",
-				"exports": map[string]any{"data": map[string]any{"myint": 123}},
-				"default": map[string]any{"data": map[string]any{"myint": 456}},
-			}))
-		mainChart := testutil.BuildChart(
-			testutil.ChartWithManifestWithCustomName("main-chart"),
-			testutil.ChartWithValues(helmchartutil.Values{
-				"foo":       "baz",
-				"myimports": map[string]any{"myint": 0},
-			}),
-			testutil.ChartWithDependency(&chart.Dependency{
-				Name:      "subchart",
-				Condition: "subchart.enabled",
-				ImportValues: []any{
-					"data",
-					map[string]any{
-						"child":  "default.data",
-						"parent": "myimports",
-					},
-				},
-			}, subChart))
-		return mainChart
-	}
-
 	getValues := func(subchartValues map[string]any) helmchartutil.Values {
 		return helmchartutil.Values{"subchart": subchartValues}
 	}
@@ -411,7 +381,7 @@ func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
 
 			store := helmstorage.Init(cfg.Driver)
 
-			chart := buildChart()
+			chart := testutil.BuildChartWithSubchartWithCRD()
 			recorder := new(record.FakeRecorder)
 			got := (NewInstall(cfg, recorder)).Reconcile(context.TODO(), &Request{
 				Object: obj,

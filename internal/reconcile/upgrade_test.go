@@ -24,7 +24,6 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
-	"helm.sh/helm/v3/pkg/chart"
 	helmchart "helm.sh/helm/v3/pkg/chart"
 	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
 	helmrelease "helm.sh/helm/v3/pkg/release"
@@ -435,36 +434,6 @@ func TestUpgrade_Reconcile(t *testing.T) {
 }
 
 func TestUpgrade_Reconcile_withSubchartWithCRDs(t *testing.T) {
-	buildChart := func() *chart.Chart {
-		subChart := testutil.BuildChart(
-			testutil.ChartWithName("subchart"),
-			testutil.ChartWithManifestWithCustomName("sub-chart"),
-			testutil.ChartWithCRD(),
-			testutil.ChartWithValues(helmchartutil.Values{
-				"foo":     "bar",
-				"exports": map[string]any{"data": map[string]any{"myint": 123}},
-				"default": map[string]any{"data": map[string]any{"myint": 456}},
-			}))
-		mainChart := testutil.BuildChart(
-			testutil.ChartWithManifestWithCustomName("main-chart"),
-			testutil.ChartWithValues(helmchartutil.Values{
-				"foo":       "baz",
-				"myimports": map[string]any{"myint": 0},
-			}),
-			testutil.ChartWithDependency(&chart.Dependency{
-				Name:      "subchart",
-				Condition: "subchart.enabled",
-				ImportValues: []any{
-					"data",
-					map[string]any{
-						"child":  "default.data",
-						"parent": "myimports",
-					},
-				},
-			}, subChart))
-		return mainChart
-	}
-
 	getValues := func(subchartValues map[string]any) helmchartutil.Values {
 		return helmchartutil.Values{"subchart": subchartValues}
 	}
@@ -569,7 +538,7 @@ func TestUpgrade_Reconcile_withSubchartWithCRDs(t *testing.T) {
 				g.Expect(store.Create(r)).To(Succeed())
 			}
 
-			chart := buildChart()
+			chart := testutil.BuildChartWithSubchartWithCRD()
 			recorder := new(record.FakeRecorder)
 			got := NewUpgrade(cfg, recorder).Reconcile(context.TODO(), &Request{
 				Object: obj,

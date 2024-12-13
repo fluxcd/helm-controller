@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	helmchart "helm.sh/helm/v3/pkg/chart"
+	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
 )
 
 var manifestTmpl = `apiVersion: v1
@@ -245,4 +246,37 @@ func ChartWithValues(values map[string]any) ChartOption {
 	return func(opts *ChartOptions) {
 		opts.Values = values
 	}
+}
+
+// BuildChartWithSubchartWithCRD returns a Helm chart object with a subchart
+// that contains a CRD. Useful for testing helm-controller's staged CRDs-first
+// deployment logic.
+func BuildChartWithSubchartWithCRD() *helmchart.Chart {
+	subChart := BuildChart(
+		ChartWithName("subchart"),
+		ChartWithManifestWithCustomName("sub-chart"),
+		ChartWithCRD(),
+		ChartWithValues(helmchartutil.Values{
+			"foo":     "bar",
+			"exports": map[string]any{"data": map[string]any{"myint": 123}},
+			"default": map[string]any{"data": map[string]any{"myint": 456}},
+		}))
+	mainChart := BuildChart(
+		ChartWithManifestWithCustomName("main-chart"),
+		ChartWithValues(helmchartutil.Values{
+			"foo":       "baz",
+			"myimports": map[string]any{"myint": 0},
+		}),
+		ChartWithDependency(&helmchart.Dependency{
+			Name:      "subchart",
+			Condition: "subchart.enabled",
+			ImportValues: []any{
+				"data",
+				map[string]any{
+					"child":  "default.data",
+					"parent": "myimports",
+				},
+			},
+		}, subChart))
+	return mainChart
 }
