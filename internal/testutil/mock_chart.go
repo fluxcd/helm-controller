@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	helmchart "helm.sh/helm/v3/pkg/chart"
+	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
 )
 
 var manifestTmpl = `apiVersion: v1
@@ -27,6 +28,15 @@ kind: ConfigMap
 metadata:
   name: cm
   namespace: %[1]s
+data:
+  foo: bar
+`
+
+var manifestWithCustomNameTmpl = `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-%[1]s
+  namespace: %[2]s
 data:
   foo: bar
 `
@@ -80,6 +90,38 @@ spec:
     image: alpine
     command: ["/bin/sh", "-c", "exit 1"]
   restartPolicy: Never
+`
+
+var crdManifest = `apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: crontabs.stable.example.com
+spec:
+  group: stable.example.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                cronSpec:
+                  type: string
+                image:
+                  type: string
+                replicas:
+                  type: integer
+  scope: Namespaced
+  names:
+    plural: crontabs
+    singular: crontab
+    kind: CronTab
+    shortNames:
+    - ct
 `
 
 // ChartOptions is a helper to build a Helm chart object.
@@ -165,4 +207,76 @@ func ChartWithFailingTestHook() ChartOption {
 			Data: []byte(fmt.Sprintf(manifestWithFailingTestHookTmpl, "{{ default .Release.Namespace }}")),
 		})
 	}
+}
+
+// ChartWithManifestWithCustomName sets the name of the manifest.
+func ChartWithManifestWithCustomName(name string) ChartOption {
+	return func(opts *ChartOptions) {
+		opts.Templates = []*helmchart.File{
+			{
+				Name: "templates/manifest",
+				Data: []byte(fmt.Sprintf(manifestWithCustomNameTmpl, name, "{{ default .Release.Namespace }}")),
+			},
+		}
+	}
+}
+
+// ChartWithCRD appends a CRD to the chart.
+func ChartWithCRD() ChartOption {
+	return func(opts *ChartOptions) {
+		opts.Files = []*helmchart.File{
+			{
+				Name: "crds/crd.yaml",
+				Data: []byte(crdManifest),
+			},
+		}
+	}
+}
+
+// ChartWithDependency appends a dependency to the chart.
+func ChartWithDependency(md *helmchart.Dependency, chrt *helmchart.Chart) ChartOption {
+	return func(opts *ChartOptions) {
+		opts.Metadata.Dependencies = append(opts.Metadata.Dependencies, md)
+		opts.AddDependency(chrt)
+	}
+}
+
+// ChartWithValues sets the values.yaml file of the chart.
+func ChartWithValues(values map[string]any) ChartOption {
+	return func(opts *ChartOptions) {
+		opts.Values = values
+	}
+}
+
+// BuildChartWithSubchartWithCRD returns a Helm chart object with a subchart
+// that contains a CRD. Useful for testing helm-controller's staged CRDs-first
+// deployment logic.
+func BuildChartWithSubchartWithCRD() *helmchart.Chart {
+	subChart := BuildChart(
+		ChartWithName("subchart"),
+		ChartWithManifestWithCustomName("sub-chart"),
+		ChartWithCRD(),
+		ChartWithValues(helmchartutil.Values{
+			"foo":     "bar",
+			"exports": map[string]any{"data": map[string]any{"myint": 123}},
+			"default": map[string]any{"data": map[string]any{"myint": 456}},
+		}))
+	mainChart := BuildChart(
+		ChartWithManifestWithCustomName("main-chart"),
+		ChartWithValues(helmchartutil.Values{
+			"foo":       "baz",
+			"myimports": map[string]any{"myint": 0},
+		}),
+		ChartWithDependency(&helmchart.Dependency{
+			Name:      "subchart",
+			Condition: "subchart.enabled",
+			ImportValues: []any{
+				"data",
+				map[string]any{
+					"child":  "default.data",
+					"parent": "myimports",
+				},
+			},
+		}, subChart))
+	return mainChart
 }
