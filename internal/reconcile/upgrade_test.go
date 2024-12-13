@@ -538,6 +538,14 @@ func TestUpgrade_Reconcile_withSubchartWithCRDs(t *testing.T) {
 				g.Expect(store.Create(r)).To(Succeed())
 			}
 
+			// Delete any prior CRD.
+			subChartCRD := &apiextensionsv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "crontabs.stable.example.com",
+				},
+			}
+			_ = testEnv.Delete(context.TODO(), subChartCRD)
+
 			chart := testutil.BuildChartWithSubchartWithCRD()
 			recorder := new(record.FakeRecorder)
 			got := NewUpgrade(cfg, recorder).Reconcile(context.TODO(), &Request{
@@ -579,11 +587,6 @@ func TestUpgrade_Reconcile_withSubchartWithCRDs(t *testing.T) {
 			}
 
 			// Assert subchart CRD is absent or present.
-			subChartCRD := &apiextensionsv1.CustomResourceDefinition{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "crontabs.stable.example.com",
-				},
-			}
 			err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(subChartCRD), subChartCRD)
 			if tt.subchartResourcesPresent {
 				g.Expect(err).NotTo(HaveOccurred())
