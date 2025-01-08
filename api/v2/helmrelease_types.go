@@ -435,6 +435,11 @@ type Install struct {
 	// +optional
 	Remediation *InstallRemediation `json:"remediation,omitempty"`
 
+	// DisableTakeOwnership disables ignoring the check for helm labels and annotations before taking
+	// ownership of the existing resources during the Helm install action. Defaults to false.
+	// +optional
+	DisableTakeOwnership bool `json:"disableTakeOwnership,omitempty"`
+
 	// DisableWait disables the waiting for resources to be ready after a Helm
 	// install has been performed.
 	// +optional
@@ -612,6 +617,11 @@ type Upgrade struct {
 	// action for the HelmRelease fails. The default is to not perform any action.
 	// +optional
 	Remediation *UpgradeRemediation `json:"remediation,omitempty"`
+
+	// DisableTakeOwnership disables ignoring the check for helm labels and annotations before taking
+	// ownership of the existing resources during the Helm upgrade action. Defaults to false.
+	// +optional
+	DisableTakeOwnership bool `json:"disableTakeOwnership,omitempty"`
 
 	// DisableWait disables the waiting for resources to be ready after a Helm
 	// upgrade has been performed.

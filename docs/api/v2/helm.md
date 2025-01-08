@@ -1781,6 +1781,19 @@ action for the HelmRelease fails. The default is to not perform any action.</p>
 </tr>
 <tr>
 <td>
+<code>disableTakeOwnership</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableTakeOwnership disables ignoring the check for helm labels and annotations before taking
+ownership of the existing resources during the Helm install action. Defaults to false.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>disableWait</code><br>
 <em>
 bool
@@ -2678,6 +2691,19 @@ UpgradeRemediation
 <em>(Optional)</em>
 <p>Remediation holds the remediation configuration for when the Helm upgrade
 action for the HelmRelease fails. The default is to not perform any action.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>disableTakeOwnership</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableTakeOwnership disables ignoring the check for helm labels and annotations before taking
+ownership of the existing resources during the Helm upgrade action. Defaults to false.</p>
 </td>
 </tr>
 <tr>
