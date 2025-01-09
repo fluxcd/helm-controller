@@ -495,7 +495,7 @@ The field offers the following subfields:
 - `.disableSchemaValidation` (Optional): Prevents Helm from validating the
   values against the JSON Schema. Defaults to `false`.
 - `.disableTakeOwnership` (Optional): Disables ignoring the check for helm labels and annotations before taking
-  ownership of the existing resources during the Helm install action. Defaults to `false`.
+  ownership of the existing resources during the Helm upgrade action. Defaults to `false`.
 - `.disableWait` (Optional): Disables waiting for resources to be ready after
   the installation of the chart. Defaults to `false`.
 - `.disableWaitForJobs` (Optional): Disables waiting for any Jobs to complete
