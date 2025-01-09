@@ -94,4 +94,24 @@ func Test_newUpgrade(t *testing.T) {
 		g.Expect(got.Install).To(BeTrue())
 		g.Expect(got.DryRun).To(BeTrue())
 	})
+
+	t.Run("disable take ownership", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "upgrade",
+				Namespace: "upgrade-ns",
+			},
+			Spec: v2.HelmReleaseSpec{
+				Upgrade: &v2.Upgrade{
+					DisableTakeOwnership: true,
+				},
+			},
+		}
+
+		got := newUpgrade(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.TakeOwnership).To(BeFalse())
+	})
 }

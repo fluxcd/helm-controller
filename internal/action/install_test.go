@@ -94,4 +94,24 @@ func Test_newInstall(t *testing.T) {
 		g.Expect(got.Atomic).To(BeTrue())
 		g.Expect(got.DryRun).To(BeTrue())
 	})
+
+	t.Run("disable take ownership", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "install",
+				Namespace: "install-ns",
+			},
+			Spec: v2.HelmReleaseSpec{
+				Install: &v2.Install{
+					DisableTakeOwnership: true,
+				},
+			},
+		}
+
+		got := newInstall(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.TakeOwnership).To(BeFalse())
+	})
 }
