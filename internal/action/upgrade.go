@@ -55,7 +55,7 @@ func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 	if err != nil {
 		return nil, err
 	}
-	if err := applyCRDs(config, policy, chrt, setOriginVisitor(v2.GroupVersion.Group, obj.Namespace, obj.Name)); err != nil {
+	if err := applyCRDs(config, policy, chrt, vals, setOriginVisitor(v2.GroupVersion.Group, obj.Namespace, obj.Name)); err != nil {
 		return nil, fmt.Errorf("failed to apply CustomResourceDefinitions: %w", err)
 	}
 
