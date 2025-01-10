@@ -372,8 +372,8 @@ spec:
                     type: boolean
                   disableTakeOwnership:
                     description: |-
-                      DisableTakeOwnership disables ignoring the check for helm labels and annotations before taking
-                      ownership of the existing resources during the Helm install action. Defaults to false.
+                      DisableTakeOwnership disables taking ownership of existing resources
+                      during the Helm install action. Defaults to false.
                     type: boolean
                   disableWait:
                     description: |-
@@ -791,8 +791,8 @@ spec:
                     type: boolean
                   disableTakeOwnership:
                     description: |-
-                      DisableTakeOwnership disables ignoring the check for helm labels and annotations before taking
-                      ownership of the existing resources during the Helm upgrade action. Defaults to false.
+                      DisableTakeOwnership disables taking ownership of existing resources
+                      during the Helm upgrade action. Defaults to false.
                     type: boolean
                   disableWait:
                     description: |-

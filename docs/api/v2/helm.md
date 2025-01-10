@@ -1788,8 +1788,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>DisableTakeOwnership disables ignoring the check for helm labels and annotations before taking
-ownership of the existing resources during the Helm install action. Defaults to false.</p>
+<p>DisableTakeOwnership disables taking ownership of existing resources
+during the Helm install action. Defaults to false.</p>
 </td>
 </tr>
 <tr>
@@ -2702,8 +2702,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>DisableTakeOwnership disables ignoring the check for helm labels and annotations before taking
-ownership of the existing resources during the Helm upgrade action. Defaults to false.</p>
+<p>DisableTakeOwnership disables taking ownership of existing resources
+during the Helm upgrade action. Defaults to false.</p>
 </td>
 </tr>
 <tr>
