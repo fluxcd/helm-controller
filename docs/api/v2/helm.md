@@ -350,8 +350,8 @@ Uninstall
 <td>
 <code>valuesFrom</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2.ValuesReference">
-[]ValuesReference
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#ValuesReference">
+[]github.com/fluxcd/pkg/apis/meta.ValuesReference
 </a>
 </em>
 </td>
@@ -1360,8 +1360,8 @@ Uninstall
 <td>
 <code>valuesFrom</code><br>
 <em>
-<a href="#helm.toolkit.fluxcd.io/v2.ValuesReference">
-[]ValuesReference
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#ValuesReference">
+[]github.com/fluxcd/pkg/apis/meta.ValuesReference
 </a>
 </em>
 </td>
@@ -1777,6 +1777,19 @@ InstallRemediation
 <em>(Optional)</em>
 <p>Remediation holds the remediation configuration for when the Helm install
 action for the HelmRelease fails. The default is to not perform any action.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>disableTakeOwnership</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableTakeOwnership disables taking ownership of existing resources
+during the Helm install action. Defaults to false.</p>
 </td>
 </tr>
 <tr>
@@ -2682,6 +2695,19 @@ action for the HelmRelease fails. The default is to not perform any action.</p>
 </tr>
 <tr>
 <td>
+<code>disableTakeOwnership</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableTakeOwnership disables taking ownership of existing resources
+during the Helm upgrade action. Defaults to false.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>disableWait</code><br>
 <em>
 bool
@@ -2881,92 +2907,6 @@ RemediationStrategy
 <td>
 <em>(Optional)</em>
 <p>Strategy to use for failure remediation. Defaults to &lsquo;rollback&rsquo;.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<h3 id="helm.toolkit.fluxcd.io/v2.ValuesReference">ValuesReference
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
-</p>
-<p>ValuesReference contains a reference to a resource containing Helm values,
-and optionally the key they can be found at.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>kind</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Kind of the values referent, valid values are (&lsquo;Secret&rsquo;, &lsquo;ConfigMap&rsquo;).</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>name</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Name of the values referent. Should reside in the same namespace as the
-referring resource.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>valuesKey</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ValuesKey is the data key where the values.yaml or a specific value can be
-found at. Defaults to &lsquo;values.yaml&rsquo;.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>targetPath</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>TargetPath is the YAML dot notation path the value should be merged at. When
-set, the ValuesKey is expected to be a single flat value. Defaults to &lsquo;None&rsquo;,
-which results in the values getting merged at the root.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>optional</code><br>
-<em>
-bool
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Optional marks this ValuesReference as optional. When set, a not found error
-for the values reference is ignored, but any ValuesKey, TargetPath or
-transient error will still result in a reconciliation failure.</p>
 </td>
 </tr>
 </tbody>

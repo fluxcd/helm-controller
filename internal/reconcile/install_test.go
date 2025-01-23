@@ -31,8 +31,10 @@ import (
 	helmstorage "helm.sh/helm/v3/pkg/storage"
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -40,11 +42,11 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
-	"github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/digest"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
 	"github.com/fluxcd/helm-controller/internal/testutil"
+	"github.com/fluxcd/pkg/chartutil"
 )
 
 func TestInstall_Reconcile(t *testing.T) {
@@ -296,6 +298,144 @@ func TestInstall_Reconcile(t *testing.T) {
 			g.Expect(obj.Status.Failures).To(Equal(tt.expectFailures))
 			g.Expect(obj.Status.InstallFailures).To(Equal(tt.expectInstallFailures))
 			g.Expect(obj.Status.UpgradeFailures).To(Equal(tt.expectUpgradeFailures))
+		})
+	}
+}
+
+func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
+	getValues := func(subchartValues map[string]any) helmchartutil.Values {
+		return helmchartutil.Values{"subchart": subchartValues}
+	}
+
+	expectConditions := []metav1.Condition{
+		*conditions.TrueCondition(meta.ReadyCondition, v2.InstallSucceededReason,
+			"Helm install succeeded"),
+		*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason,
+			"Helm install succeeded"),
+	}
+
+	expectHistory := func(releases []*helmrelease.Release) v2.Snapshots {
+		return v2.Snapshots{
+			release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+		}
+	}
+
+	for _, tt := range []struct {
+		name                     string
+		subchartValues           map[string]any
+		subchartResourcesPresent bool
+		expectedMainChartValues  map[string]any
+	}{
+		{
+			name:                     "subchart disabled should not deploy resources, including CRDs",
+			subchartValues:           map[string]any{"enabled": false},
+			subchartResourcesPresent: false,
+			expectedMainChartValues: map[string]any{
+				"foo":       "baz",
+				"myimports": map[string]any{"myint": 0},
+			},
+		},
+		{
+			name:                     "subchart enabled should deploy resources, including CRDs",
+			subchartValues:           map[string]any{"enabled": true},
+			subchartResourcesPresent: true,
+			expectedMainChartValues: map[string]any{
+				"foo":       "baz",
+				"myint":     123,
+				"myimports": map[string]any{"myint": 0}, // should be 456: https://github.com/helm/helm/issues/13223
+				"subchart": map[string]any{
+					"foo":     "bar",
+					"global":  map[string]any{},
+					"exports": map[string]any{"data": map[string]any{"myint": 123}},
+					"default": map[string]any{"data": map[string]any{"myint": 456}},
+				},
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			namedNS, err := testEnv.CreateNamespace(context.TODO(), mockReleaseNamespace)
+			g.Expect(err).NotTo(HaveOccurred())
+			t.Cleanup(func() {
+				_ = testEnv.Delete(context.TODO(), namedNS)
+			})
+			releaseNamespace := namedNS.Name
+
+			obj := &v2.HelmRelease{
+				Spec: v2.HelmReleaseSpec{
+					ReleaseName:      mockReleaseName,
+					TargetNamespace:  releaseNamespace,
+					StorageNamespace: releaseNamespace,
+					Timeout:          &metav1.Duration{Duration: 100 * time.Millisecond},
+				},
+			}
+
+			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
+			g.Expect(err).ToNot(HaveOccurred())
+
+			cfg, err := action.NewConfigFactory(getter,
+				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
+			)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			store := helmstorage.Init(cfg.Driver)
+
+			chart := testutil.BuildChartWithSubchartWithCRD()
+			recorder := new(record.FakeRecorder)
+			got := (NewInstall(cfg, recorder)).Reconcile(context.TODO(), &Request{
+				Object: obj,
+				Chart:  chart,
+				Values: getValues(tt.subchartValues),
+			})
+			g.Expect(got).ToNot(HaveOccurred())
+
+			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(expectConditions))
+
+			releases, _ := store.History(mockReleaseName)
+			releaseutil.SortByRevision(releases)
+
+			g.Expect(obj.Status.History).To(testutil.Equal(expectHistory(releases)))
+
+			// Assert main chart configmap is present.
+			mainChartCM := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cm-main-chart",
+					Namespace: releaseNamespace,
+				},
+			}
+			err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(mainChartCM), mainChartCM)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			// Assert subchart configmap is absent or present.
+			subChartCM := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cm-sub-chart",
+					Namespace: releaseNamespace,
+				},
+			}
+			err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(subChartCM), subChartCM)
+			if tt.subchartResourcesPresent {
+				g.Expect(err).NotTo(HaveOccurred())
+			} else {
+				g.Expect(err).To(HaveOccurred())
+			}
+
+			// Assert subchart CRD is absent or present.
+			subChartCRD := &apiextensionsv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "crontabs.stable.example.com",
+				},
+			}
+			err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(subChartCRD), subChartCRD)
+			if tt.subchartResourcesPresent {
+				g.Expect(err).NotTo(HaveOccurred())
+			} else {
+				g.Expect(err).To(HaveOccurred())
+			}
+
+			// Assert main chart values.
+			g.Expect(chart.Values).To(testutil.Equal(tt.expectedMainChartValues))
 		})
 	}
 }

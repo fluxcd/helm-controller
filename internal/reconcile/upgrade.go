@@ -30,8 +30,8 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
-	"github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/digest"
+	"github.com/fluxcd/pkg/chartutil"
 )
 
 // Upgrade is an ActionReconciler which attempts to upgrade a Helm release

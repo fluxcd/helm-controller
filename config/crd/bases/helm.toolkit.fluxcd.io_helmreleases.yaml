@@ -370,6 +370,11 @@ spec:
                       DisableSchemaValidation prevents the Helm install action from validating
                       the values against the JSON Schema.
                     type: boolean
+                  disableTakeOwnership:
+                    description: |-
+                      DisableTakeOwnership disables taking ownership of existing resources
+                      during the Helm install action. Defaults to false.
+                    type: boolean
                   disableWait:
                     description: |-
                       DisableWait disables the waiting for resources to be ready after a Helm
@@ -783,6 +788,11 @@ spec:
                     description: |-
                       DisableSchemaValidation prevents the Helm upgrade action from validating
                       the values against the JSON Schema.
+                    type: boolean
+                  disableTakeOwnership:
+                    description: |-
+                      DisableTakeOwnership disables taking ownership of existing resources
+                      during the Helm upgrade action. Defaults to false.
                     type: boolean
                   disableWait:
                     description: |-

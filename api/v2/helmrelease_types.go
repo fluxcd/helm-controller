@@ -42,27 +42,6 @@ const (
 	defaultMaxHistory = 5
 )
 
-// Kustomize Helm PostRenderer specification.
-type Kustomize struct {
-	// Strategic merge and JSON patches, defined as inline YAML objects,
-	// capable of targeting objects based on kind, label and annotation selectors.
-	// +optional
-	Patches []kustomize.Patch `json:"patches,omitempty"`
-
-	// Images is a list of (image name, new name, new tag or digest)
-	// for changing image names, tags or digests. This can also be achieved with a
-	// patch, but this operator is simpler to specify.
-	// +optional
-	Images []kustomize.Image `json:"images,omitempty" json:"images,omitempty"`
-}
-
-// PostRenderer contains a Helm PostRenderer specification.
-type PostRenderer struct {
-	// Kustomization to apply as PostRenderer.
-	// +optional
-	Kustomize *Kustomize `json:"kustomize,omitempty"`
-}
-
 // HelmReleaseSpec defines the desired state of a Helm release.
 // +kubebuilder:validation:XValidation:rule="(has(self.chart) && !has(self.chartRef)) || (!has(self.chart) && has(self.chartRef))", message="either chart or chartRef must be set"
 type HelmReleaseSpec struct {
@@ -199,6 +178,30 @@ type HelmReleaseSpec struct {
 	// of their definition.
 	// +optional
 	PostRenderers []PostRenderer `json:"postRenderers,omitempty"`
+}
+
+// +kubebuilder:object:generate=false
+type ValuesReference = meta.ValuesReference
+
+// Kustomize Helm PostRenderer specification.
+type Kustomize struct {
+	// Strategic merge and JSON patches, defined as inline YAML objects,
+	// capable of targeting objects based on kind, label and annotation selectors.
+	// +optional
+	Patches []kustomize.Patch `json:"patches,omitempty"`
+
+	// Images is a list of (image name, new name, new tag or digest)
+	// for changing image names, tags or digests. This can also be achieved with a
+	// patch, but this operator is simpler to specify.
+	// +optional
+	Images []kustomize.Image `json:"images,omitempty" json:"images,omitempty"`
+}
+
+// PostRenderer contains a Helm PostRenderer specification.
+type PostRenderer struct {
+	// Kustomization to apply as PostRenderer.
+	// +optional
+	Kustomize *Kustomize `json:"kustomize,omitempty"`
 }
 
 // DriftDetectionMode represents the modes in which a controller can detect and
@@ -432,6 +435,11 @@ type Install struct {
 	// +optional
 	Remediation *InstallRemediation `json:"remediation,omitempty"`
 
+	// DisableTakeOwnership disables taking ownership of existing resources
+	// during the Helm install action. Defaults to false.
+	// +optional
+	DisableTakeOwnership bool `json:"disableTakeOwnership,omitempty"`
+
 	// DisableWait disables the waiting for resources to be ready after a Helm
 	// install has been performed.
 	// +optional
@@ -609,6 +617,11 @@ type Upgrade struct {
 	// action for the HelmRelease fails. The default is to not perform any action.
 	// +optional
 	Remediation *UpgradeRemediation `json:"remediation,omitempty"`
+
+	// DisableTakeOwnership disables taking ownership of existing resources
+	// during the Helm upgrade action. Defaults to false.
+	// +optional
+	DisableTakeOwnership bool `json:"disableTakeOwnership,omitempty"`
 
 	// DisableWait disables the waiting for resources to be ready after a Helm
 	// upgrade has been performed.

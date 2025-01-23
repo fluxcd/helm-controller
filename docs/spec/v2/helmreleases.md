@@ -494,6 +494,8 @@ The field offers the following subfields:
   rendered templates against the Kubernetes OpenAPI Schema. Defaults to `false`.
 - `.disableSchemaValidation` (Optional): Prevents Helm from validating the
   values against the JSON Schema. Defaults to `false`.
+- `.disableTakeOwnership` (Optional): Disables taking ownership of existing resources
+  during the Helm install action. Defaults to `false`.
 - `.disableWait` (Optional): Disables waiting for resources to be ready after
   the installation of the chart. Defaults to `false`.
 - `.disableWaitForJobs` (Optional): Disables waiting for any Jobs to complete
@@ -538,6 +540,8 @@ The field offers the following subfields:
   rendered templates against the Kubernetes OpenAPI Schema. Defaults to `false`.
 - `.disableSchemaValidation` (Optional): Prevents Helm from validating the
   values against the JSON Schema. Defaults to `false`.
+- `.disableTakeOwnership` (Optional): Disables taking ownership of existing resources
+  during the Helm upgrade action. Defaults to `false`.
 - `.disableWait` (Optional): Disables waiting for resources to be ready after
   upgrading the release. Defaults to `false`.
 - `.disableWaitForJobs` (Optional): Disables waiting for any Jobs to complete
@@ -1450,6 +1454,23 @@ LAST SEEN   TYPE      REASON             OBJECT                MESSAGE
 Besides being reported in Events, the controller may also log reconciliation
 errors. The Flux CLI offers commands for filtering the logs for a specific
 HelmRelease, e.g. `flux logs --level=error --kind=HelmRelease --name=<release-name>.`
+
+#### Rendering the final Values locally
+
+When using multiple [values references](#values-references) in a
+HelmRelease, it can be useful to inspect the final values computed from the various sources.
+This can be done by pointing the Flux CLI to the in-cluster HelmRelease object:
+
+```shell
+flux debug hr <release-name> -n <namespace> --show-values
+```
+
+The command will output the final values by merging the in-line values from the HelmRelease
+with the values from the referenced ConfigMaps and/or Secrets.
+
+**Note:** The debug command will print sensitive information if Kubernetes Secrets
+are referenced in the HelmRelease `.spec.valuesFrom` field, so exercise caution
+when using this command.
 
 ## HelmRelease Status
 

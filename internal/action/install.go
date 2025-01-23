@@ -55,7 +55,7 @@ func Install(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 	if err != nil {
 		return nil, err
 	}
-	if err := applyCRDs(config, policy, chrt, setOriginVisitor(v2.GroupVersion.Group, obj.Namespace, obj.Name)); err != nil {
+	if err := applyCRDs(config, policy, chrt, vals, setOriginVisitor(v2.GroupVersion.Group, obj.Namespace, obj.Name)); err != nil {
 		return nil, fmt.Errorf("failed to apply CustomResourceDefinitions: %w", err)
 	}
 
@@ -68,6 +68,7 @@ func newInstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []In
 	install.ReleaseName = release.ShortenName(obj.GetReleaseName())
 	install.Namespace = obj.GetReleaseNamespace()
 	install.Timeout = obj.GetInstall().GetTimeout(obj.GetTimeout()).Duration
+	install.TakeOwnership = !obj.GetInstall().DisableTakeOwnership
 	install.Wait = !obj.GetInstall().DisableWait
 	install.WaitForJobs = !obj.GetInstall().DisableWaitForJobs
 	install.DisableHooks = obj.GetInstall().DisableHooks
@@ -76,7 +77,6 @@ func newInstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []In
 	install.Replace = obj.GetInstall().Replace
 	install.Devel = true
 	install.SkipCRDs = true
-	install.TakeOwnership = true
 
 	if obj.Spec.TargetNamespace != "" {
 		install.CreateNamespace = obj.GetInstall().CreateNamespace

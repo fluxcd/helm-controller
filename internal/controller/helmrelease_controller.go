@@ -58,10 +58,11 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 
+	"github.com/fluxcd/pkg/chartutil"
+
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
 	"github.com/fluxcd/helm-controller/internal/action"
-	"github.com/fluxcd/helm-controller/internal/chartutil"
 	"github.com/fluxcd/helm-controller/internal/digest"
 	interrors "github.com/fluxcd/helm-controller/internal/errors"
 	"github.com/fluxcd/helm-controller/internal/features"
@@ -307,7 +308,12 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	}
 
 	// Compose values based from the spec and references.
-	values, err := chartutil.ChartValuesFromReferences(ctx, r.Client, obj.Namespace, obj.GetValues(), obj.Spec.ValuesFrom...)
+	values, err := chartutil.ChartValuesFromReferences(ctx,
+		log,
+		r.Client,
+		obj.Namespace,
+		obj.GetValues(),
+		obj.Spec.ValuesFrom...)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "ValuesError", "%s", err)
 		r.Eventf(obj, corev1.EventTypeWarning, "ValuesError", err.Error())
@@ -916,9 +922,12 @@ func mutateChartWithSourceRevision(chart *chart.Chart, source sourcev1.Source) (
 	switch {
 	case strings.Contains(revision, "@"):
 		tagD := strings.Split(revision, "@")
-		tagVer, err := semver.NewVersion(tagD[0])
+		// replace '+' with '_' for OCI tag semver compatibility
+		// per https://github.com/helm/helm/blob/v3.14.4/pkg/registry/client.go#L45-L50
+		tagConverted := strings.ReplaceAll(tagD[0], "_", "+")
+		tagVer, err := semver.NewVersion(tagConverted)
 		if err != nil {
-			return "", fmt.Errorf("failed parsing artifact revision %s", tagD[0])
+			return "", fmt.Errorf("failed parsing artifact revision %s", tagConverted)
 		}
 		if len(tagD) != 2 || !tagVer.Equal(ver) {
 			return "", fmt.Errorf("artifact revision %s does not match chart version %s", tagD[0], chart.Metadata.Version)
