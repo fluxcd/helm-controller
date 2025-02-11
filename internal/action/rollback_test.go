@@ -49,6 +49,7 @@ func Test_newRollback(t *testing.T) {
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.Timeout).To(Equal(obj.Spec.Rollback.Timeout.Duration))
 		g.Expect(got.Force).To(Equal(obj.Spec.Rollback.Force))
+		g.Expect(got.MaxHistory).To(Equal(obj.GetMaxHistory()))
 	})
 
 	t.Run("rollback to version", func(t *testing.T) {
