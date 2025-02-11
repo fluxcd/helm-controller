@@ -65,6 +65,7 @@ func newRollback(config *helmaction.Configuration, obj *v2.HelmRelease, opts []R
 	rollback.Force = obj.GetRollback().Force
 	rollback.Recreate = obj.GetRollback().Recreate
 	rollback.CleanupOnFail = obj.GetRollback().CleanupOnFail
+	rollback.MaxHistory = obj.GetMaxHistory()
 
 	for _, opt := range opts {
 		opt(rollback)
