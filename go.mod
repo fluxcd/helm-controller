@@ -23,7 +23,7 @@ require (
 	github.com/fluxcd/pkg/apis/kustomize v1.9.0
 	github.com/fluxcd/pkg/apis/meta v1.10.0
 	github.com/fluxcd/pkg/chartutil v1.2.0
-	github.com/fluxcd/pkg/runtime v0.53.0
+	github.com/fluxcd/pkg/runtime v0.53.1
 	github.com/fluxcd/pkg/ssa v0.44.0
 	github.com/fluxcd/pkg/testserver v0.10.0
 	github.com/fluxcd/source-controller/api v1.4.1
