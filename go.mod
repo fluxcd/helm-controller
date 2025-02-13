@@ -26,7 +26,7 @@ require (
 	github.com/fluxcd/pkg/runtime v0.53.1
 	github.com/fluxcd/pkg/ssa v0.44.0
 	github.com/fluxcd/pkg/testserver v0.10.0
-	github.com/fluxcd/source-controller/api v1.4.1
+	github.com/fluxcd/source-controller/api v1.5.0
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.7
