@@ -37,7 +37,7 @@ require (
 	github.com/spf13/pflag v1.0.6
 	github.com/wI2L/jsondiff v0.6.1
 	golang.org/x/text v0.21.0
-	helm.sh/helm/v3 v3.17.0
+	helm.sh/helm/v3 v3.17.1
 	k8s.io/api v0.32.1
 	k8s.io/apiextensions-apiserver v0.32.1
 	k8s.io/apimachinery v0.32.1
