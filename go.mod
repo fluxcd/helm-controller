@@ -24,7 +24,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.10.0
 	github.com/fluxcd/pkg/chartutil v1.2.0
 	github.com/fluxcd/pkg/runtime v0.53.1
-	github.com/fluxcd/pkg/ssa v0.44.0
+	github.com/fluxcd/pkg/ssa v0.45.1
 	github.com/fluxcd/pkg/testserver v0.10.0
 	github.com/fluxcd/source-controller/api v1.5.0
 	github.com/go-logr/logr v1.4.2
@@ -36,7 +36,7 @@ require (
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20240426182413-22b78e47854a
 	github.com/spf13/pflag v1.0.6
 	github.com/wI2L/jsondiff v0.6.1
-	golang.org/x/text v0.21.0
+	golang.org/x/text v0.22.0
 	helm.sh/helm/v3 v3.17.1
 	k8s.io/api v0.32.1
 	k8s.io/apiextensions-apiserver v0.32.1
@@ -169,7 +169,7 @@ require (
 	golang.org/x/crypto v0.32.0 // indirect
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/oauth2 v0.25.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
+	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 	golang.org/x/term v0.28.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
