@@ -1,5 +1,48 @@
 # Changelog
 
+## 1.2.0
+
+**Release date:** 2025-02-19
+
+This minor release comes with various bug fixes and improvements.
+
+In addition, the Kubernetes dependencies have been updated to v1.32.1, Helm has
+been updated to v3.17.1 and various other controller dependencies have been
+updated to their latest version.
+
+Fixes:
+- Replace _ with + when verifying the chart version matches the OCI artifact tag
+  [#1102](https://github.com/fluxcd/helm-controller/pull/1102)
+- fix: handle "leader changed" errors
+  [#1084](https://github.com/fluxcd/helm-controller/pull/1084)
+- Make `ValuesReference` an alias for backwards compat
+  [#1126](https://github.com/fluxcd/helm-controller/pull/1126)
+- Fix install and upgrade applying subchart CRDs when condition is false
+  [#1123](https://github.com/fluxcd/helm-controller/pull/1123)
+- fix: use HelmRelease max history for rollback remediation
+  [#1169](https://github.com/fluxcd/helm-controller/pull/1169)
+
+Improvements:
+- Refactor values composition to use pkg/chartutil
+  [#1122](https://github.com/fluxcd/helm-controller/pull/1122)
+- docs: Rendering the final Values locally
+  [#1127](https://github.com/fluxcd/helm-controller/pull/1127)
+- Add disableTakeOwnership to Helm install/upgrade actions
+  [#1140](https://github.com/fluxcd/helm-controller/pull/1140)
+- Various dependency updates
+  [#1103](https://github.com/fluxcd/helm-controller/pull/1103)
+  [#1121](https://github.com/fluxcd/helm-controller/pull/1121)
+  [#1129](https://github.com/fluxcd/helm-controller/pull/1129)
+  [#1142](https://github.com/fluxcd/helm-controller/pull/1142)
+  [#1160](https://github.com/fluxcd/helm-controller/pull/1160)
+  [#1158](https://github.com/fluxcd/helm-controller/pull/1158)
+  [#1165](https://github.com/fluxcd/helm-controller/pull/1165)
+  [#1168](https://github.com/fluxcd/helm-controller/pull/1168)
+  [#1171](https://github.com/fluxcd/helm-controller/pull/1171)
+  [#1167](https://github.com/fluxcd/helm-controller/pull/1167)
+  [#1173](https://github.com/fluxcd/helm-controller/pull/1173)
+  [#1170](https://github.com/fluxcd/helm-controller/pull/1170)
+
 ## 1.1.0
 
 **Release date:** 2024-09-26
