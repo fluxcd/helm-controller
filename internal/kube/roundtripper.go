@@ -44,15 +44,15 @@ func (rt *retryingRoundTripper) roundTrip(req *http.Request, retry int, prevResp
 		return resp, rtErr
 	}
 	if resp.StatusCode < 500 {
-		return resp, rtErr
+		return resp, nil
 	}
 	if resp.Header.Get("content-type") != "application/json" {
-		return resp, rtErr
+		return resp, nil
 	}
 	b, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		return resp, rtErr
+		return resp, err
 	}
 
 	var ke kubernetesError
@@ -61,10 +61,10 @@ func (rt *retryingRoundTripper) roundTrip(req *http.Request, retry int, prevResp
 	r.Seek(0, io.SeekStart)
 	resp.Body = io.NopCloser(r)
 	if err != nil {
-		return resp, rtErr
+		return resp, err
 	}
 	if ke.Code < 500 {
-		return resp, rtErr
+		return resp, nil
 	}
 	// Matches messages like "etcdserver: leader changed"
 	if strings.HasSuffix(ke.Message, "etcdserver: leader changed") {
@@ -74,7 +74,7 @@ func (rt *retryingRoundTripper) roundTrip(req *http.Request, retry int, prevResp
 	if strings.HasSuffix(ke.Message, "raft proposal dropped") {
 		return rt.roundTrip(req, retry-1, resp)
 	}
-	return resp, rtErr
+	return resp, nil
 }
 
 type kubernetesError struct {
