@@ -36,12 +36,13 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 
+	"github.com/fluxcd/pkg/chartutil"
+
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/digest"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/testutil"
-	"github.com/fluxcd/pkg/chartutil"
 )
 
 // testHookFixtures is a list of release.Hook in every possible LastRun state.
@@ -253,9 +254,9 @@ func TestTest_Reconcile(t *testing.T) {
 			},
 			expectConditions: []metav1.Condition{
 				*conditions.FalseCondition(meta.ReadyCondition, v2.TestFailedReason,
-					ErrReleaseMismatch.Error()),
+					"%s", ErrReleaseMismatch.Error()),
 				*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestFailedReason,
-					ErrReleaseMismatch.Error()),
+					"%s", ErrReleaseMismatch.Error()),
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -493,7 +494,7 @@ func TestTest_failure(t *testing.T) {
 			err.Error())
 
 		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
-			*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestFailedReason, expectMsg),
+			*conditions.FalseCondition(v2.TestSuccessCondition, v2.TestFailedReason, "%s", expectMsg),
 		}))
 		g.Expect(req.Object.Status.Failures).To(Equal(int64(1)))
 		g.Expect(req.Object.Status.InstallFailures).To(BeZero())
@@ -592,7 +593,7 @@ func TestTest_success(t *testing.T) {
 			"2 test hooks completed successfully")
 
 		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
-			*conditions.TrueCondition(v2.TestSuccessCondition, v2.TestSucceededReason, expectMsg),
+			*conditions.TrueCondition(v2.TestSuccessCondition, v2.TestSucceededReason, "%s", expectMsg),
 		}))
 		g.Expect(req.Object.Status.Failures).To(Equal(int64(0)))
 		g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{

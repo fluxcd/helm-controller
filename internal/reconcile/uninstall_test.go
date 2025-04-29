@@ -36,13 +36,14 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 
+	"github.com/fluxcd/pkg/chartutil"
+
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/digest"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
 	"github.com/fluxcd/helm-controller/internal/testutil"
-	"github.com/fluxcd/pkg/chartutil"
 )
 
 func TestUninstall_Reconcile(t *testing.T) {
@@ -194,9 +195,9 @@ func TestUninstall_Reconcile(t *testing.T) {
 			},
 			expectConditions: []metav1.Condition{
 				*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallFailedReason,
-					ErrNoStorageUpdate.Error()),
+					"%s", ErrNoStorageUpdate.Error()),
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallFailedReason,
-					ErrNoStorageUpdate.Error()),
+					"%s", ErrNoStorageUpdate.Error()),
 			},
 			expectHistory: func(namespace string, releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -301,9 +302,9 @@ func TestUninstall_Reconcile(t *testing.T) {
 			},
 			expectConditions: []metav1.Condition{
 				*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallFailedReason,
-					ErrReleaseMismatch.Error()),
+					"%s", ErrReleaseMismatch.Error()),
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallFailedReason,
-					ErrReleaseMismatch.Error()),
+					"%s", ErrReleaseMismatch.Error()),
 			},
 			expectHistory: func(namespace string, releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -546,7 +547,7 @@ func TestUninstall_failure(t *testing.T) {
 			err.Error())
 
 		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
-			*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallFailedReason, expectMsg),
+			*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallFailedReason, "%s", expectMsg),
 		}))
 		g.Expect(req.Object.Status.Failures).To(Equal(int64(1)))
 		g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
@@ -615,7 +616,7 @@ func TestUninstall_success(t *testing.T) {
 		fmt.Sprintf("%s@%s", cur.Chart.Name(), cur.Chart.Metadata.Version))
 
 	g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
-		*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallSucceededReason, expectMsg),
+		*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallSucceededReason, "%s", expectMsg),
 	}))
 	g.Expect(req.Object.Status.Failures).To(Equal(int64(0)))
 	g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
