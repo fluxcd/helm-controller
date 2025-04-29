@@ -18,6 +18,7 @@ package testutil
 
 import (
 	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -55,7 +56,7 @@ func NewFakeRecorder(bufferSize int, includeObject bool) *FakeRecorder {
 
 // Event emits an event with the given message.
 func (f *FakeRecorder) Event(obj runtime.Object, eventType, reason, message string) {
-	f.Eventf(obj, eventType, reason, message)
+	f.Eventf(obj, eventType, reason, "%s", message)
 }
 
 // Eventf emits an event with the given message.

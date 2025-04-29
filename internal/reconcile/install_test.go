@@ -40,13 +40,14 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 
+	"github.com/fluxcd/pkg/chartutil"
+
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/digest"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
 	"github.com/fluxcd/helm-controller/internal/testutil"
-	"github.com/fluxcd/pkg/chartutil"
 )
 
 func TestInstall_Reconcile(t *testing.T) {
@@ -470,7 +471,7 @@ func TestInstall_failure(t *testing.T) {
 			chrt.Metadata.Version, err.Error())
 
 		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
-			*conditions.FalseCondition(v2.ReleasedCondition, v2.InstallFailedReason, expectMsg),
+			*conditions.FalseCondition(v2.ReleasedCondition, v2.InstallFailedReason, "%s", expectMsg),
 		}))
 		g.Expect(req.Object.Status.Failures).To(Equal(int64(1)))
 		g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
@@ -544,7 +545,7 @@ func TestInstall_success(t *testing.T) {
 			fmt.Sprintf("%s@%s", obj.Status.History.Latest().ChartName, obj.Status.History.Latest().ChartVersion))
 
 		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
-			*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason, expectMsg),
+			*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason, "%s", expectMsg),
 		}))
 		g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
 			{
