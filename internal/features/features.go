@@ -58,6 +58,13 @@ const (
 	// without the need to upgrade the Helm release. But it can be disabled to
 	// avoid potential abuse of the adoption mechanism.
 	AdoptLegacyReleases = "AdoptLegacyReleases"
+
+	// DisableChartDigestTracking disables the tracking of digest changes
+	// for Helm OCI charts. When enabled, the controller will not trigger
+	// a Helm release upgrade if the chart version stays the same, but its
+	// digest changes. When enabled, the controller will not
+	// append the digest to the chart version in Chart.yaml.
+	DisableChartDigestTracking = "DisableChartDigestTracking"
 )
 
 var features = map[string]bool{
@@ -79,6 +86,9 @@ var features = map[string]bool{
 	// AdoptLegacyReleases
 	// opt-out from v0.37
 	AdoptLegacyReleases: true,
+	// DisableChartDigestTracking
+	// opt-in from v1.3.0
+	DisableChartDigestTracking: false,
 }
 
 // FeatureGates contains a list of all supported feature gates and

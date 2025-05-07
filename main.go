@@ -181,6 +181,12 @@ func main() {
 		leaderElectionId = leaderelection.GenerateID(leaderElectionId, watchOptions.LabelSelector)
 	}
 
+	disableChartDigestTracking, err := features.Enabled(features.DisableChartDigestTracking)
+	if err != nil {
+		setupLog.Error(err, "unable to check feature gate DisableChartDigestTracking")
+		os.Exit(1)
+	}
+
 	// Set the managedFields owner for resources reconciled from Helm charts.
 	kube.ManagedFieldsManager = controllerName
 
@@ -269,14 +275,15 @@ func main() {
 	}
 
 	if err = (&controller.HelmReleaseReconciler{
-		Client:           mgr.GetClient(),
-		APIReader:        mgr.GetAPIReader(),
-		EventRecorder:    eventRecorder,
-		Metrics:          metricsH,
-		GetClusterConfig: ctrl.GetConfig,
-		ClientOpts:       clientOptions,
-		KubeConfigOpts:   kubeConfigOpts,
-		FieldManager:     controllerName,
+		Client:                     mgr.GetClient(),
+		APIReader:                  mgr.GetAPIReader(),
+		EventRecorder:              eventRecorder,
+		Metrics:                    metricsH,
+		GetClusterConfig:           ctrl.GetConfig,
+		ClientOpts:                 clientOptions,
+		KubeConfigOpts:             kubeConfigOpts,
+		FieldManager:               controllerName,
+		DisableChartDigestTracking: disableChartDigestTracking,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		DependencyRequeueInterval: requeueDependency,
 		HTTPRetry:                 httpRetry,
