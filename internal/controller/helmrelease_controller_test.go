@@ -3926,7 +3926,8 @@ func Test_TryMutateChartWithSourceRevision(t *testing.T) {
 				},
 			}
 
-			_, err := mutateChartWithSourceRevision(c, s)
+			r := &HelmReleaseReconciler{}
+			_, err := r.mutateChartWithSourceRevision(c, s)
 			if tt.wantErr {
 				g.Expect(err).To(HaveOccurred())
 			} else {

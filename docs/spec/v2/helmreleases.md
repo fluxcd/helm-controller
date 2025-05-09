@@ -217,6 +217,9 @@ The controller will automatically perform a Helm upgrade when the `OCIRepository
 detects a new digest in the OCI artifact stored in registry, even if the version
 inside `Chart.yaml` is unchanged.
 
+**Note:** Disabling the appending of the digest to the chart version can be done
+with the `--feature-gates=DisableChartDigestTracking=true` controller flag.
+
 **Warning:** One of `.spec.chart` or `.spec.chartRef` must be set, but not both.
 When switching from `.spec.chart` to `.spec.chartRef`, the controller will perform
 an Helm upgrade and will garbage collect the old HelmChart object.

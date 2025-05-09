@@ -94,8 +94,9 @@ type HelmReleaseReconciler struct {
 	KubeConfigOpts   runtimeClient.KubeConfigOptions
 	APIReader        client.Reader
 
-	FieldManager          string
-	DefaultServiceAccount string
+	FieldManager               string
+	DefaultServiceAccount      string
+	DisableChartDigestTracking bool
 
 	requeueDependency    time.Duration
 	artifactFetchRetries int
@@ -343,7 +344,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
-	ociDigest, err := mutateChartWithSourceRevision(loadedChart, source)
+	ociDigest, err := r.mutateChartWithSourceRevision(loadedChart, source)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "ChartMutateError", "%s", err)
 		return ctrl.Result{}, err
@@ -902,7 +903,7 @@ func getNamespacedName(obj *v2.HelmRelease) (types.NamespacedName, error) {
 	return namespacedName, nil
 }
 
-func mutateChartWithSourceRevision(chart *chart.Chart, source sourcev1.Source) (string, error) {
+func (r *HelmReleaseReconciler) mutateChartWithSourceRevision(chart *chart.Chart, source sourcev1.Source) (string, error) {
 	// If the source is an OCIRepository, we can try to mutate the chart version
 	// with the artifact revision. The revision is either a <tag>@<digest> or
 	// just a digest.
@@ -957,7 +958,10 @@ func mutateChartWithSourceRevision(chart *chart.Chart, source sourcev1.Source) (
 		ociDigest = revision
 	}
 
-	chart.Metadata.Version = ver.String()
+	if !r.DisableChartDigestTracking {
+		chart.Metadata.Version = ver.String()
+	}
+
 	return ociDigest, nil
 }
 
