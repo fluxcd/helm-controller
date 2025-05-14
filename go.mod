@@ -15,7 +15,7 @@ replace (
 )
 
 require (
-	github.com/Masterminds/semver/v3 v3.3.0
+	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/fluxcd/cli-utils v0.36.0-flux.13
 	github.com/fluxcd/helm-controller/api v1.2.0
 	github.com/fluxcd/pkg/apis/acl v0.7.0
@@ -24,7 +24,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.11.0
 	github.com/fluxcd/pkg/chartutil v1.3.0
 	github.com/fluxcd/pkg/runtime v0.59.0
-	github.com/fluxcd/pkg/ssa v0.46.0
+	github.com/fluxcd/pkg/ssa v0.47.0
 	github.com/fluxcd/pkg/testserver v0.11.0
 	github.com/fluxcd/source-controller/api v1.5.0
 	github.com/go-logr/logr v1.4.2
@@ -36,7 +36,7 @@ require (
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20250116041648-1e56c6daea3b
 	github.com/spf13/pflag v1.0.6
 	github.com/wI2L/jsondiff v0.6.1
-	golang.org/x/text v0.24.0
+	golang.org/x/text v0.25.0
 	helm.sh/helm/v3 v3.17.3
 	k8s.io/api v0.33.0
 	k8s.io/apiextensions-apiserver v0.33.0
@@ -166,7 +166,7 @@ require (
 	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/net v0.39.0 // indirect
 	golang.org/x/oauth2 v0.29.0 // indirect
-	golang.org/x/sync v0.13.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/term v0.31.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
