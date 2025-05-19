@@ -219,6 +219,11 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 						// Update the post-renderers digest if the post-renderers exist.
 						req.Object.Status.ObservedPostRenderersDigest = postrender.Digest(digest.Canonical, req.Object.Spec.PostRenderers).String()
 					}
+					req.Object.Status.ObservedCommonMetadataDigest = ""
+					if req.Object.Spec.CommonMetadata != nil {
+						// Update the common-metadata digest if common-metadata exist.
+						req.Object.Status.ObservedCommonMetadataDigest = postrender.CommonMetadataDigest(digest.Canonical, req.Object.Spec.CommonMetadata).String()
+					}
 				}
 
 				return nil

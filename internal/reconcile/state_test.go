@@ -526,6 +526,76 @@ func Test_DetermineReleaseState(t *testing.T) {
 				Status: ReleaseStatusInSync,
 			},
 		},
+		{
+			name: "commonMetadata changed",
+			releases: []*helmrelease.Release{
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   1,
+					Status:    helmrelease.StatusDeployed,
+					Chart:     testutil.BuildChart(),
+				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.CommonMetadata = commonMetadata2
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					ObservedCommonMetadataDigest: postrender.CommonMetadataDigest(digest.Canonical, commonMetadata).String(),
+					Conditions: []metav1.Condition{
+						{
+							Type:               meta.ReadyCondition,
+							Status:             metav1.ConditionTrue,
+							ObservedGeneration: 1,
+						},
+					},
+				}
+			},
+			chart:  testutil.BuildChart(),
+			values: map[string]interface{}{"foo": "bar"},
+			want: ReleaseState{
+				Status: ReleaseStatusOutOfSync,
+			},
+		},
+		{
+			name: "commonMetadata mismatch ignored for processed generation",
+			releases: []*helmrelease.Release{
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   1,
+					Status:    helmrelease.StatusDeployed,
+					Chart:     testutil.BuildChart(),
+				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.CommonMetadata = commonMetadata2
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					ObservedCommonMetadataDigest: postrender.CommonMetadataDigest(digest.Canonical, commonMetadata).String(),
+					Conditions: []metav1.Condition{
+						{
+							Type:               meta.ReadyCondition,
+							Status:             metav1.ConditionTrue,
+							ObservedGeneration: 2,
+						},
+					},
+				}
+			},
+			chart:  testutil.BuildChart(),
+			values: map[string]interface{}{"foo": "bar"},
+			want: ReleaseState{
+				Status: ReleaseStatusInSync,
+			},
+		},
 	}
 
 	for _, tt := range tests {
