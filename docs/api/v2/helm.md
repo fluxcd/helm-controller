@@ -2007,6 +2007,32 @@ no retries remain. Defaults to &lsquo;false&rsquo;.</p>
 <tbody>
 <tr>
 <td>
+<code>commonLabels</code><br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Common labels to set on all resources.
+When duplicate labels are found across postRenderers, the last one wins.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>commonAnnotations</code><br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Common annotations to set on all resources
+When duplicate annotations are found across postRenderers, the last one wins.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>patches</code><br>
 <em>
 <a href="https://godoc.org/github.com/fluxcd/pkg/apis/kustomize#Patch">
