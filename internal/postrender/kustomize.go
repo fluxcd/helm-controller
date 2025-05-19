@@ -31,6 +31,8 @@ import (
 
 // Kustomize is a Helm post-render plugin that runs Kustomize.
 type Kustomize struct {
+	CommonAnnotations map[string]string
+	CommonLabels      map[string]string
 	// Patches is a list of patches to apply to the rendered manifests.
 	Patches []kustomize.Patch
 	// Images is a list of images to replace in the rendered manifests.
@@ -43,6 +45,19 @@ func (k *Kustomize) Run(renderedManifests *bytes.Buffer) (modifiedManifests *byt
 	cfg.APIVersion = kustypes.KustomizationVersion
 	cfg.Kind = kustypes.KustomizationKind
 	cfg.Images = adaptImages(k.Images)
+
+	if k.CommonLabels != nil {
+		cfg.Labels = make([]kustypes.Label, 0)
+		cfg.Labels = append(cfg.Labels, kustypes.Label{
+			Pairs:            k.CommonLabels,
+			IncludeSelectors: false,
+			IncludeTemplates: true,
+		})
+	}
+
+	if k.CommonAnnotations != nil {
+		cfg.CommonAnnotations = k.CommonAnnotations
+	}
 
 	// Add rendered Helm output as input resource to the Kustomization.
 	const input = "helm-output.yaml"

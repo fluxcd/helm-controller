@@ -185,6 +185,14 @@ type ValuesReference = meta.ValuesReference
 
 // Kustomize Helm PostRenderer specification.
 type Kustomize struct {
+	// Common labels to set on all resources.
+	// When duplicate labels are found across postRenderers, the last one wins.
+	// +optional
+	CommonLabels map[string]string `json:"commonLabels,omitempty"`
+	// Common annotations to set on all resources
+	// When duplicate annotations are found across postRenderers, the last one wins.
+	// +optional
+	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty"`
 	// Strategic merge and JSON patches, defined as inline YAML objects,
 	// capable of targeting objects based on kind, label and annotation selectors.
 	// +optional
