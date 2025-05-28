@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.3.0
+
+**Release date:** 2025-05-28
+
+This minor release comes with various bug fixes and improvements.
+
+The controller now supports the `DisableChartDigestTracking` feature gate,
+which allows disabling appending the digest of OCI Helm charts to the
+chart version. This is useful for charts that do not follow Helm's
+recommendation of using the app version instead of the chart version
+as a label in the manifests.
+
+In addition, the Kubernetes dependencies have been updated to v1.33, Helm has
+been updated to v3.17.3 and various other controller dependencies have been
+updated to their latest version. The controller is now built with Go 1.24.
+
+Fixes:
+- Fix returning wrong error value in Kubernetes HTTP client
+  [#1188](https://github.com/fluxcd/helm-controller/pull/1188)
+
+Improvements:
+- Add `DisableChartDigestTracking` feature gate
+  [#1212](https://github.com/fluxcd/helm-controller/pull/1212)
+- Various dependency updates
+  [#1227](https://github.com/fluxcd/helm-controller/pull/1227)
+  [#1221](https://github.com/fluxcd/helm-controller/pull/1221)
+  [#1220](https://github.com/fluxcd/helm-controller/pull/1220)
+  [#1218](https://github.com/fluxcd/helm-controller/pull/1218)
+  [#1206](https://github.com/fluxcd/helm-controller/pull/1206)
+  [#1209](https://github.com/fluxcd/helm-controller/pull/1209)
+  [#1204](https://github.com/fluxcd/helm-controller/pull/1204)
+
 ## 1.2.0
 
 **Release date:** 2025-02-19
