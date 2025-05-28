@@ -12,9 +12,9 @@ chart version. This is useful for charts that do not follow Helm's
 recommendation of using the app version instead of the chart version
 as a label in the manifests.
 
-In addition, the Kubernetes dependencies have been updated to v1.33 and
-various other controller dependencies have been updated to their latest
-version. The controller is now built with Go 1.24.
+In addition, the Kubernetes dependencies have been updated to v1.33, Helm has
+been updated to v3.17.3 and various other controller dependencies have been
+updated to their latest version. The controller is now built with Go 1.24.
 
 Fixes:
 - Fix returning wrong error value in Kubernetes HTTP client
