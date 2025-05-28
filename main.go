@@ -47,7 +47,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	intdigest "github.com/fluxcd/helm-controller/internal/digest"
@@ -72,7 +71,6 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(sourcev1.AddToScheme(scheme))
-	utilruntime.Must(sourcev1beta2.AddToScheme(scheme))
 	utilruntime.Must(v2.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
