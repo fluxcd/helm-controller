@@ -56,7 +56,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	"github.com/fluxcd/pkg/chartutil"
 
@@ -143,7 +142,7 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
 		Watches(
-			&sourcev1beta2.OCIRepository{},
+			&sourcev1.OCIRepository{},
 			handler.EnqueueRequestsFromMapFunc(r.requestsForOCIRrepositoryChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
@@ -436,7 +435,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}), nil
 }
 
-// reconcileDelete deletes the v1beta2.HelmChart of the v2.HelmRelease,
+// reconcileDelete deletes the v1.HelmChart of the v2.HelmRelease,
 // and uninstalls the Helm release if the resource has not been suspended.
 func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, obj *v2.HelmRelease) (ctrl.Result, error) {
 	// Only uninstall the release and delete the HelmChart resource if the
@@ -712,7 +711,7 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *
 func (r *HelmReleaseReconciler) getSource(ctx context.Context, obj *v2.HelmRelease) (sourcev1.Source, error) {
 	var name, namespace string
 	if obj.HasChartRef() {
-		if obj.Spec.ChartRef.Kind == sourcev1beta2.OCIRepositoryKind {
+		if obj.Spec.ChartRef.Kind == sourcev1.OCIRepositoryKind {
 			return r.getSourceFromOCIRef(ctx, obj)
 		}
 		name, namespace = obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
@@ -743,11 +742,11 @@ func (r *HelmReleaseReconciler) getSourceFromOCIRef(ctx context.Context, obj *v2
 	}
 	ociRepoRef := types.NamespacedName{Namespace: namespace, Name: name}
 
-	if err := intacl.AllowsAccessTo(obj, sourcev1beta2.OCIRepositoryKind, ociRepoRef); err != nil {
+	if err := intacl.AllowsAccessTo(obj, sourcev1.OCIRepositoryKind, ociRepoRef); err != nil {
 		return nil, err
 	}
 
-	or := sourcev1beta2.OCIRepository{}
+	or := sourcev1.OCIRepository{}
 	if err := r.Client.Get(ctx, ociRepoRef, &or); err != nil {
 		return nil, err
 	}
@@ -805,7 +804,7 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, 
 }
 
 func (r *HelmReleaseReconciler) requestsForOCIRrepositoryChange(ctx context.Context, o client.Object) []reconcile.Request {
-	or, ok := o.(*sourcev1beta2.OCIRepository)
+	or, ok := o.(*sourcev1.OCIRepository)
 	if !ok {
 		err := fmt.Errorf("expected an OCIRepository, got %T", o)
 		ctrl.LoggerFrom(ctx).Error(err, "failed to get requests for OCIRepository change")
@@ -907,7 +906,7 @@ func (r *HelmReleaseReconciler) mutateChartWithSourceRevision(chart *chart.Chart
 	// If the source is an OCIRepository, we can try to mutate the chart version
 	// with the artifact revision. The revision is either a <tag>@<digest> or
 	// just a digest.
-	obj, ok := source.(*sourcev1beta2.OCIRepository)
+	obj, ok := source.(*sourcev1.OCIRepository)
 	if !ok {
 		// if not make sure to return an empty string to delete the digest of the
 		// last attempted revision

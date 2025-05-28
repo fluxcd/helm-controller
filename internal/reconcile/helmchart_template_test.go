@@ -32,7 +32,6 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/acl"
@@ -485,7 +484,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
 				ChartRef: &v2.CrossNamespaceSourceReference{
-					Kind: sourcev1beta2.OCIRepositoryKind,
+					Kind: sourcev1.OCIRepositoryKind,
 					Name: "oci-repository",
 				},
 			},
