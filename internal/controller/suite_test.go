@@ -32,7 +32,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/testenv"
 	"github.com/fluxcd/pkg/testserver"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	// +kubebuilder:scaffold:imports
@@ -50,7 +49,6 @@ func NewTestScheme() *runtime.Scheme {
 	utilruntime.Must(corev1.AddToScheme(s))
 	utilruntime.Must(apiextensionsv1.AddToScheme(s))
 	utilruntime.Must(sourcev1.AddToScheme(s))
-	utilruntime.Must(sourcev1beta2.AddToScheme(s))
 	utilruntime.Must(v2.AddToScheme(s))
 	return s
 }

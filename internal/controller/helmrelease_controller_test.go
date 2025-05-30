@@ -54,7 +54,6 @@ import (
 	feathelper "github.com/fluxcd/pkg/runtime/features"
 	"github.com/fluxcd/pkg/runtime/patch"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
@@ -1448,17 +1447,17 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 	t.Run("waits for ChartRef to have an Artifact", func(t *testing.T) {
 		g := NewWithT(t)
 
-		ocirepo := &sourcev1beta2.OCIRepository{
+		ocirepo := &sourcev1.OCIRepository{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: sourcev1beta2.GroupVersion.String(),
-				Kind:       sourcev1beta2.OCIRepositoryKind,
+				APIVersion: sourcev1.GroupVersion.String(),
+				Kind:       sourcev1.OCIRepositoryKind,
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Status: sourcev1beta2.OCIRepositoryStatus{
+			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
 				Conditions: []metav1.Condition{
 					{
@@ -1505,16 +1504,16 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 	t.Run("reports values composition failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		ocirepo := &sourcev1beta2.OCIRepository{
+		ocirepo := &sourcev1.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Spec: sourcev1beta2.OCIRepositorySpec{
+			Spec: sourcev1.OCIRepositorySpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1beta2.OCIRepositoryStatus{
+			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
 				Artifact:           &sourcev1.Artifact{},
 				Conditions: []metav1.Condition{
@@ -1567,16 +1566,16 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 	t.Run("reports Helm chart load failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		ocirepo := &sourcev1beta2.OCIRepository{
+		ocirepo := &sourcev1.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Spec: sourcev1beta2.OCIRepositorySpec{
+			Spec: sourcev1.OCIRepositorySpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1beta2.OCIRepositoryStatus{
+			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
 				Artifact: &sourcev1.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
@@ -1644,16 +1643,16 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 		}
 
-		ocirepo := &sourcev1beta2.OCIRepository{
+		ocirepo := &sourcev1.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  "mock",
 				Generation: 2,
 			},
-			Spec: sourcev1beta2.OCIRepositorySpec{
+			Spec: sourcev1.OCIRepositorySpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1beta2.OCIRepositoryStatus{
+			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
 				Artifact: &sourcev1.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
@@ -1713,16 +1712,16 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		g.Expect(err).ToNot(HaveOccurred())
 		chartArtifact.Revision += "@" + chartArtifact.Digest
 
-		ocirepo := &sourcev1beta2.OCIRepository{
+		ocirepo := &sourcev1.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  "mock",
 				Generation: 1,
 			},
-			Spec: sourcev1beta2.OCIRepositorySpec{
+			Spec: sourcev1.OCIRepositorySpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1beta2.OCIRepositoryStatus{
+			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 1,
 				Artifact:           chartArtifact,
 				Conditions: []metav1.Condition{
@@ -1805,17 +1804,17 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		})
 
 		// ocirepo is the chartRef object to switch to.
-		ocirepo := &sourcev1beta2.OCIRepository{
+		ocirepo := &sourcev1.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  ns.Name,
 				Generation: 1,
 			},
-			Spec: sourcev1beta2.OCIRepositorySpec{
+			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://test-example.com",
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1beta2.OCIRepositoryStatus{
+			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 1,
 				Artifact:           ociArtifact,
 				Conditions: []metav1.Condition{
@@ -1898,17 +1897,17 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		})
 
 		// ocirepo is the chartRef object to switch to.
-		ocirepo := &sourcev1beta2.OCIRepository{
+		ocirepo := &sourcev1.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  ns.Name,
 				Generation: 1,
 			},
-			Spec: sourcev1beta2.OCIRepositorySpec{
+			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://test-example.com",
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1beta2.OCIRepositoryStatus{
+			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 1,
 				Artifact:           ociArtifact,
 				Conditions: []metav1.Condition{
@@ -1975,17 +1974,17 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		})
 
 		// ocirepo is the chartRef object to switch to.
-		ocirepo := &sourcev1beta2.OCIRepository{
+		ocirepo := &sourcev1.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  ns.Name,
 				Generation: 1,
 			},
-			Spec: sourcev1beta2.OCIRepositorySpec{
+			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://test-example.com",
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1beta2.OCIRepositoryStatus{
+			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 1,
 				Artifact:           ociArtifact,
 				Conditions: []metav1.Condition{
@@ -2078,17 +2077,17 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		}
 
 		// ocirepo is the chartRef object to switch to.
-		ocirepo := &sourcev1beta2.OCIRepository{
+		ocirepo := &sourcev1.OCIRepository{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "ocirepo",
 				Namespace:  ns.Name,
 				Generation: 1,
 			},
-			Spec: sourcev1beta2.OCIRepositorySpec{
+			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://test-example.com",
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
-			Status: sourcev1beta2.OCIRepositoryStatus{
+			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 1,
 				Artifact:           ociArtifact,
 				Conditions: []metav1.Condition{
@@ -3781,17 +3780,17 @@ func Test_isHelmChartReady(t *testing.T) {
 }
 
 func Test_isOCIRepositoryReady(t *testing.T) {
-	mock := &sourcev1beta2.OCIRepository{
+	mock := &sourcev1.OCIRepository{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       sourcev1beta2.OCIRepositoryKind,
-			APIVersion: sourcev1beta2.GroupVersion.String(),
+			Kind:       sourcev1.OCIRepositoryKind,
+			APIVersion: sourcev1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "mock",
 			Namespace:  "default",
 			Generation: 2,
 		},
-		Status: sourcev1beta2.OCIRepositoryStatus{
+		Status: sourcev1.OCIRepositoryStatus{
 			ObservedGeneration: 2,
 			Conditions: []metav1.Condition{
 				{
@@ -3805,7 +3804,7 @@ func Test_isOCIRepositoryReady(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		obj        *sourcev1beta2.OCIRepository
+		obj        *sourcev1.OCIRepository
 		want       bool
 		wantReason string
 	}{
@@ -3816,7 +3815,7 @@ func Test_isOCIRepositoryReady(t *testing.T) {
 		},
 		{
 			name: "OCIRepository generation differs from observed generation while Ready=True",
-			obj: func() *sourcev1beta2.OCIRepository {
+			obj: func() *sourcev1.OCIRepository {
 				m := mock.DeepCopy()
 				m.Generation = 3
 				return m
@@ -3826,7 +3825,7 @@ func Test_isOCIRepositoryReady(t *testing.T) {
 		},
 		{
 			name: "OCIRepository generation differs from observed generation while Ready=False",
-			obj: func() *sourcev1beta2.OCIRepository {
+			obj: func() *sourcev1.OCIRepository {
 				m := mock.DeepCopy()
 				m.Generation = 3
 				conditions.MarkFalse(m, meta.ReadyCondition, "Reason", "some reason")
@@ -3837,7 +3836,7 @@ func Test_isOCIRepositoryReady(t *testing.T) {
 		},
 		{
 			name: "OCIRepository has Stalled=True",
-			obj: func() *sourcev1beta2.OCIRepository {
+			obj: func() *sourcev1.OCIRepository {
 				m := mock.DeepCopy()
 				conditions.MarkFalse(m, meta.ReadyCondition, "Reason", "some reason")
 				conditions.MarkStalled(m, "Reason", "some stalled reason")
@@ -3848,7 +3847,7 @@ func Test_isOCIRepositoryReady(t *testing.T) {
 		},
 		{
 			name: "OCIRepository does not have an Artifact",
-			obj: func() *sourcev1beta2.OCIRepository {
+			obj: func() *sourcev1.OCIRepository {
 				m := mock.DeepCopy()
 				m.Status.Artifact = nil
 				return m
@@ -3918,8 +3917,8 @@ func Test_TryMutateChartWithSourceRevision(t *testing.T) {
 				},
 			}
 
-			s := &sourcev1beta2.OCIRepository{
-				Status: sourcev1beta2.OCIRepositoryStatus{
+			s := &sourcev1.OCIRepository{
+				Status: sourcev1.OCIRepositoryStatus{
 					Artifact: &sourcev1.Artifact{
 						Revision: tt.revision,
 					},

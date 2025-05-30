@@ -43,7 +43,7 @@ operator.
 
 ## Guides
 
-* [Get started with GitOps Toolkit](https://fluxcd.io/flux/get-started/)
+* [Get started with Flux](https://fluxcd.io/flux/get-started/)
 * [Manage Helm Releases](https://fluxcd.io/flux/guides/helmreleases/)
 * [Setup Notifications](https://fluxcd.io/flux/guides/notifications/)
 

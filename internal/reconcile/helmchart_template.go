@@ -39,11 +39,11 @@ import (
 	"github.com/fluxcd/helm-controller/internal/strings"
 )
 
-// HelmChartTemplate attempts to create, update or delete a v1beta2.HelmChart
+// HelmChartTemplate attempts to create, update or delete a v1.HelmChart
 // based on the given Request data.
 //
-// It does this by building a v1beta2.HelmChart from the template declared in
-// the v2.HelmRelease, and then reconciling that v1beta2.HelmChart using
+// It does this by building a v1.HelmChart from the template declared in
+// the v2.HelmRelease, and then reconciling that v1.HelmChart using
 // a server-side apply.
 //
 // When the server-side apply succeeds, the namespaced name of the chart is
@@ -59,7 +59,7 @@ import (
 // indicates they should retry.
 //
 // In case the v2.HelmRelease is marked for deletion, the reconciler will
-// not continue to attempt to create or update the v1beta2.HelmChart.
+// not continue to attempt to create or update the v1.HelmChart.
 type HelmChartTemplate struct {
 	client        client.Client
 	eventRecorder record.EventRecorder
@@ -212,8 +212,8 @@ func (r *HelmChartTemplate) reconcileDelete(ctx context.Context, obj *v2.HelmRel
 	return nil
 }
 
-// buildHelmChartFromTemplate builds a v1beta2.HelmChart from the
-// v2beta1.HelmChartTemplate of the given v2beta1.HelmRelease.
+// buildHelmChartFromTemplate builds a v1.HelmChart from the
+// v2.HelmChartTemplate of the given v2.HelmRelease.
 func buildHelmChartFromTemplate(obj *v2.HelmRelease) *sourcev1.HelmChart {
 	template := obj.Spec.Chart.DeepCopy()
 	result := &sourcev1.HelmChart{
