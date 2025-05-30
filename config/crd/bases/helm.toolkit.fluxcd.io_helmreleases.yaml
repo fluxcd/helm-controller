@@ -495,6 +495,20 @@ spec:
                     kustomize:
                       description: Kustomization to apply as PostRenderer.
                       properties:
+                        commonAnnotations:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            Common annotations to set on all resources
+                            When duplicate annotations are found across postRenderers, the last one wins.
+                          type: object
+                        commonLabels:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            Common labels to set on all resources.
+                            When duplicate labels are found across postRenderers, the last one wins.
+                          type: object
                         images:
                           description: |-
                             Images is a list of (image name, new name, new tag or digest)
