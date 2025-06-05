@@ -2007,28 +2007,14 @@ no retries remain. Defaults to &lsquo;false&rsquo;.</p>
 <tbody>
 <tr>
 <td>
-<code>commonLabels</code><br>
+<code>commonMetadata</code><br>
 <em>
-map[string]string
+github.com/fluxcd/kustomize-controller/api/v1.CommonMetadata
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Common labels to set on all resources.
-When duplicate labels are found across postRenderers, the last one wins.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>commonAnnotations</code><br>
-<em>
-map[string]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Common annotations to set on all resources
-When duplicate annotations are found across postRenderers, the last one wins.</p>
+<p>// CommonMetadata defines the common labels and annotations.</p>
 </td>
 </tr>
 <tr>
