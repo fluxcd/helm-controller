@@ -35,8 +35,9 @@ func BuildPostRenderers(rel *v2.HelmRelease) helmpostrender.PostRenderer {
 	for _, r := range rel.Spec.PostRenderers {
 		if r.Kustomize != nil {
 			renderers = append(renderers, &Kustomize{
-				Patches: r.Kustomize.Patches,
-				Images:  r.Kustomize.Images,
+				CommonMetadata: r.Kustomize.CommonMetadata,
+				Patches:        r.Kustomize.Patches,
+				Images:         r.Kustomize.Images,
 			})
 		}
 	}

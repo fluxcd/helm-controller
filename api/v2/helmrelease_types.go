@@ -20,13 +20,14 @@ import (
 	"strings"
 	"time"
 
+	fluxKuz "github.com/fluxcd/kustomize-controller/api/v1"
+	"github.com/fluxcd/pkg/apis/meta"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/yaml"
 
 	"github.com/fluxcd/pkg/apis/kustomize"
-	"github.com/fluxcd/pkg/apis/meta"
 )
 
 const (
@@ -181,10 +182,14 @@ type HelmReleaseSpec struct {
 }
 
 // +kubebuilder:object:generate=false
+
 type ValuesReference = meta.ValuesReference
 
 // Kustomize Helm PostRenderer specification.
 type Kustomize struct {
+	// // CommonMetadata defines the common labels and annotations.
+	// +optional
+	CommonMetadata *fluxKuz.CommonMetadata `json:"commonMetadata,omitempty"`
 	// Strategic merge and JSON patches, defined as inline YAML objects,
 	// capable of targeting objects based on kind, label and annotation selectors.
 	// +optional

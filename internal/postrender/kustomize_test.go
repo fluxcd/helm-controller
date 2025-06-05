@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"testing"
 
+	fluxKuz "github.com/fluxcd/kustomize-controller/api/v1"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/yaml"
 
@@ -61,6 +62,8 @@ func Test_postRendererKustomize_Run(t *testing.T) {
 	tests := []struct {
 		name              string
 		renderedManifests string
+		commonLabels      map[string]string
+		commonAnnotations map[string]string
 		patches           string
 		images            string
 		expectManifests   string
@@ -219,17 +222,52 @@ spec:
         name: nginx
 `,
 		},
+		{
+			name:              "common labels test",
+			renderedManifests: replaceImageMock,
+			commonLabels: map[string]string{
+				"foo": "bar",
+			},
+			expectManifests: `apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    foo: bar
+  name: image
+spec:
+  containers:
+  - image: repository/image:tag
+`,
+		},
+		{
+			name:              "common annotations test",
+			renderedManifests: replaceImageMock,
+			commonAnnotations: map[string]string{
+				"foo": "bar",
+			},
+			expectManifests: `apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    foo: bar
+  name: image
+spec:
+  containers:
+  - image: repository/image:tag
+`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			spec, err := mockKustomize(tt.patches, tt.images)
+			spec, err := mockKustomize(tt.commonLabels, tt.commonAnnotations, tt.patches, tt.images)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			k := &Kustomize{
-				Patches: spec.Patches,
-				Images:  spec.Images,
+				CommonMetadata: spec.CommonMetadata,
+				Patches:        spec.Patches,
+				Images:         spec.Images,
 			}
 			gotModifiedManifests, err := k.Run(bytes.NewBufferString(tt.renderedManifests))
 			if tt.expectErr {
@@ -244,7 +282,7 @@ spec:
 	}
 }
 
-func mockKustomize(patches, images string) (*v2.Kustomize, error) {
+func mockKustomize(commonLabels, commonAnnotations map[string]string, patches, images string) (*v2.Kustomize, error) {
 	var targeted []kustomize.Patch
 	if err := yaml.Unmarshal([]byte(patches), &targeted); err != nil {
 		return nil, err
@@ -253,8 +291,16 @@ func mockKustomize(patches, images string) (*v2.Kustomize, error) {
 	if err := yaml.Unmarshal([]byte(images), &imgs); err != nil {
 		return nil, err
 	}
-	return &v2.Kustomize{
-		Patches: targeted,
-		Images:  imgs,
-	}, nil
+	kustomizeOpts := &v2.Kustomize{
+		CommonMetadata: &fluxKuz.CommonMetadata{},
+		Patches:        targeted,
+		Images:         imgs,
+	}
+	if commonLabels != nil {
+		kustomizeOpts.CommonMetadata.Labels = commonLabels
+	}
+	if commonAnnotations != nil {
+		kustomizeOpts.CommonMetadata.Annotations = commonAnnotations
+	}
+	return kustomizeOpts, nil
 }

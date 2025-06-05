@@ -2007,6 +2007,18 @@ no retries remain. Defaults to &lsquo;false&rsquo;.</p>
 <tbody>
 <tr>
 <td>
+<code>commonMetadata</code><br>
+<em>
+github.com/fluxcd/kustomize-controller/api/v1.CommonMetadata
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>// CommonMetadata defines the common labels and annotations.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>patches</code><br>
 <em>
 <a href="https://godoc.org/github.com/fluxcd/pkg/apis/kustomize#Patch">
