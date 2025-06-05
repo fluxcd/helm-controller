@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"testing"
 
+	fluxKuz "github.com/fluxcd/kustomize-controller/api/v1"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/yaml"
 
@@ -264,10 +265,9 @@ spec:
 			g.Expect(err).ToNot(HaveOccurred())
 
 			k := &Kustomize{
-				CommonAnnotations: spec.CommonAnnotations,
-				CommonLabels:      spec.CommonLabels,
-				Patches:           spec.Patches,
-				Images:            spec.Images,
+				CommonMetadata: spec.CommonMetadata,
+				Patches:        spec.Patches,
+				Images:         spec.Images,
 			}
 			gotModifiedManifests, err := k.Run(bytes.NewBufferString(tt.renderedManifests))
 			if tt.expectErr {
@@ -292,14 +292,15 @@ func mockKustomize(commonLabels, commonAnnotations map[string]string, patches, i
 		return nil, err
 	}
 	kustomizeOpts := &v2.Kustomize{
-		Patches: targeted,
-		Images:  imgs,
+		CommonMetadata: &fluxKuz.CommonMetadata{},
+		Patches:        targeted,
+		Images:         imgs,
 	}
 	if commonLabels != nil {
-		kustomizeOpts.CommonLabels = commonLabels
+		kustomizeOpts.CommonMetadata.Labels = commonLabels
 	}
 	if commonAnnotations != nil {
-		kustomizeOpts.CommonAnnotations = commonAnnotations
+		kustomizeOpts.CommonMetadata.Annotations = commonAnnotations
 	}
 	return kustomizeOpts, nil
 }

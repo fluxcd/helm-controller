@@ -26,13 +26,13 @@ import (
 	kustypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 
+	fluxKuz "github.com/fluxcd/kustomize-controller/api/v1"
 	"github.com/fluxcd/pkg/apis/kustomize"
 )
 
 // Kustomize is a Helm post-render plugin that runs Kustomize.
 type Kustomize struct {
-	CommonAnnotations map[string]string
-	CommonLabels      map[string]string
+	CommonMetadata *fluxKuz.CommonMetadata
 	// Patches is a list of patches to apply to the rendered manifests.
 	Patches []kustomize.Patch
 	// Images is a list of images to replace in the rendered manifests.
@@ -46,17 +46,19 @@ func (k *Kustomize) Run(renderedManifests *bytes.Buffer) (modifiedManifests *byt
 	cfg.Kind = kustypes.KustomizationKind
 	cfg.Images = adaptImages(k.Images)
 
-	if k.CommonLabels != nil {
-		cfg.Labels = make([]kustypes.Label, 0)
-		cfg.Labels = append(cfg.Labels, kustypes.Label{
-			Pairs:            k.CommonLabels,
-			IncludeSelectors: false,
-			IncludeTemplates: true,
-		})
-	}
+	if k.CommonMetadata != nil {
+		if k.CommonMetadata.Labels != nil {
+			cfg.Labels = make([]kustypes.Label, 0)
+			cfg.Labels = append(cfg.Labels, kustypes.Label{
+				Pairs:            k.CommonMetadata.Labels,
+				IncludeSelectors: false,
+				IncludeTemplates: true,
+			})
+		}
 
-	if k.CommonAnnotations != nil {
-		cfg.CommonAnnotations = k.CommonAnnotations
+		if k.CommonMetadata.Annotations != nil {
+			cfg.CommonAnnotations = k.CommonMetadata.Annotations
+		}
 	}
 
 	// Add rendered Helm output as input resource to the Kustomization.
