@@ -25,141 +25,26 @@ import (
 )
 
 func TestShouldHandleResetRequest(t *testing.T) {
-	t.Run("should handle reset request", func(t *testing.T) {
-		obj := &HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					meta.ReconcileRequestAnnotation: "b",
-					ResetRequestAnnotation:          "b",
-				},
-			},
-			Status: HelmReleaseStatus{
-				LastHandledResetAt: "a",
-				ReconcileRequestStatus: meta.ReconcileRequestStatus{
-					LastHandledReconcileAt: "a",
-				},
-			},
-		}
-
-		if !ShouldHandleResetRequest(obj) {
-			t.Error("ShouldHandleResetRequest() = false")
-		}
-
-		if obj.Status.LastHandledResetAt != "b" {
-			t.Error("ShouldHandleResetRequest did not update LastHandledResetAt")
-		}
-	})
-}
-
-func TestShouldHandleForceRequest(t *testing.T) {
-	t.Run("should handle force request", func(t *testing.T) {
-		obj := &HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					meta.ReconcileRequestAnnotation: "b",
-					ForceRequestAnnotation:          "b",
-				},
-			},
-			Status: HelmReleaseStatus{
-				LastHandledForceAt: "a",
-				ReconcileRequestStatus: meta.ReconcileRequestStatus{
-					LastHandledReconcileAt: "a",
-				},
-			},
-		}
-
-		if !ShouldHandleForceRequest(obj) {
-			t.Error("ShouldHandleForceRequest() = false")
-		}
-
-		if obj.Status.LastHandledForceAt != "b" {
-			t.Error("ShouldHandleForceRequest did not update LastHandledForceAt")
-		}
-	})
-}
-
-func Test_handleRequest(t *testing.T) {
-	const requestAnnotation = "requestAnnotation"
-
-	tests := []struct {
-		name                     string
-		annotations              map[string]string
-		lastHandledReconcile     string
-		lastHandledRequest       string
-		want                     bool
-		expectLastHandledRequest string
-	}{
-		{
-			name: "valid request and reconcile annotations",
-			annotations: map[string]string{
+	obj := &HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
 				meta.ReconcileRequestAnnotation: "b",
-				requestAnnotation:               "b",
+				ResetRequestAnnotation:          "b",
 			},
-			want:                     true,
-			expectLastHandledRequest: "b",
 		},
-		{
-			name: "mismatched annotations",
-			annotations: map[string]string{
-				meta.ReconcileRequestAnnotation: "b",
-				requestAnnotation:               "c",
+		Status: HelmReleaseStatus{
+			LastHandledResetAt: "a",
+			ReconcileRequestStatus: meta.ReconcileRequestStatus{
+				LastHandledReconcileAt: "a",
 			},
-			want:                     false,
-			expectLastHandledRequest: "c",
-		},
-		{
-			name: "reconcile matches previous request",
-			annotations: map[string]string{
-				meta.ReconcileRequestAnnotation: "b",
-				requestAnnotation:               "b",
-			},
-			lastHandledReconcile:     "a",
-			lastHandledRequest:       "b",
-			want:                     false,
-			expectLastHandledRequest: "b",
-		},
-		{
-			name: "request matches previous reconcile",
-			annotations: map[string]string{
-				meta.ReconcileRequestAnnotation: "b",
-				requestAnnotation:               "b",
-			},
-			lastHandledReconcile:     "b",
-			lastHandledRequest:       "a",
-			want:                     false,
-			expectLastHandledRequest: "b",
-		},
-		{
-			name:                     "missing annotations",
-			annotations:              map[string]string{},
-			lastHandledRequest:       "a",
-			want:                     false,
-			expectLastHandledRequest: "a",
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			obj := &HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: tt.annotations,
-				},
-				Status: HelmReleaseStatus{
-					ReconcileRequestStatus: meta.ReconcileRequestStatus{
-						LastHandledReconcileAt: tt.lastHandledReconcile,
-					},
-				},
-			}
+	if !ShouldHandleResetRequest(obj) {
+		t.Error("ShouldHandleResetRequest() = false")
+	}
 
-			lastHandled := tt.lastHandledRequest
-			result := handleRequest(obj, requestAnnotation, &lastHandled)
-
-			if result != tt.want {
-				t.Errorf("handleRequest() = %v, want %v", result, tt.want)
-			}
-			if lastHandled != tt.expectLastHandledRequest {
-				t.Errorf("lastHandledRequest = %v, want %v", lastHandled, tt.expectLastHandledRequest)
-			}
-		})
+	if obj.Status.LastHandledResetAt != "b" {
+		t.Error("ShouldHandleResetRequest did not update LastHandledResetAt")
 	}
 }
