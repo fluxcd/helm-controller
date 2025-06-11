@@ -1059,17 +1059,13 @@ type HelmReleaseStatus struct {
 	// +optional
 	LastAttemptedConfigDigest string `json:"lastAttemptedConfigDigest,omitempty"`
 
-	// LastHandledForceAt holds the value of the most recent force request
-	// value, so a change of the annotation value can be detected.
-	// +optional
-	LastHandledForceAt string `json:"lastHandledForceAt,omitempty"`
-
 	// LastHandledResetAt holds the value of the most recent reset request
 	// value, so a change of the annotation value can be detected.
 	// +optional
 	LastHandledResetAt string `json:"lastHandledResetAt,omitempty"`
 
 	meta.ReconcileRequestStatus `json:",inline"`
+	meta.ForceRequestStatus     `json:",inline"`
 }
 
 // ClearHistory clears the History.
@@ -1290,6 +1286,16 @@ func (in *HelmRelease) HasChartRef() bool {
 // HasChartTemplate returns true if the HelmRelease has a ChartTemplate.
 func (in *HelmRelease) HasChartTemplate() bool {
 	return in.Spec.Chart != nil
+}
+
+// GetLastHandledReconcileRequest returns the last handled reconcile request.
+func (in HelmRelease) GetLastHandledReconcileRequest() string {
+	return in.Status.GetLastHandledReconcileRequest()
+}
+
+// GetLastHandledForceRequestStatus returns the last handled force request status.
+func (in *HelmRelease) GetLastHandledForceRequestStatus() *string {
+	return &in.Status.LastHandledForceAt
 }
 
 // +kubebuilder:object:root=true

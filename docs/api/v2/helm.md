@@ -1726,19 +1726,6 @@ string
 </tr>
 <tr>
 <td>
-<code>lastHandledForceAt</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>LastHandledForceAt holds the value of the most recent force request
-value, so a change of the annotation value can be detected.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>lastHandledResetAt</code><br>
 <em>
 string
@@ -1762,6 +1749,21 @@ github.com/fluxcd/pkg/apis/meta.ReconcileRequestStatus
 <td>
 <p>
 (Members of <code>ReconcileRequestStatus</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ForceRequestStatus</code><br>
+<em>
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#ForceRequestStatus">
+github.com/fluxcd/pkg/apis/meta.ForceRequestStatus
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>ForceRequestStatus</code> are embedded into this type.)
 </p>
 </td>
 </tr>
