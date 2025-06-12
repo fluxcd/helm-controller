@@ -40,6 +40,11 @@ func BuildPostRenderers(rel *v2.HelmRelease) helmpostrender.PostRenderer {
 			})
 		}
 	}
+	if rel.Spec.CommonMetadata != nil {
+		renderers = append(renderers, NewCommonRenderer(rel.Spec.CommonMetadata))
+	}
+	// OriginLabels takes precedence over CommonMetadata renderer, so that in case of label key collision,
+	// the label from common metadata is skipped
 	renderers = append(renderers, NewOriginLabels(v2.GroupVersion.Group, rel.Namespace, rel.Name))
 	if len(renderers) == 0 {
 		return nil
@@ -51,6 +56,15 @@ func Digest(algo digest.Algorithm, postrenders []v2.PostRenderer) digest.Digest 
 	digester := algo.Digester()
 	enc := json.NewEncoder(digester.Hash())
 	if err := enc.Encode(postrenders); err != nil {
+		return ""
+	}
+	return digester.Digest()
+}
+
+func CommonMetadataDigest(algo digest.Algorithm, commonMetadata *v2.CommonMetadata) digest.Digest {
+	digester := algo.Digester()
+	enc := json.NewEncoder(digester.Hash())
+	if err := enc.Encode(commonMetadata); err != nil {
 		return ""
 	}
 	return digester.Digest()

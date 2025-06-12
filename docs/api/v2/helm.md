@@ -376,6 +376,22 @@ Kubernetes pkg/apis/apiextensions/v1.JSON
 </tr>
 <tr>
 <td>
+<code>commonMetadata</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.CommonMetadata">
+CommonMetadata
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CommonMetadata specifies the common labels and annotations that are
+applied to all resources. Any existing label or annotation will be
+overridden if its key matches a common one.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>postRenderers</code><br>
 <em>
 <a href="#helm.toolkit.fluxcd.io/v2.PostRenderer">
@@ -417,6 +433,51 @@ HelmReleaseStatus
 </p>
 <p>CRDsPolicy defines the install/upgrade approach to use for CRDs when
 installing or upgrading a HelmRelease.</p>
+<h3 id="helm.toolkit.fluxcd.io/v2.CommonMetadata">CommonMetadata
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>CommonMetadata defines the common labels and annotations.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>annotations</code><br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Annotations to be added to the object&rsquo;s metadata.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>labels</code><br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Labels to be added to the object&rsquo;s metadata.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="helm.toolkit.fluxcd.io/v2.CrossNamespaceObjectReference">CrossNamespaceObjectReference
 </h3>
 <p>
@@ -1386,6 +1447,22 @@ Kubernetes pkg/apis/apiextensions/v1.JSON
 </tr>
 <tr>
 <td>
+<code>commonMetadata</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.CommonMetadata">
+CommonMetadata
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CommonMetadata specifies the common labels and annotations that are
+applied to all resources. Any existing label or annotation will be
+overridden if its key matches a common one.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>postRenderers</code><br>
 <em>
 <a href="#helm.toolkit.fluxcd.io/v2.PostRenderer">
@@ -1442,6 +1519,19 @@ string
 <td>
 <em>(Optional)</em>
 <p>ObservedPostRenderersDigest is the digest for the post-renderers of
+the last successful reconciliation attempt.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>observedCommonMetadataDigest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ObservedCommonMetadataDigest is the digest for the common metadata of
 the last successful reconciliation attempt.</p>
 </td>
 </tr>

@@ -145,10 +145,10 @@ func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *
 			}
 		}
 
-		// Verify if postrender digest has changed if config has not been
-		// processed. For the processed or partially processed generation, the
-		// updated observation will only be reflected at the end of a successful
-		// reconciliation.  Comparing here would result the reconciliation to
+		// Verify if postrender digest or common metadata digest has changed
+		// if config has not been processed. For the processed or partially processed generation,
+		// the updated observation will only be reflected at the end of a successful
+		// reconciliation. Comparing here would result the reconciliation to
 		// get stuck in this check due to a mismatch forever.  The value can't
 		// change without a new generation. Hence, compare the observed digest
 		// for new generations only.
@@ -160,6 +160,13 @@ func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *
 			}
 			if postrenderersDigest != req.Object.Status.ObservedPostRenderersDigest {
 				return ReleaseState{Status: ReleaseStatusOutOfSync, Reason: "postrenderers digest has changed"}, nil
+			}
+			var commonMetadataDigest string
+			if req.Object.Spec.CommonMetadata != nil {
+				commonMetadataDigest = postrender.CommonMetadataDigest(digest.Canonical, req.Object.Spec.CommonMetadata).String()
+			}
+			if commonMetadataDigest != req.Object.Status.ObservedCommonMetadataDigest {
+				return ReleaseState{Status: ReleaseStatusOutOfSync, Reason: "common metadata digest has changed"}, nil
 			}
 		}
 

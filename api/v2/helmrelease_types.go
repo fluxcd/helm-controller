@@ -174,6 +174,12 @@ type HelmReleaseSpec struct {
 	// +optional
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
 
+	// CommonMetadata specifies the common labels and annotations that are
+	// applied to all resources. Any existing label or annotation will be
+	// overridden if its key matches a common one.
+	// +optional
+	CommonMetadata *CommonMetadata `json:"commonMetadata,omitempty"`
+
 	// PostRenderers holds an array of Helm PostRenderers, which will be applied in order
 	// of their definition.
 	// +optional
@@ -181,6 +187,7 @@ type HelmReleaseSpec struct {
 }
 
 // +kubebuilder:object:generate=false
+
 type ValuesReference = meta.ValuesReference
 
 // Kustomize Helm PostRenderer specification.
@@ -195,6 +202,17 @@ type Kustomize struct {
 	// patch, but this operator is simpler to specify.
 	// +optional
 	Images []kustomize.Image `json:"images,omitempty" json:"images,omitempty"`
+}
+
+// CommonMetadata defines the common labels and annotations.
+type CommonMetadata struct {
+	// Annotations to be added to the object's metadata.
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// Labels to be added to the object's metadata.
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 // PostRenderer contains a Helm PostRenderer specification.
@@ -960,6 +978,11 @@ type HelmReleaseStatus struct {
 	// the last successful reconciliation attempt.
 	// +optional
 	ObservedPostRenderersDigest string `json:"observedPostRenderersDigest,omitempty"`
+
+	// ObservedCommonMetadataDigest is the digest for the common metadata of
+	// the last successful reconciliation attempt.
+	// +optional
+	ObservedCommonMetadataDigest string `json:"observedCommonMetadataDigest,omitempty"`
 
 	// LastAttemptedGeneration is the last generation the controller attempted
 	// to reconcile.

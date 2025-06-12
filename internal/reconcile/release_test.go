@@ -39,6 +39,20 @@ const (
 )
 
 var (
+	commonMetadata = &v2.CommonMetadata{
+		Labels: map[string]string{
+			"common-label": "test-label-value",
+		},
+		Annotations: map[string]string{
+			"common-annotation": "test-annotation-value",
+		},
+	}
+	commonMetadata2 = &v2.CommonMetadata{
+		Labels: map[string]string{
+			"common-label": "test-label-value",
+			"new-label":    "new-label-value",
+		},
+	}
 	postRenderers = []v2.PostRenderer{
 		{
 			Kustomize: &v2.Kustomize{
