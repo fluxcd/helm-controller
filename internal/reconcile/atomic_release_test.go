@@ -1950,3 +1950,226 @@ func Test_replaceCondition(t *testing.T) {
 		})
 	}
 }
+
+func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
+	tests := []struct {
+		name              string
+		releases          func(namespace string) []*helmrelease.Release
+		spec              func(spec *v2.HelmReleaseSpec)
+		values            map[string]interface{}
+		status            func(releases []*helmrelease.Release) v2.HelmReleaseStatus
+		wantDigest        string
+		wantReleaseAction v2.ReleaseAction
+	}{
+		{
+			name: "addition of common metadata",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Status:    helmrelease.StatusDeployed,
+						Chart:     testutil.BuildChart(),
+					}, testutil.ReleaseWithConfig(nil)),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.CommonMetadata = commonMetadata
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					Conditions: []metav1.Condition{
+						{
+							Type:               meta.ReadyCondition,
+							Status:             metav1.ConditionTrue,
+							ObservedGeneration: 1,
+						},
+					},
+				}
+			},
+			wantDigest:        postrender.CommonMetadataDigest(digest.Canonical, commonMetadata).String(),
+			wantReleaseAction: v2.ReleaseActionUpgrade,
+		},
+		{
+			name: "config change and addition of common metadata",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Status:    helmrelease.StatusDeployed,
+						Chart:     testutil.BuildChart(),
+					}, testutil.ReleaseWithConfig(nil)),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.CommonMetadata = commonMetadata
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					Conditions: []metav1.Condition{
+						{
+							Type:               meta.ReadyCondition,
+							Status:             metav1.ConditionTrue,
+							ObservedGeneration: 1,
+						},
+					},
+				}
+			},
+			values:            map[string]interface{}{"foo": "baz"},
+			wantDigest:        postrender.CommonMetadataDigest(digest.Canonical, commonMetadata).String(),
+			wantReleaseAction: v2.ReleaseActionUpgrade,
+		},
+		{
+			name: "existing and new common metadata value",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Status:    helmrelease.StatusDeployed,
+						Chart:     testutil.BuildChart(),
+					}, testutil.ReleaseWithConfig(nil)),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.CommonMetadata = commonMetadata2
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					Conditions: []metav1.Condition{
+						{
+							Type:               meta.ReadyCondition,
+							Status:             metav1.ConditionTrue,
+							ObservedGeneration: 1,
+						},
+					},
+					ObservedCommonMetadataDigest: postrender.CommonMetadataDigest(digest.Canonical, commonMetadata).String(),
+				}
+			},
+			wantDigest:        postrender.CommonMetadataDigest(digest.Canonical, commonMetadata2).String(),
+			wantReleaseAction: v2.ReleaseActionUpgrade,
+		},
+		{
+			name: "common metadata mismatch remains in sync for processed config",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Status:    helmrelease.StatusDeployed,
+						Chart:     testutil.BuildChart(),
+					}, testutil.ReleaseWithConfig(nil)),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.CommonMetadata = commonMetadata2
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					Conditions: []metav1.Condition{
+						{
+							Type:               meta.ReadyCondition,
+							Status:             metav1.ConditionTrue,
+							ObservedGeneration: 2, // This is used to set processed config generation.
+						},
+					},
+					ObservedPostRenderersDigest: postrender.CommonMetadataDigest(digest.Canonical, commonMetadata).String(),
+				}
+			},
+			wantDigest:        postrender.CommonMetadataDigest(digest.Canonical, commonMetadata2).String(),
+			wantReleaseAction: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			namedNS, err := testEnv.CreateNamespace(context.TODO(), mockReleaseNamespace)
+			g.Expect(err).NotTo(HaveOccurred())
+			t.Cleanup(func() {
+				_ = testEnv.Delete(context.TODO(), namedNS)
+			})
+			releaseNamespace := namedNS.Name
+
+			releases := tt.releases(releaseNamespace)
+
+			obj := &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      mockReleaseName,
+					Namespace: releaseNamespace,
+					// Set a higher generation value to allow setting
+					// observations in previous generations.
+					Generation: 2,
+				},
+				Spec: v2.HelmReleaseSpec{
+					ReleaseName:      mockReleaseName,
+					TargetNamespace:  releaseNamespace,
+					StorageNamespace: releaseNamespace,
+					Timeout:          &metav1.Duration{Duration: 100 * time.Millisecond},
+				},
+			}
+
+			if tt.spec != nil {
+				tt.spec(&obj.Spec)
+			}
+			if tt.status != nil {
+				obj.Status = tt.status(releases)
+			}
+
+			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
+			g.Expect(err).ToNot(HaveOccurred())
+
+			cfg, err := action.NewConfigFactory(getter,
+				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
+			)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			store := helmstorage.Init(cfg.Driver)
+			for _, r := range releases {
+				g.Expect(store.Create(r)).To(Succeed())
+			}
+
+			// We use a fake client here to allow us to work with a minimal release
+			// object mock. As the fake client does not perform any validation.
+			// However, for the Helm storage driver to work, we need a real client
+			// which is therefore initialized separately above.
+			client := fake.NewClientBuilder().
+				WithScheme(testEnv.Scheme()).
+				WithObjects(obj).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				Build()
+			patchHelper := patch.NewSerialPatcher(obj, client)
+			recorder := new(record.FakeRecorder)
+
+			req := &Request{
+				Object: obj,
+				Chart:  testutil.BuildChart(),
+				Values: tt.values,
+			}
+
+			err = NewAtomicRelease(patchHelper, cfg, recorder, testFieldManager).Reconcile(context.TODO(), req)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			g.Expect(obj.Status.ObservedCommonMetadataDigest).To(Equal(tt.wantDigest))
+			g.Expect(obj.Status.LastAttemptedReleaseAction).To(Equal(tt.wantReleaseAction))
+		})
+	}
+}

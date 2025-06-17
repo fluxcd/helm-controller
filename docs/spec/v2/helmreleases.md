@@ -777,6 +777,18 @@ spec:
 **Note:** In many cases, it may be better (and easier) to configure an [ignore
 rule](#ignore-rules) to ignore (a portion of) a resource.
 
+### Common metadata
+
+`.spec.commonMetadata` is an optional field used to specify any metadata that
+should be applied to all the Helm Chart's resources via kustomize post renderer. It has two optional fields:
+
+- `labels`: A map used for setting [labels](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/)
+  on an object. Any existing label will be overridden if it matches with a key in
+  this map.
+- `annotations`: A map used for setting [annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
+  on an object. Any existing annotation will be overridden if it matches with a key
+  in this map.
+
 ### Post renderers
 
 `.spec.postRenderers` is an optional list to provide [post rendering](https://helm.sh/docs/topics/advanced/#post-rendering)
