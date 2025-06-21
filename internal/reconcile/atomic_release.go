@@ -315,7 +315,7 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 	// end up running a Helm upgrade (due to e.g. ReleaseStatusUnmanaged) and
 	// then forcing an upgrade (due to the release now being in
 	// ReleaseStatusInSync with a yet unhandled force request).
-	forceRequested := v2.ShouldHandleForceRequest(req.Object)
+	forceRequested := meta.ShouldHandleForceRequest(req.Object)
 
 	switch state.Status {
 	case ReleaseStatusInSync:

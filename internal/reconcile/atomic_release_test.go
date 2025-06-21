@@ -1322,7 +1322,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			state: ReleaseState{Status: ReleaseStatusInSync},
 			annotations: map[string]string{
 				meta.ReconcileRequestAnnotation: "force",
-				v2.ForceRequestAnnotation:       "force",
+				meta.ForceRequestAnnotation:     "force",
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
@@ -1366,7 +1366,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			name: "absent release without remaining retries and force annotation triggers install",
 			annotations: map[string]string{
 				meta.ReconcileRequestAnnotation: "force",
-				v2.ForceRequestAnnotation:       "force",
+				meta.ForceRequestAnnotation:     "force",
 			},
 			state: ReleaseState{Status: ReleaseStatusAbsent},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
@@ -1518,7 +1518,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			},
 			annotations: map[string]string{
 				meta.ReconcileRequestAnnotation: "force",
-				v2.ForceRequestAnnotation:       "force",
+				meta.ForceRequestAnnotation:     "force",
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
@@ -1590,7 +1590,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			state: ReleaseState{Status: ReleaseStatusFailed},
 			annotations: map[string]string{
 				meta.ReconcileRequestAnnotation: "force",
-				v2.ForceRequestAnnotation:       "force",
+				meta.ForceRequestAnnotation:     "force",
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{

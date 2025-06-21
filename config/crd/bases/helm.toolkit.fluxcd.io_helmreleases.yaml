@@ -1151,8 +1151,9 @@ spec:
                 type: string
               lastHandledForceAt:
                 description: |-
-                  LastHandledForceAt holds the value of the most recent force request
-                  value, so a change of the annotation value can be detected.
+                  LastHandledForceAt holds the value of the most recent
+                  force request value, so a change of the annotation value
+                  can be detected.
                 type: string
               lastHandledReconcileAt:
                 description: |-
