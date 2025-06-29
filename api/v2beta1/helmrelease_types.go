@@ -1205,6 +1205,7 @@ func (in *HelmRelease) SetConditions(conditions []metav1.Condition) {
 }
 
 // GetStatusConditions returns a pointer to the Status.Conditions slice.
+//
 // Deprecated: use GetConditions instead.
 func (in *HelmRelease) GetStatusConditions() *[]metav1.Condition {
 	return &in.Status.Conditions

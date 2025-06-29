@@ -1694,8 +1694,8 @@ string
 <td>
 <em>(Optional)</em>
 <p>LastAttemptedValuesChecksum is the SHA1 checksum for the values of the last
-reconciliation attempt.
-Deprecated: Use LastAttemptedConfigDigest instead.</p>
+reconciliation attempt.</p>
+<p>Deprecated: Use LastAttemptedConfigDigest instead.</p>
 </td>
 </tr>
 <tr>
@@ -1707,8 +1707,8 @@ int
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastReleaseRevision is the revision of the last successful Helm release.
-Deprecated: Use History instead.</p>
+<p>LastReleaseRevision is the revision of the last successful Helm release.</p>
+<p>Deprecated: Use History instead.</p>
 </td>
 </tr>
 <tr>
