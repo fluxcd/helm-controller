@@ -46,6 +46,9 @@ import (
 	"github.com/Masterminds/semver/v3"
 	aclv1 "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/auth"
+	authutils "github.com/fluxcd/pkg/auth/utils"
+	"github.com/fluxcd/pkg/cache"
 	"github.com/fluxcd/pkg/runtime/acl"
 	runtimeClient "github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/conditions"
@@ -92,6 +95,7 @@ type HelmReleaseReconciler struct {
 	ClientOpts       runtimeClient.Options
 	KubeConfigOpts   runtimeClient.KubeConfigOptions
 	APIReader        client.Reader
+	TokenCache       *cache.TokenCache
 
 	FieldManager               string
 	DefaultServiceAccount      string
@@ -242,7 +246,9 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	log := ctrl.LoggerFrom(ctx)
 
 	// Mark the resource as under reconciliation.
-	conditions.MarkReconciling(obj, meta.ProgressingReason, "Fulfilling prerequisites")
+	const progressingMsg = "Fulfilling prerequisites"
+	conditions.MarkReconciling(obj, meta.ProgressingReason, progressingMsg)
+	conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, progressingMsg)
 	if err := patchHelper.Patch(ctx, obj, patch.WithOwnedConditions{Conditions: intreconcile.OwnedConditions}, patch.WithFieldOwner(r.FieldManager)); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -454,6 +460,10 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, obj *v2.Hel
 		// Remove our finalizer from the list.
 		controllerutil.RemoveFinalizer(obj, v2.HelmReleaseFinalizer)
 
+		// Cleanup caches.
+		r.TokenCache.DeleteEventsForObject(v2.HelmReleaseKind,
+			obj.GetName(), obj.GetNamespace(), cache.OperationReconcile)
+
 		// Stop reconciliation as the object is being deleted.
 		return ctrl.Result{}, nil
 	}
@@ -461,7 +471,7 @@ func (r *HelmReleaseReconciler) reconcileDelete(ctx context.Context, obj *v2.Hel
 	return ctrl.Result{Requeue: true}, nil
 }
 
-// handleReleaseDeletion handles the deletion of a HelmRelease resource.
+// reconcileReleaseDeletion handles the deletion of a HelmRelease resource.
 //
 // Before uninstalling the release, it will check if the current configuration
 // allows for uninstallation. If this is not the case, for example because a
@@ -681,7 +691,35 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *
 		kube.WithImpersonate(obj.Spec.ServiceAccountName, obj.GetNamespace()),
 		kube.WithPersistent(obj.UsePersistentClient()),
 	}
-	if obj.Spec.KubeConfig != nil {
+
+	// No kubeconfig specified, use in-cluster config.
+	kc := obj.Spec.KubeConfig
+	if kc == nil {
+		cfg, err := r.GetClusterConfig()
+		if err != nil {
+			return nil, fmt.Errorf("could not get in-cluster REST config: %w", err)
+		}
+		return kube.NewMemoryRESTClientGetter(cfg, opts...), nil
+	}
+
+	// If a kubeconfig is specified, we need to create a REST client getter
+	// based on the kubeconfig.
+	var restConfig *rest.Config
+	var err error
+	switch {
+	case kc.ConfigMapRef != nil && kc.SecretRef == nil:
+		var opts []auth.Option
+		if r.TokenCache != nil {
+			involvedObject := cache.InvolvedObject{
+				Kind:      v2.HelmReleaseKind,
+				Name:      obj.GetName(),
+				Namespace: obj.GetNamespace(),
+				Operation: cache.OperationReconcile,
+			}
+			opts = append(opts, auth.WithCache(*r.TokenCache, involvedObject))
+		}
+		restConfig, err = authutils.GetRESTConfig(ctx, *kc, obj.GetNamespace(), r.Client, opts...)
+	case kc.SecretRef != nil && kc.ConfigMapRef == nil:
 		secretName := types.NamespacedName{
 			Namespace: obj.GetNamespace(),
 			Name:      obj.Spec.KubeConfig.SecretRef.Name,
@@ -690,18 +728,14 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *
 		if err := r.Get(ctx, secretName, &secret); err != nil {
 			return nil, fmt.Errorf("could not get KubeConfig secret '%s': %w", secretName, err)
 		}
-		kubeConfig, err := kube.ConfigFromSecret(&secret, obj.Spec.KubeConfig.SecretRef.Key, r.KubeConfigOpts)
-		if err != nil {
-			return nil, err
-		}
-		return kube.NewMemoryRESTClientGetter(kubeConfig, opts...), nil
+		restConfig, err = kube.ConfigFromSecret(&secret, obj.Spec.KubeConfig.SecretRef.Key, r.KubeConfigOpts)
+	default:
+		return nil, errors.New("exactly one of .spec.kubeConfig.configMapRef or spec.kubeConfig.secretRef must be set")
 	}
-
-	cfg, err := r.GetClusterConfig()
 	if err != nil {
-		return nil, fmt.Errorf("could not get in-cluster REST config: %w", err)
+		return nil, err
 	}
-	return kube.NewMemoryRESTClientGetter(cfg, opts...), nil
+	return kube.NewMemoryRESTClientGetter(restConfig, opts...), nil
 }
 
 // getSource returns the source object containing the HelmChart, either by

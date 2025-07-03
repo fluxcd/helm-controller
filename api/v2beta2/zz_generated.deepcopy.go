@@ -273,7 +273,7 @@ func (in *HelmReleaseSpec) DeepCopyInto(out *HelmReleaseSpec) {
 	if in.KubeConfig != nil {
 		in, out := &in.KubeConfig, &out.KubeConfig
 		*out = new(meta.KubeConfigReference)
-		**out = **in
+		(*in).DeepCopyInto(*out)
 	}
 	if in.DependsOn != nil {
 		in, out := &in.DependsOn, &out.DependsOn

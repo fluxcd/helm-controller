@@ -2420,7 +2420,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 
 		// Reconcile the actual deletion of the Helm release.
 		obj.Spec.KubeConfig = &meta.KubeConfigReference{
-			SecretRef: meta.SecretKeyReference{
+			SecretRef: &meta.SecretKeyReference{
 				Name: "missing-secret",
 			},
 		}
@@ -3227,7 +3227,7 @@ users:
 			name: "builds RESTClientGetter from HelmRelease with KubeConfig",
 			spec: v2.HelmReleaseSpec{
 				KubeConfig: &meta.KubeConfigReference{
-					SecretRef: meta.SecretKeyReference{
+					SecretRef: &meta.SecretKeyReference{
 						Name: "kubeconfig",
 					},
 				},
@@ -3247,7 +3247,7 @@ users:
 			name: "error on missing KubeConfig secret",
 			spec: v2.HelmReleaseSpec{
 				KubeConfig: &meta.KubeConfigReference{
-					SecretRef: meta.SecretKeyReference{
+					SecretRef: &meta.SecretKeyReference{
 						Name: "kubeconfig",
 					},
 				},
@@ -3258,7 +3258,7 @@ users:
 			name: "error on invalid KubeConfig secret",
 			spec: v2.HelmReleaseSpec{
 				KubeConfig: &meta.KubeConfigReference{
-					SecretRef: meta.SecretKeyReference{
+					SecretRef: &meta.SecretKeyReference{
 						Name: "kubeconfig",
 						Key:  "invalid-key",
 					},
