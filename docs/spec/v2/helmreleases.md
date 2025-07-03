@@ -822,7 +822,48 @@ spec:
             newTag: 0.4.1-debian-10-r54
 ```
 
-### KubeConfig reference
+### KubeConfig (Remote clusters)
+
+With the `.spec.kubeConfig` field a HelmRelease
+can apply and manage resources on a remote cluster.
+
+The field `.spec.kubeConfig.provider` determines the type of remote cluster
+and the authentication method used to connect to it. The following providers
+are supported:
+
+- `generic`: The default. Uses a KubeConfig stored in the Kubernetes Secret
+  referenced by `.spec.kubeConfig.secretRef`.
+- `aws`: Secret-less authentication for remote EKS clusters with IAM Roles.
+- `azure`: Secret-less authentication for remote AKS clusters with Managed
+  Identities.
+- `gcp`: Secret-less authentication for remote GKE clusters with GCP Service
+  Accounts or Workload Identity Federation.
+
+When both `.spec.kubeConfig` and
+[`.spec.serviceAccountName`](#service-account-reference) are specified,
+the controller will impersonate the ServiceAccount on the target cluster,
+i.e. a ServiceAccount with name `.spec.serviceAccountName` must exist in
+the target cluster inside a namespace with the same name as the namespace
+of the HelmRelease. For example, if the HelmRelease is in the namespace
+`apps` of the cluster where Flux is running, then the ServiceAccount
+must be in the `apps` namespace of the target remote cluster, and have the
+name `.spec.serviceAccountName`. In other words, the namespace of the
+HelmRelease must exist both in the cluster where Flux is running
+and in the target remote cluster where Flux will apply resources.
+
+The Helm storage is stored on the remote cluster in a namespace that equals to
+the namespace of the HelmRelease, or the [configured storage namespace](#storage-namespace).
+The release itself is made in a namespace that equals to the namespace of the
+HelmRelease, or the [configured target namespace](#target-namespace). The
+namespaces are expected to exist, with the exception that the target namespace
+can be created on demand by Helm when namespace creation is [configured during
+install](#install-configuration).
+
+Other references to Kubernetes resources in the HelmRelease, like [values
+references](#values-references), are expected to exist on the reconciling
+cluster.
+
+#### Secret-based authentication
 
 `.spec.kubeConfig.secretRef.name` is an optional field to specify the name of
 a Secret containing a KubeConfig. If specified, the Helm operations will be
@@ -853,23 +894,62 @@ stringData:
 environment, or credential files from the helm-controller Pod. This matches the
 constraints of KubeConfigs from current Cluster API providers. KubeConfigs with
 `cmd-path` in them likely won't work without a custom, per-provider installation
-of helm-controller.
+of helm-controller. For more information, see
+[remote clusters/Cluster-API](#remote-cluster-api-clusters).
 
-When both `.spec.kubeConfig` and a [Service Account reference](#service-account-reference)
-are specified, the controller will impersonate the Service Account on the
-target cluster.
+#### Secret-less authentication
 
-The Helm storage is stored on the remote cluster in a namespace that equals to
-the namespace of the HelmRelease, or the [configured storage namespace](#storage-namespace).
-The release itself is made in a namespace that equals to the namespace of the
-HelmRelease, or the [configured target namespace](#target-namespace). The
-namespaces are expected to exist, with the exception that the target namespace
-can be created on demand by Helm when namespace creation is [configured during
-install](#install-configuration).
+For the `aws`, `azure` and `gcp` providers, the controller supports
+secret-less authentication to remote EKS, AKS and GKE clusters
+respectively.
 
-Other references to Kubernetes resources in the HelmRelease, like [values
-references](#values-references), are expected to exist on the reconciling
-cluster.
+When `.spec.kubeConfig.provider` is set to `aws`, `azure` or `gcp`,
+the field `.spec.kubeConfig.cluster` becomes required and must be
+set to the fully qualified name of the cluster resource in the
+respective cloud provider:
+
+* `aws`: `arn:<partition>:eks:<region>:<account-id>:cluster/<cluster-name>`
+* `azure`: `/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.ContainerService/managedClusters/<cluster-name>`
+* `gcp`: `projects/<project-id>/locations/<location>/clusters/<cluster-name>`
+
+Users can also optionally specify the address of the remote cluster
+API server with the `.spec.kubeConfig.address` field. This field is
+necessary in case the remote cluster has multiple addresses, e.g.
+public and private addresses. If not specified, the controller will
+select the first address available. If specified, the address has
+to match at least one of the addresses of the remote cluster,
+otherwise the controller will return an error.
+
+The optional `.spec.kubeConfig.serviceAccountName` field can be used to
+specify a ServiceAccount in the same namespace as the HelmRelease for
+object-level workload identity. Leaving this field empty will cause the
+controller to use its own identity (ServiceAccount) for getting access
+to the remote cluster.
+
+For complete guides on workload identity and setting up permissions for
+this feature, see the following docs:
+
+* [EKS](/flux/integrations/aws/#for-amazon-elastic-kubernetes-service)
+* [AKS](/flux/integrations/azure/#for-azure-kubernetes-service)
+* [GKE](/flux/integrations/gcp/#for-google-kubernetes-engine)
+
+Example for an EKS cluster:
+
+```yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: my-app
+  namespace: flux-system
+spec:
+  ... # other fields omitted for brevity
+  kubeConfig:
+    provider: aws
+    cluster: arn:aws:eks:eu-central-1:123456789012:cluster/my-cluster
+    address: https://my-prod-cluster.us-east-1.eks.amazonaws.com # optional
+    serviceAccountName: my-app-iam-role # optional. maps to a cloud identity. used for authentication
+  serviceAccountName: my-app-sa # optional. must exist in the target cluster. user for impersonation
+```
 
 ### Interval
 
@@ -1094,9 +1174,9 @@ specified will use the Service Account name provided by
 For further best practices on securing helm-controller, see our
 [best practices guide](https://fluxcd.io/flux/security/best-practices).
 
-### Remote clusters / Cluster-API
+### Remote Cluster API clusters
 
-Using a [`.spec.kubeConfig` reference](#kubeconfig-reference), it is possible
+Using a [`.spec.kubeConfig` reference](#kubeconfig-remote-clusters), it is possible
 to manage the full lifecycle of Helm releases on remote clusters.
 This composes well with Cluster-API bootstrap providers such as CAPBK (kubeadm),
 CAPA (AWS), and others.

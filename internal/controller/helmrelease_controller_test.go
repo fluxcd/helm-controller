@@ -49,6 +49,7 @@ import (
 	aclv1 "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/auth"
 	"github.com/fluxcd/pkg/chartutil"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	feathelper "github.com/fluxcd/pkg/runtime/features"
@@ -856,6 +857,78 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			g.Expect(ready.Status).To(Equal(metav1.ConditionUnknown))
 			g.Expect(ready.Reason).To(Equal(meta.ProgressingReason))
 		}
+	})
+
+	t.Run("object-level workload identity feature gate disabled and kubeconfig", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				KubeConfig: &meta.KubeConfigReference{
+					ServiceAccountName: "test-sa",
+				},
+			},
+		}
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(obj).
+				Build(),
+			EventRecorder: record.NewFakeRecorder(32),
+		}
+		r.APIReader = r.Client
+
+		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		const msg = "to use spec.kubeConfig.serviceAccountName for remote cluster authentication please enable the ObjectLevelWorkloadIdentity feature gate in the controller"
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.StalledCondition, meta.FeatureGateDisabledReason, msg),
+			*conditions.FalseCondition(meta.ReadyCondition, meta.FeatureGateDisabledReason, msg),
+		}))
+	})
+
+	t.Run("object-level workload identity feature gate enabled and kubeconfig", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Spec: v2.HelmReleaseSpec{
+				KubeConfig: &meta.KubeConfigReference{
+					ServiceAccountName: "test-sa",
+				},
+			},
+		}
+
+		t.Setenv(auth.EnvVarEnableObjectLevelWorkloadIdentity, "true")
+
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(obj).
+				Build(),
+			EventRecorder: record.NewFakeRecorder(32),
+		}
+		r.APIReader = r.Client
+
+		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		g.Expect(err).To(HaveOccurred())
+
+		const msg = "cross-namespace references are not allowed: cannot access HelmChart /"
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.StalledCondition, aclv1.AccessDeniedReason, msg),
+			*conditions.FalseCondition(meta.ReadyCondition, aclv1.AccessDeniedReason, msg),
+		}))
 	})
 }
 
@@ -2420,7 +2493,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 
 		// Reconcile the actual deletion of the Helm release.
 		obj.Spec.KubeConfig = &meta.KubeConfigReference{
-			SecretRef: meta.SecretKeyReference{
+			SecretRef: &meta.SecretKeyReference{
 				Name: "missing-secret",
 			},
 		}
@@ -3227,7 +3300,7 @@ users:
 			name: "builds RESTClientGetter from HelmRelease with KubeConfig",
 			spec: v2.HelmReleaseSpec{
 				KubeConfig: &meta.KubeConfigReference{
-					SecretRef: meta.SecretKeyReference{
+					SecretRef: &meta.SecretKeyReference{
 						Name: "kubeconfig",
 					},
 				},
@@ -3247,7 +3320,7 @@ users:
 			name: "error on missing KubeConfig secret",
 			spec: v2.HelmReleaseSpec{
 				KubeConfig: &meta.KubeConfigReference{
-					SecretRef: meta.SecretKeyReference{
+					SecretRef: &meta.SecretKeyReference{
 						Name: "kubeconfig",
 					},
 				},
@@ -3258,7 +3331,7 @@ users:
 			name: "error on invalid KubeConfig secret",
 			spec: v2.HelmReleaseSpec{
 				KubeConfig: &meta.KubeConfigReference{
-					SecretRef: meta.SecretKeyReference{
+					SecretRef: &meta.SecretKeyReference{
 						Name: "kubeconfig",
 						Key:  "invalid-key",
 					},

@@ -18,7 +18,10 @@ limitations under the License.
 // helm-controller supports, and their default states.
 package features
 
-import feathelper "github.com/fluxcd/pkg/runtime/features"
+import (
+	"github.com/fluxcd/pkg/auth"
+	feathelper "github.com/fluxcd/pkg/runtime/features"
+)
 
 const (
 	// CacheSecretsAndConfigMaps configures the caching of Secrets and ConfigMaps
@@ -89,6 +92,10 @@ var features = map[string]bool{
 	// DisableChartDigestTracking
 	// opt-in from v1.3.0
 	DisableChartDigestTracking: false,
+}
+
+func init() {
+	auth.SetFeatureGates(features)
 }
 
 // FeatureGates contains a list of all supported feature gates and
