@@ -459,16 +459,47 @@ spec:
                   a controller level fallback for when HelmReleaseSpec.ServiceAccountName
                   is empty.
                 properties:
+                  address:
+                    description: |-
+                      Address is the optional address of the Kubernetes API server.
+                      Not supported for the generic provider, optional for the
+                      other providers. The address is used to select among a list
+                      of endpoints in the cluster resource. If not set, the first
+                      endpoint on the list is used. If none of the addresses in the
+                      cluster resource match a provided address, the controller will
+                      error out and the reconciliation will fail. Must be a valid
+                      HTTPS endpoint, e.g. "https://api.example.com:6443".
+                    pattern: ^https://.*
+                    type: string
+                  cluster:
+                    description: |-
+                      Cluster is the optional fully qualified resource name of the
+                      Kubernetes cluster in the cloud provider to connect to.
+                      Not supported for the generic provider, required for the
+                      other providers.
+                    type: string
+                  provider:
+                    default: generic
+                    description: |-
+                      Provider is the optional name of the cloud provider that should be used
+                      to authenticate to the Kubernetes API server. Can be one of "aws",
+                      "azure", "gcp", or "generic". Defaults to "generic".
+                    enum:
+                    - aws
+                    - azure
+                    - gcp
+                    - generic
+                    type: string
                   secretRef:
                     description: |-
-                      SecretRef holds the name of a secret that contains a key with
+                      SecretRef holds an optional name of a secret that contains a key with
                       the kubeconfig file as the value. If no key is set, the key will default
                       to 'value'.
                       It is recommended that the kubeconfig is self-contained, and the secret
                       is regularly updated if credentials such as a cloud-access-token expire.
                       Cloud specific `cmd-path` auth helpers will not function without adding
                       binaries and credentials to the Pod that is responsible for reconciling
-                      Kubernetes resources.
+                      Kubernetes resources. Supported only for the generic provider.
                     properties:
                       key:
                         description: Key in the Secret, when not specified an implementation-specific
@@ -480,9 +511,32 @@ spec:
                     required:
                     - name
                     type: object
-                required:
-                - secretRef
+                  serviceAccountName:
+                    description: |-
+                      ServiceAccountName is the optional name of the Kubernetes
+                      ServiceAccount in the same namespace that should be used
+                      to authenticate to the Kubernetes API server. If not set,
+                      the controller ServiceAccount will be used. Not supported
+                      for the generic provider.
+                    type: string
                 type: object
+                x-kubernetes-validations:
+                - message: .secretRef is required for the 'generic' .provider
+                  rule: has(self.secretRef) || (has(self.provider) && self.provider
+                    != 'generic')
+                - message: .secretRef is not supported for the specified .provider
+                  rule: '!has(self.secretRef) || !has(self.provider) || self.provider
+                    == ''generic'''
+                - message: .serviceAccountName is not supported when .provider is
+                    empty or 'generic'
+                  rule: '!has(self.serviceAccountName) || (has(self.provider) && self.provider
+                    != ''generic'')'
+                - message: .cluster is not supported when .provider is empty or 'generic'
+                  rule: '!has(self.cluster) || (has(self.provider) && self.provider
+                    != ''generic'')'
+                - message: .address is not supported when .provider is empty or 'generic'
+                  rule: '!has(self.address) || (has(self.provider) && self.provider
+                    != ''generic'')'
               maxHistory:
                 description: |-
                   MaxHistory is the number of revisions saved by Helm for this HelmRelease.
@@ -1632,16 +1686,47 @@ spec:
                   a controller level fallback for when HelmReleaseSpec.ServiceAccountName
                   is empty.
                 properties:
+                  address:
+                    description: |-
+                      Address is the optional address of the Kubernetes API server.
+                      Not supported for the generic provider, optional for the
+                      other providers. The address is used to select among a list
+                      of endpoints in the cluster resource. If not set, the first
+                      endpoint on the list is used. If none of the addresses in the
+                      cluster resource match a provided address, the controller will
+                      error out and the reconciliation will fail. Must be a valid
+                      HTTPS endpoint, e.g. "https://api.example.com:6443".
+                    pattern: ^https://.*
+                    type: string
+                  cluster:
+                    description: |-
+                      Cluster is the optional fully qualified resource name of the
+                      Kubernetes cluster in the cloud provider to connect to.
+                      Not supported for the generic provider, required for the
+                      other providers.
+                    type: string
+                  provider:
+                    default: generic
+                    description: |-
+                      Provider is the optional name of the cloud provider that should be used
+                      to authenticate to the Kubernetes API server. Can be one of "aws",
+                      "azure", "gcp", or "generic". Defaults to "generic".
+                    enum:
+                    - aws
+                    - azure
+                    - gcp
+                    - generic
+                    type: string
                   secretRef:
                     description: |-
-                      SecretRef holds the name of a secret that contains a key with
+                      SecretRef holds an optional name of a secret that contains a key with
                       the kubeconfig file as the value. If no key is set, the key will default
                       to 'value'.
                       It is recommended that the kubeconfig is self-contained, and the secret
                       is regularly updated if credentials such as a cloud-access-token expire.
                       Cloud specific `cmd-path` auth helpers will not function without adding
                       binaries and credentials to the Pod that is responsible for reconciling
-                      Kubernetes resources.
+                      Kubernetes resources. Supported only for the generic provider.
                     properties:
                       key:
                         description: Key in the Secret, when not specified an implementation-specific
@@ -1653,9 +1738,32 @@ spec:
                     required:
                     - name
                     type: object
-                required:
-                - secretRef
+                  serviceAccountName:
+                    description: |-
+                      ServiceAccountName is the optional name of the Kubernetes
+                      ServiceAccount in the same namespace that should be used
+                      to authenticate to the Kubernetes API server. If not set,
+                      the controller ServiceAccount will be used. Not supported
+                      for the generic provider.
+                    type: string
                 type: object
+                x-kubernetes-validations:
+                - message: .secretRef is required for the 'generic' .provider
+                  rule: has(self.secretRef) || (has(self.provider) && self.provider
+                    != 'generic')
+                - message: .secretRef is not supported for the specified .provider
+                  rule: '!has(self.secretRef) || !has(self.provider) || self.provider
+                    == ''generic'''
+                - message: .serviceAccountName is not supported when .provider is
+                    empty or 'generic'
+                  rule: '!has(self.serviceAccountName) || (has(self.provider) && self.provider
+                    != ''generic'')'
+                - message: .cluster is not supported when .provider is empty or 'generic'
+                  rule: '!has(self.cluster) || (has(self.provider) && self.provider
+                    != ''generic'')'
+                - message: .address is not supported when .provider is empty or 'generic'
+                  rule: '!has(self.address) || (has(self.provider) && self.provider
+                    != ''generic'')'
               maxHistory:
                 description: |-
                   MaxHistory is the number of revisions saved by Helm for this HelmRelease.
@@ -2877,16 +2985,47 @@ spec:
                   a controller level fallback for when HelmReleaseSpec.ServiceAccountName
                   is empty.
                 properties:
+                  address:
+                    description: |-
+                      Address is the optional address of the Kubernetes API server.
+                      Not supported for the generic provider, optional for the
+                      other providers. The address is used to select among a list
+                      of endpoints in the cluster resource. If not set, the first
+                      endpoint on the list is used. If none of the addresses in the
+                      cluster resource match a provided address, the controller will
+                      error out and the reconciliation will fail. Must be a valid
+                      HTTPS endpoint, e.g. "https://api.example.com:6443".
+                    pattern: ^https://.*
+                    type: string
+                  cluster:
+                    description: |-
+                      Cluster is the optional fully qualified resource name of the
+                      Kubernetes cluster in the cloud provider to connect to.
+                      Not supported for the generic provider, required for the
+                      other providers.
+                    type: string
+                  provider:
+                    default: generic
+                    description: |-
+                      Provider is the optional name of the cloud provider that should be used
+                      to authenticate to the Kubernetes API server. Can be one of "aws",
+                      "azure", "gcp", or "generic". Defaults to "generic".
+                    enum:
+                    - aws
+                    - azure
+                    - gcp
+                    - generic
+                    type: string
                   secretRef:
                     description: |-
-                      SecretRef holds the name of a secret that contains a key with
+                      SecretRef holds an optional name of a secret that contains a key with
                       the kubeconfig file as the value. If no key is set, the key will default
                       to 'value'.
                       It is recommended that the kubeconfig is self-contained, and the secret
                       is regularly updated if credentials such as a cloud-access-token expire.
                       Cloud specific `cmd-path` auth helpers will not function without adding
                       binaries and credentials to the Pod that is responsible for reconciling
-                      Kubernetes resources.
+                      Kubernetes resources. Supported only for the generic provider.
                     properties:
                       key:
                         description: Key in the Secret, when not specified an implementation-specific
@@ -2898,9 +3037,32 @@ spec:
                     required:
                     - name
                     type: object
-                required:
-                - secretRef
+                  serviceAccountName:
+                    description: |-
+                      ServiceAccountName is the optional name of the Kubernetes
+                      ServiceAccount in the same namespace that should be used
+                      to authenticate to the Kubernetes API server. If not set,
+                      the controller ServiceAccount will be used. Not supported
+                      for the generic provider.
+                    type: string
                 type: object
+                x-kubernetes-validations:
+                - message: .secretRef is required for the 'generic' .provider
+                  rule: has(self.secretRef) || (has(self.provider) && self.provider
+                    != 'generic')
+                - message: .secretRef is not supported for the specified .provider
+                  rule: '!has(self.secretRef) || !has(self.provider) || self.provider
+                    == ''generic'''
+                - message: .serviceAccountName is not supported when .provider is
+                    empty or 'generic'
+                  rule: '!has(self.serviceAccountName) || (has(self.provider) && self.provider
+                    != ''generic'')'
+                - message: .cluster is not supported when .provider is empty or 'generic'
+                  rule: '!has(self.cluster) || (has(self.provider) && self.provider
+                    != ''generic'')'
+                - message: .address is not supported when .provider is empty or 'generic'
+                  rule: '!has(self.address) || (has(self.provider) && self.provider
+                    != ''generic'')'
               maxHistory:
                 description: |-
                   MaxHistory is the number of revisions saved by Helm for this HelmRelease.
