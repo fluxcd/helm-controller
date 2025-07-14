@@ -33,8 +33,11 @@ import (
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlcfg "sigs.k8s.io/controller-runtime/pkg/config"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	"github.com/fluxcd/pkg/auth"
+	"github.com/fluxcd/pkg/cache"
 	"github.com/fluxcd/pkg/runtime/acl"
 	"github.com/fluxcd/pkg/runtime/client"
 	helper "github.com/fluxcd/pkg/runtime/controller"
@@ -76,6 +79,10 @@ func init() {
 }
 
 func main() {
+	const (
+		tokenCacheDefaultMaxSize = 100
+	)
+
 	var (
 		metricsAddr               string
 		eventsAddr                string
@@ -98,6 +105,7 @@ func main() {
 		oomWatchMaxMemoryPath     string
 		oomWatchCurrentMemoryPath string
 		snapshotDigestAlgo        string
+		tokenCacheOptions         cache.TokenFlags
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080",
@@ -136,6 +144,7 @@ func main() {
 	featureGates.BindFlags(flag.CommandLine)
 	watchOptions.BindFlags(flag.CommandLine)
 	intervalJitterOptions.BindFlags(flag.CommandLine)
+	tokenCacheOptions.BindFlags(flag.CommandLine, tokenCacheDefaultMaxSize)
 
 	flag.Parse()
 
@@ -146,6 +155,14 @@ func main() {
 	if err != nil {
 		setupLog.Error(err, "unable to load feature gates")
 		os.Exit(1)
+	}
+
+	switch enabled, err := features.Enabled(auth.FeatureGateObjectLevelWorkloadIdentity); {
+	case err != nil:
+		setupLog.Error(err, "unable to check feature gate "+auth.FeatureGateObjectLevelWorkloadIdentity)
+		os.Exit(1)
+	case enabled:
+		auth.EnableObjectLevelWorkloadIdentity()
 	}
 
 	if err := intervalJitterOptions.SetGlobalJitter(nil); err != nil {
@@ -272,6 +289,19 @@ func main() {
 		ctx = ow.Watch(ctx)
 	}
 
+	var tokenCache *cache.TokenCache
+	if tokenCacheOptions.MaxSize > 0 {
+		var err error
+		tokenCache, err = cache.NewTokenCache(tokenCacheOptions.MaxSize,
+			cache.WithMaxDuration(tokenCacheOptions.MaxDuration),
+			cache.WithMetricsRegisterer(ctrlmetrics.Registry),
+			cache.WithMetricsPrefix("gotk_token_"))
+		if err != nil {
+			setupLog.Error(err, "unable to create token cache")
+			os.Exit(1)
+		}
+	}
+
 	if err = (&controller.HelmReleaseReconciler{
 		Client:                     mgr.GetClient(),
 		APIReader:                  mgr.GetAPIReader(),
@@ -282,6 +312,7 @@ func main() {
 		KubeConfigOpts:             kubeConfigOpts,
 		FieldManager:               controllerName,
 		DisableChartDigestTracking: disableChartDigestTracking,
+		TokenCache:                 tokenCache,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		DependencyRequeueInterval: requeueDependency,
 		HTTPRetry:                 httpRetry,
