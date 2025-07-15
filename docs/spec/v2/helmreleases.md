@@ -458,6 +458,10 @@ a list). You can read more about the available formats and limitations in the
 For JSON strings, the [limitations are the same as while using `helm`](https://github.com/helm/helm/issues/5618)
 and require you to escape the full JSON string (including `=`, `[`, `,`, `.`).
 
+To make a HelmRelease react immediately to changes in the referenced Secret
+or ConfigMap see [this](#reacting-immediately-to-configuration-dependencies)
+section.
+
 #### Inline values
 
 `.spec.values` is an optional field to inline values within a HelmRelease. When
@@ -1474,6 +1478,28 @@ with the values from the referenced ConfigMaps and/or Secrets.
 **Note:** The debug command will print sensitive information if Kubernetes Secrets
 are referenced in the HelmRelease `.spec.valuesFrom` field, so exercise caution
 when using this command.
+
+### Reacting immediately to configuration dependencies
+
+To trigger a Helm release upgrade when changes occur in referenced
+Secrets or ConfigMaps, you can set the following label on the
+Secret or ConfigMap:
+
+```yaml
+metadata:
+  labels:
+    reconcile.fluxcd.io/watch: Enabled
+```
+
+An alternative to labeling every Secret or ConfigMap is
+setting the `--watch-configs-label-selector=owner!=helm`
+[flag](https://fluxcd.io/flux/components/helm/options/#flags)
+in helm-controller, which allows watching all Secrets and
+ConfigMaps except for Helm storage Secrets.
+
+**Note**: An upgrade will be triggered for an event on a referenced
+Secret/ConfigMap even if it's marked as optional in the `.spec.valuesFrom`
+field, including deletion events.
 
 ## HelmRelease Status
 
