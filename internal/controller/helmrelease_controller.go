@@ -109,6 +109,7 @@ type HelmReleaseReconcilerOptions struct {
 	HTTPRetry                 int
 	DependencyRequeueInterval time.Duration
 	RateLimiter               workqueue.TypedRateLimiter[reconcile.Request]
+	WatchConfigsPredicate     predicate.Predicate
 }
 
 var (
@@ -117,6 +118,11 @@ var (
 )
 
 func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
+	const (
+		indexConfigMap = ".metadata.configMap"
+		indexSecret    = ".metadata.secret"
+	)
+
 	// Index the HelmRelease by the Source reference they point to.
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2.HelmRelease{}, v2.SourceIndexKey,
 		func(o client.Object) []string {
@@ -128,6 +134,46 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 			return []string{
 				namespacedName.String(),
 			}
+		},
+	); err != nil {
+		return err
+	}
+
+	// Index the HelmRelease by the ConfigMap references they point to.
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2.HelmRelease{}, indexConfigMap,
+		func(o client.Object) []string {
+			obj := o.(*v2.HelmRelease)
+			namespace := obj.GetNamespace()
+			var keys []string
+			if kc := obj.Spec.KubeConfig; kc != nil && kc.ConfigMapRef != nil {
+				keys = append(keys, fmt.Sprintf("%s/%s", namespace, kc.ConfigMapRef.Name))
+			}
+			for _, ref := range obj.Spec.ValuesFrom {
+				if ref.Kind == "ConfigMap" {
+					keys = append(keys, fmt.Sprintf("%s/%s", namespace, ref.Name))
+				}
+			}
+			return keys
+		},
+	); err != nil {
+		return err
+	}
+
+	// Index the HelmRelease by the Secret references they point to.
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2.HelmRelease{}, indexSecret,
+		func(o client.Object) []string {
+			obj := o.(*v2.HelmRelease)
+			namespace := obj.GetNamespace()
+			var keys []string
+			if kc := obj.Spec.KubeConfig; kc != nil && kc.SecretRef != nil {
+				keys = append(keys, fmt.Sprintf("%s/%s", namespace, kc.SecretRef.Name))
+			}
+			for _, ref := range obj.Spec.ValuesFrom {
+				if ref.Kind == "Secret" {
+					keys = append(keys, fmt.Sprintf("%s/%s", namespace, ref.Name))
+				}
+			}
+			return keys
 		},
 	); err != nil {
 		return err
@@ -149,6 +195,16 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 			&sourcev1.OCIRepository{},
 			handler.EnqueueRequestsFromMapFunc(r.requestsForOCIRrepositoryChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
+		).
+		WatchesMetadata(
+			&corev1.ConfigMap{},
+			handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexConfigMap)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, opts.WatchConfigsPredicate),
+		).
+		WatchesMetadata(
+			&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexSecret)),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, opts.WatchConfigsPredicate),
 		).
 		WithOptions(controller.Options{
 			RateLimiter: opts.RateLimiter,
@@ -875,6 +931,36 @@ func (r *HelmReleaseReconciler) requestsForOCIRrepositoryChange(ctx context.Cont
 		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
 	}
 	return reqs
+}
+
+// requestsForConfigDependency enqueues requests for watched ConfigMaps or Secrets
+// according to the specified index.
+func (r *HelmReleaseReconciler) requestsForConfigDependency(
+	index string) func(ctx context.Context, o client.Object) []reconcile.Request {
+
+	return func(ctx context.Context, o client.Object) []reconcile.Request {
+		// List HelmReleases that have a dependency on the ConfigMap or Secret.
+		var list v2.HelmReleaseList
+		if err := r.List(ctx, &list, client.MatchingFields{
+			index: client.ObjectKeyFromObject(o).String(),
+		}); err != nil {
+			ctrl.LoggerFrom(ctx).Error(err, "failed to list HelmReleases for config dependency change",
+				"index", index, "objectRef", map[string]string{
+					"name":      o.GetName(),
+					"namespace": o.GetNamespace(),
+				})
+			return nil
+		}
+
+		// Enqueue requests for each HelmRelease in the list.
+		reqs := make([]reconcile.Request, 0, len(list.Items))
+		for i := range list.Items {
+			reqs = append(reqs, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&list.Items[i]),
+			})
+		}
+		return reqs
+	}
 }
 
 func isSourceReady(obj sourcev1.Source) (bool, string) {
