@@ -24,6 +24,7 @@ updates:
       - dependency-name: "github.com/opencontainers/*"
       # Helm deps are updated by fluxcd/pkg/helmtestserver
       - dependency-name: "helm.sh/helm/*"
+      - dependency-name: "github.com/Masterminds/semver/*"
       # Flux APIs are updated at release time
       - dependency-name: "github.com/fluxcd/helm-controller/api"
       - dependency-name: "github.com/fluxcd/source-controller/api"
@@ -35,4 +36,4 @@ updates:
         patterns:
           - "*"
     schedule:
-      interval: "daily"
+      interval: "monthly"
