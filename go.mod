@@ -22,7 +22,7 @@ require (
 	github.com/fluxcd/pkg/apis/event v0.18.0
 	github.com/fluxcd/pkg/apis/kustomize v1.11.0
 	github.com/fluxcd/pkg/apis/meta v1.18.0
-	github.com/fluxcd/pkg/auth v0.22.0
+	github.com/fluxcd/pkg/auth v0.23.0
 	github.com/fluxcd/pkg/cache v0.10.0
 	github.com/fluxcd/pkg/chartutil v1.8.0
 	github.com/fluxcd/pkg/runtime v0.72.0
