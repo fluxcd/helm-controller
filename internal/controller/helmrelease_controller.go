@@ -127,13 +127,23 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2.HelmRelease{}, v2.SourceIndexKey,
 		func(o client.Object) []string {
 			obj := o.(*v2.HelmRelease)
-			namespacedName, err := getNamespacedName(obj)
-			if err != nil {
+			var kind, name, namespace string
+			switch {
+			case obj.HasChartRef() && !obj.HasChartTemplate():
+				kind = obj.Spec.ChartRef.Kind
+				name = obj.Spec.ChartRef.Name
+				namespace = obj.Spec.ChartRef.Namespace
+				if namespace == "" {
+					namespace = obj.GetNamespace()
+				}
+			case !obj.HasChartRef() && obj.HasChartTemplate():
+				kind = sourcev1.HelmChartKind
+				name = obj.GetHelmChartName()
+				namespace = obj.Spec.Chart.GetNamespace(obj.GetNamespace())
+			default:
 				return nil
 			}
-			return []string{
-				namespacedName.String(),
-			}
+			return []string{fmt.Sprintf("%s/%s/%s", kind, namespace, name)}
 		},
 	); err != nil {
 		return err
@@ -193,7 +203,7 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 		).
 		Watches(
 			&sourcev1.OCIRepository{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForOCIRrepositoryChange),
+			handler.EnqueueRequestsFromMapFunc(r.requestsForOCIRepositoryChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
 		WatchesMetadata(
@@ -875,7 +885,7 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, 
 
 	var list v2.HelmReleaseList
 	if err := r.List(ctx, &list, client.MatchingFields{
-		v2.SourceIndexKey: client.ObjectKeyFromObject(hc).String(),
+		v2.SourceIndexKey: sourcev1.HelmChartKind + "/" + client.ObjectKeyFromObject(hc).String(),
 	}); err != nil {
 		ctrl.LoggerFrom(ctx).Error(err, "failed to list HelmReleases for HelmChart change")
 		return nil
@@ -893,7 +903,7 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, 
 	return reqs
 }
 
-func (r *HelmReleaseReconciler) requestsForOCIRrepositoryChange(ctx context.Context, o client.Object) []reconcile.Request {
+func (r *HelmReleaseReconciler) requestsForOCIRepositoryChange(ctx context.Context, o client.Object) []reconcile.Request {
 	or, ok := o.(*sourcev1.OCIRepository)
 	if !ok {
 		err := fmt.Errorf("expected an OCIRepository, got %T", o)
@@ -907,7 +917,7 @@ func (r *HelmReleaseReconciler) requestsForOCIRrepositoryChange(ctx context.Cont
 
 	var list v2.HelmReleaseList
 	if err := r.List(ctx, &list, client.MatchingFields{
-		v2.SourceIndexKey: client.ObjectKeyFromObject(or).String(),
+		v2.SourceIndexKey: sourcev1.OCIRepositoryKind + "/" + client.ObjectKeyFromObject(or).String(),
 	}); err != nil {
 		ctrl.LoggerFrom(ctx).Error(err, "failed to list HelmReleases for OCIRepository change")
 		return nil
@@ -1001,25 +1011,6 @@ func isReady(obj conditions.Getter, artifact *sourcev1.Artifact) (bool, string) 
 func isValidChartRef(obj *v2.HelmRelease) bool {
 	return (obj.HasChartRef() && !obj.HasChartTemplate()) ||
 		(!obj.HasChartRef() && obj.HasChartTemplate())
-}
-
-func getNamespacedName(obj *v2.HelmRelease) (types.NamespacedName, error) {
-	namespacedName := types.NamespacedName{}
-	switch {
-	case obj.HasChartRef() && !obj.HasChartTemplate():
-		namespacedName.Namespace = obj.Spec.ChartRef.Namespace
-		if namespacedName.Namespace == "" {
-			namespacedName.Namespace = obj.GetNamespace()
-		}
-		namespacedName.Name = obj.Spec.ChartRef.Name
-	case !obj.HasChartRef() && obj.HasChartTemplate():
-		namespacedName.Namespace = obj.Spec.Chart.GetNamespace(obj.GetNamespace())
-		namespacedName.Name = obj.GetHelmChartName()
-	default:
-		return namespacedName, fmt.Errorf("one of chartRef or chart must be present")
-	}
-
-	return namespacedName, nil
 }
 
 func (r *HelmReleaseReconciler) mutateChartWithSourceRevision(chart *chart.Chart, source sourcev1.Source) (string, error) {
