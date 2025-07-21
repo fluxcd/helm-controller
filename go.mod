@@ -24,7 +24,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.18.0
 	github.com/fluxcd/pkg/auth v0.23.0
 	github.com/fluxcd/pkg/cache v0.10.0
-	github.com/fluxcd/pkg/chartutil v1.8.0
+	github.com/fluxcd/pkg/chartutil v1.9.0
 	github.com/fluxcd/pkg/runtime v0.72.0
 	github.com/fluxcd/pkg/ssa v0.51.0
 	github.com/fluxcd/pkg/testserver v0.11.0

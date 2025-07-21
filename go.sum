@@ -154,8 +154,8 @@ github.com/fluxcd/pkg/auth v0.23.0 h1:Xt89QO1Hzh7X0JFwCeONyxMlgOX/zOPx0eyIyFoKyF
 github.com/fluxcd/pkg/auth v0.23.0/go.mod h1:YEAHpBFuW5oLlH9ekuJaQdnJ2Q3A7Ny8kha3WY7QMnY=
 github.com/fluxcd/pkg/cache v0.10.0 h1:M+OGDM4da1cnz7q+sZSBtkBJHpiJsLnKVmR9OdMWxEY=
 github.com/fluxcd/pkg/cache v0.10.0/go.mod h1:pPXRzQUDQagsCniuOolqVhnAkbNgYOg8d2cTliPs7ME=
-github.com/fluxcd/pkg/chartutil v1.8.0 h1:kDR87A1FyhUNgm48nIUrx2CKbEtix7tI8j7gESQdiTU=
-github.com/fluxcd/pkg/chartutil v1.8.0/go.mod h1:yeZzhTNogNAbGlSge2RiaACOCQt5GwentCq3yFYgEUU=
+github.com/fluxcd/pkg/chartutil v1.9.0 h1:MnDKBNX7JXKe7E+J0F+eKnKsVYRC8bNQatv2HpmgSRQ=
+github.com/fluxcd/pkg/chartutil v1.9.0/go.mod h1:R0RfP6ZOtndKXkE1QGLvWLFDubKvh0fJlZeGHzndAfQ=
 github.com/fluxcd/pkg/runtime v0.72.0 h1:9JCto84iL2FziuTuuvDwvS+cfIzGhHOk25y8ulXpNOs=
 github.com/fluxcd/pkg/runtime v0.72.0/go.mod h1:iGhdaEq+lMJQTJNAFEPOU4gUJ7kt3yeDcJPZy7O9IUw=
 github.com/fluxcd/pkg/ssa v0.51.0 h1:sFarxKZcS0J8sjq9qvs/r+1XiJqNgRodEiPjV75F8R4=
