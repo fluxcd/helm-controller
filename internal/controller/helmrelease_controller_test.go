@@ -2862,6 +2862,69 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 			},
 		},
 		{
+			name: "all dependencies ready with readyExpr",
+			obj: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dependant",
+					Namespace: "some-namespace",
+					Labels: map[string]string{
+						"app/version": "v1.2.3",
+					},
+				},
+				Spec: v2.HelmReleaseSpec{
+					Values: &apiextensionsv1.JSON{
+						Raw: []byte(`{"version":"v1.2.3"}`),
+					},
+					DependsOn: []v2.DependencyReference{
+						{
+							Name:      "dependency-1",
+							ReadyExpr: "self.spec.values.version == dep.spec.values.version",
+						},
+						{
+							Name: "dependency-2",
+							ReadyExpr: `
+dep.metadata.labels['app/version'] == self.metadata.labels['app/version'] &&
+dep.status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True') &&
+dep.metadata.generation == dep.status.observedGeneration
+`,
+						},
+					},
+				},
+			},
+			objects: []client.Object{
+				&v2.HelmRelease{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "dependency-1",
+						Namespace: "some-namespace",
+					},
+					Spec: v2.HelmReleaseSpec{
+						Values: &apiextensionsv1.JSON{
+							Raw: []byte(`{"version":"v1.2.3"}`),
+						},
+					},
+				},
+				&v2.HelmRelease{
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 2,
+						Name:       "dependency-2",
+						Namespace:  "some-namespace",
+						Labels: map[string]string{
+							"app/version": "v1.2.3",
+						},
+					},
+					Status: v2.HelmReleaseStatus{
+						ObservedGeneration: 2,
+						Conditions: []metav1.Condition{
+							{Type: meta.ReadyCondition, Status: metav1.ConditionTrue},
+						},
+					},
+				},
+			},
+			expect: func(g *WithT, err error) {
+				g.Expect(err).ToNot(HaveOccurred())
+			},
+		},
+		{
 			name: "error on dependency with ObservedGeneration < Generation",
 			obj: &v2.HelmRelease{
 				ObjectMeta: metav1.ObjectMeta{
@@ -2981,6 +3044,73 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 			expect: func(g *WithT, err error) {
 				g.Expect(err).To(HaveOccurred())
 				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			},
+		},
+		{
+			name: "error on dependency with readyExpr",
+			obj: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dependant",
+					Namespace: "some-namespace",
+				},
+				Spec: v2.HelmReleaseSpec{
+					DependsOn: []v2.DependencyReference{
+						{
+							Name:      "dependency-1",
+							ReadyExpr: "self.metadata.name == dep.metadata.name",
+						},
+					},
+				},
+			},
+			objects: []client.Object{
+				&v2.HelmRelease{
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 1,
+						Name:       "dependency-1",
+						Namespace:  "some-namespace",
+					},
+					Status: v2.HelmReleaseStatus{
+						ObservedGeneration: 1,
+					},
+				},
+			},
+			expect: func(g *WithT, err error) {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(err.Error()).To(ContainSubstring("is not ready according to readyExpr eval"))
+			},
+		},
+		{
+			name: "terminal error on dependency with invalid readyExpr",
+			obj: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dependant",
+					Namespace: "some-namespace",
+				},
+				Spec: v2.HelmReleaseSpec{
+					DependsOn: []v2.DependencyReference{
+						{
+							Name:      "dependency-1",
+							ReadyExpr: "self.generation == deps.generation",
+						},
+					},
+				},
+			},
+			objects: []client.Object{
+				&v2.HelmRelease{
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 1,
+						Name:       "dependency-1",
+						Namespace:  "some-namespace",
+					},
+					Status: v2.HelmReleaseStatus{
+						ObservedGeneration: 1,
+					},
+				},
+			},
+			expect: func(g *WithT, err error) {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
+				g.Expect(err.Error()).To(ContainSubstring("failed to parse"))
 			},
 		},
 	}
