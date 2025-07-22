@@ -396,11 +396,58 @@ spec:
     - name: backend
 ```
 
-**Note:** This does not account for upgrade ordering. Kubernetes only allows
-applying one resource (HelmRelease in this case) at a time, so there is no
-way for the controller to know when a dependency HelmRelease may be updated.
-Also, circular dependencies between HelmRelease resources must be avoided,
+**Note:** Circular dependencies between HelmRelease resources must be avoided,
 otherwise the interdependent HelmRelease resources will never be reconciled.
+
+#### Dependency Ready Expression
+
+`.spec.dependsOn[].readyExpr` is an optional field that can be used to define a CEL expression
+to determine the readiness of a HelmRelease dependency.
+
+This is helpful for when custom logic is needed to determine if a dependency is ready.
+For example, when performing a lockstep upgrade, the `readyExpr` can be used to
+verify that a dependency has a matching version in values before proceeding with the
+reconciliation of the dependent HelmRelease.
+
+```yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: backend
+  namespace: default
+spec:
+  # ...omitted for brevity
+  values: 
+    app:
+      version: v1.2.3
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: frontend
+  namespace: default
+spec:
+  # ...omitted for brevity
+  values:
+    app:
+      version: v1.2.3
+  dependsOn:
+    - name: backend
+      readyExpr: >
+        dep.spec.values.app.version == self.spec.values.app.version &&
+        dep.status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True') &&
+        dep.metadata.generation == dep.status.observedGeneration
+```
+
+The CEL expression contains the following variables:
+
+- `dep`: The dependency HelmRelease object being evaluated.
+- `self`: The HelmRelease object being reconciled.
+
+**Note:** When `readyExpr` is specified, the built-in readiness check is replaced by the logic
+defined in the CEL expression. You can configure the controller to run both the CEL expression
+evaluation and the built-in readiness check, with the `AdditiveCELDependencyCheck`
+[feature gate](https://fluxcd.io/flux/components/helm/options/#feature-gates).
 
 ### Values
 
