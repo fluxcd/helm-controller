@@ -68,6 +68,11 @@ const (
 	// digest changes. When enabled, the controller will not
 	// append the digest to the chart version in Chart.yaml.
 	DisableChartDigestTracking = "DisableChartDigestTracking"
+
+	// AdditiveCELDependencyCheck controls whether the CEL dependency check
+	// should be additive, meaning that the built-in readiness check will
+	// be added to the user-defined CEL expressions.
+	AdditiveCELDependencyCheck = "AdditiveCELDependencyCheck"
 )
 
 var features = map[string]bool{
@@ -92,6 +97,9 @@ var features = map[string]bool{
 	// DisableChartDigestTracking
 	// opt-in from v1.3.0
 	DisableChartDigestTracking: false,
+	// AdditiveCELDependencyCheck
+	// opt-in from v1.4.0
+	AdditiveCELDependencyCheck: false,
 }
 
 func init() {
