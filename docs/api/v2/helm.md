@@ -187,14 +187,14 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#NamespacedObjectReference">
-[]github.com/fluxcd/pkg/apis/meta.NamespacedObjectReference
+<a href="#helm.toolkit.fluxcd.io/v2.DependencyReference">
+[]DependencyReference
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>DependsOn may contain a meta.NamespacedObjectReference slice with
+<p>DependsOn may contain a DependencyReference slice with
 references to HelmRelease resources that must be ready before this HelmRelease
 can be reconciled.</p>
 </td>
@@ -609,6 +609,67 @@ string
 <em>(Optional)</em>
 <p>Namespace of the referent, defaults to the namespace of the Kubernetes
 resource object that contains the reference.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2.DependencyReference">DependencyReference
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>DependencyReference defines a HelmRelease dependency on another HelmRelease resource.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name of the referent.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>namespace</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Namespace of the referent, defaults to the namespace of the HelmRelease
+resource object that contains the reference.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>readyExpr</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ReadyExpr is a CEL expression that can be used to assess the readiness
+of a dependency. When specified, the built-in readiness check
+is replaced by the logic defined in the CEL expression.
+To make the CEL expression additive to the built-in readiness check,
+the feature gate <code>AdditiveCELDependencyCheck</code> must be set to <code>true</code>.</p>
 </td>
 </tr>
 </tbody>
@@ -1258,14 +1319,14 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#NamespacedObjectReference">
-[]github.com/fluxcd/pkg/apis/meta.NamespacedObjectReference
+<a href="#helm.toolkit.fluxcd.io/v2.DependencyReference">
+[]DependencyReference
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>DependsOn may contain a meta.NamespacedObjectReference slice with
+<p>DependsOn may contain a DependencyReference slice with
 references to HelmRelease resources that must be ready before this HelmRelease
 can be reconciled.</p>
 </td>

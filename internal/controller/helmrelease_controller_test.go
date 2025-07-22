@@ -93,7 +93,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				Namespace: "mock",
 			},
 			Spec: v2.HelmReleaseSpec{
-				DependsOn: []meta.NamespacedObjectReference{
+				DependsOn: []v2.DependencyReference{
 					{
 						Name: "dependency",
 					},
@@ -2818,7 +2818,7 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 					Namespace: "some-namespace",
 				},
 				Spec: v2.HelmReleaseSpec{
-					DependsOn: []meta.NamespacedObjectReference{
+					DependsOn: []v2.DependencyReference{
 						{
 							Name: "dependency-1",
 						},
@@ -2869,7 +2869,7 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 					Namespace: "some-namespace",
 				},
 				Spec: v2.HelmReleaseSpec{
-					DependsOn: []meta.NamespacedObjectReference{
+					DependsOn: []v2.DependencyReference{
 						{
 							Name: "dependency-1",
 						},
@@ -2904,7 +2904,7 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 					Namespace: "some-namespace",
 				},
 				Spec: v2.HelmReleaseSpec{
-					DependsOn: []meta.NamespacedObjectReference{
+					DependsOn: []v2.DependencyReference{
 						{
 							Name: "dependency-1",
 						},
@@ -2939,7 +2939,7 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 					Namespace: "some-namespace",
 				},
 				Spec: v2.HelmReleaseSpec{
-					DependsOn: []meta.NamespacedObjectReference{
+					DependsOn: []v2.DependencyReference{
 						{
 							Name: "dependency-1",
 						},
@@ -2971,7 +2971,7 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 					Namespace: "some-namespace",
 				},
 				Spec: v2.HelmReleaseSpec{
-					DependsOn: []meta.NamespacedObjectReference{
+					DependsOn: []v2.DependencyReference{
 						{
 							Name: "dependency-1",
 						},
