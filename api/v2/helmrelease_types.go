@@ -100,11 +100,11 @@ type HelmReleaseSpec struct {
 	// +optional
 	StorageNamespace string `json:"storageNamespace,omitempty"`
 
-	// DependsOn may contain a meta.NamespacedObjectReference slice with
+	// DependsOn may contain a DependencyReference slice with
 	// references to HelmRelease resources that must be ready before this HelmRelease
 	// can be reconciled.
 	// +optional
-	DependsOn []meta.NamespacedObjectReference `json:"dependsOn,omitempty"`
+	DependsOn []DependencyReference `json:"dependsOn,omitempty"`
 
 	// Timeout is the time to wait for any individual Kubernetes operation (like Jobs
 	// for hooks) during the performance of a Helm action. Defaults to '5m0s'.
@@ -1265,9 +1265,19 @@ func (in HelmRelease) UsePersistentClient() bool {
 	return *in.Spec.PersistentClient
 }
 
-// GetDependsOn returns the list of dependencies across-namespaces.
+// GetDependsOn returns the dependencies as a list of meta.NamespacedObjectReference.
+//
+// This function makes the HelmRelease type conformant with the meta.ObjectWithDependencies interface
+// and allows the controller-runtime to index HelmReleases by their dependencies.
 func (in HelmRelease) GetDependsOn() []meta.NamespacedObjectReference {
-	return in.Spec.DependsOn
+	deps := make([]meta.NamespacedObjectReference, len(in.Spec.DependsOn))
+	for i := range in.Spec.DependsOn {
+		deps[i] = meta.NamespacedObjectReference{
+			Name:      in.Spec.DependsOn[i].Name,
+			Namespace: in.Spec.DependsOn[i].Namespace,
+		}
+	}
+	return deps
 }
 
 // GetConditions returns the status conditions of the object.

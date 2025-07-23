@@ -204,7 +204,13 @@ func main() {
 
 	disableChartDigestTracking, err := features.Enabled(features.DisableChartDigestTracking)
 	if err != nil {
-		setupLog.Error(err, "unable to check feature gate DisableChartDigestTracking")
+		setupLog.Error(err, "unable to check feature gate "+features.DisableChartDigestTracking)
+		os.Exit(1)
+	}
+
+	additiveCELDependencyCheck, err := features.Enabled(features.AdditiveCELDependencyCheck)
+	if err != nil {
+		setupLog.Error(err, "unable to check feature gate "+features.AdditiveCELDependencyCheck)
 		os.Exit(1)
 	}
 
@@ -318,6 +324,7 @@ func main() {
 		KubeConfigOpts:             kubeConfigOpts,
 		FieldManager:               controllerName,
 		DisableChartDigestTracking: disableChartDigestTracking,
+		AdditiveCELDependencyCheck: additiveCELDependencyCheck,
 		TokenCache:                 tokenCache,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		DependencyRequeueInterval: requeueDependency,

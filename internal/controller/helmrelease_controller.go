@@ -23,24 +23,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fluxcd/pkg/runtime/cel"
+	celtypes "github.com/google/cel-go/common/types"
 	"helm.sh/helm/v3/pkg/chart"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	kuberecorder "k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/Masterminds/semver/v3"
@@ -57,7 +55,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/object"
 	"github.com/fluxcd/pkg/runtime/patch"
-	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	"github.com/fluxcd/pkg/chartutil"
@@ -71,7 +68,6 @@ import (
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/loader"
 	"github.com/fluxcd/helm-controller/internal/postrender"
-	intpredicates "github.com/fluxcd/helm-controller/internal/predicates"
 	intreconcile "github.com/fluxcd/helm-controller/internal/reconcile"
 	"github.com/fluxcd/helm-controller/internal/release"
 )
@@ -100,127 +96,16 @@ type HelmReleaseReconciler struct {
 	FieldManager               string
 	DefaultServiceAccount      string
 	DisableChartDigestTracking bool
+	AdditiveCELDependencyCheck bool
 
 	requeueDependency    time.Duration
 	artifactFetchRetries int
-}
-
-type HelmReleaseReconcilerOptions struct {
-	HTTPRetry                 int
-	DependencyRequeueInterval time.Duration
-	RateLimiter               workqueue.TypedRateLimiter[reconcile.Request]
-	WatchConfigsPredicate     predicate.Predicate
 }
 
 var (
 	errWaitForDependency = errors.New("must wait for dependency")
 	errWaitForChart      = errors.New("must wait for chart")
 )
-
-func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
-	const (
-		indexConfigMap = ".metadata.configMap"
-		indexSecret    = ".metadata.secret"
-	)
-
-	// Index the HelmRelease by the Source reference they point to.
-	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2.HelmRelease{}, v2.SourceIndexKey,
-		func(o client.Object) []string {
-			obj := o.(*v2.HelmRelease)
-			var kind, name, namespace string
-			switch {
-			case obj.HasChartRef() && !obj.HasChartTemplate():
-				kind = obj.Spec.ChartRef.Kind
-				name = obj.Spec.ChartRef.Name
-				namespace = obj.Spec.ChartRef.Namespace
-				if namespace == "" {
-					namespace = obj.GetNamespace()
-				}
-			case !obj.HasChartRef() && obj.HasChartTemplate():
-				kind = sourcev1.HelmChartKind
-				name = obj.GetHelmChartName()
-				namespace = obj.Spec.Chart.GetNamespace(obj.GetNamespace())
-			default:
-				return nil
-			}
-			return []string{fmt.Sprintf("%s/%s/%s", kind, namespace, name)}
-		},
-	); err != nil {
-		return err
-	}
-
-	// Index the HelmRelease by the ConfigMap references they point to.
-	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2.HelmRelease{}, indexConfigMap,
-		func(o client.Object) []string {
-			obj := o.(*v2.HelmRelease)
-			namespace := obj.GetNamespace()
-			var keys []string
-			if kc := obj.Spec.KubeConfig; kc != nil && kc.ConfigMapRef != nil {
-				keys = append(keys, fmt.Sprintf("%s/%s", namespace, kc.ConfigMapRef.Name))
-			}
-			for _, ref := range obj.Spec.ValuesFrom {
-				if ref.Kind == "ConfigMap" {
-					keys = append(keys, fmt.Sprintf("%s/%s", namespace, ref.Name))
-				}
-			}
-			return keys
-		},
-	); err != nil {
-		return err
-	}
-
-	// Index the HelmRelease by the Secret references they point to.
-	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2.HelmRelease{}, indexSecret,
-		func(o client.Object) []string {
-			obj := o.(*v2.HelmRelease)
-			namespace := obj.GetNamespace()
-			var keys []string
-			if kc := obj.Spec.KubeConfig; kc != nil && kc.SecretRef != nil {
-				keys = append(keys, fmt.Sprintf("%s/%s", namespace, kc.SecretRef.Name))
-			}
-			for _, ref := range obj.Spec.ValuesFrom {
-				if ref.Kind == "Secret" {
-					keys = append(keys, fmt.Sprintf("%s/%s", namespace, ref.Name))
-				}
-			}
-			return keys
-		},
-	); err != nil {
-		return err
-	}
-
-	r.requeueDependency = opts.DependencyRequeueInterval
-	r.artifactFetchRetries = opts.HTTPRetry
-
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&v2.HelmRelease{}, builder.WithPredicates(
-			predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{}),
-		)).
-		Watches(
-			&sourcev1.HelmChart{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForHelmChartChange),
-			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
-		).
-		Watches(
-			&sourcev1.OCIRepository{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForOCIRepositoryChange),
-			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
-		).
-		WatchesMetadata(
-			&corev1.ConfigMap{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexConfigMap)),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, opts.WatchConfigsPredicate),
-		).
-		WatchesMetadata(
-			&corev1.Secret{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexSecret)),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, opts.WatchConfigsPredicate),
-		).
-		WithOptions(controller.Options{
-			RateLimiter: opts.RateLimiter,
-		}).
-		Complete(r)
-}
 
 func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, retErr error) {
 	start := time.Now()
@@ -324,6 +209,17 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		log.Info(fmt.Sprintf("checking %d dependencies", c))
 
 		if err := r.checkDependencies(ctx, obj); err != nil {
+			// Check if this is a terminal error that should not trigger retries
+			if errors.Is(err, reconcile.TerminalError(nil)) {
+				const terminalErrorMessage = "Reconciliation failed terminally due to configuration error"
+				errMsg := fmt.Sprintf("%s: %v", terminalErrorMessage, err)
+				conditions.MarkFalse(obj, meta.ReadyCondition, meta.InvalidCELExpressionReason, "%s", errMsg)
+				conditions.MarkStalled(obj, meta.InvalidCELExpressionReason, "%s", errMsg)
+				r.Eventf(obj, corev1.EventTypeWarning, meta.InvalidCELExpressionReason, err.Error())
+				return ctrl.Result{}, err
+			}
+
+			// Retry on transient errors.
 			msg := fmt.Sprintf("dependencies do not meet ready condition (%s): retrying in %s",
 				err.Error(), r.requeueDependency.String())
 			conditions.MarkFalse(obj, meta.ReadyCondition, v2.DependencyNotReadyReason, "%s", err)
@@ -653,30 +549,92 @@ func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter g
 	return intreconcile.NewUninstall(cfg, r.EventRecorder).Reconcile(ctx, &intreconcile.Request{Object: obj})
 }
 
-// checkDependencies checks if the dependencies of the given v2.HelmRelease
-// are Ready.
-// It returns an error if a dependency can not be retrieved or is not Ready,
-// otherwise nil.
+// checkDependencies checks if the dependencies of the current HelmRelease are ready.
+// To be considered ready, a dependencies must meet the following criteria:
+// - The dependency exists in the API server.
+// - The CEL expression (if provided) must evaluate to true.
+// - The dependency observed generation must match the current generation.
+// - The dependency Ready condition must be true.
 func (r *HelmReleaseReconciler) checkDependencies(ctx context.Context, obj *v2.HelmRelease) error {
-	for _, d := range obj.Spec.DependsOn {
-		ref := types.NamespacedName{
-			Namespace: d.Namespace,
-			Name:      d.Name,
+	// Convert the HelmRelease object to Unstructured for CEL evaluation.
+	objMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return fmt.Errorf("failed to convert HelmRelease to unstructured: %w", err)
+	}
+
+	for _, depRef := range obj.Spec.DependsOn {
+		depName := types.NamespacedName{
+			Namespace: depRef.Namespace,
+			Name:      depRef.Name,
 		}
-		if ref.Namespace == "" {
-			ref.Namespace = obj.GetNamespace()
+		if depName.Namespace == "" {
+			depName.Namespace = obj.GetNamespace()
 		}
 
-		dHr := &v2.HelmRelease{}
-		if err := r.APIReader.Get(ctx, ref, dHr); err != nil {
-			return fmt.Errorf("unable to get '%s' dependency: %w", ref, err)
+		// Check if the dependency exists by querying
+		// the API server bypassing the cache.
+		dep := &v2.HelmRelease{}
+		if err := r.APIReader.Get(ctx, depName, dep); err != nil {
+			return fmt.Errorf("unable to get '%s' dependency: %w", depName, err)
 		}
 
-		if dHr.Generation != dHr.Status.ObservedGeneration || !conditions.IsTrue(dHr, meta.ReadyCondition) {
-			return fmt.Errorf("dependency '%s' is not ready", ref)
+		// Evaluate the CEL expression (if specified) to determine if the dependency is ready.
+		if depRef.ReadyExpr != "" {
+			ready, err := r.evalReadyExpr(ctx, depRef.ReadyExpr, objMap, dep)
+			if err != nil {
+				return err
+			}
+			if !ready {
+				return fmt.Errorf("dependency '%s' is not ready according to readyExpr eval", depName)
+			}
+		}
+
+		// Skip the built-in readiness check if the CEL expression is provided
+		// and the AdditiveCELDependencyCheck feature gate is not enabled.
+		if depRef.ReadyExpr != "" && !r.AdditiveCELDependencyCheck {
+			continue
+		}
+
+		// Check if the dependency observed generation is up to date
+		// and if the dependency is in a ready state.
+		if dep.Generation != dep.Status.ObservedGeneration || !conditions.IsTrue(dep, meta.ReadyCondition) {
+			return fmt.Errorf("dependency '%s' is not ready", depName)
 		}
 	}
 	return nil
+}
+
+// evalReadyExpr evaluates the CEL expression for the dependency readiness check.
+func (r *HelmReleaseReconciler) evalReadyExpr(
+	ctx context.Context,
+	expr string,
+	selfMap map[string]any,
+	dep *v2.HelmRelease,
+) (bool, error) {
+	const (
+		selfName = "self"
+		depName  = "dep"
+	)
+
+	celExpr, err := cel.NewExpression(expr,
+		cel.WithCompile(),
+		cel.WithOutputType(celtypes.BoolType),
+		cel.WithStructVariables(selfName, depName))
+	if err != nil {
+		return false, reconcile.TerminalError(fmt.Errorf("failed to evaluate dependency %s: %w", dep.Name, err))
+	}
+
+	depMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(dep)
+	if err != nil {
+		return false, fmt.Errorf("failed to convert %s object to map: %w", depName, err)
+	}
+
+	vars := map[string]any{
+		selfName: selfMap,
+		depName:  depMap,
+	}
+
+	return celExpr.EvaluateBoolean(ctx, vars)
 }
 
 // adoptLegacyRelease attempts to adopt a v2beta1 release into a v2
@@ -868,108 +826,6 @@ func (r *HelmReleaseReconciler) waitForHistoryCacheSync(obj *v2.HelmRelease) wai
 			return false, err
 		}
 		return apiequality.Semantic.DeepEqual(obj.Status.History, newObj.Status.History), nil
-	}
-}
-
-func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, o client.Object) []reconcile.Request {
-	hc, ok := o.(*sourcev1.HelmChart)
-	if !ok {
-		err := fmt.Errorf("expected a HelmChart, got %T", o)
-		ctrl.LoggerFrom(ctx).Error(err, "failed to get requests for HelmChart change")
-		return nil
-	}
-	// If we do not have an artifact, we have no requests to make
-	if hc.GetArtifact() == nil {
-		return nil
-	}
-
-	var list v2.HelmReleaseList
-	if err := r.List(ctx, &list, client.MatchingFields{
-		v2.SourceIndexKey: sourcev1.HelmChartKind + "/" + client.ObjectKeyFromObject(hc).String(),
-	}); err != nil {
-		ctrl.LoggerFrom(ctx).Error(err, "failed to list HelmReleases for HelmChart change")
-		return nil
-	}
-
-	var reqs []reconcile.Request
-	for i, hr := range list.Items {
-		// If the HelmRelease is ready and the revision of the artifact equals to the
-		// last attempted revision, we should not make a request for this HelmRelease
-		if conditions.IsReady(&list.Items[i]) && hc.GetArtifact().HasRevision(hr.Status.GetLastAttemptedRevision()) {
-			continue
-		}
-		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
-	}
-	return reqs
-}
-
-func (r *HelmReleaseReconciler) requestsForOCIRepositoryChange(ctx context.Context, o client.Object) []reconcile.Request {
-	or, ok := o.(*sourcev1.OCIRepository)
-	if !ok {
-		err := fmt.Errorf("expected an OCIRepository, got %T", o)
-		ctrl.LoggerFrom(ctx).Error(err, "failed to get requests for OCIRepository change")
-		return nil
-	}
-	// If we do not have an artifact, we have no requests to make
-	if or.GetArtifact() == nil {
-		return nil
-	}
-
-	var list v2.HelmReleaseList
-	if err := r.List(ctx, &list, client.MatchingFields{
-		v2.SourceIndexKey: sourcev1.OCIRepositoryKind + "/" + client.ObjectKeyFromObject(or).String(),
-	}); err != nil {
-		ctrl.LoggerFrom(ctx).Error(err, "failed to list HelmReleases for OCIRepository change")
-		return nil
-	}
-
-	var reqs []reconcile.Request
-	for i, hr := range list.Items {
-		// If the HelmRelease is ready and the digest of the artifact equals to the
-		// last attempted revision digest, we should not make a request for this HelmRelease,
-		// likewise if we cannot retrieve the artifact digest.
-		digest := extractDigest(or.GetArtifact().Revision)
-		if digest == "" {
-			ctrl.LoggerFrom(ctx).Error(fmt.Errorf("wrong digest for %T", or), "failed to get requests for OCIRepository change")
-			continue
-		}
-
-		if digest == hr.Status.LastAttemptedRevisionDigest {
-			continue
-		}
-
-		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
-	}
-	return reqs
-}
-
-// requestsForConfigDependency enqueues requests for watched ConfigMaps or Secrets
-// according to the specified index.
-func (r *HelmReleaseReconciler) requestsForConfigDependency(
-	index string) func(ctx context.Context, o client.Object) []reconcile.Request {
-
-	return func(ctx context.Context, o client.Object) []reconcile.Request {
-		// List HelmReleases that have a dependency on the ConfigMap or Secret.
-		var list v2.HelmReleaseList
-		if err := r.List(ctx, &list, client.MatchingFields{
-			index: client.ObjectKeyFromObject(o).String(),
-		}); err != nil {
-			ctrl.LoggerFrom(ctx).Error(err, "failed to list HelmReleases for config dependency change",
-				"index", index, "objectRef", map[string]string{
-					"name":      o.GetName(),
-					"namespace": o.GetNamespace(),
-				})
-			return nil
-		}
-
-		// Enqueue requests for each HelmRelease in the list.
-		reqs := make([]reconcile.Request, 0, len(list.Items))
-		for i := range list.Items {
-			reqs = append(reqs, reconcile.Request{
-				NamespacedName: client.ObjectKeyFromObject(&list.Items[i]),
-			})
-		}
-		return reqs
 	}
 }
 
