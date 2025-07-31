@@ -268,7 +268,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		conditions.MarkFalse(obj, meta.ReadyCondition, "SourceNotReady", "%s", msg)
 		// Do not requeue immediately, when the artifact is created
 		// the watcher should trigger a reconciliation.
-		return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}), errWaitForChart
+		return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: r.requeueDependency}), errWaitForChart
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.
 	if conditions.HasAnyReason(obj, meta.ReadyCondition, "SourceNotReady") {
