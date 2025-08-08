@@ -58,6 +58,11 @@ var (
 	// attempts for the provided release config.
 	ErrExceededMaxRetries = errors.New("exceeded maximum retries")
 
+	// ErrRetryAfterInterval is returned when the action strategy is RetryOnFailure
+	// and the current AtomicRelease has already reconciled at least one action,
+	// in which case the action must be retried after the configured retry interval.
+	ErrRetryAfterInterval = errors.New("retry after interval")
+
 	// ErrMustRequeue is returned when the caller must requeue the object
 	// to continue the reconciliation process.
 	ErrMustRequeue = errors.New("must requeue")
@@ -235,6 +240,13 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 					fmt.Sprintf("instructed to stop before running %s action reconciler %s", next.Type(), next.Name()),
 				)
 
+				if retry := req.Object.GetActiveRetry(); retry != nil {
+					conditions.Delete(req.Object, meta.ReconcilingCondition)
+					conditions.MarkFalse(req.Object, meta.ReadyCondition, "RetryAfterInterval",
+						"Will retry after %s", retry.GetRetryInterval().String())
+					return ErrRetryAfterInterval
+				}
+
 				if remediation := req.Object.GetActiveRemediation(); remediation == nil || !remediation.RetriesExhausted(req.Object) {
 					conditions.MarkReconciling(req.Object, meta.ProgressingWithRetryReason, "%s", conditions.GetMessage(req.Object, meta.ReadyCondition))
 					return ErrMustRequeue
@@ -266,6 +278,14 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			// Run the action sub-reconciler.
 			log.Info(fmt.Sprintf("running '%s' action with timeout of %s", next.Name(), timeoutForAction(next, req.Object).String()))
 			if err = next.Reconcile(ctx, req); err != nil {
+				if retry := req.Object.GetActiveRetry(); retry != nil {
+					log.Error(err, fmt.Sprintf("failed to run '%s' action", next.Name()))
+					conditions.Delete(req.Object, meta.ReconcilingCondition)
+					conditions.MarkFalse(req.Object, meta.ReadyCondition, "RetryAfterInterval",
+						"Will retry after %s", retry.GetRetryInterval().String())
+					return ErrRetryAfterInterval
+				}
+
 				if conditions.IsReady(req.Object) {
 					conditions.MarkFalse(req.Object, meta.ReadyCondition, "ReconcileError", "%s", err)
 				}
@@ -277,6 +297,13 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 				log.V(logger.DebugLevel).Info(fmt.Sprintf(
 					"instructed to stop after running %s action reconciler %s", next.Type(), next.Name()),
 				)
+
+				if retry := req.Object.GetActiveRetry(); retry != nil {
+					conditions.Delete(req.Object, meta.ReconcilingCondition)
+					conditions.MarkFalse(req.Object, meta.ReadyCondition, "RetryAfterInterval",
+						"Will retry after %s", retry.GetRetryInterval().String())
+					return ErrRetryAfterInterval
+				}
 
 				remediation := req.Object.GetActiveRemediation()
 				if remediation == nil || !remediation.RetriesExhausted(req.Object) {
@@ -428,6 +455,13 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		return NewTest(r.configFactory, r.eventRecorder), nil
 	case ReleaseStatusFailed:
 		log.Info(msgWithReason("release is in a failed state", state.Reason))
+
+		// If the action strategy is to retry (and not remediate), we behave just like
+		// "flux reconcile hr --force" and .spec.<action>.remediation.retries set to 0.
+		if req.Object.GetActiveRetry() != nil {
+			log.V(logger.DebugLevel).Info("retrying upgrade for failed release")
+			return NewUpgrade(r.configFactory, r.eventRecorder), nil
+		}
 
 		remediation := req.Object.GetActiveRemediation()
 

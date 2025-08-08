@@ -437,6 +437,20 @@ type Remediation interface {
 	RetriesExhausted(hr *HelmRelease) bool
 }
 
+// Strategy defines a consistent interface for InstallStrategy and
+// UpgradeStrategy.
+// +kubebuilder:object:generate=false
+type Strategy interface {
+	GetRetry() Retry
+}
+
+// Retry defines a consistent interface for retry strategies from
+// InstallStrategy and UpgradeStrategy.
+// +kubebuilder:object:generate=false
+type Retry interface {
+	GetRetryInterval() time.Duration
+}
+
 // Install holds the configuration for Helm install actions performed for this
 // HelmRelease.
 type Install struct {
@@ -447,6 +461,11 @@ type Install struct {
 	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
+
+	// Strategy defines the install strategy to use for this HelmRelease.
+	// Defaults to 'RemediateOnFailure'.
+	// +optional
+	Strategy *InstallStrategy `json:"strategy,omitempty"`
 
 	// Remediation holds the remediation configuration for when the Helm install
 	// action for the HelmRelease fails. The default is to not perform any action.
@@ -541,6 +560,41 @@ func (in Install) GetRemediation() Remediation {
 	return *in.Remediation
 }
 
+// GetRetry returns the configured retry strategy for the Helm install
+// action.
+func (in Install) GetRetry() Retry {
+	if in.Strategy == nil || in.Strategy.Name != string(ActionStrategyRetryOnFailure) {
+		return nil
+	}
+	return in.Strategy
+}
+
+// InstallStrategy holds the configuration for Helm install strategy.
+// +kubebuilder:validation:XValidation:rule="!has(self.retryInterval) || self.name != 'RemediateOnFailure'", message=".retryInterval cannot be set when .name is 'RemediateOnFailure'"
+type InstallStrategy struct {
+	// Name of the install strategy.
+	// +kubebuilder:validation:Enum=RemediateOnFailure;RetryOnFailure
+	// +required
+	Name string `json:"name"`
+
+	// RetryInterval is the interval at which to retry a failed install.
+	// Can be used only when Name is set to RetryOnFailure.
+	// Defaults to '5m'.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
+	// +optional
+	RetryInterval *metav1.Duration `json:"retryInterval,omitempty"`
+}
+
+// GetRetryInterval returns the configured retry interval for the Helm install
+// action, or the default.
+func (in InstallStrategy) GetRetryInterval() time.Duration {
+	if in.RetryInterval == nil {
+		return 5 * time.Minute
+	}
+	return in.RetryInterval.Duration
+}
+
 // InstallRemediation holds the configuration for Helm install remediation.
 type InstallRemediation struct {
 	// Retries is the number of retries that should be attempted on failures before
@@ -631,6 +685,11 @@ type Upgrade struct {
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
+	// Strategy defines the upgrade strategy to use for this HelmRelease.
+	// Defaults to 'RemediateOnFailure'.
+	// +optional
+	Strategy *UpgradeStrategy `json:"strategy,omitempty"`
+
 	// Remediation holds the remediation configuration for when the Helm upgrade
 	// action for the HelmRelease fails. The default is to not perform any action.
 	// +optional
@@ -719,6 +778,41 @@ func (in Upgrade) GetRemediation() Remediation {
 	return *in.Remediation
 }
 
+// GetRetry returns the configured retry strategy for the Helm upgrade
+// action.
+func (in Upgrade) GetRetry() Retry {
+	if in.Strategy == nil || in.Strategy.Name != string(ActionStrategyRetryOnFailure) {
+		return nil
+	}
+	return in.Strategy
+}
+
+// UpgradeStrategy holds the configuration for Helm upgrade strategy.
+// +kubebuilder:validation:XValidation:rule="!has(self.retryInterval) || self.name == 'RetryOnFailure'", message=".retryInterval can only be set when .name is 'RetryOnFailure'"
+type UpgradeStrategy struct {
+	// Name of the upgrade strategy.
+	// +kubebuilder:validation:Enum=RemediateOnFailure;RetryOnFailure
+	// +required
+	Name string `json:"name"`
+
+	// RetryInterval is the interval at which to retry a failed upgrade.
+	// Can be used only when Name is set to RetryOnFailure.
+	// Defaults to '5m'.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
+	// +optional
+	RetryInterval *metav1.Duration `json:"retryInterval,omitempty"`
+}
+
+// GetRetryInterval returns the configured retry interval for the Helm upgrade
+// action, or the default.
+func (in UpgradeStrategy) GetRetryInterval() time.Duration {
+	if in.RetryInterval == nil {
+		return 5 * time.Minute
+	}
+	return in.RetryInterval.Duration
+}
+
 // UpgradeRemediation holds the configuration for Helm upgrade remediation.
 type UpgradeRemediation struct {
 	// Retries is the number of retries that should be attempted on failures before
@@ -790,6 +884,19 @@ func (in UpgradeRemediation) IncrementFailureCount(hr *HelmRelease) {
 func (in UpgradeRemediation) RetriesExhausted(hr *HelmRelease) bool {
 	return in.Retries >= 0 && in.GetFailureCount(hr) > int64(in.Retries)
 }
+
+// ActionStrategyName is a valid name for an action strategy.
+type ActionStrategyName string
+
+const (
+	// ActionStrategyRemediateOnFailure is the action strategy name for
+	// remediate on failure.
+	ActionStrategyRemediateOnFailure ActionStrategyName = "RemediateOnFailure"
+
+	// ActionStrategyRetryOnFailure is the action strategy name for retry on
+	// failure.
+	ActionStrategyRetryOnFailure ActionStrategyName = "RetryOnFailure"
+)
 
 // RemediationStrategy returns the strategy to use to remediate a failed install
 // or upgrade.
@@ -1012,7 +1119,8 @@ type HelmReleaseStatus struct {
 	History Snapshots `json:"history,omitempty"`
 
 	// LastAttemptedReleaseAction is the last release action performed for this
-	// HelmRelease. It is used to determine the active remediation strategy.
+	// HelmRelease. It is used to determine the active retry or remediation
+	// strategy.
 	// +kubebuilder:validation:Enum=install;upgrade
 	// +optional
 	LastAttemptedReleaseAction ReleaseAction `json:"lastAttemptedReleaseAction,omitempty"`
@@ -1190,6 +1298,19 @@ func (in HelmRelease) GetActiveRemediation() Remediation {
 		return in.GetInstall().GetRemediation()
 	case ReleaseActionUpgrade:
 		return in.GetUpgrade().GetRemediation()
+	default:
+		return nil
+	}
+}
+
+// GetActiveRetry returns the active retry configuration for the
+// HelmRelease.
+func (in HelmRelease) GetActiveRetry() Retry {
+	switch in.Status.LastAttemptedReleaseAction {
+	case ReleaseActionInstall:
+		return in.GetInstall().GetRetry()
+	case ReleaseActionUpgrade:
+		return in.GetUpgrade().GetRetry()
 	default:
 		return nil
 	}

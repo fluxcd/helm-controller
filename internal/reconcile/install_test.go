@@ -564,6 +564,32 @@ func TestInstall_success(t *testing.T) {
 		}))
 	})
 
+	t.Run("clears failures if retry strategy is configured", func(t *testing.T) {
+		g := NewWithT(t)
+
+		recorder := testutil.NewFakeRecorder(10, false)
+		r := &Install{
+			eventRecorder: recorder,
+		}
+
+		req := &Request{
+			Object: obj.DeepCopy(),
+		}
+		req.Object.Spec.Install = &v2.Install{
+			Strategy: &v2.InstallStrategy{
+				Name: "RetryOnFailure",
+			},
+		}
+		req.Object.Status.Failures = 3
+		req.Object.Status.InstallFailures = 3
+		req.Object.Status.UpgradeFailures = 3
+		r.success(req)
+
+		g.Expect(req.Object.Status.Failures).To(BeZero())
+		g.Expect(req.Object.Status.InstallFailures).To(BeZero())
+		g.Expect(req.Object.Status.UpgradeFailures).To(BeZero())
+	})
+
 	t.Run("records success with TestSuccess=False", func(t *testing.T) {
 		g := NewWithT(t)
 

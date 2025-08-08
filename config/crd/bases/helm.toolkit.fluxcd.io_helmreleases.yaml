@@ -445,6 +445,30 @@ spec:
 
                       Deprecated use CRD policy (`crds`) attribute with value `Skip` instead.
                     type: boolean
+                  strategy:
+                    description: |-
+                      Strategy defines the install strategy to use for this HelmRelease.
+                      Defaults to 'RemediateOnFailure'.
+                    properties:
+                      name:
+                        description: Name of the install strategy.
+                        enum:
+                        - RemediateOnFailure
+                        - RetryOnFailure
+                        type: string
+                      retryInterval:
+                        description: |-
+                          RetryInterval is the interval at which to retry a failed install.
+                          Can be used only when Name is set to RetryOnFailure.
+                          Defaults to '5m'.
+                        pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
+                        type: string
+                    required:
+                    - name
+                    type: object
+                    x-kubernetes-validations:
+                    - message: .retryInterval cannot be set when .name is 'RemediateOnFailure'
+                      rule: '!has(self.retryInterval) || self.name != ''RemediateOnFailure'''
                   timeout:
                     description: |-
                       Timeout is the time to wait for any individual Kubernetes operation (like
@@ -912,6 +936,30 @@ spec:
                         - uninstall
                         type: string
                     type: object
+                  strategy:
+                    description: |-
+                      Strategy defines the upgrade strategy to use for this HelmRelease.
+                      Defaults to 'RemediateOnFailure'.
+                    properties:
+                      name:
+                        description: Name of the upgrade strategy.
+                        enum:
+                        - RemediateOnFailure
+                        - RetryOnFailure
+                        type: string
+                      retryInterval:
+                        description: |-
+                          RetryInterval is the interval at which to retry a failed upgrade.
+                          Can be used only when Name is set to RetryOnFailure.
+                          Defaults to '5m'.
+                        pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
+                        type: string
+                    required:
+                    - name
+                    type: object
+                    x-kubernetes-validations:
+                    - message: .retryInterval can only be set when .name is 'RetryOnFailure'
+                      rule: '!has(self.retryInterval) || self.name == ''RetryOnFailure'''
                   timeout:
                     description: |-
                       Timeout is the time to wait for any individual Kubernetes operation (like
@@ -1178,7 +1226,8 @@ spec:
               lastAttemptedReleaseAction:
                 description: |-
                   LastAttemptedReleaseAction is the last release action performed for this
-                  HelmRelease. It is used to determine the active remediation strategy.
+                  HelmRelease. It is used to determine the active retry or remediation
+                  strategy.
                 enum:
                 - install
                 - upgrade
