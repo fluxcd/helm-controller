@@ -15,6 +15,9 @@ limitations under the License.
 */
 
 // Package v2beta1 contains API Schema definitions for the helm v2beta1 API group
+//
+// Deprecated: v2beta1 is no longer supported, use v2 instead.
+//
 // +kubebuilder:object:generate=true
 // +groupName=helm.toolkit.fluxcd.io
 package v2beta1
