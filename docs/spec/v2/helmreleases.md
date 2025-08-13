@@ -1986,6 +1986,11 @@ are `install` and `upgrade`.
 This field is used by the controller to determine the active remediation
 strategy for the HelmRelease.
 
+### Last Attempted Release Action Duration
+
+The helm-controller reports the duration of the last Helm release action it
+attempted to perform in the `.status.lastAttemptedReleaseActionDuration` field.
+
 ### Last Handled Reconcile At
 
 The helm-controller reports the last `reconcile.fluxcd.io/requestedAt`

@@ -1183,6 +1183,11 @@ spec:
                 - install
                 - upgrade
                 type: string
+              lastAttemptedReleaseActionDuration:
+                description: |-
+                  LastAttemptedReleaseActionDuration is the duration of the last
+                  release action performed for this HelmRelease.
+                type: string
               lastAttemptedRevision:
                 description: |-
                   LastAttemptedRevision is the Source revision of the last reconciliation

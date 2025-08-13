@@ -1288,6 +1288,9 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 
 			g.Expect(obj.Status.ObservedPostRenderersDigest).To(Equal(tt.wantDigest))
 			g.Expect(obj.Status.LastAttemptedReleaseAction).To(Equal(tt.wantReleaseAction))
+			if tt.wantReleaseAction != "" {
+				g.Expect(obj.Status.LastAttemptedReleaseActionDuration).ToNot(BeNil())
+			}
 		})
 	}
 }
@@ -2170,6 +2173,9 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 
 			g.Expect(obj.Status.ObservedCommonMetadataDigest).To(Equal(tt.wantDigest))
 			g.Expect(obj.Status.LastAttemptedReleaseAction).To(Equal(tt.wantReleaseAction))
+			if tt.wantReleaseAction != "" {
+				g.Expect(obj.Status.LastAttemptedReleaseActionDuration).ToNot(BeNil())
+			}
 		})
 	}
 }
