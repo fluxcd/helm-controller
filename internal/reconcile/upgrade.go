@@ -20,18 +20,20 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/fluxcd/pkg/chartutil"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/logger"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/digest"
-	"github.com/fluxcd/pkg/chartutil"
 )
 
 // Upgrade is an ActionReconciler which attempts to upgrade a Helm release
@@ -68,6 +70,7 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 		logBuf      = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
 		obsReleases = make(observedReleases)
 		cfg         = r.configFactory.Build(logBuf.Log, observeRelease(obsReleases))
+		startTime   = time.Now()
 	)
 
 	defer summarize(req)
@@ -81,6 +84,9 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 
 	// Run the Helm upgrade action.
 	_, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values)
+
+	// Record the action duration in status.
+	req.Object.Status.LastAttemptedReleaseActionDuration = &metav1.Duration{Duration: time.Since(startTime)}
 
 	// Record the history of releases observed during the upgrade.
 	obsReleases.recordOnObject(req.Object, mutateOCIDigest)

@@ -1681,6 +1681,21 @@ HelmRelease. It is used to determine the active remediation strategy.</p>
 </tr>
 <tr>
 <td>
+<code>lastAttemptedReleaseActionDuration</code><br>
+<em>
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastAttemptedReleaseActionDuration is the duration of the last
+release action performed for this HelmRelease.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>failures</code><br>
 <em>
 int64

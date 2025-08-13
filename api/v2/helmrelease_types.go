@@ -1017,6 +1017,12 @@ type HelmReleaseStatus struct {
 	// +optional
 	LastAttemptedReleaseAction ReleaseAction `json:"lastAttemptedReleaseAction,omitempty"`
 
+	// LastAttemptedReleaseActionDuration is the duration of the last
+	// release action performed for this HelmRelease.
+	// +kubebuilder:validation:Type=string
+	// +optional
+	LastAttemptedReleaseActionDuration *metav1.Duration `json:"lastAttemptedReleaseActionDuration,omitempty"`
+
 	// Failures is the reconciliation failure count against the latest desired
 	// state. It is reset after a successful reconciliation.
 	// +optional

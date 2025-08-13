@@ -38,9 +38,8 @@ import (
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/conditions"
-
 	"github.com/fluxcd/pkg/chartutil"
+	"github.com/fluxcd/pkg/runtime/conditions"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -430,6 +429,8 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			g.Expect(obj.Status.Failures).To(Equal(tt.expectFailures))
 			g.Expect(obj.Status.InstallFailures).To(Equal(tt.expectInstallFailures))
 			g.Expect(obj.Status.UpgradeFailures).To(Equal(tt.expectUpgradeFailures))
+			g.Expect(obj.Status.LastAttemptedReleaseAction).To(Equal(v2.ReleaseActionUpgrade))
+			g.Expect(obj.Status.LastAttemptedReleaseActionDuration).ToNot(BeNil())
 		})
 	}
 }

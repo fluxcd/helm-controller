@@ -423,6 +423,11 @@ func (in *HelmReleaseStatus) DeepCopyInto(out *HelmReleaseStatus) {
 			}
 		}
 	}
+	if in.LastAttemptedReleaseActionDuration != nil {
+		in, out := &in.LastAttemptedReleaseActionDuration, &out.LastAttemptedReleaseActionDuration
+		*out = new(v1.Duration)
+		**out = **in
+	}
 	out.ReconcileRequestStatus = in.ReconcileRequestStatus
 	out.ForceRequestStatus = in.ForceRequestStatus
 }

@@ -1861,6 +1861,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		// to only have the leading 12 chars digest as build metadata (initial tag metadata overwritten)
 		g.Expect(obj.Status.LastAttemptedRevision).To(Equal("0.1.0" + "+" + dig))
 		g.Expect(obj.Status.LastAttemptedConfigDigest).To(Equal("sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"))
+		g.Expect(obj.Status.LastAttemptedReleaseAction).To(Equal(v2.ReleaseActionInstall))
+		g.Expect(obj.Status.LastAttemptedReleaseActionDuration).ToNot(BeNil())
 		g.Expect(obj.Status.LastAttemptedValuesChecksum).To(BeEmpty())
 
 		// change the chart revision with a new version (build metadata) to simulate a new digest
@@ -1875,6 +1877,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		// to only have the leading 12 chars digest as build metadata (initial tag metadata overwritten)
 		g.Expect(obj.Status.LastAttemptedRevision).To(Equal("0.1.0" + "+" + "adebc5e3cbcd"))
 		g.Expect(obj.Status.LastAttemptedConfigDigest).To(Equal("sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"))
+		g.Expect(obj.Status.LastAttemptedReleaseAction).To(Equal(v2.ReleaseActionUpgrade))
+		g.Expect(obj.Status.LastAttemptedReleaseActionDuration).ToNot(BeNil())
 		g.Expect(obj.Status.LastAttemptedValuesChecksum).To(BeEmpty())
 	})
 
