@@ -392,10 +392,12 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		Chart:  loadedChart,
 		Values: values,
 	}); err != nil {
-		if errors.Is(err, intreconcile.ErrMustRequeue) {
+		switch {
+		case errors.Is(err, intreconcile.ErrRetryAfterInterval):
+			return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetActiveRetry().GetRetryInterval()}), nil
+		case errors.Is(err, intreconcile.ErrMustRequeue):
 			return ctrl.Result{Requeue: true}, nil
-		}
-		if interrors.IsOneOf(err, intreconcile.ErrExceededMaxRetries, intreconcile.ErrMissingRollbackTarget) {
+		case interrors.IsOneOf(err, intreconcile.ErrExceededMaxRetries, intreconcile.ErrMissingRollbackTarget):
 			err = reconcile.TerminalError(err)
 		}
 		return ctrl.Result{}, err

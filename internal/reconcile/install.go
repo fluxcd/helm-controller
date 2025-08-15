@@ -103,6 +103,12 @@ func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 	if err != nil {
 		r.failure(req, logBuf, err)
 
+		install := req.Object.GetInstall()
+
+		if install.GetRetry() != nil {
+			return nil
+		}
+
 		// Return error if we did not store a release, as this does not
 		// require remediation and the caller should e.g. retry.
 		if len(obsReleases) == 0 {
@@ -115,7 +121,7 @@ func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 		// without a new release in storage there is nothing to remediate,
 		// and the action can be retried immediately without causing
 		// storage drift.
-		req.Object.GetInstall().GetRemediation().IncrementFailureCount(req.Object)
+		install.GetRemediation().IncrementFailureCount(req.Object)
 		return nil
 	}
 
@@ -183,6 +189,12 @@ func (r *Install) success(req *Request) {
 	if req.Object.GetTest().Enable && !cur.HasBeenTested() {
 		conditions.MarkUnknown(req.Object, v2.TestSuccessCondition, "AwaitingTests", fmtTestPending,
 			cur.FullReleaseName(), cur.VersionedChartName())
+	}
+
+	// Failures are only relevant while the release is failed
+	// when a retry strategy is configured.
+	if req.Object.GetInstall().GetRetry() != nil {
+		req.Object.Status.ClearFailures()
 	}
 
 	// Record event.
