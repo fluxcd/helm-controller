@@ -84,28 +84,29 @@ func main() {
 	)
 
 	var (
-		metricsAddr               string
-		eventsAddr                string
-		healthAddr                string
-		concurrent                int
-		requeueDependency         time.Duration
-		gracefulShutdownTimeout   time.Duration
-		httpRetry                 int
-		clientOptions             client.Options
-		kubeConfigOpts            client.KubeConfigOptions
-		featureGates              feathelper.FeatureGates
-		logOptions                logger.Options
-		aclOptions                acl.Options
-		leaderElectionOptions     leaderelection.Options
-		rateLimiterOptions        helper.RateLimiterOptions
-		watchOptions              helper.WatchOptions
-		intervalJitterOptions     jitter.IntervalOptions
-		oomWatchInterval          time.Duration
-		oomWatchMemoryThreshold   uint8
-		oomWatchMaxMemoryPath     string
-		oomWatchCurrentMemoryPath string
-		snapshotDigestAlgo        string
-		tokenCacheOptions         cache.TokenFlags
+		metricsAddr                     string
+		eventsAddr                      string
+		healthAddr                      string
+		concurrent                      int
+		requeueDependency               time.Duration
+		gracefulShutdownTimeout         time.Duration
+		httpRetry                       int
+		clientOptions                   client.Options
+		kubeConfigOpts                  client.KubeConfigOptions
+		featureGates                    feathelper.FeatureGates
+		logOptions                      logger.Options
+		aclOptions                      acl.Options
+		leaderElectionOptions           leaderelection.Options
+		rateLimiterOptions              helper.RateLimiterOptions
+		watchOptions                    helper.WatchOptions
+		intervalJitterOptions           jitter.IntervalOptions
+		oomWatchInterval                time.Duration
+		oomWatchMemoryThreshold         uint8
+		oomWatchMaxMemoryPath           string
+		oomWatchCurrentMemoryPath       string
+		snapshotDigestAlgo              string
+		tokenCacheOptions               cache.TokenFlags
+		defaultKubeConfigServiceAccount string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080",
@@ -122,8 +123,10 @@ func main() {
 		"The duration given to the reconciler to finish before forcibly stopping.")
 	flag.IntVar(&httpRetry, "http-retry", 9,
 		"The maximum number of retries when failing to fetch artifacts over HTTP.")
-	flag.StringVar(&intkube.DefaultServiceAccountName, "default-service-account", "",
+	flag.StringVar(&intkube.DefaultServiceAccountName, auth.ControllerFlagDefaultServiceAccount, "",
 		"Default service account used for impersonation.")
+	flag.StringVar(&defaultKubeConfigServiceAccount, auth.ControllerFlagDefaultKubeConfigServiceAccount, "",
+		"Default service account used for kubeconfig.")
 	flag.Uint8Var(&oomWatchMemoryThreshold, "oom-watch-memory-threshold", 95,
 		"The memory threshold in percentage at which the OOM watcher will trigger a graceful shutdown. Requires feature gate 'OOMWatch' to be enabled.")
 	flag.DurationVar(&oomWatchInterval, "oom-watch-interval", 500*time.Millisecond,
@@ -163,6 +166,10 @@ func main() {
 		os.Exit(1)
 	case enabled:
 		auth.EnableObjectLevelWorkloadIdentity()
+	}
+
+	if defaultKubeConfigServiceAccount != "" {
+		auth.SetDefaultKubeConfigServiceAccount(defaultKubeConfigServiceAccount)
 	}
 
 	if err := intervalJitterOptions.SetGlobalJitter(nil); err != nil {
