@@ -172,6 +172,11 @@ func main() {
 		auth.SetDefaultKubeConfigServiceAccount(defaultKubeConfigServiceAccount)
 	}
 
+	if auth.InconsistentObjectLevelConfiguration() {
+		setupLog.Error(auth.ErrInconsistentObjectLevelConfiguration, "invalid configuration")
+		os.Exit(1)
+	}
+
 	if err := intervalJitterOptions.SetGlobalJitter(nil); err != nil {
 		setupLog.Error(err, "unable to set global jitter")
 		os.Exit(1)
