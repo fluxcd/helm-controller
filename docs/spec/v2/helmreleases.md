@@ -555,6 +555,31 @@ The field offers the following subfields:
 - `.disableWaitForJobs` (Optional): Disables waiting for any Jobs to complete
   after the installation of the chart. Defaults to `false`.
 
+#### Install strategy
+
+`.spec.install.strategy` is an optional field to specify the strategy
+to use when running a Helm install action.
+
+The field offers the following subfields:
+
+- `.name` (Required): The name of the install strategy to use. One of
+  `RemediateOnFailure` or `RetryOnFailure`.
+  If the `.spec.install.strategy` field is not specified, the HelmRelease
+  reconciliation behaves as if `.spec.install.strategy.name` was set to
+  `RemediateOnFailure`.
+- `.retryInterval` (Optional): The time to wait between retries of failed
+  releases when the install strategy is set to `RetryOnFailure`. Defaults
+  to `5m`. Cannot be used with `RemediateOnFailure`.
+
+The default `RemediateOnFailure` strategy applies the rules defined by the
+`.spec.install.remediation` field to the install action, i.e. the same
+behavior of the controller prior to the introduction of the `RetryOnFailure`
+strategy.
+
+The `RetryOnFailure` strategy will retry a failed install with an upgrade
+after the interval defined by the `.spec.install.strategy.retryInterval`
+field.
+
 #### Install remediation
 
 `.spec.install.remediation` is an optional field to configure the remediation
@@ -605,6 +630,30 @@ The field offers the following subfields:
 - `.preserveValues` (Optional): Instructs Helm to re-use the values from the
   last release while merging in overrides from [values](#values). Setting
   this flag makes the HelmRelease non-declarative. Defaults to `false`.
+
+#### Upgrade strategy
+
+`.spec.upgrade.strategy` is an optional field to specify the strategy
+to use when running a Helm upgrade action.
+
+The field offers the following subfields:
+
+- `.name` (Required): The name of the upgrade strategy to use. One of
+  `RemediateOnFailure` or `RetryOnFailure`. If the `.spec.upgrade.strategy`
+  field is not specified, the HelmRelease reconciliation behaves as if
+  `.spec.upgrade.strategy.name` was set to `RemediateOnFailure`.
+- `.retryInterval` (Optional): The time to wait between retries of failed
+  releases when the upgrade strategy is set to `RetryOnFailure`. Defaults
+  to `5m`. Cannot be used with `RemediateOnFailure`.
+
+The default `RemediateOnFailure` strategy applies the rules defined by the
+`.spec.upgrade.remediation` field to the upgrade action, i.e. the same
+behavior of the controller prior to the introduction of the `RetryOnFailure`
+strategy.
+
+The `RetryOnFailure` strategy will retry failed upgrades in a regular
+interval defined by the `.spec.upgrade.strategy.retryInterval` field,
+without applying any remediation.
 
 #### Upgrade remediation
 

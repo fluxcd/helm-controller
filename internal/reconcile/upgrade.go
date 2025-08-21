@@ -175,6 +175,12 @@ func (r *Upgrade) success(req *Request) {
 			cur.FullReleaseName(), cur.VersionedChartName())
 	}
 
+	// Failures are only relevant while the release is failed
+	// when a retry strategy is configured.
+	if req.Object.GetUpgrade().GetRetry() != nil {
+		req.Object.Status.ClearFailures()
+	}
+
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
