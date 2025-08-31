@@ -96,8 +96,8 @@ api-docs: gen-crd-api-reference-docs
 
 # Run go mod tidy
 tidy:
-	cd api; rm -f go.sum; go mod tidy -compat=1.23
-	rm -f go.sum; go mod tidy -compat=1.23
+	cd api; rm -f go.sum; go mod tidy -compat=1.25
+	rm -f go.sum; go mod tidy -compat=1.25
 
 # Run go fmt against code
 fmt:
