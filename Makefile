@@ -39,7 +39,7 @@ SOURCE_CRD_VER = $(CRD_DEP_ROOT)/.src-crd-$(SOURCE_VER)
 HELMCHART_SOURCE_CRD ?= $(CRD_DEP_ROOT)/source.toolkit.fluxcd.io_helmcharts.yaml
 
 # API (doc) generation utilities
-CONTROLLER_GEN_VERSION ?= v0.16.1
+CONTROLLER_GEN_VERSION ?= v0.19.0
 GEN_API_REF_DOCS_VERSION ?= e327d0730470cbd61b06300f81c5fcf91c23c113
 
 all: manager
@@ -96,8 +96,8 @@ api-docs: gen-crd-api-reference-docs
 
 # Run go mod tidy
 tidy:
-	cd api; rm -f go.sum; go mod tidy -compat=1.23
-	rm -f go.sum; go mod tidy -compat=1.23
+	cd api; rm -f go.sum; go mod tidy -compat=1.25
+	rm -f go.sum; go mod tidy -compat=1.25
 
 # Run go fmt against code
 fmt:
