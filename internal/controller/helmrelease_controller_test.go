@@ -239,7 +239,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
-			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "HelmChart 'mock/chart' is not ready"),
+			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "'mock/chart' is not ready"),
 		}))
 	})
 
@@ -296,7 +296,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
-			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "HelmChart 'mock/chart' is not ready"),
+			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "'mock/chart' is not ready"),
 		}))
 	})
 
@@ -1030,7 +1030,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
-			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "HelmChart 'mock/chart' is not ready"),
+			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "'mock/chart' is not ready"),
 		}))
 	})
 
@@ -1497,7 +1497,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
-			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "OCIRepository 'mock/ocirepo' is not ready"),
+			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "'mock/ocirepo' is not ready"),
 		}))
 	})
 
@@ -2817,6 +2817,10 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 		{
 			name: "all dependencies ready",
 			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dependant",
 					Namespace: "some-namespace",
@@ -2835,6 +2839,10 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: v2.GroupVersion.String(),
+						Kind:       v2.HelmReleaseKind,
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Generation: 1,
 						Name:       "dependency-1",
@@ -2848,6 +2856,10 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 					},
 				},
 				&v2.HelmRelease{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: v2.GroupVersion.String(),
+						Kind:       v2.HelmReleaseKind,
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Generation: 2,
 						Name:       "dependency-2",
@@ -2868,6 +2880,10 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 		{
 			name: "all dependencies ready with readyExpr",
 			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dependant",
 					Namespace: "some-namespace",
@@ -2897,6 +2913,10 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: v2.GroupVersion.String(),
+						Kind:       v2.HelmReleaseKind,
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "dependency-1",
 						Namespace: "some-namespace",
@@ -2908,6 +2928,10 @@ dep.metadata.generation == dep.status.observedGeneration
 					},
 				},
 				&v2.HelmRelease{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: v2.GroupVersion.String(),
+						Kind:       v2.HelmReleaseKind,
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Generation: 2,
 						Name:       "dependency-2",
@@ -2931,6 +2955,10 @@ dep.metadata.generation == dep.status.observedGeneration
 		{
 			name: "error on dependency with ObservedGeneration < Generation",
 			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dependant",
 					Namespace: "some-namespace",
@@ -2945,6 +2973,10 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: v2.GroupVersion.String(),
+						Kind:       v2.HelmReleaseKind,
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Generation: 2,
 						Name:       "dependency-1",
@@ -2966,6 +2998,10 @@ dep.metadata.generation == dep.status.observedGeneration
 		{
 			name: "error on dependency with ObservedGeneration = Generation and ReadyCondition = False",
 			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dependant",
 					Namespace: "some-namespace",
@@ -2980,6 +3016,10 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: v2.GroupVersion.String(),
+						Kind:       v2.HelmReleaseKind,
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Generation: 1,
 						Name:       "dependency-1",
@@ -3001,6 +3041,10 @@ dep.metadata.generation == dep.status.observedGeneration
 		{
 			name: "error on dependency without conditions",
 			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dependant",
 					Namespace: "some-namespace",
@@ -3015,6 +3059,10 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: v2.GroupVersion.String(),
+						Kind:       v2.HelmReleaseKind,
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Generation: 1,
 						Name:       "dependency-1",
@@ -3033,6 +3081,10 @@ dep.metadata.generation == dep.status.observedGeneration
 		{
 			name: "error on missing dependency",
 			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dependant",
 					Namespace: "some-namespace",
@@ -3053,6 +3105,10 @@ dep.metadata.generation == dep.status.observedGeneration
 		{
 			name: "error on dependency with readyExpr",
 			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dependant",
 					Namespace: "some-namespace",
@@ -3068,6 +3124,10 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: v2.GroupVersion.String(),
+						Kind:       v2.HelmReleaseKind,
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Generation: 1,
 						Name:       "dependency-1",
@@ -3086,6 +3146,10 @@ dep.metadata.generation == dep.status.observedGeneration
 		{
 			name: "terminal error on dependency with invalid readyExpr",
 			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dependant",
 					Namespace: "some-namespace",
@@ -3101,6 +3165,10 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: v2.GroupVersion.String(),
+						Kind:       v2.HelmReleaseKind,
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Generation: 1,
 						Name:       "dependency-1",
@@ -3123,14 +3191,17 @@ dep.metadata.generation == dep.status.observedGeneration
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			c := fake.NewClientBuilder().WithScheme(NewTestScheme())
+			c := fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{})
 			if len(tt.objects) > 0 {
 				c.WithObjects(tt.objects...)
 			}
 
+			fakeClient := c.Build()
 			r := &HelmReleaseReconciler{
-				Client:    c.Build(),
-				APIReader: c.Build(),
+				Client:    fakeClient,
+				APIReader: fakeClient,
 			}
 
 			err := r.checkDependencies(context.TODO(), tt.obj)
