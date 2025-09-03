@@ -424,6 +424,9 @@ HelmReleaseStatus
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2.ActionStrategyName">ActionStrategyName
+(<code>string</code> alias)</h3>
+<p>ActionStrategyName is a valid name for an action strategy.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.CRDsPolicy">CRDsPolicy
 (<code>string</code> alias)</h3>
 <p>
@@ -1676,7 +1679,8 @@ ReleaseAction
 <td>
 <em>(Optional)</em>
 <p>LastAttemptedReleaseAction is the last release action performed for this
-HelmRelease. It is used to determine the active remediation strategy.</p>
+HelmRelease. It is used to determine the active retry or remediation
+strategy.</p>
 </td>
 </tr>
 <tr>
@@ -1934,6 +1938,21 @@ Jobs for hooks) during the performance of a Helm install action. Defaults to
 </tr>
 <tr>
 <td>
+<code>strategy</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.InstallStrategy">
+InstallStrategy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Strategy defines the install strategy to use for this HelmRelease.
+Defaults to &lsquo;RemediateOnFailure&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>remediation</code><br>
 <em>
 <a href="#helm.toolkit.fluxcd.io/v2.InstallRemediation">
@@ -2156,6 +2175,54 @@ no retries remain. Defaults to &lsquo;false&rsquo;.</p>
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2.InstallStrategy">InstallStrategy
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.Install">Install</a>)
+</p>
+<p>InstallStrategy holds the configuration for Helm install strategy.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name of the install strategy.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>retryInterval</code><br>
+<em>
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RetryInterval is the interval at which to retry a failed install.
+Can be used only when Name is set to RetryOnFailure.
+Defaults to &lsquo;5m&rsquo;.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="helm.toolkit.fluxcd.io/v2.Kustomize">Kustomize
 </h3>
 <p>
@@ -2262,6 +2329,10 @@ UpgradeRemediation.</p>
 </p>
 <p>RemediationStrategy returns the strategy to use to remediate a failed install
 or upgrade.</p>
+<h3 id="helm.toolkit.fluxcd.io/v2.Retry">Retry
+</h3>
+<p>Retry defines a consistent interface for retry strategies from
+InstallStrategy and UpgradeStrategy.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.Rollback">Rollback
 </h3>
 <p>
@@ -2585,6 +2656,10 @@ string
 <a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseStatus">HelmReleaseStatus</a>)
 </p>
 <p>Snapshots is a list of Snapshot objects.</p>
+<h3 id="helm.toolkit.fluxcd.io/v2.Strategy">Strategy
+</h3>
+<p>Strategy defines a consistent interface for InstallStrategy and
+UpgradeStrategy.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.Test">Test
 </h3>
 <p>
@@ -2848,6 +2923,21 @@ Jobs for hooks) during the performance of a Helm upgrade action. Defaults to
 </tr>
 <tr>
 <td>
+<code>strategy</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.UpgradeStrategy">
+UpgradeStrategy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Strategy defines the upgrade strategy to use for this HelmRelease.
+Defaults to &lsquo;RemediateOnFailure&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>remediation</code><br>
 <em>
 <a href="#helm.toolkit.fluxcd.io/v2.UpgradeRemediation">
@@ -3075,6 +3165,54 @@ RemediationStrategy
 <td>
 <em>(Optional)</em>
 <p>Strategy to use for failure remediation. Defaults to &lsquo;rollback&rsquo;.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2.UpgradeStrategy">UpgradeStrategy
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.Upgrade">Upgrade</a>)
+</p>
+<p>UpgradeStrategy holds the configuration for Helm upgrade strategy.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name of the upgrade strategy.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>retryInterval</code><br>
+<em>
+<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RetryInterval is the interval at which to retry a failed upgrade.
+Can be used only when Name is set to RetryOnFailure.
+Defaults to &lsquo;5m&rsquo;.</p>
 </td>
 </tr>
 </tbody>

@@ -634,6 +634,27 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			wantErr: ErrExceededMaxRetries,
 		},
 		{
+			name: "install failure with retry",
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Install = &v2.Install{
+					Strategy: &v2.InstallStrategy{
+						Name:          "RetryOnFailure",
+						RetryInterval: &metav1.Duration{Duration: time.Minute},
+					},
+				}
+				spec.Uninstall = &v2.Uninstall{
+					KeepHistory: true,
+				}
+			},
+			chart: testutil.BuildChart(testutil.ChartWithFailingHook()),
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
+			wantErr: ErrRetryAfterInterval,
+		},
+		{
 			name: "install test failure with remediation",
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.Install = &v2.Install{
@@ -658,6 +679,33 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 				}
 			},
 			wantErr: ErrExceededMaxRetries,
+		},
+		{
+			name: "install test failure with retry",
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Install = &v2.Install{
+					Strategy: &v2.InstallStrategy{
+						Name:          "RetryOnFailure",
+						RetryInterval: &metav1.Duration{Duration: time.Minute},
+					},
+				}
+				spec.Test = &v2.Test{
+					Enable: true,
+				}
+				spec.Uninstall = &v2.Uninstall{
+					KeepHistory: true,
+				}
+			},
+			chart: testutil.BuildChart(testutil.ChartWithFailingTestHook()),
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				snap := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+				snap.SetTestHooks(release.TestHooksFromRelease(releases[0]))
+
+				return v2.Snapshots{
+					snap,
+				}
+			},
+			wantErr: ErrRetryAfterInterval,
 		},
 		{
 			name: "install test failure with test ignore",
@@ -807,6 +855,43 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			wantErr: ErrExceededMaxRetries,
 		},
 		{
+			name: "upgrade failure with retry",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Chart:     testutil.BuildChart(),
+						Status:    helmrelease.StatusDeployed,
+					}),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Upgrade = &v2.Upgrade{
+					Strategy: &v2.UpgradeStrategy{
+						Name:          "RetryOnFailure",
+						RetryInterval: &metav1.Duration{Duration: time.Minute},
+					},
+				}
+			},
+			status: func(namespace string, releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+				}
+			},
+			chart: testutil.BuildChart(testutil.ChartWithFailingHook()),
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
+			wantErr: ErrRetryAfterInterval,
+		},
+		{
 			name: "upgrade test failure with remediation",
 			releases: func(namespace string) []*helmrelease.Release {
 				return []*helmrelease.Release{
@@ -848,6 +933,49 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 				}
 			},
 			wantErr: ErrExceededMaxRetries,
+		},
+		{
+			name: "upgrade test failure with retry",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Chart:     testutil.BuildChart(),
+						Status:    helmrelease.StatusDeployed,
+					}),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Upgrade = &v2.Upgrade{
+					Strategy: &v2.UpgradeStrategy{
+						Name:          "RetryOnFailure",
+						RetryInterval: &metav1.Duration{Duration: time.Minute},
+					},
+				}
+				spec.Test = &v2.Test{
+					Enable: true,
+				}
+			},
+			status: func(namespace string, releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+				}
+			},
+			chart: testutil.BuildChart(testutil.ChartWithFailingTestHook()),
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				testedSnap := release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
+				testedSnap.SetTestHooks(release.TestHooksFromRelease(releases[1]))
+
+				return v2.Snapshots{
+					testedSnap,
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
+			wantErr: ErrRetryAfterInterval,
 		},
 		{
 			name: "upgrade test failure with test ignore",
@@ -983,6 +1111,55 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			},
 			chart:   testutil.BuildChart(),
 			wantErr: ErrExceededMaxRetries,
+		},
+		{
+			name: "upgrade retry does not result in exhausted retries",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Chart:     testutil.BuildChart(),
+						Status:    helmrelease.StatusSuperseded,
+					}),
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   2,
+						Chart:     testutil.BuildChart(),
+						Status:    helmrelease.StatusSuperseded,
+					}),
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   3,
+						Chart:     testutil.BuildChart(),
+						Status:    helmrelease.StatusFailed,
+					}),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Upgrade = &v2.Upgrade{
+					Strategy: &v2.UpgradeStrategy{
+						Name:          "RetryOnFailure",
+						RetryInterval: &metav1.Duration{Duration: time.Minute},
+					},
+				}
+			},
+			status: func(namespace string, releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
+						release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
+					Failures:                   2,
+					UpgradeFailures:            2,
+				}
+			},
+			chart: testutil.BuildChart(),
 		},
 	}
 	for _, tt := range tests {
@@ -1633,6 +1810,24 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			want: &UninstallRemediation{},
 		},
 		{
+			name:  "failed release with active install retry triggers upgrade",
+			state: ReleaseState{Status: ReleaseStatusFailed},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Install = &v2.Install{
+					Strategy: &v2.InstallStrategy{
+						Name: "RetryOnFailure",
+					},
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					LastAttemptedReleaseAction: v2.ReleaseActionInstall,
+					InstallFailures:            2,
+				}
+			},
+			want: &Upgrade{},
+		},
+		{
 			name:  "failed release with active upgrade remediation triggers rollback",
 			state: ReleaseState{Status: ReleaseStatusFailed},
 			releases: []*helmrelease.Release{
@@ -1669,6 +1864,44 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 				}
 			},
 			want: &RollbackRemediation{},
+		},
+		{
+			name:  "failed release with active upgrade retry triggers upgrade",
+			state: ReleaseState{Status: ReleaseStatusFailed},
+			releases: []*helmrelease.Release{
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   1,
+					Status:    helmrelease.StatusSuperseded,
+					Chart:     testutil.BuildChart(),
+				}),
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   2,
+					Status:    helmrelease.StatusFailed,
+					Chart:     testutil.BuildChart(),
+				}),
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Upgrade = &v2.Upgrade{
+					Strategy: &v2.UpgradeStrategy{
+						Name: "RetryOnFailure",
+					},
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
+					UpgradeFailures:            1,
+				}
+			},
+			want: &Upgrade{},
 		},
 		{
 			name:  "failed release with active upgrade remediation and no previous release triggers error",

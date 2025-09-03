@@ -663,6 +663,92 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g.Expect(obj.Status.Failures).To(Equal(int64(1)))
 	})
 
+	t.Run("uses retry interval when the error ErrRetryAfterInterval is returned", func(t *testing.T) {
+		g := NewWithT(t)
+
+		chartMock := testutil.BuildChart()
+		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		chart := &sourcev1.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  "mock",
+				Generation: 1,
+			},
+			Status: sourcev1.HelmChartStatus{
+				ObservedGeneration: 1,
+				Artifact:           chartArtifact,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "release",
+				Namespace:  "mock",
+				Generation: 2,
+			},
+			Spec: v2.HelmReleaseSpec{
+				// Trigger a failure by setting an invalid storage namespace,
+				// preventing the release from actually being installed.
+				// This allows us to just test the failure count reset, without
+				// having to facilitate a full install.
+				StorageNamespace: "not-exist",
+				Install: &v2.Install{
+					Strategy: &v2.InstallStrategy{
+						Name:          "RetryOnFailure",
+						RetryInterval: &metav1.Duration{Duration: time.Minute},
+					},
+				},
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart:               "mock/chart",
+				InstallFailures:         2,
+				UpgradeFailures:         3,
+				Failures:                5,
+				LastAttemptedGeneration: 2,
+			},
+		}
+
+		c := fake.NewClientBuilder().
+			WithScheme(NewTestScheme()).
+			WithStatusSubresource(&v2.HelmRelease{}).
+			WithObjects(chart, obj).
+			Build()
+
+		r := &HelmReleaseReconciler{
+			Client:           c,
+			APIReader:        c,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
+		}
+
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(res.RequeueAfter).To(BeNumerically("==", time.Minute))
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			{
+				Type:    "Ready",
+				Status:  "False",
+				Reason:  "RetryAfterInterval",
+				Message: "Will retry after 1m0s",
+			},
+			{
+				Type:    "Released",
+				Status:  "False",
+				Reason:  "InstallFailed",
+				Message: "Helm install failed for release mock/release with chart hello@0.1.0: create: failed to create: namespaces \"not-exist\" not found",
+			},
+		}))
+	})
+
 	t.Run("sets last attempted values", func(t *testing.T) {
 		g := NewWithT(t)
 
