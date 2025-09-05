@@ -205,11 +205,16 @@ HelmRelease object.
 
 ### Chart reference
 
-`.spec.chartRef` is an optional field used to refer to an [OCIRepository resource](https://fluxcd.io/flux/components/source/ocirepositories/) or a [HelmChart resource](https://fluxcd.io/flux/components/source/helmcharts/)
-from which to fetch the Helm chart. The chart is fetched by the controller with the
-information provided by `.status.artifact` of the referenced resource.
+`.spec.chartRef` is an optional field used to refer to the Source object which has an
+Artifact containing the Helm chart. It has two required fields:
 
-For a referenced resource of `kind OCIRepository`, the chart version of the last
+- `kind`: The Kind of the referred Source object. Supported Source types:
+  + [OCIRepository](https://fluxcd.io/flux/components/source/ocirepositories/)
+  + [HelmChart](https://fluxcd.io/flux/components/source/helmcharts/)
+  + [ExternalArtifact](https://fluxcd.io/flux/components/source/externalartifacts/) (requires `--feature-gates=ExternalArtifact=true` flag)
+- `name`: The Name of the referred Source object.
+
+For a referenced resource of kind `OCIRepository`, the chart version of the last
 release attempt is reported in `.status.lastAttemptedRevision`. The version is in
 the format `<version>+<digest[0:12]>`. The digest of the OCI artifact is appended
 to the version to ensure that a change in the artifact content triggers a new release.

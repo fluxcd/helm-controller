@@ -27,8 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	"github.com/fluxcd/pkg/apis/meta"
-
-	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 )
 
 func TestSourceRevisionChangePredicate_Update(t *testing.T) {
@@ -124,9 +122,9 @@ func (m sourceMock) GetRequeueAfter() time.Duration {
 	return time.Second * 0
 }
 
-func (m *sourceMock) GetArtifact() *sourcev1.Artifact {
+func (m *sourceMock) GetArtifact() *meta.Artifact {
 	if m.revision != "" {
-		return &sourcev1.Artifact{
+		return &meta.Artifact{
 			Revision: m.revision,
 		}
 	}

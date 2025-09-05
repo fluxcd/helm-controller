@@ -326,6 +326,12 @@ func main() {
 		}
 	}
 
+	allowExternalArtifact, err := features.Enabled(features.ExternalArtifact)
+	if err != nil {
+		setupLog.Error(err, "unable to check feature gate "+features.ExternalArtifact)
+		os.Exit(1)
+	}
+
 	if err = (&controller.HelmReleaseReconciler{
 		Client:                     mgr.GetClient(),
 		APIReader:                  mgr.GetAPIReader(),
@@ -338,11 +344,13 @@ func main() {
 		DisableChartDigestTracking: disableChartDigestTracking,
 		AdditiveCELDependencyCheck: additiveCELDependencyCheck,
 		TokenCache:                 tokenCache,
+		DependencyRequeueInterval:  requeueDependency,
+		ArtifactFetchRetries:       httpRetry,
+		AllowExternalArtifact:      allowExternalArtifact,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
-		DependencyRequeueInterval: requeueDependency,
-		HTTPRetry:                 httpRetry,
-		RateLimiter:               helper.GetRateLimiter(rateLimiterOptions),
-		WatchConfigsPredicate:     watchConfigsPredicate,
+		RateLimiter:            helper.GetRateLimiter(rateLimiterOptions),
+		WatchExternalArtifacts: allowExternalArtifact,
+		WatchConfigsPredicate:  watchConfigsPredicate,
 	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", v2.HelmReleaseKind)
 		os.Exit(1)
