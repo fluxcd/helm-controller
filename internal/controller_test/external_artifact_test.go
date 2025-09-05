@@ -14,13 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package test
+package controller_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
+	aclv1 "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	. "github.com/onsi/gomega"
@@ -36,6 +37,7 @@ import (
 
 func TestExternalArtifact_LifeCycle(t *testing.T) {
 	g := NewWithT(t)
+	reconciler.AllowExternalArtifact = true
 
 	// Create a namespace for the test
 	ns := v1.Namespace{
@@ -105,6 +107,26 @@ func TestExternalArtifact_LifeCycle(t *testing.T) {
 		}, 5*time.Second, time.Second).Should(BeTrue(), "HelmRelease did not upgrade")
 
 		g.Expect(hr.Status.LastAttemptedReleaseAction).To(Equal(v2.ReleaseActionUpgrade))
+	})
+
+	t.Run("fails when external artifact feature gate is disable", func(t *testing.T) {
+		newRevision := "3.0.0"
+		reconciler.AllowExternalArtifact = false
+
+		ea, err = applyExternalArtifact(eaKey, newRevision)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		g.Eventually(func() bool {
+			err = testEnv.Get(context.Background(), client.ObjectKeyFromObject(hr), hr)
+			if err != nil {
+				return false
+			}
+			return apimeta.IsStatusConditionFalse(hr.Status.Conditions, meta.ReadyCondition)
+		}, 5*time.Second, time.Second).Should(BeTrue())
+
+		g.Expect(apimeta.IsStatusConditionTrue(hr.Status.Conditions, meta.StalledCondition)).Should(BeTrue())
+		readyCondition := apimeta.FindStatusCondition(hr.Status.Conditions, meta.ReadyCondition)
+		g.Expect(readyCondition.Reason).To(Equal(aclv1.AccessDeniedReason))
 	})
 
 	t.Run("uninstalls successfully", func(t *testing.T) {

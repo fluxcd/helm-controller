@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package test
+package controller_test
 
 import (
 	"fmt"
@@ -50,6 +50,7 @@ var (
 	testEnv        *testenv.Environment
 	testServer     *testserver.HTTPServer
 	k8sClient      client.Client
+	reconciler     *controller.HelmReleaseReconciler
 
 	testCtx = ctrl.SetupSignalHandler()
 )
@@ -132,7 +133,7 @@ func GetTestClusterConfig() (*rest.Config, error) {
 // and starts the reconciliation loops.
 func StartController() error {
 	timeout := time.Second * 10
-	reconciler := &controller.HelmReleaseReconciler{
+	reconciler = &controller.HelmReleaseReconciler{
 		Client:           testEnv,
 		EventRecorder:    testEnv.GetEventRecorderFor(controllerName),
 		Metrics:          helper.Metrics{},
@@ -150,9 +151,12 @@ func StartController() error {
 		APIReader:                  testEnv,
 		TokenCache:                 nil,
 		FieldManager:               controllerName,
+		DependencyRequeueInterval:  5 * time.Second,
+		ArtifactFetchRetries:       1,
 		DefaultServiceAccount:      "",
 		DisableChartDigestTracking: false,
 		AdditiveCELDependencyCheck: false,
+		AllowExternalArtifact:      false,
 	}
 
 	watchConfigsPredicate, err := helper.GetWatchConfigsPredicate(helper.WatchOptions{})
@@ -161,8 +165,7 @@ func StartController() error {
 	}
 
 	return (reconciler).SetupWithManager(testCtx, testEnv, controller.HelmReleaseReconcilerOptions{
-		WatchConfigsPredicate:     watchConfigsPredicate,
-		DependencyRequeueInterval: 5 * time.Second,
-		HTTPRetry:                 1,
+		WatchConfigsPredicate:  watchConfigsPredicate,
+		WatchExternalArtifacts: true,
 	})
 }
