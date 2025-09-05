@@ -107,14 +107,14 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(dependency, obj).
 				Build(),
-			EventRecorder:     record.NewFakeRecorder(32),
-			requeueDependency: 5 * time.Second,
+			EventRecorder:             record.NewFakeRecorder(32),
+			DependencyRequeueInterval: 5 * time.Second,
 		}
 		r.APIReader = r.Client
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -235,7 +235,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForChart))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -292,7 +292,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForChart))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -400,13 +400,13 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(chart, obj).
 				Build(),
-			requeueDependency: 10 * time.Second,
+			DependencyRequeueInterval: 10 * time.Second,
 		}
 		r.APIReader = r.Client
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -1112,7 +1112,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForChart))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -1166,13 +1166,13 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(chart, obj).
 				Build(),
-			requeueDependency: 10 * time.Second,
-			EventRecorder:     record.NewFakeRecorder(32),
+			DependencyRequeueInterval: 10 * time.Second,
+			EventRecorder:             record.NewFakeRecorder(32),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -1246,13 +1246,13 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(chart, sharedChart, obj).
 				Build(),
-			requeueDependency: 10 * time.Second,
-			EventRecorder:     record.NewFakeRecorder(32),
+			DependencyRequeueInterval: 10 * time.Second,
+			EventRecorder:             record.NewFakeRecorder(32),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -1579,7 +1579,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForChart))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -1695,13 +1695,13 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(ocirepo, obj).
 				Build(),
-			requeueDependency: 10 * time.Second,
-			EventRecorder:     record.NewFakeRecorder(32),
+			DependencyRequeueInterval: 10 * time.Second,
+			EventRecorder:             record.NewFakeRecorder(32),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -1775,13 +1775,13 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(chart, ocirepo, obj).
 				Build(),
-			requeueDependency: 10 * time.Second,
-			EventRecorder:     record.NewFakeRecorder(32),
+			DependencyRequeueInterval: 10 * time.Second,
+			EventRecorder:             record.NewFakeRecorder(32),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),

@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/fluxcd/pkg/runtime/predicates"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -38,10 +37,9 @@ import (
 )
 
 type HelmReleaseReconcilerOptions struct {
-	HTTPRetry                 int
-	DependencyRequeueInterval time.Duration
-	RateLimiter               workqueue.TypedRateLimiter[reconcile.Request]
-	WatchConfigsPredicate     predicate.Predicate
+	RateLimiter            workqueue.TypedRateLimiter[reconcile.Request]
+	WatchExternalArtifacts bool
+	WatchConfigsPredicate  predicate.Predicate
 }
 
 func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
@@ -116,10 +114,7 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 		return err
 	}
 
-	r.requeueDependency = opts.DependencyRequeueInterval
-	r.artifactFetchRetries = opts.HTTPRetry
-
-	return ctrl.NewControllerManagedBy(mgr).
+	ctrlBuilder := ctrl.NewControllerManagedBy(mgr).
 		For(&v2.HelmRelease{}, builder.WithPredicates(
 			predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{}),
 		)).
@@ -133,11 +128,6 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 			handler.EnqueueRequestsFromMapFunc(r.requestsForOCIRepositoryChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
-		Watches(
-			&sourcev1.ExternalArtifact{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForExternalArtifactChange),
-			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
-		).
 		WatchesMetadata(
 			&corev1.ConfigMap{},
 			handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexConfigMap)),
@@ -147,9 +137,16 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexSecret)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, opts.WatchConfigsPredicate),
-		).
-		WithOptions(controller.Options{
-			RateLimiter: opts.RateLimiter,
-		}).
-		Complete(r)
+		)
+
+	if opts.WatchExternalArtifacts {
+		ctrlBuilder = ctrlBuilder.Watches(
+			&sourcev1.ExternalArtifact{},
+			handler.EnqueueRequestsFromMapFunc(r.requestsForExternalArtifactChange),
+			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
+		)
+	}
+
+	return ctrlBuilder.WithOptions(controller.Options{RateLimiter: opts.RateLimiter}).Complete(r)
+
 }

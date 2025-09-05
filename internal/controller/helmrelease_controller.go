@@ -87,19 +87,26 @@ type HelmReleaseReconciler struct {
 	kuberecorder.EventRecorder
 	helper.Metrics
 
-	GetClusterConfig func() (*rest.Config, error)
-	ClientOpts       runtimeClient.Options
-	KubeConfigOpts   runtimeClient.KubeConfigOptions
-	APIReader        client.Reader
-	TokenCache       *cache.TokenCache
+	// Kubernetes configuration
 
-	FieldManager               string
-	DefaultServiceAccount      string
-	DisableChartDigestTracking bool
+	FieldManager          string
+	DefaultServiceAccount string
+	GetClusterConfig      func() (*rest.Config, error)
+	ClientOpts            runtimeClient.Options
+	KubeConfigOpts        runtimeClient.KubeConfigOptions
+	APIReader             client.Reader
+	TokenCache            *cache.TokenCache
+
+	// Retry and requeue configuration
+
+	DependencyRequeueInterval time.Duration
+	ArtifactFetchRetries      int
+
+	// Feature gates
+
 	AdditiveCELDependencyCheck bool
-
-	requeueDependency    time.Duration
-	artifactFetchRetries int
+	AllowExternalArtifact      bool
+	DisableChartDigestTracking bool
 }
 
 var (
@@ -221,14 +228,14 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 
 			// Retry on transient errors.
 			msg := fmt.Sprintf("dependencies do not meet ready condition (%s): retrying in %s",
-				err.Error(), r.requeueDependency.String())
+				err.Error(), r.DependencyRequeueInterval.String())
 			conditions.MarkFalse(obj, meta.ReadyCondition, v2.DependencyNotReadyReason, "%s", err)
 			r.Eventf(obj, corev1.EventTypeNormal, v2.DependencyNotReadyReason, err.Error())
 			log.Info(msg)
 
 			// Exponential backoff would cause execution to be prolonged too much,
 			// instead we requeue on a fixed interval.
-			return ctrl.Result{RequeueAfter: r.requeueDependency}, errWaitForDependency
+			return ctrl.Result{RequeueAfter: r.DependencyRequeueInterval}, errWaitForDependency
 		}
 
 		log.Info("all dependencies are ready")
@@ -268,7 +275,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		conditions.MarkFalse(obj, meta.ReadyCondition, "SourceNotReady", "%s", msg)
 		// Do not requeue immediately, when the artifact is created
 		// the watcher should trigger a reconciliation.
-		return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: r.requeueDependency}), errWaitForChart
+		return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: r.DependencyRequeueInterval}), errWaitForChart
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.
 	if conditions.HasAnyReason(obj, meta.ReadyCondition, "SourceNotReady") {
@@ -293,13 +300,13 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	}
 
 	// Load chart from artifact.
-	loadedChart, err := loader.SecureLoadChartFromURL(loader.NewRetryableHTTPClient(ctx, r.artifactFetchRetries), source.GetArtifact().URL, source.GetArtifact().Digest)
+	loadedChart, err := loader.SecureLoadChartFromURL(loader.NewRetryableHTTPClient(ctx, r.ArtifactFetchRetries), source.GetArtifact().URL, source.GetArtifact().Digest)
 	if err != nil {
 		if errors.Is(err, loader.ErrFileNotFound) {
-			msg := fmt.Sprintf("Source not ready: artifact not found. Retrying in %s", r.requeueDependency.String())
+			msg := fmt.Sprintf("Source not ready: artifact not found. Retrying in %s", r.DependencyRequeueInterval.String())
 			conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "%s", msg)
 			log.Info(msg)
-			return ctrl.Result{RequeueAfter: r.requeueDependency}, errWaitForDependency
+			return ctrl.Result{RequeueAfter: r.DependencyRequeueInterval}, errWaitForDependency
 		}
 
 		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "Could not load chart: %s", err)
@@ -825,6 +832,13 @@ func (r *HelmReleaseReconciler) getSourceFromExternalArtifact(ctx context.Contex
 
 	if err := intacl.AllowsAccessTo(obj, sourcev1.ExternalArtifactKind, sourceRef); err != nil {
 		return nil, err
+	}
+
+	// Check if ExternalArtifact kind is allowed.
+	if obj.Spec.ChartRef.Kind == sourcev1.ExternalArtifactKind && !r.AllowExternalArtifact {
+		return nil, acl.AccessDeniedError(
+			fmt.Sprintf("can't access '%s/%s/%s', %s feature gate is disabled",
+				obj.Spec.ChartRef.Kind, namespace, name, features.ExternalArtifact))
 	}
 
 	or := sourcev1.ExternalArtifact{}
