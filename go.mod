@@ -39,6 +39,7 @@ require (
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20250116041648-1e56c6daea3b
 	github.com/spf13/pflag v1.0.7
 	github.com/wI2L/jsondiff v0.7.0
+	go.uber.org/zap v1.27.0
 	golang.org/x/text v0.28.0
 	helm.sh/helm/v3 v3.18.6
 	k8s.io/api v0.34.0
@@ -201,7 +202,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
