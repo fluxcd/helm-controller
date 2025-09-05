@@ -774,6 +774,9 @@ func (r *HelmReleaseReconciler) getSource(ctx context.Context, obj *v2.HelmRelea
 		if obj.Spec.ChartRef.Kind == sourcev1.OCIRepositoryKind {
 			return r.getSourceFromOCIRef(ctx, obj)
 		}
+		if obj.Spec.ChartRef.Kind == sourcev1.ExternalArtifactKind {
+			return r.getSourceFromExternalArtifact(ctx, obj)
+		}
 		name, namespace = obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
 		if namespace == "" {
 			namespace = obj.GetNamespace()
@@ -813,6 +816,24 @@ func (r *HelmReleaseReconciler) getSourceFromOCIRef(ctx context.Context, obj *v2
 	return &or, nil
 }
 
+func (r *HelmReleaseReconciler) getSourceFromExternalArtifact(ctx context.Context, obj *v2.HelmRelease) (sourcev1.Source, error) {
+	name, namespace := obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
+	if namespace == "" {
+		namespace = obj.GetNamespace()
+	}
+	sourceRef := types.NamespacedName{Namespace: namespace, Name: name}
+
+	if err := intacl.AllowsAccessTo(obj, sourcev1.ExternalArtifactKind, sourceRef); err != nil {
+		return nil, err
+	}
+
+	or := sourcev1.ExternalArtifact{}
+	if err := r.Client.Get(ctx, sourceRef, &or); err != nil {
+		return nil, err
+	}
+	return &or, nil
+}
+
 // waitForHistoryCacheSync returns a function that can be used to wait for the
 // cache backing the Kubernetes client to be in sync with the current state of
 // the v2.HelmRelease.
@@ -832,6 +853,13 @@ func (r *HelmReleaseReconciler) waitForHistoryCacheSync(obj *v2.HelmRelease) wai
 }
 
 func isSourceReady(obj sourcev1.Source) (bool, string) {
+	if o, ok := obj.(*sourcev1.ExternalArtifact); ok {
+		if obj.GetArtifact() == nil {
+			return false, fmt.Sprintf("ExternalArtifact '%s/%s' is not ready: does not have an artifact",
+				o.GetNamespace(), o.GetName())
+		}
+		return true, ""
+	}
 	if o, ok := obj.(conditions.Getter); ok {
 		return isReady(o, obj.GetArtifact())
 	}

@@ -133,6 +133,11 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 			handler.EnqueueRequestsFromMapFunc(r.requestsForOCIRepositoryChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
+		Watches(
+			&sourcev1.ExternalArtifact{},
+			handler.EnqueueRequestsFromMapFunc(r.requestsForExternalArtifactChange),
+			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
+		).
 		WatchesMetadata(
 			&corev1.ConfigMap{},
 			handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexConfigMap)),
