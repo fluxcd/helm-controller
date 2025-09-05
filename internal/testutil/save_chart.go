@@ -22,12 +22,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/opencontainers/go-digest"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chartutil"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+
+	"github.com/fluxcd/pkg/apis/meta"
 )
 
 // SaveChart saves the given chart to the given directory, and returns the
@@ -61,7 +62,7 @@ func SaveChart(c *chart.Chart, outDir string) (string, error) {
 // SaveChartAsArtifact saves the given chart to the given directory, and
 // returns an artifact with the chart's metadata. The chart is saved with a
 // random suffix to avoid name collisions.
-func SaveChartAsArtifact(c *chart.Chart, algo digest.Algorithm, baseURL, outDir string) (*sourcev1.Artifact, error) {
+func SaveChartAsArtifact(c *chart.Chart, algo digest.Algorithm, baseURL, outDir string) (*meta.Artifact, error) {
 	abs, err := SaveChart(c, outDir)
 	if err != nil {
 		return nil, err
@@ -85,7 +86,7 @@ func SaveChartAsArtifact(c *chart.Chart, algo digest.Algorithm, baseURL, outDir 
 	}
 	fileURL := strings.TrimSuffix(baseURL, "/") + "/" + rel
 
-	return &sourcev1.Artifact{
+	return &meta.Artifact{
 		Path:           abs,
 		URL:            fileURL,
 		Revision:       c.Metadata.Version,

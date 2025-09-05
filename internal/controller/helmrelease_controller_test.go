@@ -258,7 +258,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
-				Artifact:           &sourcev1.Artifact{},
+				Artifact:           &meta.Artifact{},
 				Conditions: []metav1.Condition{
 					{
 						Type:   meta.ReadyCondition,
@@ -314,7 +314,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 2,
-				Artifact:           &sourcev1.Artifact{},
+				Artifact:           &meta.Artifact{},
 				Conditions: []metav1.Condition{
 					{
 						Type:   meta.ReadyCondition,
@@ -372,7 +372,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
-				Artifact: &sourcev1.Artifact{
+				Artifact: &meta.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
 				},
 				Conditions: []metav1.Condition{
@@ -1134,7 +1134,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 2,
-				Artifact: &sourcev1.Artifact{
+				Artifact: &meta.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
 				},
 				Conditions: []metav1.Condition{
@@ -1190,7 +1190,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
-				Artifact:           &sourcev1.Artifact{},
+				Artifact:           &meta.Artifact{},
 				Conditions: []metav1.Condition{
 					{
 						Type:   meta.ReadyCondition,
@@ -1211,7 +1211,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 2,
-				Artifact: &sourcev1.Artifact{
+				Artifact: &meta.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
 				},
 				Conditions: []metav1.Condition{
@@ -1601,7 +1601,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
-				Artifact:           &sourcev1.Artifact{},
+				Artifact:           &meta.Artifact{},
 				Conditions: []metav1.Condition{
 					{
 						Type:   meta.ReadyCondition,
@@ -1663,7 +1663,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
-				Artifact: &sourcev1.Artifact{
+				Artifact: &meta.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
 				},
 				Conditions: []metav1.Condition{
@@ -1719,7 +1719,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
-				Artifact:           &sourcev1.Artifact{},
+				Artifact:           &meta.Artifact{},
 				Conditions: []metav1.Condition{
 					{
 						Type:   meta.ReadyCondition,
@@ -1740,7 +1740,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
-				Artifact: &sourcev1.Artifact{
+				Artifact: &meta.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
 				},
 				Conditions: []metav1.Condition{
@@ -3999,7 +3999,7 @@ func Test_isHelmChartReady(t *testing.T) {
 					Status: metav1.ConditionTrue,
 				},
 			},
-			Artifact: &sourcev1.Artifact{},
+			Artifact: &meta.Artifact{},
 		},
 	}
 
@@ -4089,7 +4089,7 @@ func Test_isOCIRepositoryReady(t *testing.T) {
 					Status: metav1.ConditionTrue,
 				},
 			},
-			Artifact: &sourcev1.Artifact{},
+			Artifact: &meta.Artifact{},
 		},
 	}
 
@@ -4210,7 +4210,7 @@ func Test_TryMutateChartWithSourceRevision(t *testing.T) {
 
 			s := &sourcev1.OCIRepository{
 				Status: sourcev1.OCIRepositoryStatus{
-					Artifact: &sourcev1.Artifact{
+					Artifact: &meta.Artifact{
 						Revision: tt.revision,
 					},
 				},

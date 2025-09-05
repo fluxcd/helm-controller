@@ -838,7 +838,7 @@ func isSourceReady(obj sourcev1.Source) (bool, string) {
 	return false, fmt.Sprintf("unknown sourcev1 type: %T", obj)
 }
 
-func isReady(obj conditions.Getter, artifact *sourcev1.Artifact) (bool, string) {
+func isReady(obj conditions.Getter, artifact *meta.Artifact) (bool, string) {
 	observedGen, err := object.GetStatusObservedGeneration(obj)
 	if err != nil {
 		return false, err.Error()
