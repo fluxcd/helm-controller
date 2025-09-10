@@ -913,39 +913,31 @@ func isValidChartRef(obj *v2.HelmRelease) bool {
 		(!obj.HasChartRef() && obj.HasChartTemplate())
 }
 
+// mutateChartWithSourceRevision mutates the chart version by appending the
+// digest part of the source revision to the chart version metadata.
+// It returns the digest that was appended, or an error if the mutation failed.
 func (r *HelmReleaseReconciler) mutateChartWithSourceRevision(chart *chart.Chart, source sourcev1.Source) (string, error) {
-	// If the source is an OCIRepository, we can try to mutate the chart version
-	// with the artifact revision. The revision is either a <tag>@<digest> or
-	// just a digest.
-	obj, ok := source.(*sourcev1.OCIRepository)
-	if !ok {
-		// if not make sure to return an empty string to delete the digest of the
-		// last attempted revision
+	if !isSourceWithRevisionDigest(source) {
+		// Clear any previously set digest in status
+		// if the source revision does not contain a digest.
 		return "", nil
 	}
 	ver, err := semver.NewVersion(chart.Metadata.Version)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("invalid chart version %s", chart.Metadata.Version)
 	}
 
-	var ociDigest string
-	revision := obj.GetArtifact().Revision
+	var revDigest string
+	revision := source.GetArtifact().Revision
+	tagVer, isSemverTag := parseSemverFromTag(revision)
 	switch {
-	case strings.Contains(revision, "@"):
-		tagD := strings.Split(revision, "@")
-		// replace '+' with '_' for OCI tag semver compatibility
-		// per https://github.com/helm/helm/blob/v3.14.4/pkg/registry/client.go#L45-L50
-		tagConverted := strings.ReplaceAll(tagD[0], "_", "+")
-		tagVer, err := semver.NewVersion(tagConverted)
-		if err != nil {
-			return "", fmt.Errorf("failed parsing artifact revision %s", tagConverted)
+	case isSemverTag:
+		tagDigestPair := strings.Split(revision, "@")
+		if len(tagDigestPair) != 2 || !tagVer.Equal(ver) {
+			return "", fmt.Errorf("artifact revision %s does not match chart version %s", tagDigestPair[0], chart.Metadata.Version)
 		}
-		if len(tagD) != 2 || !tagVer.Equal(ver) {
-			return "", fmt.Errorf("artifact revision %s does not match chart version %s", tagD[0], chart.Metadata.Version)
-		}
-		// algotithm are sha256, sha384, sha512 with the canonical being sha256
-		// So every digest starts with a sha algorithm and a colon
-		sha, err := extractDigestSubString(tagD[1])
+		// The digest should be in format <algorithm>:<digest>
+		sha, err := extractDigestSubString(tagDigestPair[1])
 		if err != nil {
 			return "", err
 		}
@@ -954,7 +946,7 @@ func (r *HelmReleaseReconciler) mutateChartWithSourceRevision(chart *chart.Chart
 		if err != nil {
 			return "", err
 		}
-		ociDigest = tagD[1]
+		revDigest = tagDigestPair[1]
 	default:
 		// default to the digest
 		sha, err := extractDigestSubString(revision)
@@ -965,14 +957,52 @@ func (r *HelmReleaseReconciler) mutateChartWithSourceRevision(chart *chart.Chart
 		if err != nil {
 			return "", err
 		}
-		ociDigest = revision
+		revDigest = revision
 	}
 
 	if !r.DisableChartDigestTracking {
 		chart.Metadata.Version = ver.String()
 	}
 
-	return ociDigest, nil
+	return revDigest, nil
+}
+
+// isSourceWithRevisionDigest returns true if the source
+// is of a type that supports immutable revisions,
+// such as OCIRepository or ExternalArtifact.
+func isSourceWithRevisionDigest(source sourcev1.Source) bool {
+	if _, ok := source.(*sourcev1.OCIRepository); ok {
+		return true
+	}
+	if _, ok := source.(*sourcev1.ExternalArtifact); ok {
+		// ExternalArtifact revision can be a semantic version or a digest.
+		// We only want to mutate the chart version if the revision contains a digest.
+		if source.GetArtifact() != nil &&
+			strings.Contains(source.GetArtifact().Revision, ":") {
+			return true
+		}
+	}
+	return false
+}
+
+// parseSemverFromTag attempts to parse a semver version from a tag
+// in the <version>@<algorithm>:<digest> or <version> format.
+// It returns the parsed semver version, or nil if the tag does not
+// contain a valid semver version. The boolean return value indicates
+// whether the parsing was successful.
+func parseSemverFromTag(tag string) (*semver.Version, bool) {
+	semverCandidate := tag
+	if strings.Contains(tag, "@") {
+		tagDigestPair := strings.Split(tag, "@")
+		// Replace '+' with '_' for OCI tag semver compatibility
+		// per https://github.com/helm/helm/blob/v3.14.4/pkg/registry/client.go#L45-L50
+		semverCandidate = strings.ReplaceAll(tagDigestPair[0], "_", "+")
+	}
+	ver, err := semver.NewVersion(semverCandidate)
+	if err != nil {
+		return nil, false
+	}
+	return ver, true
 }
 
 func extractDigestSubString(revision string) (string, error) {
@@ -992,11 +1022,11 @@ func extractDigestSubString(revision string) (string, error) {
 func extractDigest(revision string) string {
 	if strings.Contains(revision, "@") {
 		// expects a revision in the <version>@<algorithm>:<digest> format
-		tagD := strings.Split(revision, "@")
-		if len(tagD) != 2 {
+		tagDigestPair := strings.Split(revision, "@")
+		if len(tagDigestPair) != 2 {
 			return ""
 		}
-		return tagD[1]
+		return tagDigestPair[1]
 	} else {
 		// revision in the <algorithm>:<digest> format
 		return revision
