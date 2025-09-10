@@ -105,6 +105,48 @@ func (r *HelmReleaseReconciler) requestsForOCIRepositoryChange(ctx context.Conte
 	return reqs
 }
 
+// requestsForExternalArtifactChange enqueues requests for watched ExternalArtifacts
+// according to the specified index.
+func (r *HelmReleaseReconciler) requestsForExternalArtifactChange(ctx context.Context, o client.Object) []reconcile.Request {
+	or, ok := o.(*sourcev1.ExternalArtifact)
+	if !ok {
+		err := fmt.Errorf("expected an ExternalArtifact, got %T", o)
+		ctrl.LoggerFrom(ctx).Error(err, "failed to get requests for ExternalArtifact change")
+		return nil
+	}
+	// If we do not have an artifact, we have no requests to make
+	if or.GetArtifact() == nil {
+		return nil
+	}
+
+	var list v2.HelmReleaseList
+	if err := r.List(ctx, &list, client.MatchingFields{
+		v2.SourceIndexKey: sourcev1.ExternalArtifactKind + "/" + client.ObjectKeyFromObject(or).String(),
+	}); err != nil {
+		ctrl.LoggerFrom(ctx).Error(err, "failed to list HelmReleases for ExternalArtifact change")
+		return nil
+	}
+
+	var reqs []reconcile.Request
+	for i, hr := range list.Items {
+		// If the HelmRelease is ready and the digest of the artifact equals to the
+		// last attempted revision digest, we should not make a request for this HelmRelease,
+		// likewise if we cannot retrieve the artifact digest.
+		digest := extractDigest(or.GetArtifact().Revision)
+		if digest == "" {
+			ctrl.LoggerFrom(ctx).Error(fmt.Errorf("wrong digest for %T", or), "failed to get requests for ExternalArtifact change")
+			continue
+		}
+
+		if digest == hr.Status.LastAttemptedRevisionDigest {
+			continue
+		}
+
+		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
+	}
+	return reqs
+}
+
 // requestsForConfigDependency enqueues requests for watched ConfigMaps or Secrets
 // according to the specified index.
 func (r *HelmReleaseReconciler) requestsForConfigDependency(

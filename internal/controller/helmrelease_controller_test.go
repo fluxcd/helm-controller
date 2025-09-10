@@ -107,14 +107,14 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(dependency, obj).
 				Build(),
-			EventRecorder:     record.NewFakeRecorder(32),
-			requeueDependency: 5 * time.Second,
+			EventRecorder:             record.NewFakeRecorder(32),
+			DependencyRequeueInterval: 5 * time.Second,
 		}
 		r.APIReader = r.Client
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -235,7 +235,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForChart))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -258,7 +258,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
-				Artifact:           &sourcev1.Artifact{},
+				Artifact:           &meta.Artifact{},
 				Conditions: []metav1.Condition{
 					{
 						Type:   meta.ReadyCondition,
@@ -292,7 +292,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForChart))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -314,7 +314,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 2,
-				Artifact:           &sourcev1.Artifact{},
+				Artifact:           &meta.Artifact{},
 				Conditions: []metav1.Condition{
 					{
 						Type:   meta.ReadyCondition,
@@ -372,7 +372,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
-				Artifact: &sourcev1.Artifact{
+				Artifact: &meta.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
 				},
 				Conditions: []metav1.Condition{
@@ -400,13 +400,13 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(chart, obj).
 				Build(),
-			requeueDependency: 10 * time.Second,
+			DependencyRequeueInterval: 10 * time.Second,
 		}
 		r.APIReader = r.Client
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -1112,7 +1112,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForChart))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -1134,7 +1134,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 2,
-				Artifact: &sourcev1.Artifact{
+				Artifact: &meta.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
 				},
 				Conditions: []metav1.Condition{
@@ -1166,13 +1166,13 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(chart, obj).
 				Build(),
-			requeueDependency: 10 * time.Second,
-			EventRecorder:     record.NewFakeRecorder(32),
+			DependencyRequeueInterval: 10 * time.Second,
+			EventRecorder:             record.NewFakeRecorder(32),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -1190,7 +1190,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
-				Artifact:           &sourcev1.Artifact{},
+				Artifact:           &meta.Artifact{},
 				Conditions: []metav1.Condition{
 					{
 						Type:   meta.ReadyCondition,
@@ -1211,7 +1211,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 2,
-				Artifact: &sourcev1.Artifact{
+				Artifact: &meta.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
 				},
 				Conditions: []metav1.Condition{
@@ -1246,13 +1246,13 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(chart, sharedChart, obj).
 				Build(),
-			requeueDependency: 10 * time.Second,
-			EventRecorder:     record.NewFakeRecorder(32),
+			DependencyRequeueInterval: 10 * time.Second,
+			EventRecorder:             record.NewFakeRecorder(32),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -1579,7 +1579,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForChart))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -1601,7 +1601,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
-				Artifact:           &sourcev1.Artifact{},
+				Artifact:           &meta.Artifact{},
 				Conditions: []metav1.Condition{
 					{
 						Type:   meta.ReadyCondition,
@@ -1663,7 +1663,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
-				Artifact: &sourcev1.Artifact{
+				Artifact: &meta.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
 				},
 				Conditions: []metav1.Condition{
@@ -1695,13 +1695,13 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(ocirepo, obj).
 				Build(),
-			requeueDependency: 10 * time.Second,
-			EventRecorder:     record.NewFakeRecorder(32),
+			DependencyRequeueInterval: 10 * time.Second,
+			EventRecorder:             record.NewFakeRecorder(32),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -1719,7 +1719,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
-				Artifact:           &sourcev1.Artifact{},
+				Artifact:           &meta.Artifact{},
 				Conditions: []metav1.Condition{
 					{
 						Type:   meta.ReadyCondition,
@@ -1740,7 +1740,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
-				Artifact: &sourcev1.Artifact{
+				Artifact: &meta.Artifact{
 					URL: testServer.URL() + "/does-not-exist",
 				},
 				Conditions: []metav1.Condition{
@@ -1775,13 +1775,13 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(chart, ocirepo, obj).
 				Build(),
-			requeueDependency: 10 * time.Second,
-			EventRecorder:     record.NewFakeRecorder(32),
+			DependencyRequeueInterval: 10 * time.Second,
+			EventRecorder:             record.NewFakeRecorder(32),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
 		g.Expect(err).To(Equal(errWaitForDependency))
-		g.Expect(res.RequeueAfter).To(Equal(r.requeueDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
@@ -3999,7 +3999,7 @@ func Test_isHelmChartReady(t *testing.T) {
 					Status: metav1.ConditionTrue,
 				},
 			},
-			Artifact: &sourcev1.Artifact{},
+			Artifact: &meta.Artifact{},
 		},
 	}
 
@@ -4089,7 +4089,7 @@ func Test_isOCIRepositoryReady(t *testing.T) {
 					Status: metav1.ConditionTrue,
 				},
 			},
-			Artifact: &sourcev1.Artifact{},
+			Artifact: &meta.Artifact{},
 		},
 	}
 
@@ -4210,7 +4210,7 @@ func Test_TryMutateChartWithSourceRevision(t *testing.T) {
 
 			s := &sourcev1.OCIRepository{
 				Status: sourcev1.OCIRepositoryStatus{
-					Artifact: &sourcev1.Artifact{
+					Artifact: &meta.Artifact{
 						Revision: tt.revision,
 					},
 				},
