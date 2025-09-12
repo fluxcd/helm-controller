@@ -18,6 +18,7 @@ package controller_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -54,7 +55,7 @@ func TestExternalArtifact_LifeCycle(t *testing.T) {
 		Namespace: ns.Name,
 		Name:      "test-ea",
 	}
-	ea, err := applyExternalArtifact(eaKey, revision)
+	ea, err := applyExternalArtifact(eaKey, revision, "")
 	g.Expect(err).ToNot(HaveOccurred(), "failed to create ExternalArtifact")
 
 	// Create a HelmRelease that references the ExternalArtifact
@@ -80,7 +81,8 @@ func TestExternalArtifact_LifeCycle(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 
 	t.Run("installs from external artifact", func(t *testing.T) {
-		g.Eventually(func() bool {
+		gt := NewWithT(t)
+		gt.Eventually(func() bool {
 			err = testEnv.Get(context.Background(), client.ObjectKeyFromObject(hr), hr)
 			if err != nil {
 				return false
@@ -88,16 +90,17 @@ func TestExternalArtifact_LifeCycle(t *testing.T) {
 			return apimeta.IsStatusConditionTrue(hr.Status.Conditions, meta.ReadyCondition)
 		}, 5*time.Second, time.Second).Should(BeTrue(), "HelmRelease did not become ready")
 
-		g.Expect(hr.Status.LastAttemptedRevision).To(Equal(revision))
-		g.Expect(hr.Status.LastAttemptedReleaseAction).To(Equal(v2.ReleaseActionInstall))
+		gt.Expect(hr.Status.LastAttemptedRevision).To(Equal(revision))
+		gt.Expect(hr.Status.LastAttemptedReleaseAction).To(Equal(v2.ReleaseActionInstall))
 	})
 
 	t.Run("upgrades at external artifact revision change", func(t *testing.T) {
+		gt := NewWithT(t)
 		newRevision := "2.0.0"
-		ea, err = applyExternalArtifact(eaKey, newRevision)
-		g.Expect(err).ToNot(HaveOccurred())
+		ea, err = applyExternalArtifact(eaKey, newRevision, "")
+		gt.Expect(err).ToNot(HaveOccurred())
 
-		g.Eventually(func() bool {
+		gt.Eventually(func() bool {
 			err = testEnv.Get(context.Background(), client.ObjectKeyFromObject(hr), hr)
 			if err != nil {
 				return false
@@ -106,17 +109,55 @@ func TestExternalArtifact_LifeCycle(t *testing.T) {
 				hr.Status.LastAttemptedRevision == newRevision
 		}, 5*time.Second, time.Second).Should(BeTrue(), "HelmRelease did not upgrade")
 
-		g.Expect(hr.Status.LastAttemptedReleaseAction).To(Equal(v2.ReleaseActionUpgrade))
+		gt.Expect(hr.Status.LastAttemptedReleaseAction).To(Equal(v2.ReleaseActionUpgrade))
+	})
+
+	t.Run("upgrades at external artifact revision switch to digest", func(t *testing.T) {
+		gt := NewWithT(t)
+		fixedRevision := "2.0.0"
+		newDigest := fmt.Sprintf("latest@%s", digest.FromString("1"))
+		ea, err = applyExternalArtifact(eaKey, fixedRevision, newDigest)
+		gt.Expect(err).ToNot(HaveOccurred())
+
+		gt.Eventually(func() bool {
+			err = testEnv.Get(context.Background(), client.ObjectKeyFromObject(hr), hr)
+			if err != nil {
+				return false
+			}
+			return apimeta.IsStatusConditionTrue(hr.Status.Conditions, meta.ReadyCondition) &&
+				hr.Status.LastAttemptedRevisionDigest == newDigest
+		}, 5*time.Second, time.Second).Should(BeTrue(), "HelmRelease did not upgrade")
+
+		gt.Expect(hr.Status.LastAttemptedReleaseAction).To(Equal(v2.ReleaseActionUpgrade))
+	})
+
+	t.Run("upgrades at external artifact digest change", func(t *testing.T) {
+		gt := NewWithT(t)
+		fixedRevision := "2.0.0"
+		newDigest := digest.FromString("2").String()
+		ea, err = applyExternalArtifact(eaKey, fixedRevision, newDigest)
+		gt.Expect(err).ToNot(HaveOccurred())
+
+		gt.Eventually(func() bool {
+			err = testEnv.Get(context.Background(), client.ObjectKeyFromObject(hr), hr)
+			if err != nil {
+				return false
+			}
+			return apimeta.IsStatusConditionTrue(hr.Status.Conditions, meta.ReadyCondition) &&
+				hr.Status.LastAttemptedRevisionDigest == newDigest
+		}, 5*time.Second, time.Second).Should(BeTrue(), "HelmRelease did not upgrade")
+
+		gt.Expect(hr.Status.LastAttemptedReleaseAction).To(Equal(v2.ReleaseActionUpgrade))
 	})
 
 	t.Run("fails when external artifact feature gate is disable", func(t *testing.T) {
-		newRevision := "3.0.0"
+		gt := NewWithT(t)
 		reconciler.AllowExternalArtifact = false
+		newRevision := "3.0.0"
+		ea, err = applyExternalArtifact(eaKey, newRevision, "")
+		gt.Expect(err).ToNot(HaveOccurred())
 
-		ea, err = applyExternalArtifact(eaKey, newRevision)
-		g.Expect(err).ToNot(HaveOccurred())
-
-		g.Eventually(func() bool {
+		gt.Eventually(func() bool {
 			err = testEnv.Get(context.Background(), client.ObjectKeyFromObject(hr), hr)
 			if err != nil {
 				return false
@@ -124,24 +165,25 @@ func TestExternalArtifact_LifeCycle(t *testing.T) {
 			return apimeta.IsStatusConditionFalse(hr.Status.Conditions, meta.ReadyCondition)
 		}, 5*time.Second, time.Second).Should(BeTrue())
 
-		g.Expect(apimeta.IsStatusConditionTrue(hr.Status.Conditions, meta.StalledCondition)).Should(BeTrue())
+		gt.Expect(apimeta.IsStatusConditionTrue(hr.Status.Conditions, meta.StalledCondition)).Should(BeTrue())
 		readyCondition := apimeta.FindStatusCondition(hr.Status.Conditions, meta.ReadyCondition)
-		g.Expect(readyCondition.Reason).To(Equal(aclv1.AccessDeniedReason))
+		gt.Expect(readyCondition.Reason).To(Equal(aclv1.AccessDeniedReason))
 	})
 
 	t.Run("uninstalls successfully", func(t *testing.T) {
+		gt := NewWithT(t)
 		err = k8sClient.Delete(context.Background(), hr)
-		g.Expect(err).ToNot(HaveOccurred())
+		gt.Expect(err).ToNot(HaveOccurred())
 
-		g.Eventually(func() bool {
+		gt.Eventually(func() bool {
 			err = testEnv.Get(context.Background(), client.ObjectKeyFromObject(hr), hr)
 			return err != nil && client.IgnoreNotFound(err) == nil
 		}, 5*time.Second, time.Second).Should(BeTrue(), "HelmRelease was not deleted")
 	})
 }
 
-func applyExternalArtifact(objKey client.ObjectKey, revision string) (*sourcev1.ExternalArtifact, error) {
-	chart := testutil.BuildChart(testutil.ChartWithVersion(revision))
+func applyExternalArtifact(objKey client.ObjectKey, aVersion, aDigest string) (*sourcev1.ExternalArtifact, error) {
+	chart := testutil.BuildChart(testutil.ChartWithVersion(aVersion))
 	artifact, err := testutil.SaveChartAsArtifact(chart, digest.SHA256, testServer.URL(), testServer.Root())
 	if err != nil {
 		return nil, err
@@ -169,6 +211,9 @@ func applyExternalArtifact(objKey client.ObjectKey, revision string) (*sourcev1.
 	}
 
 	ea.ManagedFields = nil
+	if aDigest != "" {
+		artifact.Revision = aDigest
+	}
 	ea.Status = sourcev1.ExternalArtifactStatus{
 		Artifact: artifact,
 		Conditions: []metav1.Condition{
