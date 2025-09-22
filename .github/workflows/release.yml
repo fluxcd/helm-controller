@@ -7,115 +7,21 @@ on:
     inputs:
       tag:
         description: 'image tag prefix'
-        default: 'preview'
+        default: 'rc'
         required: true
-
-permissions:
-  contents: read
-
-env:
-  CONTROLLER: ${{ github.event.repository.name }}
-
 jobs:
   release:
-    outputs:
-      hashes: ${{ steps.slsa.outputs.hashes }}
-      image_url: ${{ steps.slsa.outputs.image_url }}
-      image_digest: ${{ steps.slsa.outputs.image_digest }}
-    runs-on: ubuntu-latest
     permissions:
       contents: write # for creating the GitHub release.
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for pushing and signing container images.
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - name: Setup Kustomize
-        uses: fluxcd/pkg/actions/kustomize@main
-      - name: Prepare
-        id: prep
-        run: |
-          VERSION="${{ github.event.inputs.tag }}-${GITHUB_SHA::8}"
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF/refs\/tags\//}
-          fi
-          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
-          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
-      - name: Setup Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
-        with:
-          registry: ghcr.io
-          username: fluxcdbot
-          password: ${{ secrets.GHCR_TOKEN }}
-      - name: Login to Docker Hub
-        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
-        with:
-          username: fluxcdbot
-          password: ${{ secrets.DOCKER_FLUXCD_PASSWORD }}
-      - name: Generate images meta
-        id: meta
-        uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5.8.0
-        with:
-          images: |
-            fluxcd/${{ env.CONTROLLER }}
-            ghcr.io/fluxcd/${{ env.CONTROLLER }}
-          tags: |
-            type=raw,value=${{ steps.prep.outputs.VERSION }}
-      - name: Publish images
-        id: build-push
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        with:
-          sbom: true
-          provenance: true
-          push: true
-          builder: ${{ steps.buildx.outputs.name }}
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64,linux/arm/v7,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-      - uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
-      - name: Sign images
-        env:
-          COSIGN_EXPERIMENTAL: 1
-        run: |
-          cosign sign --yes fluxcd/${{ env.CONTROLLER }}@${{ steps.build-push.outputs.digest }}
-          cosign sign --yes ghcr.io/fluxcd/${{ env.CONTROLLER }}@${{ steps.build-push.outputs.digest }}
-      - name: Generate release artifacts
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          mkdir -p config/release
-          kustomize build ./config/crd > ./config/release/${{ env.CONTROLLER }}.crds.yaml
-          kustomize build ./config/manager > ./config/release/${{ env.CONTROLLER }}.deployment.yaml
-      - uses: anchore/sbom-action/download-syft@da167eac915b4e86f08b264dbdbc867b61be6f0c # v0.20.5
-      - name: Create release and SBOM
-        id: run-goreleaser
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
-        with:
-          version: latest
-          args: release --clean --skip=validate
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Generate SLSA metadata
-        id: slsa
-        env:
-          ARTIFACTS: "${{ steps.run-goreleaser.outputs.artifacts }}"
-        run: |
-          hashes=$(echo -E $ARTIFACTS | jq --raw-output '.[] | {name, "digest": (.extra.Digest // .extra.Checksum)} | select(.digest) | {digest} + {name} | join("  ") | sub("^sha256:";"")' | base64 -w0)
-          echo "hashes=$hashes" >> $GITHUB_OUTPUT
-          
-          image_url=fluxcd/${{ env.CONTROLLER }}:${{ steps.prep.outputs.version }}
-          echo "image_url=$image_url" >> $GITHUB_OUTPUT
-          
-          image_digest=${{ steps.build-push.outputs.digest }}
-          echo "image_digest=$image_digest" >> $GITHUB_OUTPUT
-
+    uses: fluxcd/gha-workflows/.github/workflows/controller-release.yaml@v0.3.0
+    with:
+      controller: ${{ github.event.repository.name }}
+      release-candidate-prefix: ${{ github.event.inputs.tag }}
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+      dockerhub-token: ${{ secrets.DOCKER_FLUXCD_PASSWORD }}
   release-provenance:
     needs: [release]
     permissions:
@@ -128,10 +34,10 @@ jobs:
       provenance-name: "provenance.intoto.jsonl"
       base64-subjects: "${{ needs.release.outputs.hashes }}"
       upload-assets: true
-
   dockerhub-provenance:
     needs: [release]
     permissions:
+      contents: read # for reading the repository code.
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations.
@@ -143,10 +49,10 @@ jobs:
       registry-username: fluxcdbot
     secrets:
       registry-password: ${{ secrets.DOCKER_FLUXCD_PASSWORD }}
-
   ghcr-provenance:
     needs: [release]
     permissions:
+      contents: read # for reading the repository code.
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations.
