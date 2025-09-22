@@ -201,7 +201,7 @@ type Kustomize struct {
 	// for changing image names, tags or digests. This can also be achieved with a
 	// patch, but this operator is simpler to specify.
 	// +optional
-	Images []kustomize.Image `json:"images,omitempty" json:"images,omitempty"`
+	Images []kustomize.Image `json:"images,omitempty"`
 }
 
 // CommonMetadata defines the common labels and annotations.
@@ -422,6 +422,28 @@ type HelmChartTemplateVerification struct {
 	// trusted public keys.
 	// +optional
 	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
+
+	// MatchOIDCIdentity specifies the identity matching criteria to use
+	// while verifying an OCI artifact which was signed using Cosign keyless
+	// signing. The artifact's identity is deemed to be verified if any of the
+	// specified matchers match against the identity.
+	// +optional
+	MatchOIDCIdentity []OIDCIdentityMatch `json:"matchOIDCIdentity,omitempty"`
+}
+
+// OIDCIdentityMatch specifies options for verifying the certificate identity,
+// i.e. the issuer and the subject of the certificate.
+type OIDCIdentityMatch struct {
+	// Issuer specifies the regex pattern to match against to verify
+	// the OIDC issuer in the Fulcio certificate. The pattern must be a
+	// valid Go regular expression.
+	// +required
+	Issuer string `json:"issuer"`
+	// Subject specifies the regex pattern to match against to verify
+	// the identity subject in the Fulcio certificate. The pattern must
+	// be a valid Go regular expression.
+	// +required
+	Subject string `json:"subject"`
 }
 
 // Remediation defines a consistent interface for InstallRemediation and
@@ -1441,8 +1463,8 @@ func (in *HelmRelease) GetLastHandledForceRequestStatus() *string {
 
 // HelmReleaseList contains a list of HelmRelease objects.
 type HelmReleaseList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta `              json:",inline"`
+	metav1.ListMeta `              json:"metadata,omitempty"`
 	Items           []HelmRelease `json:"items"`
 }
 

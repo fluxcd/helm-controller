@@ -92,7 +92,11 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				DeletionTimestamp: &ts,
 			},
 			Status: v2.HelmReleaseStatus{
-				HelmChart: fmt.Sprintf("%s/%s", existingChart.GetNamespace(), existingChart.GetName()),
+				HelmChart: fmt.Sprintf(
+					"%s/%s",
+					existingChart.GetNamespace(),
+					existingChart.GetName(),
+				),
 			},
 		}
 
@@ -154,7 +158,11 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				},
 			},
 			Status: v2.HelmReleaseStatus{
-				HelmChart: fmt.Sprintf("%s/%s", existingChart.GetNamespace(), existingChart.GetName()),
+				HelmChart: fmt.Sprintf(
+					"%s/%s",
+					existingChart.GetNamespace(),
+					existingChart.GetName(),
+				),
 			},
 		}
 
@@ -203,7 +211,11 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				},
 			},
 			Status: v2.HelmReleaseStatus{
-				HelmChart: fmt.Sprintf("%s/%s", namespace.GetName(), namespace.GetName()+"-"+releaseName),
+				HelmChart: fmt.Sprintf(
+					"%s/%s",
+					namespace.GetName(),
+					namespace.GetName()+"-"+releaseName,
+				),
 			},
 		}
 		err := r.Reconcile(context.TODO(), &Request{Object: obj})
@@ -275,7 +287,11 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				},
 			},
 			Status: v2.HelmReleaseStatus{
-				HelmChart: fmt.Sprintf("%s/%s", existingChart.GetNamespace(), existingChart.GetName()),
+				HelmChart: fmt.Sprintf(
+					"%s/%s",
+					existingChart.GetNamespace(),
+					existingChart.GetName(),
+				),
 			},
 		}
 		err := r.Reconcile(context.TODO(), &Request{Object: obj})
@@ -346,7 +362,11 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				},
 			},
 			Status: v2.HelmReleaseStatus{
-				HelmChart: fmt.Sprintf("%s/%s", existingChart.GetNamespace(), existingChart.GetName()),
+				HelmChart: fmt.Sprintf(
+					"%s/%s",
+					existingChart.GetNamespace(),
+					existingChart.GetName(),
+				),
 			},
 		}
 
@@ -358,7 +378,8 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		g.Expect(testEnv.Get(context.TODO(), types.NamespacedName{
 			Namespace: obj.Spec.Chart.GetNamespace(obj.Namespace),
 			Name:      obj.GetHelmChartName()}, &newChart)).To(Succeed())
-		g.Expect(newChart.ResourceVersion).To(Equal(existingChart.ResourceVersion), "HelmChart should not have been updated")
+		g.Expect(newChart.ResourceVersion).
+			To(Equal(existingChart.ResourceVersion), "HelmChart should not have been updated")
 	})
 
 	t.Run("sets owner labels on HelmChart", func(t *testing.T) {
@@ -389,7 +410,11 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				},
 			},
 			Status: v2.HelmReleaseStatus{
-				HelmChart: fmt.Sprintf("%s/%s", namespace.GetName(), namespace.GetName()+"-"+releaseName),
+				HelmChart: fmt.Sprintf(
+					"%s/%s",
+					namespace.GetName(),
+					namespace.GetName()+"-"+releaseName,
+				),
 			},
 		}
 		err := r.Reconcile(context.TODO(), &Request{Object: obj})
@@ -405,8 +430,10 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 			)).To(Succeed())
 			g.Expect(testEnv.Cleanup(context.Background(), &expectChart)).To(Succeed())
 
-			g.Expect(expectChart.GetLabels()).To(HaveKeyWithValue(v2.GroupVersion.Group+"/name", obj.GetName()))
-			g.Expect(expectChart.GetLabels()).To(HaveKeyWithValue(v2.GroupVersion.Group+"/namespace", obj.GetNamespace()))
+			g.Expect(expectChart.GetLabels()).
+				To(HaveKeyWithValue(v2.GroupVersion.Group+"/name", obj.GetName()))
+			g.Expect(expectChart.GetLabels()).
+				To(HaveKeyWithValue(v2.GroupVersion.Group+"/namespace", obj.GetNamespace()))
 		}).Should(Succeed())
 	})
 
@@ -438,7 +465,11 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(obj.Status.HelmChart).To(BeEmpty())
 
-		err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: "other", Name: "chart"}, &sourcev1.HelmChart{})
+		err = r.client.Get(
+			context.TODO(),
+			types.NamespacedName{Namespace: "other", Name: "chart"},
+			&sourcev1.HelmChart{},
+		)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
@@ -489,7 +520,11 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 				},
 			},
 			Status: v2.HelmReleaseStatus{
-				HelmChart: fmt.Sprintf("%s/%s", existingChart.GetNamespace(), existingChart.GetName()),
+				HelmChart: fmt.Sprintf(
+					"%s/%s",
+					existingChart.GetNamespace(),
+					existingChart.GetName(),
+				),
 			},
 		}
 		err := r.Reconcile(context.TODO(), &Request{Object: obj})
@@ -532,7 +567,11 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(obj.Status.HelmChart).To(BeEmpty())
 
-		err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: "default", Name: "chart"}, &sourcev1.HelmChart{})
+		err = r.client.Get(
+			context.TODO(),
+			types.NamespacedName{Namespace: "default", Name: "chart"},
+			&sourcev1.HelmChart{},
+		)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
@@ -593,7 +632,11 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 		g.Expect(obj.Status.HelmChart).ToNot(BeEmpty())
 
 		g.Consistently(func(g Gomega) {
-			err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: "default", Name: "chart"}, &sourcev1.HelmChart{})
+			err = r.client.Get(
+				context.TODO(),
+				types.NamespacedName{Namespace: "default", Name: "chart"},
+				&sourcev1.HelmChart{},
+			)
 			g.Expect(err).ToNot(HaveOccurred())
 		}).Should(Succeed())
 	})
@@ -772,6 +815,45 @@ func Test_buildHelmChartFromTemplate(t *testing.T) {
 						Provider: "cosign",
 						SecretRef: &meta.LocalObjectReference{
 							Name: "cosign-key",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "take cosign keyless verification into account",
+			modify: func(hr *v2.HelmRelease) {
+				hr.Spec.Chart.Spec.Verify = &v2.HelmChartTemplateVerification{
+					Provider: "cosign",
+					MatchOIDCIdentity: []v2.OIDCIdentityMatch{
+						{
+							Issuer:  "issuer",
+							Subject: "subject",
+						},
+					},
+				}
+			},
+			want: &sourcev1.HelmChart{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default-test-release",
+					Namespace: "default",
+				},
+				Spec: sourcev1.HelmChartSpec{
+					Chart:   "chart",
+					Version: "1.0.0",
+					SourceRef: sourcev1.LocalHelmChartSourceReference{
+						Name: "test-repository",
+						Kind: "HelmRepository",
+					},
+					Interval:    metav1.Duration{Duration: 2 * time.Minute},
+					ValuesFiles: []string{"values.yaml"},
+					Verify: &sourcev1.OCIRepositoryVerification{
+						Provider: "cosign",
+						MatchOIDCIdentity: []sourcev1.OIDCIdentityMatch{
+							{
+								Issuer:  "issuer",
+								Subject: "subject",
+							},
 						},
 					},
 				},

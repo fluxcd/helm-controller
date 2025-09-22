@@ -1182,6 +1182,23 @@ github.com/fluxcd/pkg/apis/meta.LocalObjectReference
 trusted public keys.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>matchOIDCIdentity</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.OIDCIdentityMatch">
+[]OIDCIdentityMatch
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MatchOIDCIdentity specifies the identity matching criteria to use
+while verifying an OCI artifact which was signed using Cosign keyless
+signing. The artifact&rsquo;s identity is deemed to be verified if any of the
+specified matchers match against the identity.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -2269,6 +2286,54 @@ capable of targeting objects based on kind, label and annotation selectors.</p>
 <p>Images is a list of (image name, new name, new tag or digest)
 for changing image names, tags or digests. This can also be achieved with a
 patch, but this operator is simpler to specify.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2.OIDCIdentityMatch">OIDCIdentityMatch
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmChartTemplateVerification">HelmChartTemplateVerification</a>)
+</p>
+<p>OIDCIdentityMatch specifies options for verifying the certificate identity,
+i.e. the issuer and the subject of the certificate.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>issuer</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Issuer specifies the regex pattern to match against to verify
+the OIDC issuer in the Fulcio certificate. The pattern must be a
+valid Go regular expression.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>subject</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Subject specifies the regex pattern to match against to verify
+the identity subject in the Fulcio certificate. The pattern must
+be a valid Go regular expression.</p>
 </td>
 </tr>
 </tbody>

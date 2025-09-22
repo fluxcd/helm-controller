@@ -68,7 +68,11 @@ type HelmChartTemplate struct {
 
 // NewHelmChartTemplate returns a new HelmChartTemplate reconciler configured
 // with the provided values.
-func NewHelmChartTemplate(client client.Client, recorder record.EventRecorder, fieldManager string) *HelmChartTemplate {
+func NewHelmChartTemplate(
+	client client.Client,
+	recorder record.EventRecorder,
+	fieldManager string,
+) *HelmChartTemplate {
 	return &HelmChartTemplate{
 		client:        client,
 		eventRecorder: recorder,
@@ -89,10 +93,12 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 
 	// The HelmChart name and/or namespace diverges or the HelmRelease is
 	// being deleted, delete the HelmChart.
-	if (obj.Status.HelmChart != "" && obj.Status.HelmChart != chartRef.String()) || !obj.DeletionTimestamp.IsZero() {
+	if (obj.Status.HelmChart != "" && obj.Status.HelmChart != chartRef.String()) ||
+		!obj.DeletionTimestamp.IsZero() {
 		// If the HelmRelease is being deleted, we need to short-circuit to
 		// avoid recreating the HelmChart.
-		if err := r.reconcileDelete(ctx, req.Object); err != nil || !obj.DeletionTimestamp.IsZero() {
+		if err := r.reconcileDelete(ctx, req.Object); err != nil ||
+			!obj.DeletionTimestamp.IsZero() {
 			return err
 		}
 	}
@@ -202,7 +208,13 @@ func (r *HelmChartTemplate) reconcileDelete(ctx context.Context, obj *v2.HelmRel
 				err = fmt.Errorf("failed to delete HelmChart '%s': %w", obj.Status.HelmChart, err)
 				return err
 			}
-			r.eventRecorder.Eventf(obj, eventv1.EventTypeTrace, "HelmChartDeleted", "deleted HelmChart '%s'", obj.Status.HelmChart)
+			r.eventRecorder.Eventf(
+				obj,
+				eventv1.EventTypeTrace,
+				"HelmChartDeleted",
+				"deleted HelmChart '%s'",
+				obj.Status.HelmChart,
+			)
 		}
 
 		// Truncate the chart reference in the status object.
@@ -235,9 +247,28 @@ func buildHelmChartFromTemplate(obj *v2.HelmRelease) *sourcev1.HelmChart {
 		},
 	}
 	if verifyTpl := template.Spec.Verify; verifyTpl != nil {
+		var matchOIDCIdentity []sourcev1.OIDCIdentityMatch
+		if verifyTpl.MatchOIDCIdentity != nil {
+			matchOIDCIdentity = make(
+				[]sourcev1.OIDCIdentityMatch,
+				0,
+				len(verifyTpl.MatchOIDCIdentity),
+			)
+			for _, identity := range verifyTpl.MatchOIDCIdentity {
+				matchOIDCIdentity = append(
+					matchOIDCIdentity,
+					sourcev1.OIDCIdentityMatch{
+						Issuer:  identity.Issuer,
+						Subject: identity.Subject,
+					},
+				)
+			}
+		}
+
 		result.Spec.Verify = &sourcev1.OCIRepositoryVerification{
-			Provider:  verifyTpl.Provider,
-			SecretRef: verifyTpl.SecretRef,
+			Provider:          verifyTpl.Provider,
+			SecretRef:         verifyTpl.SecretRef,
+			MatchOIDCIdentity: matchOIDCIdentity,
 		}
 	}
 	if metaTpl := template.ObjectMeta; metaTpl != nil {
