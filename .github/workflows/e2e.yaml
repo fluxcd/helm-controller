@@ -6,48 +6,16 @@ on:
     branches:
       - "main"
       - "release/**"
-
-permissions:
-  contents: read # for actions/checkout to fetch code
-
 jobs:
   kind:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # for reading the repository code.
     steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
-      - name: Setup Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
-        with:
-          buildkitd-flags: "--debug"
-      - name: Cache Docker layers
-        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
-        id: cache
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-ghcache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-ghcache-
-      - name: Setup Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      - name: Test suite setup
+        uses: fluxcd/gha-workflows/.github/actions/setup-kubernetes@v0.3.0
         with:
           go-version: 1.25.x
-          cache-dependency-path: |
-            **/go.sum
-            **/go.mod
-      - name: Setup Kubernetes
-        uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 # v1.12.0
-        with:
-          version: v0.20.0
-          cluster_name: kind
-          node_image: kindest/node:v1.27.3@sha256:3966ac761ae0136263ffdb6cfd4db23ef8a83cba8a463690e98317add2c9ba72
-      - name: Setup Helm
-        uses: fluxcd/pkg/actions/helm@main
-      - name: Setup Kustomize
-        uses: fluxcd/pkg/actions/kustomize@main
       - name: Run tests
         run: make test
       - name: Check if working tree is dirty
@@ -64,13 +32,6 @@ jobs:
             BUILD_ARGS="--cache-from=type=local,src=/tmp/.buildx-cache \
               --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max \
               --load"
-      - # Temp fix
-        # https://github.com/docker/build-push-action/issues/252
-        # https://github.com/moby/buildkit/issues/1896
-        name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
       - name: Load test image
         run: kind load docker-image test/helm-controller:latest
       - name: Install CRDs
