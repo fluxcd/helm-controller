@@ -19,19 +19,12 @@ jobs:
       - name: Run tests
         run: make test
       - name: Check if working tree is dirty
-        run: |
-          if [[ $(git diff --stat) != '' ]]; then
-            git --no-pager diff
-            echo 'run make test and commit changes'
-            exit 1
-          fi
+        run: make verify
       - name: Build container image
         run: |
           make docker-build IMG=test/helm-controller:latest \
             BUILD_PLATFORMS=linux/amd64 \
-            BUILD_ARGS="--cache-from=type=local,src=/tmp/.buildx-cache \
-              --cache-to=type=local,dest=/tmp/.buildx-cache-new,mode=max \
-              --load"
+            BUILD_ARGS="--load"
       - name: Load test image
         run: kind load docker-image test/helm-controller:latest
       - name: Install CRDs
@@ -609,6 +602,8 @@ jobs:
           kubectl -n default apply -f config/testdata/crds-upgrade/create-replace
           kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
       - name: Logs
+        if: always()
+        continue-on-error: true
         run: |
           kubectl -n helm-system logs deploy/source-controller
           kubectl -n helm-system logs deploy/helm-controller
@@ -620,5 +615,3 @@ jobs:
           kubectl -n helm-system get helmreleases -oyaml || true
           kubectl -n helm-system get all
           helm ls -n helm-system --all
-          kubectl -n helm-system logs deploy/source-controller || true
-          kubectl -n helm-system logs deploy/helm-controller || true
