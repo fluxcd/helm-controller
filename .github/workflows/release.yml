@@ -15,7 +15,7 @@ jobs:
       contents: write # for creating the GitHub release.
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for pushing and signing container images.
-    uses: fluxcd/gha-workflows/.github/workflows/controller-release.yaml@v0.3.0
+    uses: fluxcd/gha-workflows/.github/workflows/controller-release.yaml@v0.4.0
     with:
       controller: ${{ github.event.repository.name }}
       release-candidate-prefix: ${{ github.event.inputs.tag }}
