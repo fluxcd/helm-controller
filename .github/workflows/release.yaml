@@ -32,7 +32,7 @@ jobs:
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
       provenance-name: "provenance.intoto.jsonl"
-      base64-subjects: "${{ needs.release.outputs.hashes }}"
+      base64-subjects: "${{ needs.release.outputs.release-digests }}"
       upload-assets: true
   dockerhub-provenance:
     needs: [release]
@@ -44,9 +44,9 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      image: ${{ needs.release.outputs.image_url }}
-      digest: ${{ needs.release.outputs.image_digest }}
-      registry-username: fluxcdbot
+      image: ${{ needs.release.outputs.image-name }}
+      digest: ${{ needs.release.outputs.image-digest }}
+      registry-username: ${{ github.repository_owner == 'fluxcd' && 'fluxcdbot' || github.repository_owner }}
     secrets:
       registry-password: ${{ secrets.DOCKER_FLUXCD_PASSWORD }}
   ghcr-provenance:
@@ -59,8 +59,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      image: ghcr.io/${{ needs.release.outputs.image_url }}
-      digest: ${{ needs.release.outputs.image_digest }}
-      registry-username: fluxcdbot
+      image: ghcr.io/${{ needs.release.outputs.image-name }}
+      digest: ${{ needs.release.outputs.image-digest }}
+      registry-username: fluxcdbot # not necessary for ghcr.io
     secrets:
-      registry-password: ${{ secrets.GHCR_TOKEN }}
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
