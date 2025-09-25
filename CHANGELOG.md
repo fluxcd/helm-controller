@@ -1,5 +1,74 @@
 # Changelog
 
+## 1.4.0
+
+**Release date:** 2025-09-25
+
+This minor release comes with various bug fixes and improvements.
+
+⚠️ The `v2beta1` APIs were removed. Before upgrading the CRDs, Flux users
+must run [`flux migrate`](https://github.com/fluxcd/flux2/pull/5473) to
+migrate the cluster storage off `v2beta1`.
+
+The controller now supports ExternalArtifact Helm chart sources
+under the feature gate `ExternalArtifact`.
+
+A new `RetryOnFailure` strategy has been added for automatic
+retries on Helm release failures.
+
+Dependencies can now be evaluated using CEL expressions via the new
+`readyExpr` field, providing more flexible and powerful dependency
+readiness checks.
+
+Support for workload identity authentication has been added for remote clusters.
+This is supported both at the controller and object levels. For object-level,
+enable the feature gate `ObjectLevelWorkloadIdentity`.
+
+In addition, the Kubernetes dependencies have been updated to v1.34, Helm has
+been updated to v3.19 and various other controller dependencies have been
+updated to their latest version. The controller is now built with Go 1.25.
+
+Fixes:
+- Fix continuous drift due to unstable hashing of values
+  [#1267](https://github.com/fluxcd/helm-controller/pull/1267)
+- Fix watch index conflict between HelmChart and OCIRepository kinds
+  [#1266](https://github.com/fluxcd/helm-controller/pull/1266)
+- Fix requeue interval for SourceNotReady
+  [#1276](https://github.com/fluxcd/helm-controller/pull/1276)
+
+Improvements:
+- [RFC-0010] Add workload identity auth for remote clusters
+  [#1249](https://github.com/fluxcd/helm-controller/pull/1249)
+- [RFC-0010] Support all Azure clouds for remote clusters
+  [#1262](https://github.com/fluxcd/helm-controller/pull/1262)
+- [RFC-0010] Add multi-tenancy lockdown for kubeconfig
+  [#1284](https://github.com/fluxcd/helm-controller/pull/1284)
+- [RFC-0010] Add object-level configuration validation
+  [#1286](https://github.com/fluxcd/helm-controller/pull/1286)
+- [RFC-0012] Add ExternalArtifact feature gate and reconciliation support
+  [#1293](https://github.com/fluxcd/helm-controller/pull/1293)
+- [RFC-0012] Add support for ExternalArtifact revision with digest
+  [#1296](https://github.com/fluxcd/helm-controller/pull/1296)
+- Remove deprecated `helm.toolkit.fluxcd.io/v2beta1` API group
+  [#1280](https://github.com/fluxcd/helm-controller/pull/1280) 
+- Add RetryOnFailure lifecycle management strategy
+  [#1281](https://github.com/fluxcd/helm-controller/pull/1281)
+- Add CEL expressions for dependency readiness checks with `readyExpr` field
+  [#1271](https://github.com/fluxcd/helm-controller/pull/1271)
+- Add label selector for watching ConfigMaps and Secrets
+  [#1258](https://github.com/fluxcd/helm-controller/pull/1258)
+- Add common labels and annotations support with Kustomize post-renderer
+  [#1223](https://github.com/fluxcd/helm-controller/pull/1223)
+- Record last Helm release action duration in status
+  [#1282](https://github.com/fluxcd/helm-controller/pull/1282)
+- CI improvements with fluxcd/gha-workflows
+  [#1305](https://github.com/fluxcd/helm-controller/pull/1305)
+  [#1307](https://github.com/fluxcd/helm-controller/pull/1307)
+- Various dependency updates
+  [#1304](https://github.com/fluxcd/helm-controller/pull/1304)
+  [#1247](https://github.com/fluxcd/helm-controller/pull/1247)
+  [#1297](https://github.com/fluxcd/helm-controller/pull/1297)
+
 ## 1.3.0
 
 **Release date:** 2025-05-28
