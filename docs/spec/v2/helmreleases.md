@@ -1077,10 +1077,9 @@ metadata:
   name: kubeconfig
   namespace: apps
 data:
-  kubeConfig:
-    provider: aws
-    cluster: arn:aws:eks:eu-central-1:123456789012:cluster/my-cluster
-    serviceAccountName: apps-iam-role # optional. maps to an AWS IAM Role. used for authentication
+  provider: aws
+  cluster: arn:aws:eks:eu-central-1:123456789012:cluster/my-cluster
+  serviceAccountName: apps-iam-role # optional. maps to an AWS IAM Role. used for authentication
 ```
 
 ### Interval
