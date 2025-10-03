@@ -945,18 +945,6 @@ To make a HelmRelease react immediately to changes in the referenced Secret
 or ConfigMap see [this](#reacting-immediately-to-configuration-dependencies)
 section.
 
-When both `.spec.kubeConfig` and
-[`.spec.serviceAccountName`](#service-account-reference) are specified,
-the controller will impersonate the ServiceAccount on the target cluster,
-i.e. a ServiceAccount with name `.spec.serviceAccountName` must exist in
-the target cluster inside a namespace with the same name as the namespace
-of the HelmRelease. For example, if the HelmRelease is in the namespace
-`apps` of the cluster where Flux is running, then the ServiceAccount
-must be in the `apps` namespace of the target remote cluster, and have the
-name `.spec.serviceAccountName`. In other words, the namespace of the
-HelmRelease must exist both in the cluster where Flux is running
-and in the target remote cluster where Flux will apply resources.
-
 The Helm storage is stored on the remote cluster in a namespace that equals to
 the namespace of the HelmRelease, or the [configured storage namespace](#storage-namespace).
 The release itself is made in a namespace that equals to the namespace of the
@@ -964,6 +952,41 @@ HelmRelease, or the [configured target namespace](#target-namespace). The
 namespaces are expected to exist, with the exception that the target namespace
 can be created on demand by Helm when namespace creation is [configured during
 install](#install-configuration).
+
+When both `.spec.kubeConfig` and
+[`.spec.serviceAccountName`](#service-account-reference) are specified,
+the controller will impersonate the ServiceAccount on the target cluster.
+The ServiceAccount must have the necessary RBAC permissions to perform
+the operations associated with the HelmRelease. This includes permissions
+on both the storage and target namespaces.
+
+Example of RoleBinding in the target cluster granting the `admin` ClusterRole
+in a *namespaced* fashion (scoped to the `rbac-namespace` namespace):
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: admin
+  # This namespace SHOULD be the storage/target
+  # namespace on the TARGET cluster.
+  namespace: rbac-namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole # Can be either Role or ClusterRole for RoleBinding.
+  name: admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: ServiceAccount
+  name: apps-sa
+  # This namespace MUST match the HelmRelease namespace
+  # on the SOURCE cluster.
+  namespace: apps
+```
+
+If the storage and target namespaces are different, the RoleBinding
+above must be created in both namespaces. You can also create
+ClusterRoleBindings if needed (they can only bind ClusterRoles).
 
 Other references to Kubernetes resources in the HelmRelease, like
 [values references](#values-references), are expected to exist on
