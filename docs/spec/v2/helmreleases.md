@@ -20,7 +20,7 @@ metadata:
   name: podinfo
   namespace: default
 spec:
-  interval: 5m
+  interval: 15m
   url: https://stefanprodan.github.io/podinfo
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
@@ -29,7 +29,7 @@ metadata:
   name: podinfo
   namespace: default
 spec:
-  interval: 10m
+  interval: 15m
   timeout: 5m
   chart:
     spec:
@@ -1090,12 +1090,13 @@ matches the desired state.
 
 After successfully reconciling the object, the controller requeues it for
 inspection at the specified interval. The value must be in a [Go recognized
-duration string format](https://pkg.go.dev/time#ParseDuration), e.g. `10m0s`
-to reconcile the object every ten minutes.
+duration string format](https://pkg.go.dev/time#ParseDuration), e.g. `15m0s`
+to reconcile the object every fifteen minutes.
 
 If the `.metadata.generation` of a resource changes (due to e.g. a change to
 the spec) or the HelmChart revision changes (which generates a Kubernetes
-Event), this is handled instantly outside the interval window.
+Event), or a ConfigMap/Secret referenced in `valuesFrom` changes,
+this is handled instantly outside the interval window.
 
 **Note:** The controller can be configured to apply a jitter to the interval in
 order to distribute the load more evenly when multiple HelmRelease objects are
@@ -1119,6 +1120,69 @@ a new Helm release. When the field is set to `false` or removed, it will
 resume.
 
 ## Working with HelmReleases
+
+### Recommended settings
+
+When deploying applications to production environments, it is recommended
+to use OCI-based Helm charts with OCIRepository as `chartRef`, and
+to configure the following fields, while adjusting them to your desires for
+responsiveness:
+
+```yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: webapp-chart
+  namespace: apps
+spec:
+  interval: 5m # check for new versions every 5 minutes and trigger an upgrade
+  url: oci://ghcr.io/org/charts/webapp
+  secretRef:
+    name: registry-auth # Image pull secret with read-only access
+  layerSelector: # select the Helm chart layer
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    semver: "*" # track the latest stable version
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: webapp
+  namespace: apps
+spec:
+  releaseName: webapp
+  chartRef:
+    kind: OCIRepository
+    name: webapp-chart
+  interval: 30m # run drift detection every 30 minutes
+  driftDetection:
+    mode: enabled # undo kubectl edits and other unintended changes
+  install:
+    strategy:
+      name: RetryOnFailure # retry failed installations instead of uninstalling
+      retryInterval: 5m # retry failed installations every five minutes
+  upgrade:
+    crds: CreateReplace # update CRDs when upgrading
+    strategy:
+      name: RetryOnFailure # retry failed upgrades instead of rollback
+      retryInterval: 5m # retry failed upgrades every five minutes
+  # All ConfigMaps and Secrets referenced in valuesFrom should
+  # be labelled with `reconcile.fluxcd.io/watch: Enabled`
+  valuesFrom:
+    - kind: ConfigMap
+      name: webapp-values
+    - kind: Secret
+      name: webapp-secret-values
+```
+
+Note that the `RetryOnFailure` strategy is suitable for statefulsets
+and other workloads that cannot tolerate rollbacks and have a high rollout duration
+susceptible to health check timeouts and transient capacity errors.
+
+For stateless workloads and applications that can tolerate rollbacks, the
+`RemediateOnFailure` strategy may be more suitable, as it will ensure that
+the last known good state is restored in case of a failure.
 
 ### Configuring failure handling
 
@@ -1190,7 +1254,7 @@ metadata:
   name: my-operator
   namespace: default
 spec:
-  interval: 10m
+  interval: 15m
   chart:
     spec:
       chart: my-operator
@@ -1278,7 +1342,7 @@ metadata:
  namespace: webapp
 spec:
  serviceAccountName: webapp-reconciler
- interval: 5m
+ interval: 15m
  chart:
    spec:
      chart: podinfo
