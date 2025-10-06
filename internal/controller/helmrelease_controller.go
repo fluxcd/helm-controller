@@ -204,9 +204,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	log := ctrl.LoggerFrom(ctx)
 
 	// Mark the resource as under reconciliation.
-	const progressingMsg = "Fulfilling prerequisites"
-	conditions.MarkReconciling(obj, meta.ProgressingReason, progressingMsg)
-	conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, progressingMsg)
+	// We set Ready=Unknown down below after we assess the readiness of dependencies and the source.
+	conditions.MarkReconciling(obj, meta.ProgressingReason, "Fulfilling prerequisites")
 	if err := patchHelper.Patch(ctx, obj, patch.WithOwnedConditions{Conditions: intreconcile.OwnedConditions}, patch.WithFieldOwner(r.FieldManager)); err != nil {
 		return ctrl.Result{}, err
 	}
