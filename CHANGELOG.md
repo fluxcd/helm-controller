@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.1
+
+**Release date:** 2025-10-06
+
+This patch release fixes the controller setting the `Ready`
+condition to `Unknown` redundantly during reconciliation.
+
+Fixes:
+- Remove redundant Ready condition setter
+  [#1323](https://github.com/fluxcd/helm-controller/pull/1323)
+- Fix docs example for kubeconfig workload identity
+  [#1315](https://github.com/fluxcd/helm-controller/pull/1315)
+
 ## 1.4.0
 
 **Release date:** 2025-09-25
