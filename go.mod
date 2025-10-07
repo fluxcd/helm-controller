@@ -25,8 +25,8 @@ require (
 	github.com/fluxcd/pkg/auth v0.31.0
 	github.com/fluxcd/pkg/cache v0.11.0
 	github.com/fluxcd/pkg/chartutil v1.14.0
-	github.com/fluxcd/pkg/runtime v0.86.0
-	github.com/fluxcd/pkg/ssa v0.56.0
+	github.com/fluxcd/pkg/runtime v0.87.0
+	github.com/fluxcd/pkg/ssa v0.59.0
 	github.com/fluxcd/pkg/testserver v0.13.0
 	github.com/fluxcd/source-controller/api v1.7.0
 	github.com/go-logr/logr v1.4.3
@@ -37,7 +37,7 @@ require (
 	github.com/onsi/gomega v1.38.2
 	github.com/opencontainers/go-digest v1.0.1-0.20231025023718-d50d2fec9c98
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20250116041648-1e56c6daea3b
-	github.com/spf13/pflag v1.0.9
+	github.com/spf13/pflag v1.0.10
 	github.com/wI2L/jsondiff v0.7.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/text v0.29.0
