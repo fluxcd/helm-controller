@@ -3,11 +3,11 @@ module github.com/fluxcd/helm-controller/api
 go 1.25.0
 
 require (
-	github.com/fluxcd/pkg/apis/kustomize v1.12.0
-	github.com/fluxcd/pkg/apis/meta v1.21.0
-	k8s.io/apiextensions-apiserver v0.34.0
-	k8s.io/apimachinery v0.34.0
-	sigs.k8s.io/controller-runtime v0.22.1
+	github.com/fluxcd/pkg/apis/kustomize v1.13.0
+	github.com/fluxcd/pkg/apis/meta v1.22.0
+	k8s.io/apiextensions-apiserver v0.34.1
+	k8s.io/apimachinery v0.34.1
+	sigs.k8s.io/controller-runtime v0.22.2
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -23,7 +23,7 @@ require (
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
-	golang.org/x/net v0.44.0 // indirect
+	golang.org/x/net v0.45.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/tools v0.37.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
