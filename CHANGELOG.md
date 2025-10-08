@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.2
+
+**Release date:** 2025-10-08
+
+This patch release comes with various dependency updates.
+
+The controller is now built with Go 1.25.2 which includes
+fixes for vulnerabilities in the Go stdlib:
+[CVE-2025-58183](https://github.com/golang/go/issues/75677),
+[CVE-2025-58188](https://github.com/golang/go/issues/75675)
+and many others. The full list of security fixes can be found
+[here](https://groups.google.com/g/golang-announce/c/4Emdl2iQ_bI/m/qZN5nc-mBgAJ).
+
+Improvements:
+- Update dependencies to Kubernetes v1.34.1 and Go 1.25.2
+  [#1329](https://github.com/fluxcd/helm-controller/pull/1329)
+
 ## 1.4.1
 
 **Release date:** 2025-10-06
