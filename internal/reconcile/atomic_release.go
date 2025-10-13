@@ -195,7 +195,9 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			}
 
 			// Determine the next action to run based on the current state.
-			log.V(logger.DebugLevel).Info("determining next Helm action based on current state")
+			log.V(logger.DebugLevel).Info(
+				fmt.Sprintf("determining next Helm action based on state: '%s' reason '%s'", state.Status, state.Reason),
+			)
 			if next, err = r.actionForState(ctx, req, state); err != nil {
 				if errors.Is(err, ErrExceededMaxRetries) {
 					conditions.MarkStalled(req.Object, "RetriesExceeded", "Failed to %s after %d attempt(s)",
@@ -211,6 +213,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 
 			// If there is no next action, we are done.
 			if next == nil {
+				log.V(logger.DebugLevel).Info("no further action to take, atomic release completed")
 				conditions.Delete(req.Object, meta.ReconcilingCondition)
 
 				// Always summarize; this ensures we restore transient errors
@@ -241,9 +244,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 				)
 
 				if retry := req.Object.GetActiveRetry(); retry != nil {
-					conditions.Delete(req.Object, meta.ReconcilingCondition)
-					conditions.MarkFalse(req.Object, meta.ReadyCondition, "RetryAfterInterval",
-						"Will retry after %s", retry.GetRetryInterval().String())
+					conditions.MarkReconciling(req.Object, meta.ProgressingWithRetryReason, "retrying after %s", retry.GetRetryInterval().String())
 					return ErrRetryAfterInterval
 				}
 
@@ -278,11 +279,13 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			// Run the action sub-reconciler.
 			log.Info(fmt.Sprintf("running '%s' action with timeout of %s", next.Name(), timeoutForAction(next, req.Object).String()))
 			if err = next.Reconcile(ctx, req); err != nil {
+				log.V(logger.DebugLevel).Info(
+					fmt.Sprintf("action reconciler %s of type %s returned error: %s", next.Name(), next.Type(), err),
+				)
+
 				if retry := req.Object.GetActiveRetry(); retry != nil {
 					log.Error(err, fmt.Sprintf("failed to run '%s' action", next.Name()))
-					conditions.Delete(req.Object, meta.ReconcilingCondition)
-					conditions.MarkFalse(req.Object, meta.ReadyCondition, "RetryAfterInterval",
-						"Will retry after %s", retry.GetRetryInterval().String())
+					conditions.MarkReconciling(req.Object, meta.ProgressingWithRetryReason, "retrying after %s", retry.GetRetryInterval().String())
 					return ErrRetryAfterInterval
 				}
 
@@ -299,9 +302,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 				)
 
 				if retry := req.Object.GetActiveRetry(); retry != nil {
-					conditions.Delete(req.Object, meta.ReconcilingCondition)
-					conditions.MarkFalse(req.Object, meta.ReadyCondition, "RetryAfterInterval",
-						"Will retry after %s", retry.GetRetryInterval().String())
+					conditions.MarkReconciling(req.Object, meta.ProgressingWithRetryReason, "retrying after %s", retry.GetRetryInterval().String())
 					return ErrRetryAfterInterval
 				}
 
