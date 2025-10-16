@@ -692,12 +692,12 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "release",
 				Namespace:  "mock",
-				Generation: 2,
+				Generation: 1,
 			},
 			Spec: v2.HelmReleaseSpec{
 				// Trigger a failure by setting an invalid storage namespace,
 				// preventing the release from actually being installed.
-				// This allows us to just test the failure count reset, without
+				// This allows us to just test the RetryOnFailure strategy, without
 				// having to facilitate a full install.
 				StorageNamespace: "not-exist",
 				Install: &v2.Install{
@@ -708,11 +708,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				},
 			},
 			Status: v2.HelmReleaseStatus{
-				HelmChart:               "mock/chart",
-				InstallFailures:         2,
-				UpgradeFailures:         3,
-				Failures:                5,
-				LastAttemptedGeneration: 2,
+				HelmChart:          "mock/chart",
+				ObservedGeneration: 1,
 			},
 		}
 
@@ -735,10 +732,16 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			{
+				Type:    "Reconciling",
+				Status:  "True",
+				Reason:  "ProgressingWithRetry",
+				Message: "retrying after 1m0s",
+			},
+			{
 				Type:    "Ready",
 				Status:  "False",
-				Reason:  "RetryAfterInterval",
-				Message: "Will retry after 1m0s",
+				Reason:  "InstallFailed",
+				Message: "Helm install failed for release mock/release with chart hello@0.1.0: create: failed to create: namespaces \"not-exist\" not found",
 			},
 			{
 				Type:    "Released",
