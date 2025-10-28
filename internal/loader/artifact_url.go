@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/hashicorp/go-retryablehttp"
 	digestlib "github.com/opencontainers/go-digest"
@@ -37,8 +38,13 @@ import (
 const (
 	// envSourceControllerLocalhost is the name of the environment variable
 	// used to override the hostname of the source-controller from which
-	// the chart is usually downloaded.
+	// the chart is downloaded.
 	envSourceControllerLocalhost = "SOURCE_CONTROLLER_LOCALHOST"
+
+	// envSourceWatcherLocalhost is the name of the environment variable
+	// used to override the hostname of the source-watcher from which
+	// the chart is downloaded.
+	envSourceWatcherLocalhost = "SOURCE_WATCHER_LOCALHOST"
 )
 
 var (
@@ -54,12 +60,17 @@ var (
 // digest before loading the chart. It returns the loaded chart.Chart, or an
 // error. The error may be of type ErrIntegrity if the integrity check fails.
 func SecureLoadChartFromURL(client *retryablehttp.Client, URL, digest string) (*chart.Chart, error) {
-	URL, err := overwriteHostname(URL, os.Getenv(envSourceControllerLocalhost))
+	sourceLocalhost := os.Getenv(envSourceControllerLocalhost)
+	if strings.Contains(URL, "//source-watcher") {
+		sourceLocalhost = os.Getenv(envSourceWatcherLocalhost)
+	}
+
+	u, err := overwriteHostname(URL, sourceLocalhost)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := retryablehttp.NewRequest(http.MethodGet, URL, nil)
+	req, err := retryablehttp.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, err
 	}
