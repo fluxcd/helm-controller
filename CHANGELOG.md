@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.4.3
+
+**Release date:** 2025-10-28
+
+This patch release comes with various fixes and improvements.
+
+Fixes:
+- Fix status reporting for RetryOnFailure strategy
+  [#1338](https://github.com/fluxcd/helm-controller/pull/1338)
+
+Improvements:
+- Allow fetching charts from a local source-watcher
+  [#1341](https://github.com/fluxcd/helm-controller/pull/1341)
+
 ## 1.4.2
 
 **Release date:** 2025-10-08
