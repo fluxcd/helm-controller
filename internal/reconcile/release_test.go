@@ -22,7 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
-	"helm.sh/helm/v3/pkg/chart"
+	"github.com/matheuscscp/helm/pkg/chart"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fluxcd/pkg/apis/kustomize"

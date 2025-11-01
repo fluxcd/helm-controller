@@ -24,8 +24,8 @@ import (
 	"sort"
 	"strings"
 
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmaction "github.com/matheuscscp/helm/pkg/action"
+	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"

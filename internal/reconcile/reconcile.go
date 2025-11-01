@@ -19,8 +19,8 @@ package reconcile
 import (
 	"context"
 
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
+	helmchart "github.com/matheuscscp/helm/pkg/chart"
+	helmchartutil "github.com/matheuscscp/helm/pkg/chartutil"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 )

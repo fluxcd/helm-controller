@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmrelease "github.com/matheuscscp/helm/pkg/release"
+	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
 )
 
 func TestObserver_Name(t *testing.T) {

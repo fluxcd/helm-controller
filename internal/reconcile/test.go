@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/fluxcd/pkg/runtime/logger"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"

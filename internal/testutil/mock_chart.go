@@ -19,8 +19,8 @@ package testutil
 import (
 	"fmt"
 
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
+	helmchart "github.com/matheuscscp/helm/pkg/chart"
+	helmchartutil "github.com/matheuscscp/helm/pkg/chartutil"
 )
 
 var manifestTmpl = `apiVersion: v1

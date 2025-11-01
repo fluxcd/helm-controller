@@ -24,8 +24,8 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
-	"helm.sh/helm/v3/pkg/kube"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	"github.com/matheuscscp/helm/pkg/kube"
+	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/fluxcd/helm-controller/internal/action"

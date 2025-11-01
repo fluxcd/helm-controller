@@ -17,7 +17,7 @@ limitations under the License.
 package action
 
 import (
-	helmaction "helm.sh/helm/v3/pkg/action"
+	helmaction "github.com/matheuscscp/helm/pkg/action"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 )

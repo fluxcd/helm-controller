@@ -19,8 +19,8 @@ package action
 import (
 	"context"
 
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmaction "github.com/matheuscscp/helm/pkg/action"
+	helmrelease "github.com/matheuscscp/helm/pkg/release"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 )

@@ -22,7 +22,7 @@ import (
 
 	. "github.com/onsi/gomega"
 	"github.com/opencontainers/go-digest"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"

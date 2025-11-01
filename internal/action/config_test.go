@@ -21,10 +21,10 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmkube "helm.sh/helm/v3/pkg/kube"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmaction "github.com/matheuscscp/helm/pkg/action"
+	helmkube "github.com/matheuscscp/helm/pkg/kube"
+	helmrelease "github.com/matheuscscp/helm/pkg/release"
+	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cmdtest "k8s.io/kubectl/pkg/cmd/testing"
 

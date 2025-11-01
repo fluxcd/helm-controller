@@ -17,8 +17,8 @@ limitations under the License.
 package storage
 
 import (
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmrelease "github.com/matheuscscp/helm/pkg/release"
+	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
 )
 
 // ObserverDriverName contains the string representation of Observer.

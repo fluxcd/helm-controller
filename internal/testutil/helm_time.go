@@ -19,7 +19,7 @@ package testutil
 import (
 	"time"
 
-	helmtime "helm.sh/helm/v3/pkg/time"
+	helmtime "github.com/matheuscscp/helm/pkg/time"
 )
 
 // MustParseHelmTime parses a string into a Helm time.Time, panicking if it

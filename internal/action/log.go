@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	helmaction "helm.sh/helm/v3/pkg/action"
+	helmaction "github.com/matheuscscp/helm/pkg/action"
 )
 
 // DefaultLogBufferSize is the default size of the LogBuffer.

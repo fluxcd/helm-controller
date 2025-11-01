@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/opencontainers/go-digest"
-	"helm.sh/helm/v3/pkg/release"
+	"github.com/matheuscscp/helm/pkg/release"
 
 	intdigest "github.com/fluxcd/helm-controller/internal/digest"
 )

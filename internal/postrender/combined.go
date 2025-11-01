@@ -19,7 +19,7 @@ package postrender
 import (
 	"bytes"
 
-	helmpostrender "helm.sh/helm/v3/pkg/postrender"
+	helmpostrender "github.com/matheuscscp/helm/pkg/postrender"
 )
 
 // Combined is a collection of Helm PostRenders which are

@@ -19,10 +19,10 @@ package action
 import (
 	"fmt"
 
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmkube "helm.sh/helm/v3/pkg/kube"
-	helmstorage "helm.sh/helm/v3/pkg/storage"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmaction "github.com/matheuscscp/helm/pkg/action"
+	helmkube "github.com/matheuscscp/helm/pkg/kube"
+	helmstorage "github.com/matheuscscp/helm/pkg/storage"
+	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/fluxcd/helm-controller/internal/storage"

@@ -22,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	"helm.sh/helm/v3/pkg/release"
+	"github.com/matheuscscp/helm/pkg/release"
 )
 
 var (

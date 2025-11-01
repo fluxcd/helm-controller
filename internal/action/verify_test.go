@@ -21,12 +21,12 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chartutil"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmstorage "helm.sh/helm/v3/pkg/storage"
-	"helm.sh/helm/v3/pkg/storage/driver"
+	helmaction "github.com/matheuscscp/helm/pkg/action"
+	helmchart "github.com/matheuscscp/helm/pkg/chart"
+	"github.com/matheuscscp/helm/pkg/chartutil"
+	helmrelease "github.com/matheuscscp/helm/pkg/release"
+	helmstorage "github.com/matheuscscp/helm/pkg/storage"
+	"github.com/matheuscscp/helm/pkg/storage/driver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"

@@ -31,8 +31,8 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	digestlib "github.com/opencontainers/go-digest"
 	_ "github.com/opencontainers/go-digest/blake3"
-	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chart/loader"
+	"github.com/matheuscscp/helm/pkg/chart"
+	"github.com/matheuscscp/helm/pkg/chart/loader"
 )
 
 const (

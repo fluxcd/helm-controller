@@ -25,7 +25,7 @@ import (
 
 	"github.com/fluxcd/pkg/runtime/cel"
 	celtypes "github.com/google/cel-go/common/types"
-	"helm.sh/helm/v3/pkg/chart"
+	"github.com/matheuscscp/helm/pkg/chart"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

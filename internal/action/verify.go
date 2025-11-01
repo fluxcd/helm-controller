@@ -20,12 +20,12 @@ import (
 	"errors"
 
 	"github.com/opencontainers/go-digest"
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmaction "github.com/matheuscscp/helm/pkg/action"
+	helmchart "github.com/matheuscscp/helm/pkg/chart"
+	helmchartutil "github.com/matheuscscp/helm/pkg/chartutil"
+	helmrelease "github.com/matheuscscp/helm/pkg/release"
 
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/release"

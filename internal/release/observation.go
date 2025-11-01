@@ -21,8 +21,8 @@ import (
 	"io"
 
 	"github.com/mitchellh/copystructure"
-	"helm.sh/helm/v3/pkg/chart"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	"github.com/matheuscscp/helm/pkg/chart"
+	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"

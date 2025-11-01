@@ -22,7 +22,7 @@ import (
 	"time"
 
 	flag "github.com/spf13/pflag"
-	"helm.sh/helm/v3/pkg/kube"
+	"github.com/matheuscscp/helm/pkg/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
