@@ -23,11 +23,11 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/gomega"
 	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	helmreleaseutil "github.com/matheuscscp/helm/pkg/releaseutil"
 	helmstorage "github.com/matheuscscp/helm/pkg/storage"
 	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
@@ -305,7 +305,7 @@ func TestTest_Reconcile(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfg, err := action.NewConfigFactory(getter, context.Background(),
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
 			)
 			g.Expect(err).ToNot(HaveOccurred())
@@ -486,7 +486,7 @@ func TestTest_failure(t *testing.T) {
 		}
 
 		req := &Request{Object: obj.DeepCopy()}
-		r.failure(req, err)
+		r.failure(context.Background(), req, err)
 
 		expectMsg := fmt.Sprintf(fmtTestFailure,
 			fmt.Sprintf("%s/%s.v%d", cur.Namespace, cur.Name, cur.Version),
@@ -527,7 +527,7 @@ func TestTest_failure(t *testing.T) {
 		obj.Status.LastAttemptedReleaseAction = v2.ReleaseActionInstall
 		obj.Status.History.Latest().SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
-		r.failure(req, err)
+		r.failure(context.Background(), req, err)
 
 		g.Expect(req.Object.Status.InstallFailures).To(Equal(int64(1)))
 	})
@@ -544,7 +544,7 @@ func TestTest_failure(t *testing.T) {
 		obj.Spec.Test = &v2.Test{IgnoreFailures: true}
 		obj.Status.History.Latest().SetTestHooks(map[string]*v2.TestHookStatus{})
 		req := &Request{Object: obj}
-		r.failure(req, err)
+		r.failure(context.Background(), req, err)
 
 		g.Expect(req.Object.Status.InstallFailures).To(BeZero())
 	})

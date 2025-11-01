@@ -92,7 +92,7 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	obsReleases.recordOnObject(req.Object, mutateOCIDigest)
 
 	if err != nil {
-		r.failure(req, logBuf, err)
+		r.failure(ctx, req, logBuf, err)
 
 		// Return error if we did not store a release, as this does not
 		// affect state and the caller should e.g. retry.
@@ -138,13 +138,17 @@ const (
 // be done conditionally by the caller after verifying the failed action has
 // modified the Helm storage. This to avoid counting failures which do not
 // result in Helm storage drift.
-func (r *Upgrade) failure(req *Request, buffer *action.LogBuffer, err error) {
+func (r *Upgrade) failure(ctx context.Context, req *Request, buffer *action.LogBuffer, err error) {
+	// Determine if the failure is due to a new reconciliation being
+	// triggered, and adjust the reason and message accordingly.
+	reason, errMsg := getFailureReasonAndMessage(ctx, err, v2.UpgradeFailedReason)
+
 	// Compose failure message.
-	msg := fmt.Sprintf(fmtUpgradeFailure, req.Object.GetReleaseNamespace(), req.Object.GetReleaseName(), req.Chart.Name(), req.Chart.Metadata.Version, strings.TrimSpace(err.Error()))
+	msg := fmt.Sprintf(fmtUpgradeFailure, req.Object.GetReleaseNamespace(), req.Object.GetReleaseName(), req.Chart.Name(), req.Chart.Metadata.Version, strings.TrimSpace(errMsg))
 
 	// Mark upgrade failure on object.
 	req.Object.Status.Failures++
-	conditions.MarkFalse(req.Object, v2.ReleasedCondition, v2.UpgradeFailedReason, "%s", msg)
+	conditions.MarkFalse(req.Object, v2.ReleasedCondition, reason, "%s", msg)
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
@@ -153,7 +157,7 @@ func (r *Upgrade) failure(req *Request, buffer *action.LogBuffer, err error) {
 		eventMeta(req.Chart.Metadata.Version, chartutil.DigestValues(digest.Canonical, req.Values).String(),
 			addAppVersion(req.Chart.AppVersion()), addOCIDigest(req.Object.Status.LastAttemptedRevisionDigest)),
 		corev1.EventTypeWarning,
-		v2.UpgradeFailedReason,
+		reason,
 		eventMessageWithLog(msg, buffer),
 	)
 }

@@ -24,11 +24,11 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/gomega"
 	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	helmreleaseutil "github.com/matheuscscp/helm/pkg/releaseutil"
 	helmstorage "github.com/matheuscscp/helm/pkg/storage"
 	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
@@ -329,7 +329,7 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfg, err := action.NewConfigFactory(getter, context.Background(),
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
 			)
 			g.Expect(err).ToNot(HaveOccurred())
@@ -396,7 +396,7 @@ func TestRollbackRemediation_failure(t *testing.T) {
 			eventRecorder: recorder,
 		}
 		req := &Request{Object: obj.DeepCopy()}
-		r.failure(req, release.ObservedToSnapshot(release.ObserveRelease(prev)), nil, err)
+		r.failure(context.Background(), req, release.ObservedToSnapshot(release.ObserveRelease(prev)), nil, err)
 
 		expectMsg := fmt.Sprintf(fmtRollbackRemediationFailure,
 			fmt.Sprintf("%s/%s.v%d", prev.Namespace, prev.Name, prev.Version),
@@ -431,7 +431,7 @@ func TestRollbackRemediation_failure(t *testing.T) {
 			eventRecorder: recorder,
 		}
 		req := &Request{Object: obj.DeepCopy()}
-		r.failure(req, release.ObservedToSnapshot(release.ObserveRelease(prev)), mockLogBuffer(5, 10), err)
+		r.failure(context.Background(), req, release.ObservedToSnapshot(release.ObserveRelease(prev)), mockLogBuffer(5, 10), err)
 
 		expectSubStr := "Last Helm logs"
 		g.Expect(conditions.IsFalse(req.Object, v2.RemediatedCondition)).To(BeTrue())

@@ -23,11 +23,11 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/gomega"
 	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	"github.com/matheuscscp/helm/pkg/releaseutil"
 	helmstorage "github.com/matheuscscp/helm/pkg/storage"
 	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
@@ -335,7 +335,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfg, err := action.NewConfigFactory(getter, context.Background(),
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
 			)
 			g.Expect(err).ToNot(HaveOccurred())
@@ -403,7 +403,7 @@ func TestUninstallRemediation_failure(t *testing.T) {
 		}
 
 		req := &Request{Object: obj.DeepCopy()}
-		r.failure(req, nil, err)
+		r.failure(context.Background(), req, nil, err)
 
 		expectMsg := fmt.Sprintf(fmtUninstallRemediationFailure,
 			fmt.Sprintf("%s/%s.v%d", cur.Namespace, cur.Name, cur.Version),
@@ -438,7 +438,7 @@ func TestUninstallRemediation_failure(t *testing.T) {
 			eventRecorder: recorder,
 		}
 		req := &Request{Object: obj.DeepCopy()}
-		r.failure(req, mockLogBuffer(5, 10), err)
+		r.failure(context.Background(), req, mockLogBuffer(5, 10), err)
 
 		expectSubStr := "Last Helm logs"
 		g.Expect(conditions.IsFalse(req.Object, v2.RemediatedCondition)).To(BeTrue())

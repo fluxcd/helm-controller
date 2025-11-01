@@ -109,7 +109,7 @@ func (r *UninstallRemediation) Reconcile(ctx context.Context, req *Request) erro
 
 	// Handle any error.
 	if err != nil {
-		r.failure(req, logBuf, err)
+		r.failure(ctx, req, logBuf, err)
 		if cur.Digest == req.Object.Status.History.Latest().Digest {
 			return err
 		}
@@ -141,14 +141,18 @@ const (
 // success records the success of a Helm uninstall remediation action in the
 // status of the given Request.Object by marking Remediated=False and emitting
 // a warning event.
-func (r *UninstallRemediation) failure(req *Request, buffer *action.LogBuffer, err error) {
+func (r *UninstallRemediation) failure(ctx context.Context, req *Request, buffer *action.LogBuffer, err error) {
+	// Determine if the failure is due to a new reconciliation being
+	// triggered, and adjust the reason and message accordingly.
+	reason, errMsg := getFailureReasonAndMessage(ctx, err, v2.UninstallFailedReason)
+
 	// Compose success message.
 	cur := req.Object.Status.History.Latest()
-	msg := fmt.Sprintf(fmtUninstallRemediationFailure, cur.FullReleaseName(), cur.VersionedChartName(), strings.TrimSpace(err.Error()))
+	msg := fmt.Sprintf(fmtUninstallRemediationFailure, cur.FullReleaseName(), cur.VersionedChartName(), strings.TrimSpace(errMsg))
 
 	// Mark uninstall failure on object.
 	req.Object.Status.Failures++
-	conditions.MarkFalse(req.Object, v2.RemediatedCondition, v2.UninstallFailedReason, "%s", msg)
+	conditions.MarkFalse(req.Object, v2.RemediatedCondition, reason, "%s", msg)
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
@@ -156,7 +160,7 @@ func (r *UninstallRemediation) failure(req *Request, buffer *action.LogBuffer, e
 		req.Object,
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeWarning,
-		v2.UninstallFailedReason,
+		reason,
 		eventMessageWithLog(msg, buffer),
 	)
 }

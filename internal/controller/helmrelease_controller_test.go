@@ -24,12 +24,12 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/gomega"
-	"github.com/opencontainers/go-digest"
 	"github.com/matheuscscp/helm/pkg/chart"
 	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	helmstorage "github.com/matheuscscp/helm/pkg/storage"
 	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
+	. "github.com/onsi/gomega"
+	"github.com/opencontainers/go-digest"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -500,7 +500,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.GetStorageNamespace()))
+		cfg, err := action.NewConfigFactory(getter, context.Background(), action.WithStorage(helmdriver.SecretsDriverName, obj.GetStorageNamespace()))
 		g.Expect(err).ToNot(HaveOccurred())
 
 		store := helmstorage.Init(cfg.Driver)
@@ -909,7 +909,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.GetStorageNamespace()))
+		cfg, err := action.NewConfigFactory(getter, context.Background(), action.WithStorage(helmdriver.SecretsDriverName, obj.GetStorageNamespace()))
 		g.Expect(err).ToNot(HaveOccurred())
 
 		store := helmstorage.Init(cfg.Driver)
@@ -1384,7 +1384,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		cfg, err := action.NewConfigFactory(getter, context.Background(), action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
 		g.Expect(err).ToNot(HaveOccurred())
 
 		store := helmstorage.Init(cfg.Driver)
@@ -2237,7 +2237,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		cfg, err := action.NewConfigFactory(getter, context.Background(), action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
 		g.Expect(err).ToNot(HaveOccurred())
 
 		store := helmstorage.Init(cfg.Driver)
@@ -2332,7 +2332,7 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		cfg, err := action.NewConfigFactory(getter, context.Background(), action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
 		g.Expect(err).ToNot(HaveOccurred())
 
 		store := helmstorage.Init(cfg.Driver)
@@ -2443,7 +2443,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		cfg, err := action.NewConfigFactory(getter, context.Background(), action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
 		g.Expect(err).ToNot(HaveOccurred())
 
 		store := helmstorage.Init(cfg.Driver)
@@ -2505,7 +2505,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		cfg, err := action.NewConfigFactory(getter, context.Background(), action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
 		g.Expect(err).ToNot(HaveOccurred())
 
 		store := helmstorage.Init(cfg.Driver)
@@ -2606,7 +2606,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		cfg, err := action.NewConfigFactory(getter, context.Background(), action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
 		g.Expect(err).ToNot(HaveOccurred())
 
 		store := helmstorage.Init(cfg.Driver)
@@ -2878,7 +2878,7 @@ func TestHelmReleaseReconciler_reconcileUninstall(t *testing.T) {
 		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		cfg, err := action.NewConfigFactory(getter, context.Background(), action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
 		g.Expect(err).ToNot(HaveOccurred())
 
 		store := helmstorage.Init(cfg.Driver)
@@ -3441,7 +3441,7 @@ func TestHelmReleaseReconciler_adoptLegacyRelease(t *testing.T) {
 			getter, err := r.buildRESTClientGetter(context.TODO(), obj)
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.GetStorageNamespace()))
+			cfg, err := action.NewConfigFactory(getter, context.Background(), action.WithStorage(helmdriver.SecretsDriverName, obj.GetStorageNamespace()))
 			g.Expect(err).ToNot(HaveOccurred())
 
 			var releases []*helmrelease.Release

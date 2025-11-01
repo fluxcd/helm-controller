@@ -379,7 +379,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	obj.Status.LastReleaseRevision = 0
 
 	// Construct config factory for any further Helm actions.
-	cfg, err := action.NewConfigFactory(getter,
+	cfg, err := action.NewConfigFactory(getter, helper.GetInterruptContext(ctx),
 		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
 		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
 	)
@@ -544,7 +544,7 @@ func (r *HelmReleaseReconciler) reconcileChartTemplate(ctx context.Context, obj 
 
 func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter genericclioptions.RESTClientGetter, obj *v2.HelmRelease) error {
 	// Construct config factory for current release.
-	cfg, err := action.NewConfigFactory(getter,
+	cfg, err := action.NewConfigFactory(getter, helper.GetInterruptContext(ctx),
 		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
 		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
 	)
@@ -666,7 +666,7 @@ func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter g
 	log.Info("adopting %s/%s.v%d release from v2beta1 state", releaseNamespace, releaseName, version)
 
 	// Construct config factory for current release.
-	cfg, err := action.NewConfigFactory(getter,
+	cfg, err := action.NewConfigFactory(getter, helper.GetInterruptContext(ctx),
 		action.WithStorage(action.DefaultStorageDriver, storageNamespace),
 		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
 	)

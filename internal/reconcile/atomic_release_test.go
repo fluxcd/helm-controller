@@ -22,13 +22,13 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/gomega"
-	extjsondiff "github.com/wI2L/jsondiff"
 	helmchart "github.com/matheuscscp/helm/pkg/chart"
 	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	"github.com/matheuscscp/helm/pkg/releaseutil"
 	helmstorage "github.com/matheuscscp/helm/pkg/storage"
 	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
+	. "github.com/onsi/gomega"
+	extjsondiff "github.com/wI2L/jsondiff"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -155,7 +155,7 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 		getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		cfg, err := action.NewConfigFactory(getter,
+		cfg, err := action.NewConfigFactory(getter, context.Background(),
 			action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
 		)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -1201,7 +1201,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfg, err := action.NewConfigFactory(getter, context.Background(),
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
 			)
 			g.Expect(err).ToNot(HaveOccurred())
@@ -1432,7 +1432,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfg, err := action.NewConfigFactory(getter, context.Background(),
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
 			)
 			g.Expect(err).ToNot(HaveOccurred())
@@ -2033,7 +2033,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 				obj.Status = tt.status(tt.releases)
 			}
 
-			cfg, err := action.NewConfigFactory(&kube.MemoryRESTClientGetter{},
+			cfg, err := action.NewConfigFactory(&kube.MemoryRESTClientGetter{}, context.Background(),
 				action.WithStorage(helmdriver.MemoryDriverName, mockReleaseNamespace),
 			)
 			g.Expect(err).ToNot(HaveOccurred())
@@ -2373,7 +2373,7 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfg, err := action.NewConfigFactory(getter, context.Background(),
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
 			)
 			g.Expect(err).ToNot(HaveOccurred())

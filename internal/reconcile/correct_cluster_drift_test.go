@@ -142,7 +142,7 @@ func TestCorrectClusterDrift_Reconcile(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, namedNS.Name)
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter, action.WithStorage(action.DefaultStorageDriver, namedNS.Name))
+			cfg, err := action.NewConfigFactory(getter, context.Background(), action.WithStorage(action.DefaultStorageDriver, namedNS.Name))
 			g.Expect(err).ToNot(HaveOccurred())
 
 			recorder := testutil.NewFakeRecorder(10, false)

@@ -96,7 +96,7 @@ func (r *RollbackRemediation) Reconcile(ctx context.Context, req *Request) error
 
 	// Run the Helm rollback action.
 	if err := action.Rollback(cfg, req.Object, prev.Name, action.RollbackToVersion(prev.Version)); err != nil {
-		r.failure(req, prev, logBuf, err)
+		r.failure(ctx, req, prev, logBuf, err)
 
 		// Return error if we did not store a release, as this does not
 		// affect state and the caller should e.g. retry.
@@ -131,13 +131,17 @@ const (
 // failure records the failure of a Helm rollback action in the status of the
 // given Request.Object by marking Remediated=False and emitting a warning
 // event.
-func (r *RollbackRemediation) failure(req *Request, prev *v2.Snapshot, buffer *action.LogBuffer, err error) {
+func (r *RollbackRemediation) failure(ctx context.Context, req *Request, prev *v2.Snapshot, buffer *action.LogBuffer, err error) {
+	// Determine if the failure is due to a new reconciliation being
+	// triggered, and adjust the reason and message accordingly.
+	reason, errMsg := getFailureReasonAndMessage(ctx, err, v2.RollbackFailedReason)
+
 	// Compose failure message.
-	msg := fmt.Sprintf(fmtRollbackRemediationFailure, prev.FullReleaseName(), prev.VersionedChartName(), strings.TrimSpace(err.Error()))
+	msg := fmt.Sprintf(fmtRollbackRemediationFailure, prev.FullReleaseName(), prev.VersionedChartName(), strings.TrimSpace(errMsg))
 
 	// Mark remediation failure on object.
 	req.Object.Status.Failures++
-	conditions.MarkFalse(req.Object, v2.RemediatedCondition, v2.RollbackFailedReason, "%s", msg)
+	conditions.MarkFalse(req.Object, v2.RemediatedCondition, reason, "%s", msg)
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
@@ -146,7 +150,7 @@ func (r *RollbackRemediation) failure(req *Request, prev *v2.Snapshot, buffer *a
 		eventMeta(prev.ChartVersion, chartutil.DigestValues(digest.Canonical, req.Values).String(),
 			addAppVersion(prev.AppVersion), addOCIDigest(prev.OCIDigest)),
 		corev1.EventTypeWarning,
-		v2.RollbackFailedReason,
+		reason,
 		eventMessageWithLog(msg, buffer),
 	)
 }

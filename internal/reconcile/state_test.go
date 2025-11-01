@@ -21,12 +21,12 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/onsi/gomega"
 	helmchart "github.com/matheuscscp/helm/pkg/chart"
 	helmchartutil "github.com/matheuscscp/helm/pkg/chartutil"
 	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	helmstorage "github.com/matheuscscp/helm/pkg/storage"
 	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
+	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -620,7 +620,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				obj.Status = tt.status(tt.releases)
 			}
 
-			cfg, err := action.NewConfigFactory(&kube.MemoryRESTClientGetter{},
+			cfg, err := action.NewConfigFactory(&kube.MemoryRESTClientGetter{}, context.Background(),
 				action.WithStorage(helmdriver.MemoryDriverName, mockReleaseNamespace),
 			)
 			g.Expect(err).ToNot(HaveOccurred())
@@ -804,7 +804,7 @@ func TestDetermineReleaseState_DriftDetection(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfg, err := action.NewConfigFactory(getter, context.Background(),
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
 			)
 			g.Expect(err).ToNot(HaveOccurred())

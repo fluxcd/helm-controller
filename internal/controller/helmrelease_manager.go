@@ -28,9 +28,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	runtimeCtrl "github.com/fluxcd/pkg/runtime/controller"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	intpredicates "github.com/fluxcd/helm-controller/internal/predicates"
@@ -114,39 +115,40 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 		return err
 	}
 
-	ctrlBuilder := ctrl.NewControllerManagedBy(mgr).
-		For(&v2.HelmRelease{}, builder.WithPredicates(
+	wr := runtimeCtrl.WrapReconciler(r)
+
+	ctrlBuilder := runtimeCtrl.NewControllerManagedBy(mgr, wr).
+		For(&v2.HelmRelease{},
 			predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{}),
-		)).
+		).
 		Watches(
 			&sourcev1.HelmChart{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForHelmChartChange),
+			wr.EnqueueRequestsFromMapFunc(sourcev1.HelmChartKind, r.requestsForHelmChartChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
 		Watches(
 			&sourcev1.OCIRepository{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForOCIRepositoryChange),
+			wr.EnqueueRequestsFromMapFunc(sourcev1.OCIRepositoryKind, r.requestsForOCIRepositoryChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
 		WatchesMetadata(
 			&corev1.ConfigMap{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexConfigMap)),
+			wr.EnqueueRequestsFromMapFunc("ConfigMap", r.requestsForConfigDependency(indexConfigMap)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, opts.WatchConfigsPredicate),
 		).
 		WatchesMetadata(
 			&corev1.Secret{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexSecret)),
+			wr.EnqueueRequestsFromMapFunc("Secret", r.requestsForConfigDependency(indexSecret)),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, opts.WatchConfigsPredicate),
 		)
 
 	if opts.WatchExternalArtifacts {
 		ctrlBuilder = ctrlBuilder.Watches(
 			&sourcev1.ExternalArtifact{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForExternalArtifactChange),
+			wr.EnqueueRequestsFromMapFunc(sourcev1.ExternalArtifactKind, r.requestsForExternalArtifactChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		)
 	}
 
-	return ctrlBuilder.WithOptions(controller.Options{RateLimiter: opts.RateLimiter}).Complete(r)
-
+	return ctrlBuilder.WithOptions(controller.Options{RateLimiter: opts.RateLimiter}).Complete(wr)
 }

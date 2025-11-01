@@ -23,13 +23,13 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/gomega"
 	"github.com/matheuscscp/helm/pkg/chart"
 	helmchartutil "github.com/matheuscscp/helm/pkg/chartutil"
 	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	"github.com/matheuscscp/helm/pkg/releaseutil"
 	helmstorage "github.com/matheuscscp/helm/pkg/storage"
 	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -258,7 +258,7 @@ func TestInstall_Reconcile(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfg, err := action.NewConfigFactory(getter, context.Background(),
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
 			)
 			g.Expect(err).ToNot(HaveOccurred())
@@ -376,7 +376,7 @@ func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfg, err := action.NewConfigFactory(getter, context.Background(),
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
 			)
 			g.Expect(err).ToNot(HaveOccurred())
@@ -466,7 +466,7 @@ func TestInstall_failure(t *testing.T) {
 		}
 
 		req := &Request{Object: obj.DeepCopy(), Chart: chrt, Values: map[string]interface{}{"foo": "bar"}}
-		r.failure(req, nil, err)
+		r.failure(context.Background(), req, nil, err)
 
 		expectMsg := fmt.Sprintf(fmtInstallFailure, mockReleaseNamespace, mockReleaseName, chrt.Name(),
 			chrt.Metadata.Version, err.Error())
@@ -500,7 +500,7 @@ func TestInstall_failure(t *testing.T) {
 			eventRecorder: recorder,
 		}
 		req := &Request{Object: obj.DeepCopy(), Chart: chrt}
-		r.failure(req, mockLogBuffer(5, 10), err)
+		r.failure(context.Background(), req, mockLogBuffer(5, 10), err)
 
 		expectSubStr := "Last Helm logs"
 		g.Expect(conditions.IsFalse(req.Object, v2.ReleasedCondition)).To(BeTrue())

@@ -96,7 +96,7 @@ func (r *Test) Reconcile(ctx context.Context, req *Request) error {
 
 	// Something went wrong.
 	if err != nil {
-		r.failure(req, err)
+		r.failure(ctx, req, err)
 
 		// If we failed to observe anything happened at all, we want to retry
 		// and return the error to indicate this.
@@ -132,14 +132,18 @@ const (
 // counter. In addition, it emits a warning event for the Request.Object.
 // The active remediation failure count is only incremented if test failures
 // are not ignored.
-func (r *Test) failure(req *Request, err error) {
+func (r *Test) failure(ctx context.Context, req *Request, err error) {
+	// Determine if the failure is due to a new reconciliation being
+	// triggered, and adjust the reason and message accordingly.
+	reason, errMsg := getFailureReasonAndMessage(ctx, err, v2.TestFailedReason)
+
 	// Compose failure message.
 	cur := req.Object.Status.History.Latest()
-	msg := fmt.Sprintf(fmtTestFailure, cur.FullReleaseName(), cur.VersionedChartName(), strings.TrimSpace(err.Error()))
+	msg := fmt.Sprintf(fmtTestFailure, cur.FullReleaseName(), cur.VersionedChartName(), strings.TrimSpace(errMsg))
 
 	// Mark test failure on object.
 	req.Object.Status.Failures++
-	conditions.MarkFalse(req.Object, v2.TestSuccessCondition, v2.TestFailedReason, "%s", msg)
+	conditions.MarkFalse(req.Object, v2.TestSuccessCondition, reason, "%s", msg)
 
 	// Record warning event, this message contains more data than the
 	// Condition summary.
@@ -147,7 +151,7 @@ func (r *Test) failure(req *Request, err error) {
 		req.Object,
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeWarning,
-		v2.TestFailedReason,
+		reason,
 		msg,
 	)
 

@@ -17,14 +17,14 @@ limitations under the License.
 package action
 
 import (
+	"context"
 	"errors"
 	"testing"
 
-	. "github.com/onsi/gomega"
 	helmaction "github.com/matheuscscp/helm/pkg/action"
-	helmkube "github.com/matheuscscp/helm/pkg/kube"
 	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
+	. "github.com/onsi/gomega"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cmdtest "k8s.io/kubectl/pkg/cmd/testing"
 
@@ -68,7 +68,7 @@ func TestNewConfigFactory(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			factory, err := NewConfigFactory(tt.getter, tt.opts...)
+			factory, err := NewConfigFactory(tt.getter, context.Background(), tt.opts...)
 			if tt.wantErr != nil {
 				g.Expect(err).To(HaveOccurred())
 				g.Expect(factory).To(BeNil())
@@ -94,7 +94,7 @@ func TestWithStorage(t *testing.T) {
 			name:      "default_" + DefaultStorageDriver,
 			namespace: "default",
 			factory: ConfigFactory{
-				KubeClient: helmkube.New(cmdtest.NewTestFactory()),
+				Getter: cmdtest.NewTestFactory(),
 			},
 			wantDriver: helmdriver.SecretsDriverName,
 		},
@@ -103,7 +103,7 @@ func TestWithStorage(t *testing.T) {
 			driverName: helmdriver.SecretsDriverName,
 			namespace:  "default",
 			factory: ConfigFactory{
-				KubeClient: helmkube.New(cmdtest.NewTestFactory()),
+				Getter: cmdtest.NewTestFactory(),
 			},
 			wantDriver: helmdriver.SecretsDriverName,
 		},
@@ -112,7 +112,7 @@ func TestWithStorage(t *testing.T) {
 			driverName: helmdriver.ConfigMapsDriverName,
 			namespace:  "default",
 			factory: ConfigFactory{
-				KubeClient: helmkube.New(cmdtest.NewTestFactory()),
+				Getter: cmdtest.NewTestFactory(),
 			},
 			wantDriver: helmdriver.ConfigMapsDriverName,
 		},
@@ -229,13 +229,11 @@ func TestConfigFactory_Build(t *testing.T) {
 
 		getter := &kube.MemoryRESTClientGetter{}
 		factory := &ConfigFactory{
-			Getter:     getter,
-			KubeClient: helmkube.New(getter),
+			Getter: getter,
 		}
 
 		cfg := factory.Build(nil)
 		g.Expect(cfg).ToNot(BeNil())
-		g.Expect(cfg.KubeClient).To(Equal(factory.KubeClient))
 		g.Expect(cfg.RESTClientGetter).To(Equal(factory.Getter))
 	})
 
@@ -278,9 +276,8 @@ func TestConfigFactory_Valid(t *testing.T) {
 		{
 			name: "valid",
 			factory: &ConfigFactory{
-				Driver:     helmdriver.NewMemory(),
-				Getter:     &kube.MemoryRESTClientGetter{},
-				KubeClient: helmkube.New(&kube.MemoryRESTClientGetter{}),
+				Driver: helmdriver.NewMemory(),
+				Getter: &kube.MemoryRESTClientGetter{},
 			},
 			wantErr: nil,
 		},
@@ -295,16 +292,14 @@ func TestConfigFactory_Valid(t *testing.T) {
 		{
 			name: "no Kubernetes getter",
 			factory: &ConfigFactory{
-				Driver:     helmdriver.NewMemory(),
-				KubeClient: helmkube.New(&kube.MemoryRESTClientGetter{}),
+				Driver: helmdriver.NewMemory(),
 			},
 			wantErr: errors.New("no Kubernetes client and/or getter configured"),
 		},
 		{
 			name: "no driver",
 			factory: &ConfigFactory{
-				KubeClient: helmkube.New(&kube.MemoryRESTClientGetter{}),
-				Getter:     &kube.MemoryRESTClientGetter{},
+				Getter: &kube.MemoryRESTClientGetter{},
 			},
 			wantErr: errors.New("no Helm storage driver configured"),
 		},

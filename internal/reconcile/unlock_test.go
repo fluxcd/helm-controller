@@ -23,11 +23,11 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/gomega"
 	helmrelease "github.com/matheuscscp/helm/pkg/release"
 	helmreleaseutil "github.com/matheuscscp/helm/pkg/releaseutil"
 	helmstorage "github.com/matheuscscp/helm/pkg/storage"
 	helmdriver "github.com/matheuscscp/helm/pkg/storage/driver"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
@@ -323,7 +323,7 @@ func TestUnlock_Reconcile(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfg, err := action.NewConfigFactory(getter, context.Background(),
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
 			)
 			g.Expect(err).ToNot(HaveOccurred())
@@ -499,7 +499,7 @@ func TestUnlock_withOCIDigest(t *testing.T) {
 	getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 	g.Expect(err).ToNot(HaveOccurred())
 
-	cfg, err := action.NewConfigFactory(getter,
+	cfg, err := action.NewConfigFactory(getter, context.Background(),
 		action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
 	)
 	g.Expect(err).ToNot(HaveOccurred())

@@ -17,6 +17,7 @@ limitations under the License.
 package action
 
 import (
+	"context"
 	"fmt"
 
 	helmaction "github.com/matheuscscp/helm/pkg/action"
@@ -43,13 +44,12 @@ type ConfigFactory struct {
 	// Getter is the RESTClientGetter used to get the RESTClient for the
 	// Kubernetes API.
 	Getter genericclioptions.RESTClientGetter
-	// KubeClient is the (Helm) Kubernetes client, it is Helm-specific and
-	// contains a factory used for lazy-loading.
-	KubeClient *helmkube.Client
 	// Driver to use for the Helm action.
 	Driver helmdriver.Driver
 	// StorageLog is the logger to use for the Helm storage driver.
 	StorageLog helmaction.DebugLog
+	// WaitContext ...
+	WaitContext context.Context
 }
 
 // ConfigFactoryOption is a function that configures a ConfigFactory.
@@ -57,11 +57,10 @@ type ConfigFactoryOption func(*ConfigFactory) error
 
 // NewConfigFactory returns a new ConfigFactory configured with the provided
 // options.
-func NewConfigFactory(getter genericclioptions.RESTClientGetter, opts ...ConfigFactoryOption) (*ConfigFactory, error) {
-	kubeClient := helmkube.New(getter)
+func NewConfigFactory(getter genericclioptions.RESTClientGetter, waitContext context.Context, opts ...ConfigFactoryOption) (*ConfigFactory, error) {
 	factory := &ConfigFactory{
-		Getter:     getter,
-		KubeClient: kubeClient,
+		Getter:      getter,
+		WaitContext: waitContext,
 	}
 	for _, opt := range opts {
 		if err := opt(factory); err != nil {
@@ -92,7 +91,7 @@ func WithStorage(driver, namespace string) ConfigFactoryOption {
 
 		switch driver {
 		case helmdriver.SecretsDriverName, helmdriver.ConfigMapsDriverName, "":
-			clientSet, err := f.KubeClient.Factory.KubernetesClientSet()
+			clientSet, err := helmkube.New(f.Getter).Factory.KubernetesClientSet()
 			if err != nil {
 				return fmt.Errorf("could not get client set for '%s' storage driver: %w", driver, err)
 			}
@@ -146,13 +145,9 @@ func (c *ConfigFactory) NewStorage(observers ...storage.ObserveFunc) *helmstorag
 // Build returns a new Helm action.Configuration configured with the receiver
 // values, and the provided logger and observer(s).
 func (c *ConfigFactory) Build(log helmaction.DebugLog, observers ...storage.ObserveFunc) *helmaction.Configuration {
-	client := c.KubeClient
+	client := helmkube.New(c.Getter)
+	client.WaitContext = c.WaitContext
 	if log != nil {
-		// As Helm emits important information to the log of the client, we
-		// need to configure it with the same logger as the action.Configuration.
-		// This is not ideal, as we would like to re-use the client between
-		// actions, but otherwise this would not be thread-safe.
-		client = helmkube.New(c.Getter)
 		client.Log = log
 	}
 
@@ -172,8 +167,8 @@ func (c *ConfigFactory) Valid() error {
 		return fmt.Errorf("ConfigFactory is nil")
 	case c.Driver == nil:
 		return fmt.Errorf("no Helm storage driver configured")
-	case c.KubeClient == nil, c.Getter == nil:
-		return fmt.Errorf("no Kubernetes client and/or getter configured")
+	case c.Getter == nil:
+		return fmt.Errorf("no getter configured")
 	}
 	return nil
 }
