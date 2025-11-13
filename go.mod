@@ -25,7 +25,7 @@ require (
 	github.com/fluxcd/pkg/auth v0.32.0
 	github.com/fluxcd/pkg/cache v0.12.0
 	github.com/fluxcd/pkg/chartutil v1.16.0
-	github.com/fluxcd/pkg/runtime v0.88.0
+	github.com/fluxcd/pkg/runtime v0.89.0
 	github.com/fluxcd/pkg/ssa v0.60.0
 	github.com/fluxcd/pkg/testserver v0.13.0
 	github.com/fluxcd/source-controller/api v1.7.2
@@ -40,7 +40,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/wI2L/jsondiff v0.7.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/text v0.30.0
+	golang.org/x/text v0.31.0
 	helm.sh/helm/v3 v3.19.1
 	k8s.io/api v0.34.1
 	k8s.io/apiextensions-apiserver v0.34.1
@@ -208,7 +208,7 @@ require (
 	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b // indirect
 	golang.org/x/net v0.45.0 // indirect
 	golang.org/x/oauth2 v0.32.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/term v0.36.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
