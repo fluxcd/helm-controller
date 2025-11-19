@@ -38,8 +38,9 @@ import (
 
 type HelmReleaseReconcilerOptions struct {
 	RateLimiter            workqueue.TypedRateLimiter[reconcile.Request]
-	WatchExternalArtifacts bool
+	WatchConfigs           bool
 	WatchConfigsPredicate  predicate.Predicate
+	WatchExternalArtifacts bool
 }
 
 func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
@@ -127,17 +128,21 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 			&sourcev1.OCIRepository{},
 			handler.EnqueueRequestsFromMapFunc(r.requestsForOCIRepositoryChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
-		).
-		WatchesMetadata(
-			&corev1.ConfigMap{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexConfigMap)),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, opts.WatchConfigsPredicate),
-		).
-		WatchesMetadata(
-			&corev1.Secret{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexSecret)),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, opts.WatchConfigsPredicate),
 		)
+
+	if opts.WatchConfigs {
+		ctrlBuilder = ctrlBuilder.
+			WatchesMetadata(
+				&corev1.ConfigMap{},
+				handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexConfigMap)),
+				builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, opts.WatchConfigsPredicate),
+			).
+			WatchesMetadata(
+				&corev1.Secret{},
+				handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexSecret)),
+				builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, opts.WatchConfigsPredicate),
+			)
+	}
 
 	if opts.WatchExternalArtifacts {
 		ctrlBuilder = ctrlBuilder.Watches(
