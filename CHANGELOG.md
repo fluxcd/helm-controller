@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.4
+
+**Release date:** 2025-11-19
+
+This patch release fixes the error `no URLLoader registered` and
+Azure Workload Identity in Azure China Cloud. It also adds a
+feature gate to disable the ConfigMap and Secret watchers,
+`DisableConfigWatchers`.
+
+Improvements:
+- Add feature gate for disabling config watchers
+  [#1353](https://github.com/fluxcd/helm-controller/pull/1353)
+- Upgrade k8s to 1.34.2, c-r to 0.22.4 and helm to 3.19.2
+  [#1350](https://github.com/fluxcd/helm-controller/pull/1350)
+- Upgrade Helm to 3.19.1
+  [#1346](https://github.com/fluxcd/helm-controller/pull/1346)
+
 ## 1.4.3
 
 **Release date:** 2025-10-28
