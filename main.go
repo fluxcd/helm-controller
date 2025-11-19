@@ -332,6 +332,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	disableConfigWatchers, err := features.Enabled(helper.FeatureGateDisableConfigWatchers)
+	if err != nil {
+		setupLog.Error(err, "unable to check feature gate "+helper.FeatureGateDisableConfigWatchers)
+		os.Exit(1)
+	}
+	watchConfigs := !disableConfigWatchers
+
 	if err = (&controller.HelmReleaseReconciler{
 		Client:                     mgr.GetClient(),
 		APIReader:                  mgr.GetAPIReader(),
@@ -349,8 +356,9 @@ func main() {
 		AllowExternalArtifact:      allowExternalArtifact,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		RateLimiter:            helper.GetRateLimiter(rateLimiterOptions),
-		WatchExternalArtifacts: allowExternalArtifact,
+		WatchConfigs:           watchConfigs,
 		WatchConfigsPredicate:  watchConfigsPredicate,
+		WatchExternalArtifacts: allowExternalArtifact,
 	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", v2.HelmReleaseKind)
 		os.Exit(1)
