@@ -344,15 +344,19 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 	case ReleaseStatusInSync:
 		log.Info("release in-sync with desired state")
 
-		// Remove all history up to the previous release action.
-		// We need to continue to hold on to the previous release result
-		// to ensure we can e.g. roll back when tests are enabled without
-		// any further changes to the release.
-		ignoreFailures := req.Object.GetTest().IgnoreFailures
-		if remediation := req.Object.GetActiveRemediation(); remediation != nil {
-			ignoreFailures = remediation.MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures)
+		if retry := req.Object.GetActiveRetry(); retry != nil {
+			req.Object.Status.History.TruncateIgnoringPreviousSnapshots()
+		} else {
+			// Remove all history up to the previous release action.
+			// We need to continue to hold on to the previous release result
+			// to ensure we can e.g. roll back when tests are enabled without
+			// any further changes to the release.
+			ignoreFailures := req.Object.GetTest().IgnoreFailures
+			if remediation := req.Object.GetActiveRemediation(); remediation != nil {
+				ignoreFailures = remediation.MustIgnoreTestFailures(req.Object.GetTest().IgnoreFailures)
+			}
+			req.Object.Status.History.Truncate(ignoreFailures)
 		}
-		req.Object.Status.History.Truncate(ignoreFailures)
 
 		if forceRequested {
 			log.Info(msgWithReason("forcing upgrade for in-sync release", "force requested through annotation"))
@@ -460,6 +464,8 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		// If the action strategy is to retry (and not remediate), we behave just like
 		// "flux reconcile hr --force" and .spec.<action>.remediation.retries set to 0.
 		if req.Object.GetActiveRetry() != nil {
+			req.Object.Status.History.TruncateIgnoringPreviousSnapshots()
+
 			log.V(logger.DebugLevel).Info("retrying upgrade for failed release")
 			return NewUpgrade(r.configFactory, r.eventRecorder), nil
 		}

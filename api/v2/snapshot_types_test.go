@@ -296,3 +296,63 @@ func TestSnapshots_Truncate(t *testing.T) {
 		})
 	}
 }
+
+func TestSnapshots_TruncateIgnoringPreviousSnapshots(t *testing.T) {
+	tests := []struct {
+		name string
+		in   Snapshots
+		want Snapshots
+	}{
+		{
+			name: "keeps previous snapshot",
+			in: Snapshots{
+				{Version: 1, Status: "superseded"},
+				{Version: 3, Status: "failed"},
+				{Version: 2, Status: "superseded"},
+				{Version: 4, Status: "deployed"},
+			},
+			want: Snapshots{
+				{Version: 4, Status: "deployed"},
+				{Version: 3, Status: "failed"},
+				{Version: 2, Status: "superseded"},
+				{Version: 1, Status: "superseded"},
+			},
+		},
+		{
+			name: "retains most recent snapshots when all have failed",
+			in: Snapshots{
+				{Version: 6, Status: "deployed"},
+				{Version: 5, Status: "failed"},
+				{Version: 4, Status: "failed"},
+				{Version: 3, Status: "failed"},
+				{Version: 2, Status: "failed"},
+				{Version: 1, Status: "failed"},
+			},
+			want: Snapshots{
+				{Version: 6, Status: "deployed"},
+				{Version: 5, Status: "failed"},
+				{Version: 4, Status: "failed"},
+				{Version: 3, Status: "failed"},
+				{Version: 2, Status: "failed"},
+			},
+		},
+		{
+			name: "without previous snapshot",
+			in: Snapshots{
+				{Version: 1, Status: "deployed"},
+			},
+			want: Snapshots{
+				{Version: 1, Status: "deployed"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.in.TruncateIgnoringPreviousSnapshots()
+
+			if !reflect.DeepEqual(tt.in, tt.want) {
+				t.Errorf("TruncateIgnoringPreviousSnapshots() got %v, want %v", tt.in, tt.want)
+			}
+		})
+	}
+}
