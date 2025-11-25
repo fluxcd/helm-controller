@@ -107,6 +107,15 @@ func (in *Snapshots) Truncate(ignoreTests bool) {
 	}
 }
 
+// TruncateIgnoringPreviousSnapshots sorts the Snapshots by version
+// in descending order and retains only the most recent 5 Snapshots.
+func (in *Snapshots) TruncateIgnoringPreviousSnapshots() {
+	in.SortByVersion()
+	if in.Len() > defaultMaxHistory {
+		*in = (*in)[:defaultMaxHistory]
+	}
+}
+
 // Snapshot captures a point-in-time copy of the status information for a Helm release,
 // as managed by the controller.
 type Snapshot struct {
