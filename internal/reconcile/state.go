@@ -89,7 +89,7 @@ type ReleaseState struct {
 // DetermineReleaseState determines the state of the Helm release as compared
 // to the v2.HelmRelease object. It returns a ReleaseState that indicates
 // the status of the release, and an error if the state could not be determined.
-func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *Request) (ReleaseState, error) {
+func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *Request, disallowedFieldManagers []string) (ReleaseState, error) {
 	rls, err := action.LastRelease(cfg.Build(nil), req.Object.GetReleaseName())
 	if err != nil {
 		if errors.Is(err, action.ErrReleaseNotFound) {
@@ -188,7 +188,7 @@ func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *
 
 		// Confirm the cluster state matches the desired config.
 		if diffOpts := req.Object.GetDriftDetection(); diffOpts.MustDetectChanges() {
-			diffSet, err := action.Diff(ctx, cfg.Build(nil), rls, kube.ManagedFieldsManager, req.Object.GetDriftDetection().Ignore...)
+			diffSet, err := action.Diff(ctx, cfg.Build(nil), rls, kube.ManagedFieldsManager, disallowedFieldManagers, req.Object.GetDriftDetection().Ignore...)
 			hasChanges := diffSet.HasChanges()
 			if err != nil {
 				if !hasChanges {

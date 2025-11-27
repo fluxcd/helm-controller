@@ -105,6 +105,7 @@ func main() {
 		oomWatchMaxMemoryPath           string
 		oomWatchCurrentMemoryPath       string
 		snapshotDigestAlgo              string
+		disallowedFieldManagers         []string
 		tokenCacheOptions               cache.TokenFlags
 		defaultKubeConfigServiceAccount string
 	)
@@ -137,6 +138,8 @@ func main() {
 		"The path to the cgroup current memory usage file. Requires feature gate 'OOMWatch' to be enabled. If not set, the path will be automatically detected.")
 	flag.StringVar(&snapshotDigestAlgo, "snapshot-digest-algo", intdigest.Canonical.String(),
 		"The algorithm to use to calculate the digest of Helm release storage snapshots.")
+	flag.StringArrayVar(&disallowedFieldManagers, "override-manager", []string{},
+		"Field manager disallowed to perform changes on managed resources.")
 
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
@@ -354,6 +357,7 @@ func main() {
 		DependencyRequeueInterval:  requeueDependency,
 		ArtifactFetchRetries:       httpRetry,
 		AllowExternalArtifact:      allowExternalArtifact,
+		DisallowedFieldManagers:    disallowedFieldManagers,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		RateLimiter:            helper.GetRateLimiter(rateLimiterOptions),
 		WatchConfigs:           watchConfigs,

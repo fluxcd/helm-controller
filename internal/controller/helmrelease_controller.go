@@ -89,13 +89,14 @@ type HelmReleaseReconciler struct {
 
 	// Kubernetes configuration
 
-	FieldManager          string
-	DefaultServiceAccount string
-	GetClusterConfig      func() (*rest.Config, error)
-	ClientOpts            runtimeClient.Options
-	KubeConfigOpts        runtimeClient.KubeConfigOptions
-	APIReader             client.Reader
-	TokenCache            *cache.TokenCache
+	FieldManager            string
+	DisallowedFieldManagers []string
+	DefaultServiceAccount   string
+	GetClusterConfig        func() (*rest.Config, error)
+	ClientOpts              runtimeClient.Options
+	KubeConfigOpts          runtimeClient.KubeConfigOptions
+	APIReader               client.Reader
+	TokenCache              *cache.TokenCache
 
 	// Retry and requeue configuration
 
@@ -393,7 +394,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	}
 
 	// Off we go!
-	if err = intreconcile.NewAtomicRelease(patchHelper, cfg, r.EventRecorder, r.FieldManager).Reconcile(ctx, &intreconcile.Request{
+	if err = intreconcile.NewAtomicRelease(patchHelper, cfg, r.EventRecorder, r.FieldManager, r.DisallowedFieldManagers).Reconcile(ctx, &intreconcile.Request{
 		Object: obj,
 		Chart:  loadedChart,
 		Values: values,
