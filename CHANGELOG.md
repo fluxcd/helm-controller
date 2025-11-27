@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.5
+
+**Release date:** 2025-11-27
+
+This patch release fixes the HelmRelease `.status.history`
+filling up etcd when the `RetryOnFailure` strategy is used.
+
+Fixes:
+- Fix history truncation logic for RetryOnFailure
+  [#1360](https://github.com/fluxcd/helm-controller/pull/1360)
+
 ## 1.4.4
 
 **Release date:** 2025-11-19
