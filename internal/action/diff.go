@@ -27,6 +27,8 @@ import (
 	helmaction "helm.sh/helm/v3/pkg/action"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/utils/ptr"
@@ -40,12 +42,13 @@ import (
 	ssautil "github.com/fluxcd/pkg/ssa/utils"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
+
 	"github.com/fluxcd/helm-controller/internal/diff"
 )
 
 // Diff returns a jsondiff.DiffSet of the changes between the state of the
 // cluster and the Helm release.Release manifest.
-func Diff(ctx context.Context, config *helmaction.Configuration, rls *helmrelease.Release, fieldOwner string, ignore ...v2.IgnoreRule) (jsondiff.DiffSet, error) {
+func Diff(ctx context.Context, config *helmaction.Configuration, rls *helmrelease.Release, fieldOwner string, disallowedFieldManagers []string, ignore ...v2.IgnoreRule) (jsondiff.DiffSet, error) {
 	// Create a dry-run only client to use solely for diffing.
 	cfg, err := config.RESTClientGetter.ToRESTConfig()
 	if err != nil {
@@ -92,6 +95,19 @@ func Diff(ctx context.Context, config *helmaction.Configuration, rls *helmreleas
 			}
 			if isNamespacedGVK[objGVK] {
 				obj.SetNamespace(rls.Namespace)
+			}
+		}
+	}
+
+	if len(disallowedFieldManagers) > 0 {
+		c, err := client.New(cfg, client.Options{})
+		if err != nil {
+			return nil, err
+		}
+		for _, obj := range objects {
+			err = replaceDisallowedFieldManagers(ctx, c, fieldOwner, disallowedFieldManagers, obj)
+			if err != nil {
+				return nil, fmt.Errorf("failed to clean-up disallowed field managers: %w", err)
 			}
 		}
 	}
@@ -277,4 +293,43 @@ func (s sortableDiffs) Less(i, j int) bool {
 	}
 
 	return iDiff.GetName() < jDiff.GetName()
+}
+
+func replaceDisallowedFieldManagers(ctx context.Context, c client.Client, fieldOwner string, disallowedFieldManagers []string, obj *unstructured.Unstructured) error {
+	existingObj := &unstructured.Unstructured{}
+	existingObj.SetGroupVersionKind(obj.GroupVersionKind())
+	if err := c.Get(ctx, client.ObjectKeyFromObject(obj), existingObj); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	fieldManagers := []ssa.FieldManager{}
+	for _, fieldManager := range disallowedFieldManagers {
+		fieldManagers = append(fieldManagers, ssa.FieldManager{
+			Name:          fieldManager,
+			OperationType: metav1.ManagedFieldsOperationApply,
+		})
+		fieldManagers = append(fieldManagers, ssa.FieldManager{
+			Name:          fieldManager,
+			OperationType: metav1.ManagedFieldsOperationUpdate,
+		})
+	}
+
+	patches, err := ssa.PatchReplaceFieldsManagers(existingObj, fieldManagers, fieldOwner)
+	if err != nil {
+		return err
+	}
+	if len(patches) > 0 {
+		rawPatch, err := json.Marshal(patches)
+		if err != nil {
+			return err
+		}
+		err = c.Patch(ctx, existingObj, client.RawPatch(types.JSONPatchType, rawPatch), client.FieldOwner(fieldOwner))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -52,6 +52,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
+
 	intdigest "github.com/fluxcd/helm-controller/internal/digest"
 
 	// +kubebuilder:scaffold:imports
@@ -105,6 +106,7 @@ func main() {
 		oomWatchMaxMemoryPath           string
 		oomWatchCurrentMemoryPath       string
 		snapshotDigestAlgo              string
+		disallowedFieldManagers         []string
 		tokenCacheOptions               cache.TokenFlags
 		defaultKubeConfigServiceAccount string
 	)
@@ -137,6 +139,8 @@ func main() {
 		"The path to the cgroup current memory usage file. Requires feature gate 'OOMWatch' to be enabled. If not set, the path will be automatically detected.")
 	flag.StringVar(&snapshotDigestAlgo, "snapshot-digest-algo", intdigest.Canonical.String(),
 		"The algorithm to use to calculate the digest of Helm release storage snapshots.")
+	flag.StringArrayVar(&disallowedFieldManagers, "override-manager", []string{},
+		"List of field managers to override during drift detection.")
 
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
@@ -354,6 +358,7 @@ func main() {
 		DependencyRequeueInterval:  requeueDependency,
 		ArtifactFetchRetries:       httpRetry,
 		AllowExternalArtifact:      allowExternalArtifact,
+		DisallowedFieldManagers:    disallowedFieldManagers,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		RateLimiter:            helper.GetRateLimiter(rateLimiterOptions),
 		WatchConfigs:           watchConfigs,
