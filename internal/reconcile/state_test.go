@@ -636,7 +636,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				Object: obj,
 				Chart:  tt.chart,
 				Values: tt.values,
-			})
+			}, nil)
 			if tt.wantErr {
 				g.Expect(got).To(BeNil())
 				g.Expect(err).To(HaveOccurred())
@@ -816,7 +816,7 @@ func TestDetermineReleaseState_DriftDetection(t *testing.T) {
 				Object: obj,
 				Chart:  testutil.BuildChart(),
 				Values: rls.Config,
-			})
+			}, nil)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			want := tt.want(releaseNamespace)

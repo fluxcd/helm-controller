@@ -177,7 +177,7 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 			Chart:  testutil.BuildChart(testutil.ChartWithTestHook()),
 			Values: nil,
 		}
-		g.Expect(NewAtomicRelease(patchHelper, cfg, recorder, testFieldManager).Reconcile(context.TODO(), req)).ToNot(HaveOccurred())
+		g.Expect(NewAtomicRelease(patchHelper, cfg, recorder, testFieldManager, nil).Reconcile(context.TODO(), req)).ToNot(HaveOccurred())
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			{
@@ -206,7 +206,7 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 		g.Expect(obj.Status.InstallFailures).To(BeZero())
 		g.Expect(obj.Status.UpgradeFailures).To(BeZero())
 
-		endState, err := DetermineReleaseState(ctx, cfg, req)
+		endState, err := DetermineReleaseState(ctx, cfg, req, nil)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(endState).To(Equal(ReleaseState{Status: ReleaseStatusInSync}))
 	})
@@ -1229,7 +1229,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 				Values: tt.values,
 			}
 
-			err = NewAtomicRelease(patchHelper, cfg, recorder, testFieldManager).Reconcile(context.TODO(), req)
+			err = NewAtomicRelease(patchHelper, cfg, recorder, testFieldManager, nil).Reconcile(context.TODO(), req)
 			wantErr := BeNil()
 			if tt.wantErr != nil {
 				wantErr = MatchError(tt.wantErr)
@@ -1460,7 +1460,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 				Values: tt.values,
 			}
 
-			err = NewAtomicRelease(patchHelper, cfg, recorder, testFieldManager).Reconcile(context.TODO(), req)
+			err = NewAtomicRelease(patchHelper, cfg, recorder, testFieldManager, nil).Reconcile(context.TODO(), req)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			g.Expect(obj.Status.ObservedPostRenderersDigest).To(Equal(tt.wantDigest))
@@ -2401,7 +2401,7 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 				Values: tt.values,
 			}
 
-			err = NewAtomicRelease(patchHelper, cfg, recorder, testFieldManager).Reconcile(context.TODO(), req)
+			err = NewAtomicRelease(patchHelper, cfg, recorder, testFieldManager, nil).Reconcile(context.TODO(), req)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			g.Expect(obj.Status.ObservedCommonMetadataDigest).To(Equal(tt.wantDigest))
