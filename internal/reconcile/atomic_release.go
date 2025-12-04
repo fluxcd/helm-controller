@@ -433,8 +433,8 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 					patch = jsondiff.MaskSecretPatchData(change.Patch)
 				}
 				log.V(logger.DebugLevel).Info("resource modified",
-					"resource", diff.ResourceName(change.DesiredObject),
-					"patch", patch)
+					"resource", diff.ResourceName(change.DesiredObject), "resourceGeneration",
+					change.ClusterObject.GetGeneration(), "patch", patch)
 			}
 		}
 
