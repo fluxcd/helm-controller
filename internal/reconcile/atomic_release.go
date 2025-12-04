@@ -375,6 +375,14 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 			replaceCondition(req.Object, v2.RemediatedCondition, v2.ReleasedCondition, v2.UpgradeSucceededReason, msg, metav1.ConditionTrue)
 		}
 
+		if conditions.IsTrue(req.Object, v2.DriftedCondition) {
+			conditions.Set(req.Object, &metav1.Condition{
+				Type:   v2.DriftedCondition,
+				Status: metav1.ConditionFalse,
+				Reason: v2.NoDriftDetectedReason,
+			})
+		}
+
 		return nil, nil
 	case ReleaseStatusLocked:
 		log.Info(msgWithReason("release locked", state.Reason))
@@ -425,15 +433,20 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 					patch = jsondiff.MaskSecretPatchData(change.Patch)
 				}
 				log.V(logger.DebugLevel).Info("resource modified",
-					"resource", diff.ResourceName(change.DesiredObject),
-					"patch", patch)
+					"resource", diff.ResourceName(change.DesiredObject), "resourceGeneration",
+					change.ClusterObject.GetGeneration(), "patch", patch)
 			}
 		}
 
-		r.eventRecorder.Eventf(req.Object, corev1.EventTypeWarning, "DriftDetected",
-			"Cluster state of release %s has drifted from the desired state:\n%s",
-			req.Object.Status.History.Latest().FullReleaseName(), diff.SummarizeDiffSet(state.Diff),
-		)
+		msg := fmt.Sprintf("Cluster state of release %s has drifted from the desired state:\n%s",
+			req.Object.Status.History.Latest().FullReleaseName(), diff.SummarizeDiffSet(state.Diff))
+		r.eventRecorder.Eventf(req.Object, corev1.EventTypeWarning, v2.DriftDetectedReason, msg)
+		conditions.Set(req.Object, &metav1.Condition{
+			Type:    v2.DriftedCondition,
+			Status:  metav1.ConditionTrue,
+			Reason:  v2.DriftDetectedReason,
+			Message: msg,
+		})
 
 		if req.Object.GetDriftDetection().GetMode() == v2.DriftDetectionEnabled {
 			return NewCorrectClusterDrift(r.configFactory, r.eventRecorder, state.Diff, kube.ManagedFieldsManager), nil

@@ -124,6 +124,9 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	log = log.WithValues("generation", obj.GetGeneration())
+	ctx = ctrl.LoggerInto(ctx, log)
+
 	if !isValidChartRef(obj) {
 		return ctrl.Result{}, reconcile.TerminalError(fmt.Errorf("invalid Chart reference"))
 	}

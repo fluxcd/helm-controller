@@ -1614,6 +1614,9 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 					"Deployment/something/mock removed",
 				),
 			},
+			assertConditions: []metav1.Condition{
+				*conditions.TrueCondition(v2.DriftedCondition, v2.DriftDetectedReason, "Cluster state of release mock-ns/mock-release.v1 has drifted from the desired state:\nDeployment/something/mock removed"),
+			},
 		},
 		{
 			name: "drifted release only triggers event if mode is warn",
@@ -1682,6 +1685,9 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 					mockReleaseNamespace+"/"+mockReleaseName+".v1",
 					"Deployment/something/mock changed (0 additions, 1 changes, 0 removals)",
 				),
+			},
+			assertConditions: []metav1.Condition{
+				*conditions.TrueCondition(v2.DriftedCondition, v2.DriftDetectedReason, "Cluster state of release mock-ns/mock-release.v1 has drifted from the desired state:\nDeployment/something/mock changed (0 additions, 1 changes, 0 removals)"),
 			},
 		},
 		{
