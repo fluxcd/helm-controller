@@ -113,22 +113,24 @@ var (
 // For more information on the individual ActionReconcilers, refer to their
 // documentation.
 type AtomicRelease struct {
-	patchHelper   *patch.SerialPatcher
-	configFactory *action.ConfigFactory
-	eventRecorder record.EventRecorder
-	strategy      releaseStrategy
-	fieldManager  string
+	patchHelper             *patch.SerialPatcher
+	configFactory           *action.ConfigFactory
+	eventRecorder           record.EventRecorder
+	strategy                releaseStrategy
+	fieldManager            string
+	disallowedFieldManagers []string
 }
 
 // NewAtomicRelease returns a new AtomicRelease reconciler configured with the
 // provided values.
-func NewAtomicRelease(patchHelper *patch.SerialPatcher, cfg *action.ConfigFactory, recorder record.EventRecorder, fieldManager string) *AtomicRelease {
+func NewAtomicRelease(patchHelper *patch.SerialPatcher, cfg *action.ConfigFactory, recorder record.EventRecorder, fieldManager string, disallowedFieldManagers []string) *AtomicRelease {
 	return &AtomicRelease{
-		patchHelper:   patchHelper,
-		eventRecorder: recorder,
-		configFactory: cfg,
-		strategy:      &cleanReleaseStrategy{},
-		fieldManager:  fieldManager,
+		patchHelper:             patchHelper,
+		eventRecorder:           recorder,
+		configFactory:           cfg,
+		strategy:                &cleanReleaseStrategy{},
+		fieldManager:            fieldManager,
+		disallowedFieldManagers: disallowedFieldManagers,
 	}
 }
 
@@ -188,7 +190,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 		default:
 			// Determine the current state of the Helm release.
 			log.V(logger.DebugLevel).Info("determining current state of Helm release")
-			state, err := DetermineReleaseState(ctx, r.configFactory, req)
+			state, err := DetermineReleaseState(ctx, r.configFactory, req, r.disallowedFieldManagers)
 			if err != nil {
 				conditions.MarkFalse(req.Object, meta.ReadyCondition, "StateError", "Could not determine release state: %s", err)
 				return fmt.Errorf("cannot determine release state: %w", err)
