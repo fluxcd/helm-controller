@@ -2017,8 +2017,9 @@ A HelmRelease enters various states during its lifecycle, reflected as
 [Kubernetes Conditions](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties).
 It can be [reconciling](#reconciling-helmrelease) when it is being processed by
 the controller, it can be [ready](#ready-helmrelease) when the Helm release is
-installed and up-to-date, or it can [fail](#failed-helmrelease) during
-reconciliation.
+installed and up-to-date, it can [fail](#failed-helmrelease) during
+reconciliation, or it can be [drifted](#drifted-helmrelease) if the
+drift detection mode is set to enabled/warn and there is a drift.
 
 The HelmRelease API is compatible with the [kstatus specification](https://github.com/kubernetes-sigs/cli-utils/tree/master/pkg/kstatus),
 and reports `Reconciling` and `Stalled` conditions where applicable to provide
@@ -2102,6 +2103,29 @@ HelmRelease's `.status.conditions`:
 
 The `TestSuccess` Condition will retain a status value of `"True"` until the
 next Helm install or upgrade occurs, or the Helm tests are disabled.
+
+#### Drifted HelmRelease
+
+The helm-controller marks the HelmRelease as _drifted_ when it has the following
+characteristics:
+
+- The HelmRelease have drift detection mode set to enabled or warn.
+- There is a drift detected against the cluster state.
+
+When the HelmRelease is "drifted", the controller sets a Condition with the
+following attributes in the HelmRelease's `.status.conditions`:
+
+- `type: Drifted`
+- `status: "True"`
+- `reason: DriftDetected`
+
+When the HelmRelease have drift detection mode set to enabled or warn there
+and there is no drift, the controller sets a Condition with the following
+attributes in the HelmRelease's `.status.conditions`:
+
+- `type: Drifted`
+- `status: "False"`
+- `reason: NoDriftDetected`
 
 #### Failed HelmRelease
 
