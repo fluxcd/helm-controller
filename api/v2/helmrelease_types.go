@@ -201,7 +201,7 @@ type Kustomize struct {
 	// for changing image names, tags or digests. This can also be achieved with a
 	// patch, but this operator is simpler to specify.
 	// +optional
-	Images []kustomize.Image `json:"images,omitempty" json:"images,omitempty"`
+	Images []kustomize.Image `json:"images,omitempty"`
 }
 
 // CommonMetadata defines the common labels and annotations.
