@@ -569,6 +569,11 @@ func (in Install) GetRetry() Retry {
 	return in.Strategy
 }
 
+// GetDisableWait returns whether waiting is disabled for the Helm install action.
+func (in Install) GetDisableWait() bool {
+	return in.DisableWait
+}
+
 // InstallStrategy holds the configuration for Helm install strategy.
 // +kubebuilder:validation:XValidation:rule="!has(self.retryInterval) || self.name != 'RemediateOnFailure'", message=".retryInterval cannot be set when .name is 'RemediateOnFailure'"
 type InstallStrategy struct {
@@ -787,6 +792,11 @@ func (in Upgrade) GetRetry() Retry {
 	return in.Strategy
 }
 
+// GetDisableWait returns whether waiting is disabled for the Helm upgrade action.
+func (in Upgrade) GetDisableWait() bool {
+	return in.DisableWait
+}
+
 // UpgradeStrategy holds the configuration for Helm upgrade strategy.
 // +kubebuilder:validation:XValidation:rule="!has(self.retryInterval) || self.name == 'RetryOnFailure'", message=".retryInterval can only be set when .name is 'RetryOnFailure'"
 type UpgradeStrategy struct {
@@ -991,7 +1001,15 @@ type Rollback struct {
 	// +optional
 	DisableHooks bool `json:"disableHooks,omitempty"`
 
-	// Recreate performs pod restarts for the resource if applicable.
+	// Recreate performs pod restarts for any managed workloads.
+	//
+	// Deprecated: This behavior was deprecated in Helm 3:
+	//   - Deprecation: https://github.com/helm/helm/pull/6463
+	//   - Removal: https://github.com/helm/helm/pull/31023
+	// After helm-controller was upgraded to the Helm 4 SDK,
+	// this field is no longer functional and will print a
+	// warning if set to true. It will also be removed in a
+	// future release.
 	// +optional
 	Recreate bool `json:"recreate,omitempty"`
 
@@ -1012,6 +1030,11 @@ func (in Rollback) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 		return defaultTimeout
 	}
 	return *in.Timeout
+}
+
+// GetDisableWait returns whether waiting is disabled for the Helm rollback action.
+func (in Rollback) GetDisableWait() bool {
+	return in.DisableWait
 }
 
 // Uninstall holds the configuration for Helm uninstall actions for this
@@ -1063,6 +1086,11 @@ func (in Uninstall) GetDeletionPropagation() string {
 		return "background"
 	}
 	return *in.DeletionPropagation
+}
+
+// GetDisableWait returns whether waiting is disabled for the Helm uninstall action.
+func (in Uninstall) GetDisableWait() bool {
+	return in.DisableWait
 }
 
 // ReleaseAction is the action to perform a Helm release.
@@ -1322,10 +1350,10 @@ func (in HelmRelease) GetRequeueAfter() time.Duration {
 	return in.Spec.Interval.Duration
 }
 
-// GetValues unmarshals the raw values to a map[string]interface{} and returns
+// GetValues unmarshals the raw values to a map[string]any and returns
 // the result.
-func (in HelmRelease) GetValues() map[string]interface{} {
-	var values map[string]interface{}
+func (in HelmRelease) GetValues() map[string]any {
+	var values map[string]any
 	if in.Spec.Values != nil {
 		_ = yaml.Unmarshal(in.Spec.Values.Raw, &values)
 	}

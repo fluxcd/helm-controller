@@ -30,9 +30,9 @@ func TestSummarizeDiffSet(t *testing.T) {
 	diffSet := jsondiff.DiffSet{
 		&jsondiff.Diff{
 			DesiredObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": "ConfigMap",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "config",
 						"namespace": "namespace-1",
 					},
@@ -42,9 +42,9 @@ func TestSummarizeDiffSet(t *testing.T) {
 		},
 		&jsondiff.Diff{
 			DesiredObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": "Secret",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "naughty",
 						"namespace": "namespace-x",
 					},
@@ -54,9 +54,9 @@ func TestSummarizeDiffSet(t *testing.T) {
 		},
 		&jsondiff.Diff{
 			DesiredObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": "StatefulSet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "hello-world",
 						"namespace": "default",
 					},
@@ -66,9 +66,9 @@ func TestSummarizeDiffSet(t *testing.T) {
 		},
 		&jsondiff.Diff{
 			DesiredObject: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "touched-me",
 						"namespace": "tenant-y",
 					},
@@ -215,9 +215,9 @@ func TestResourceName(t *testing.T) {
 		{
 			name: "with namespace",
 			resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": "Deployment",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "touched-me",
 						"namespace": "tenant-y",
 					},
@@ -228,9 +228,9 @@ func TestResourceName(t *testing.T) {
 		{
 			name: "without namespace",
 			resource: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"kind": "ClusterIssuer",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "letsencrypt",
 					},
 				},

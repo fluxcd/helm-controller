@@ -24,12 +24,13 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmreleaseutil "helm.sh/helm/v3/pkg/releaseutil"
-	helmstorage "helm.sh/helm/v3/pkg/storage"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmchartutil "helm.sh/helm/v4/pkg/chart/common"
+	helmchart "helm.sh/helm/v4/pkg/chart/v2"
+	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	helmreleaseutil "helm.sh/helm/v4/pkg/release/v1/util"
+	helmstorage "helm.sh/helm/v4/pkg/storage"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,7 +97,7 @@ func TestUpgrade_Reconcile(t *testing.T) {
 						Namespace: namespace,
 						Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -128,7 +129,7 @@ func TestUpgrade_Reconcile(t *testing.T) {
 						Namespace: namespace,
 						Chart:     testutil.BuildChart(),
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -142,9 +143,9 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			},
 			expectConditions: []metav1.Condition{
 				*conditions.FalseCondition(meta.ReadyCondition, v2.UpgradeFailedReason,
-					"post-upgrade hooks failed: 1 error occurred:\n\t* timed out waiting for the condition"),
+					"context deadline exceeded"),
 				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason,
-					"post-upgrade hooks failed: 1 error occurred:\n\t* timed out waiting for the condition"),
+					"context deadline exceeded"),
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -170,7 +171,7 @@ func TestUpgrade_Reconcile(t *testing.T) {
 						Namespace: namespace,
 						Chart:     testutil.BuildChart(),
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -212,7 +213,7 @@ func TestUpgrade_Reconcile(t *testing.T) {
 						Namespace: namespace,
 						Chart:     testutil.BuildChart(),
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -248,7 +249,7 @@ func TestUpgrade_Reconcile(t *testing.T) {
 						Namespace: namespace,
 						Chart:     testutil.BuildChart(),
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -277,14 +278,14 @@ func TestUpgrade_Reconcile(t *testing.T) {
 						Namespace: namespace,
 						Chart:     testutil.BuildChart(),
 						Version:   1,
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Chart:     testutil.BuildChart(),
 						Version:   2,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -296,7 +297,7 @@ func TestUpgrade_Reconcile(t *testing.T) {
 							Name:      mockReleaseName,
 							Namespace: releases[0].Namespace,
 							Version:   1,
-							Status:    helmrelease.StatusDeployed.String(),
+							Status:    helmreleasecommon.StatusDeployed.String(),
 						},
 					},
 				}
@@ -314,7 +315,7 @@ func TestUpgrade_Reconcile(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: releases[0].Namespace,
 						Version:   1,
-						Status:    helmrelease.StatusDeployed.String(),
+						Status:    helmreleasecommon.StatusDeployed.String(),
 					},
 				}
 			},
@@ -328,7 +329,7 @@ func TestUpgrade_Reconcile(t *testing.T) {
 						Namespace: namespace,
 						Chart:     testutil.BuildChart(),
 						Version:   2,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -376,7 +377,7 @@ func TestUpgrade_Reconcile(t *testing.T) {
 					ReleaseName:      mockReleaseName,
 					TargetNamespace:  releaseNamespace,
 					StorageNamespace: releaseNamespace,
-					Timeout:          &metav1.Duration{Duration: 100 * time.Millisecond},
+					Timeout:          &metav1.Duration{Duration: 200 * time.Millisecond},
 				},
 			}
 			if tt.spec != nil {
@@ -417,7 +418,7 @@ func TestUpgrade_Reconcile(t *testing.T) {
 
 			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(tt.expectConditions))
 
-			releases, _ = store.History(mockReleaseName)
+			releases, _ = storeHistory(store, mockReleaseName)
 			helmreleaseutil.SortByRevision(releases)
 
 			if tt.expectHistory != nil {
@@ -447,7 +448,7 @@ func TestUpgrade_Reconcile_withSubchartWithCRDs(t *testing.T) {
 				Namespace: namespace,
 				Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
 				Version:   1,
-				Status:    helmrelease.StatusDeployed,
+				Status:    helmreleasecommon.StatusDeployed,
 			}),
 		}
 	}
@@ -559,7 +560,7 @@ func TestUpgrade_Reconcile_withSubchartWithCRDs(t *testing.T) {
 
 			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(expectConditions))
 
-			releases, _ = store.History(mockReleaseName)
+			releases, _ = storeHistory(store, mockReleaseName)
 			helmreleaseutil.SortByRevision(releases)
 
 			g.Expect(obj.Status.History).To(testutil.Equal(expectHistory(releases)))
@@ -625,7 +626,7 @@ func TestUpgrade_failure(t *testing.T) {
 			eventRecorder: recorder,
 		}
 
-		req := &Request{Object: obj.DeepCopy(), Chart: chrt, Values: map[string]interface{}{"foo": "bar"}}
+		req := &Request{Object: obj.DeepCopy(), Chart: chrt, Values: map[string]any{"foo": "bar"}}
 		r.failure(req, nil, err)
 
 		expectMsg := fmt.Sprintf(fmtUpgradeFailure, mockReleaseNamespace, mockReleaseName, chrt.Name(),
@@ -660,7 +661,7 @@ func TestUpgrade_failure(t *testing.T) {
 			eventRecorder: recorder,
 		}
 		req := &Request{Object: obj.DeepCopy(), Chart: chrt}
-		r.failure(req, mockLogBuffer(5, 10), err)
+		r.failure(req, mockLogBuffer(), err)
 
 		expectSubStr := "Last Helm logs"
 		g.Expect(conditions.IsFalse(req.Object, v2.ReleasedCondition)).To(BeTrue())

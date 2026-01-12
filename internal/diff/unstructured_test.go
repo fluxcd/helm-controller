@@ -27,7 +27,7 @@ func TestWithoutStatus(t *testing.T) {
 	g := NewWithT(t)
 
 	u := unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"status": "test",
 		},
 	}
@@ -46,19 +46,19 @@ func TestUnstructured(t *testing.T) {
 	}{
 		{
 			name: "equal objects",
-			x: &unstructured.Unstructured{Object: map[string]interface{}{
-				"spec": map[string]interface{}{
+			x: &unstructured.Unstructured{Object: map[string]any{
+				"spec": map[string]any{
 					"replicas": int64(4),
 				},
-				"status": map[string]interface{}{
+				"status": map[string]any{
 					"readyReplicas": int64(4),
 				},
 			}},
-			y: &unstructured.Unstructured{Object: map[string]interface{}{
-				"spec": map[string]interface{}{
+			y: &unstructured.Unstructured{Object: map[string]any{
+				"spec": map[string]any{
 					"replicas": int64(4),
 				},
-				"status": map[string]interface{}{
+				"status": map[string]any{
 					"readyReplicas": int64(4),
 				},
 			}},
@@ -67,17 +67,17 @@ func TestUnstructured(t *testing.T) {
 		},
 		{
 			name: "added simple value",
-			x: &unstructured.Unstructured{Object: map[string]interface{}{
-				"spec": map[string]interface{}{
+			x: &unstructured.Unstructured{Object: map[string]any{
+				"spec": map[string]any{
 					"replicas": int64(1),
 				},
-				"status": map[string]interface{}{},
+				"status": map[string]any{},
 			}},
-			y: &unstructured.Unstructured{Object: map[string]interface{}{
-				"spec": map[string]interface{}{
+			y: &unstructured.Unstructured{Object: map[string]any{
+				"spec": map[string]any{
 					"replicas": int64(1),
 				},
-				"status": map[string]interface{}{
+				"status": map[string]any{
 					"readyReplicas": int64(1),
 				},
 			}},
@@ -87,17 +87,17 @@ func TestUnstructured(t *testing.T) {
 		},
 		{
 			name: "removed simple value",
-			x: &unstructured.Unstructured{Object: map[string]interface{}{
-				"spec": map[string]interface{}{
+			x: &unstructured.Unstructured{Object: map[string]any{
+				"spec": map[string]any{
 					"replicas": int64(1),
 				},
-				"status": map[string]interface{}{
+				"status": map[string]any{
 					"readyReplicas": int64(4),
 				},
 			}},
-			y: &unstructured.Unstructured{Object: map[string]interface{}{
-				"spec": map[string]interface{}{},
-				"status": map[string]interface{}{
+			y: &unstructured.Unstructured{Object: map[string]any{
+				"spec": map[string]any{},
+				"status": map[string]any{
 					"readyReplicas": int64(4),
 				},
 			}},
@@ -107,19 +107,19 @@ func TestUnstructured(t *testing.T) {
 		},
 		{
 			name: "changed simple value",
-			x: &unstructured.Unstructured{Object: map[string]interface{}{
-				"spec": map[string]interface{}{
+			x: &unstructured.Unstructured{Object: map[string]any{
+				"spec": map[string]any{
 					"replicas": int64(3),
 				},
-				"status": map[string]interface{}{
+				"status": map[string]any{
 					"readyReplicas": int64(1),
 				},
 			}},
-			y: &unstructured.Unstructured{Object: map[string]interface{}{
-				"spec": map[string]interface{}{
+			y: &unstructured.Unstructured{Object: map[string]any{
+				"spec": map[string]any{
 					"replicas": int64(3),
 				},
-				"status": map[string]interface{}{
+				"status": map[string]any{
 					"readyReplicas": int64(3),
 				},
 			}},
@@ -131,19 +131,19 @@ func TestUnstructured(t *testing.T) {
 		{
 			name: "with options",
 			opts: []CompareOption{WithoutStatus()},
-			x: &unstructured.Unstructured{Object: map[string]interface{}{
-				"spec": map[string]interface{}{
+			x: &unstructured.Unstructured{Object: map[string]any{
+				"spec": map[string]any{
 					"replicas": int64(3),
 				},
-				"status": map[string]interface{}{
+				"status": map[string]any{
 					"readyReplicas": int64(4),
 				},
 			}},
-			y: &unstructured.Unstructured{Object: map[string]interface{}{
-				"spec": map[string]interface{}{
+			y: &unstructured.Unstructured{Object: map[string]any{
+				"spec": map[string]any{
 					"replicas": int64(3),
 				},
-				"status": map[string]interface{}{
+				"status": map[string]any{
 					"readyReplicas": int64(1),
 				},
 			}},

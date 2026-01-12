@@ -2414,7 +2414,14 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Recreate performs pod restarts for the resource if applicable.</p>
+<p>Recreate performs pod restarts for any managed workloads.</p>
+<p>Deprecated: This behavior was deprecated in Helm 3:
+- Deprecation: <a href="https://github.com/helm/helm/pull/6463">https://github.com/helm/helm/pull/6463</a>
+- Removal: <a href="https://github.com/helm/helm/pull/31023">https://github.com/helm/helm/pull/31023</a>
+After helm-controller was upgraded to the Helm 4 SDK,
+this field is no longer functional and will print a
+warning if set to true. It will also be removed in a
+future release.</p>
 </td>
 </tr>
 <tr>

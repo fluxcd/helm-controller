@@ -17,8 +17,8 @@ limitations under the License.
 package storage
 
 import (
-	"helm.sh/helm/v3/pkg/release"
-	"helm.sh/helm/v3/pkg/storage/driver"
+	"helm.sh/helm/v4/pkg/release"
+	"helm.sh/helm/v4/pkg/storage/driver"
 )
 
 const (
@@ -56,7 +56,7 @@ func (o *Failing) Name() string {
 }
 
 // Get returns GetErr, or the embedded driver result.
-func (o *Failing) Get(key string) (*release.Release, error) {
+func (o *Failing) Get(key string) (release.Releaser, error) {
 	if o.GetErr != nil {
 		return nil, o.GetErr
 	}
@@ -64,7 +64,7 @@ func (o *Failing) Get(key string) (*release.Release, error) {
 }
 
 // List returns ListErr, or the embedded driver result.
-func (o *Failing) List(filter func(*release.Release) bool) ([]*release.Release, error) {
+func (o *Failing) List(filter func(release.Releaser) bool) ([]release.Releaser, error) {
 	if o.ListErr != nil {
 		return nil, o.ListErr
 	}
@@ -72,7 +72,7 @@ func (o *Failing) List(filter func(*release.Release) bool) ([]*release.Release, 
 }
 
 // Query returns QueryErr, or the embedded driver result.
-func (o *Failing) Query(keyvals map[string]string) ([]*release.Release, error) {
+func (o *Failing) Query(keyvals map[string]string) ([]release.Releaser, error) {
 	if o.QueryErr != nil {
 		return nil, o.QueryErr
 	}
@@ -80,7 +80,7 @@ func (o *Failing) Query(keyvals map[string]string) ([]*release.Release, error) {
 }
 
 // Create returns CreateErr, or the embedded driver result.
-func (o *Failing) Create(key string, rls *release.Release) error {
+func (o *Failing) Create(key string, rls release.Releaser) error {
 	if o.CreateErr != nil {
 		return o.CreateErr
 	}
@@ -88,7 +88,7 @@ func (o *Failing) Create(key string, rls *release.Release) error {
 }
 
 // Update returns UpdateErr, or the embedded driver result.
-func (o *Failing) Update(key string, rls *release.Release) error {
+func (o *Failing) Update(key string, rls release.Releaser) error {
 	if o.UpdateErr != nil {
 		return o.UpdateErr
 	}
@@ -96,7 +96,7 @@ func (o *Failing) Update(key string, rls *release.Release) error {
 }
 
 // Delete returns DeleteErr, or the embedded driver result.
-func (o *Failing) Delete(key string) (*release.Release, error) {
+func (o *Failing) Delete(key string) (release.Releaser, error) {
 	if o.DeleteErr != nil {
 		return nil, o.DeleteErr
 	}

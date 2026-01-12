@@ -17,13 +17,15 @@ limitations under the License.
 package reconcile
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
-	"helm.sh/helm/v3/pkg/chart"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -544,12 +546,13 @@ func Test_summarize(t *testing.T) {
 	}
 }
 
-func mockLogBuffer(size int, lines int) *action.LogBuffer {
-	log := action.NewLogBuffer(action.NewDebugLog(logr.Discard()), size)
-	for i := 0; i < lines; i++ {
-		log.Log("line %d", i+1)
+func mockLogBuffer() *action.LogBuffer {
+	ctx := log.IntoContext(context.Background(), logr.Discard())
+	buf := action.NewDebugLogBuffer(ctx)
+	for i := range 10 {
+		buf.Appendf("line %d", i+1)
 	}
-	return log
+	return buf
 }
 
 func Test_RecordOnObject(t *testing.T) {

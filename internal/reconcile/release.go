@@ -23,7 +23,8 @@ import (
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmrelease "helm.sh/helm/v4/pkg/release"
+	helmreleasev1 "helm.sh/helm/v4/pkg/release/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -104,7 +105,7 @@ func mutateOCIDigest(obj *v2.HelmRelease, obs release.Observation) release.Obser
 	return obs
 }
 
-func releaseToObservation(rls *helmrelease.Release, snapshot *v2.Snapshot) release.Observation {
+func releaseToObservation(rls *helmreleasev1.Release, snapshot *v2.Snapshot) release.Observation {
 	obs := release.ObserveRelease(rls)
 	obs.OCIDigest = snapshot.OCIDigest
 	return obs
@@ -115,8 +116,8 @@ func releaseToObservation(rls *helmrelease.Release, snapshot *v2.Snapshot) relea
 // It can be used for Helm actions that modify multiple releases in the
 // Helm storage, such as install and upgrade.
 func observeRelease(observed observedReleases) storage.ObserveFunc {
-	return func(rls *helmrelease.Release) {
-		obs := release.ObserveRelease(rls)
+	return func(rls helmrelease.Releaser) {
+		obs := release.ObserveRelease(rls.(*helmreleasev1.Release))
 		observed[obs.Version] = obs
 	}
 }
@@ -193,7 +194,7 @@ func summarize(req *Request) {
 // eventMessageWithLog returns an event message composed out of the given
 // message and any log messages by appending them to the message.
 func eventMessageWithLog(msg string, log *action.LogBuffer) string {
-	if log != nil && log.Len() > 0 {
+	if !log.Empty() {
 		msg = msg + "\n\nLast Helm logs:\n\n" + log.String()
 	}
 	return msg

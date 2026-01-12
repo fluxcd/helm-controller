@@ -19,8 +19,8 @@ package action
 import (
 	"context"
 
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmaction "helm.sh/helm/v4/pkg/action"
+	helmrelease "helm.sh/helm/v4/pkg/release"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
@@ -49,7 +49,7 @@ func newUninstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []
 	uninstall.Timeout = obj.GetUninstall().GetTimeout(obj.GetTimeout()).Duration
 	uninstall.DisableHooks = obj.GetUninstall().DisableHooks
 	uninstall.KeepHistory = obj.GetUninstall().KeepHistory
-	uninstall.Wait = !obj.GetUninstall().DisableWait
+	uninstall.WaitStrategy = getWaitStrategy(obj.GetUninstall())
 	uninstall.DeletionPropagation = obj.GetUninstall().GetDeletionPropagation()
 
 	for _, opt := range opts {

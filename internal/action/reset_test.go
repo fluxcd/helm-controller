@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
-	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chartutil"
+	"helm.sh/helm/v4/pkg/chart/common"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -34,7 +34,7 @@ func TestMustResetFailures(t *testing.T) {
 		name       string
 		obj        *v2.HelmRelease
 		chart      *chart.Metadata
-		values     chartutil.Values
+		values     common.Values
 		want       bool
 		wantReason string
 	}{
@@ -83,7 +83,7 @@ func TestMustResetFailures(t *testing.T) {
 			chart: &chart.Metadata{
 				Version: "1.0.0",
 			},
-			values: chartutil.Values{
+			values: common.Values{
 				"foo": "bar",
 			},
 			want:       true,
@@ -104,7 +104,7 @@ func TestMustResetFailures(t *testing.T) {
 			chart: &chart.Metadata{
 				Version: "1.0.0",
 			},
-			values: chartutil.Values{
+			values: common.Values{
 				"foo": "bar",
 			},
 			want:       true,
@@ -129,7 +129,7 @@ func TestMustResetFailures(t *testing.T) {
 			chart: &chart.Metadata{
 				Version: "1.0.0",
 			},
-			values: chartutil.Values{
+			values: common.Values{
 				"foo": "bar",
 			},
 			want:       true,
@@ -150,7 +150,7 @@ func TestMustResetFailures(t *testing.T) {
 			chart: &chart.Metadata{
 				Version: "1.0.0",
 			},
-			values: chartutil.Values{
+			values: common.Values{
 				"foo": "bar",
 			},
 			want: false,

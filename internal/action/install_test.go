@@ -21,7 +21,7 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
-	helmaction "helm.sh/helm/v3/pkg/action"
+	helmaction "helm.sh/helm/v4/pkg/action"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -84,15 +84,15 @@ func Test_newInstall(t *testing.T) {
 
 		got := newInstall(&helmaction.Configuration{}, obj, []InstallOption{
 			func(install *helmaction.Install) {
-				install.Atomic = true
+				install.DisableHooks = true
 			},
 			func(install *helmaction.Install) {
-				install.DryRun = true
+				install.DryRunStrategy = helmaction.DryRunClient
 			},
 		})
 		g.Expect(got).ToNot(BeNil())
-		g.Expect(got.Atomic).To(BeTrue())
-		g.Expect(got.DryRun).To(BeTrue())
+		g.Expect(got.DisableHooks).To(BeTrue())
+		g.Expect(got.DryRunStrategy).To(Equal(helmaction.DryRunClient))
 	})
 
 	t.Run("disable take ownership", func(t *testing.T) {
@@ -113,5 +113,47 @@ func Test_newInstall(t *testing.T) {
 		got := newInstall(&helmaction.Configuration{}, obj, nil)
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.TakeOwnership).To(BeFalse())
+	})
+
+	t.Run("server side apply defaults to true with Helm4 defaults", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Save and restore UseHelm3Defaults
+		oldUseHelm3Defaults := UseHelm3Defaults
+		t.Cleanup(func() { UseHelm3Defaults = oldUseHelm3Defaults })
+		UseHelm3Defaults = false
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "install",
+				Namespace: "install-ns",
+			},
+			Spec: v2.HelmReleaseSpec{},
+		}
+
+		got := newInstall(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.ServerSideApply).To(BeTrue())
+	})
+
+	t.Run("server side apply defaults to false with UseHelm3Defaults", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Save and restore UseHelm3Defaults
+		oldUseHelm3Defaults := UseHelm3Defaults
+		t.Cleanup(func() { UseHelm3Defaults = oldUseHelm3Defaults })
+		UseHelm3Defaults = true
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "install",
+				Namespace: "install-ns",
+			},
+			Spec: v2.HelmReleaseSpec{},
+		}
+
+		got := newInstall(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.ServerSideApply).To(BeFalse())
 	})
 }

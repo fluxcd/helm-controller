@@ -24,10 +24,11 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	"helm.sh/helm/v3/pkg/releaseutil"
-	helmstorage "helm.sh/helm/v3/pkg/storage"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	releaseutil "helm.sh/helm/v4/pkg/release/v1/util"
+	helmstorage "helm.sh/helm/v4/pkg/storage"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
@@ -88,7 +89,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -122,7 +123,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 						Chart:     testutil.BuildChart(testutil.ChartWithFailingHook()),
 					}, testutil.ReleaseWithFailingHook()),
 				}
@@ -141,7 +142,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			expectConditions: []metav1.Condition{
 				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason,
-					"uninstallation completed with 1 error(s): 1 error occurred:\n\t* timed out waiting for the condition"),
+					"context deadline exceeded"),
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -170,7 +171,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -217,7 +218,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 						Chart:     testutil.BuildChart(),
 					}),
 				}
@@ -248,7 +249,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -264,14 +265,14 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}, testutil.ReleaseWithTestHook()),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -322,7 +323,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 					ReleaseName:      mockReleaseName,
 					TargetNamespace:  releaseNamespace,
 					StorageNamespace: releaseNamespace,
-					Timeout:          &metav1.Duration{Duration: 100 * time.Millisecond},
+					Timeout:          &metav1.Duration{Duration: 200 * time.Millisecond},
 				},
 			}
 			if tt.spec != nil {
@@ -361,7 +362,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 
 			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(tt.expectConditions))
 
-			releases, _ = store.History(mockReleaseName)
+			releases, _ = storeHistory(store, mockReleaseName)
 			releaseutil.SortByRevision(releases)
 
 			if tt.expectHistory != nil {
@@ -438,7 +439,7 @@ func TestUninstallRemediation_failure(t *testing.T) {
 			eventRecorder: recorder,
 		}
 		req := &Request{Object: obj.DeepCopy()}
-		r.failure(req, mockLogBuffer(5, 10), err)
+		r.failure(req, mockLogBuffer(), err)
 
 		expectSubStr := "Last Helm logs"
 		g.Expect(conditions.IsFalse(req.Object, v2.RemediatedCondition)).To(BeTrue())

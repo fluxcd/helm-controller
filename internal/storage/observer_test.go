@@ -14,22 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package storage
+package storage_test
 
 import (
 	"fmt"
 	"testing"
 
 	. "github.com/onsi/gomega"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmrelease "helm.sh/helm/v4/pkg/release"
+	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
+	helmreleasev1 "helm.sh/helm/v4/pkg/release/v1"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
+
+	"github.com/fluxcd/helm-controller/internal/storage"
 )
 
 func TestObserver_Name(t *testing.T) {
 	g := NewWithT(t)
 
-	o := NewObserver(helmdriver.NewMemory())
-	g.Expect(o.Name()).To(Equal(ObserverDriverName))
+	o := storage.NewObserver(helmdriver.NewMemory())
+	g.Expect(o.Name()).To(Equal(storage.ObserverDriverName))
 }
 
 func TestObserver_Get(t *testing.T) {
@@ -37,12 +41,12 @@ func TestObserver_Get(t *testing.T) {
 		g := NewWithT(t)
 
 		ms := helmdriver.NewMemory()
-		rel := releaseStub("success", 1, "ns1", helmrelease.StatusDeployed)
+		rel := releaseStub("success", 1, "ns1", helmreleasecommon.StatusDeployed).(*helmreleasev1.Release)
 		key := testKey(rel.Name, rel.Version)
 		g.Expect(ms.Create(key, rel)).To(Succeed())
 
 		var called bool
-		o := NewObserver(ms, func(rls *helmrelease.Release) {
+		o := storage.NewObserver(ms, func(rls helmrelease.Releaser) {
 			called = true
 		})
 
@@ -58,15 +62,15 @@ func TestObserver_List(t *testing.T) {
 		g := NewWithT(t)
 
 		ms := helmdriver.NewMemory()
-		rel := releaseStub("success", 1, "ns1", helmrelease.StatusDeployed)
+		rel := releaseStub("success", 1, "ns1", helmreleasecommon.StatusDeployed).(*helmreleasev1.Release)
 		key := testKey(rel.Name, rel.Version)
 		g.Expect(ms.Create(key, rel)).To(Succeed())
 
 		var called bool
-		o := NewObserver(ms, func(rls *helmrelease.Release) {
+		o := storage.NewObserver(ms, func(rls helmrelease.Releaser) {
 			called = true
 		})
-		got, err := o.List(func(r *helmrelease.Release) bool {
+		got, err := o.List(func(r helmrelease.Releaser) bool {
 			// Include everything
 			return true
 		})
@@ -82,12 +86,12 @@ func TestObserver_Query(t *testing.T) {
 		g := NewWithT(t)
 
 		ms := helmdriver.NewMemory()
-		rel := releaseStub("success", 1, "ns1", helmrelease.StatusDeployed)
+		rel := releaseStub("success", 1, "ns1", helmreleasecommon.StatusDeployed).(*helmreleasev1.Release)
 		key := testKey(rel.Name, rel.Version)
 		g.Expect(ms.Create(key, rel)).To(Succeed())
 
 		var called bool
-		o := NewObserver(ms, func(rls *helmrelease.Release) {
+		o := storage.NewObserver(ms, func(rls helmrelease.Releaser) {
 			called = true
 		})
 
@@ -104,11 +108,11 @@ func TestObserver_Create(t *testing.T) {
 		g := NewWithT(t)
 
 		ms := helmdriver.NewMemory()
-		rel := releaseStub("success", 1, "ns1", helmrelease.StatusDeployed)
+		rel := releaseStub("success", 1, "ns1", helmreleasecommon.StatusDeployed).(*helmreleasev1.Release)
 		key := testKey(rel.Name, rel.Version)
 
 		var called bool
-		o := NewObserver(ms, func(rls *helmrelease.Release) {
+		o := storage.NewObserver(ms, func(rls helmrelease.Releaser) {
 			called = true
 		})
 
@@ -121,16 +125,16 @@ func TestObserver_Create(t *testing.T) {
 
 		ms := helmdriver.NewMemory()
 
-		rel := releaseStub("error", 1, "ns1", helmrelease.StatusDeployed)
+		rel := releaseStub("error", 1, "ns1", helmreleasecommon.StatusDeployed).(*helmreleasev1.Release)
 		key := testKey(rel.Name, rel.Version)
 		g.Expect(ms.Create(key, rel)).To(Succeed())
 
 		var called bool
-		o := NewObserver(ms, func(rls *helmrelease.Release) {
+		o := storage.NewObserver(ms, func(rls helmrelease.Releaser) {
 			called = true
 		})
 
-		rel2 := releaseStub("error", 1, "ns1", helmrelease.StatusFailed)
+		rel2 := releaseStub("error", 1, "ns1", helmreleasecommon.StatusFailed)
 		g.Expect(o.Create(key, rel2)).To(HaveOccurred())
 		g.Expect(called).To(BeFalse())
 	})
@@ -141,12 +145,12 @@ func TestObserver_Update(t *testing.T) {
 		g := NewWithT(t)
 
 		ms := helmdriver.NewMemory()
-		rel := releaseStub("success", 1, "ns1", helmrelease.StatusDeployed)
+		rel := releaseStub("success", 1, "ns1", helmreleasecommon.StatusDeployed).(*helmreleasev1.Release)
 		key := testKey(rel.Name, rel.Version)
 		g.Expect(ms.Create(key, rel)).To(Succeed())
 
 		var called bool
-		o := NewObserver(ms, func(rls *helmrelease.Release) {
+		o := storage.NewObserver(ms, func(rls helmrelease.Releaser) {
 			called = true
 		})
 
@@ -158,11 +162,11 @@ func TestObserver_Update(t *testing.T) {
 		g := NewWithT(t)
 
 		var called bool
-		o := NewObserver(helmdriver.NewMemory(), func(rls *helmrelease.Release) {
+		o := storage.NewObserver(helmdriver.NewMemory(), func(rls helmrelease.Releaser) {
 			called = true
 		})
 
-		rel := releaseStub("error", 1, "ns1", helmrelease.StatusDeployed)
+		rel := releaseStub("error", 1, "ns1", helmreleasecommon.StatusDeployed).(*helmreleasev1.Release)
 		key := testKey(rel.Name, rel.Version)
 		g.Expect(o.Update(key, rel)).To(HaveOccurred())
 		g.Expect(called).To(BeFalse())
@@ -174,12 +178,12 @@ func TestObserver_Delete(t *testing.T) {
 		g := NewWithT(t)
 
 		ms := helmdriver.NewMemory()
-		rel := releaseStub("success", 1, "ns1", helmrelease.StatusDeployed)
+		rel := releaseStub("success", 1, "ns1", helmreleasecommon.StatusDeployed).(*helmreleasev1.Release)
 		key := testKey(rel.Name, rel.Version)
 		g.Expect(ms.Create(key, rel)).To(Succeed())
 
 		var called bool
-		o := NewObserver(ms, func(rls *helmrelease.Release) {
+		o := storage.NewObserver(ms, func(rls helmrelease.Releaser) {
 			called = true
 		})
 
@@ -196,7 +200,7 @@ func TestObserver_Delete(t *testing.T) {
 		g := NewWithT(t)
 
 		var called bool
-		o := NewObserver(helmdriver.NewMemory(), func(rls *helmrelease.Release) {
+		o := storage.NewObserver(helmdriver.NewMemory(), func(rls helmrelease.Releaser) {
 			called = true
 		})
 
@@ -208,12 +212,12 @@ func TestObserver_Delete(t *testing.T) {
 	})
 }
 
-func releaseStub(name string, version int, namespace string, status helmrelease.Status) *helmrelease.Release {
-	return &helmrelease.Release{
+func releaseStub(name string, version int, namespace string, status helmreleasecommon.Status) helmrelease.Releaser {
+	return &helmreleasev1.Release{
 		Name:      name,
 		Version:   version,
 		Namespace: namespace,
-		Info:      &helmrelease.Info{Status: status},
+		Info:      &helmreleasev1.Info{Status: status},
 	}
 }
 
