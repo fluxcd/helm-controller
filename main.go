@@ -22,7 +22,7 @@ import (
 	"time"
 
 	flag "github.com/spf13/pflag"
-	"helm.sh/helm/v3/pkg/kube"
+	"helm.sh/helm/v4/pkg/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -51,14 +51,13 @@ import (
 	"github.com/fluxcd/pkg/runtime/probes"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
-	v2 "github.com/fluxcd/helm-controller/api/v2"
-
-	intdigest "github.com/fluxcd/helm-controller/internal/digest"
-
 	// +kubebuilder:scaffold:imports
 
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
+	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/controller"
+	intdigest "github.com/fluxcd/helm-controller/internal/digest"
 	"github.com/fluxcd/helm-controller/internal/features"
 	intkube "github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/oomwatch"
@@ -170,6 +169,14 @@ func main() {
 		os.Exit(1)
 	case enabled:
 		auth.EnableObjectLevelWorkloadIdentity()
+	}
+
+	switch enabled, err := features.Enabled(features.UseHelm3Defaults); {
+	case err != nil:
+		setupLog.Error(err, "unable to check feature gate "+features.UseHelm3Defaults)
+		os.Exit(1)
+	case enabled:
+		action.UseHelm3Defaults = enabled
 	}
 
 	if defaultKubeConfigServiceAccount != "" {

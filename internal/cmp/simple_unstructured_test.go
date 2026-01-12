@@ -277,7 +277,7 @@ c`},
 }
 
 func yamlToUnstructured(str string) (*unstructured.Unstructured, error) {
-	var obj map[string]interface{}
+	var obj map[string]any
 	if err := yaml.Unmarshal([]byte(str), &obj); err != nil {
 		return nil, err
 	}

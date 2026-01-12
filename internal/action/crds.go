@@ -22,10 +22,12 @@ import (
 	"fmt"
 	"time"
 
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
-	helmkube "helm.sh/helm/v3/pkg/kube"
+	helmaction "helm.sh/helm/v4/pkg/action"
+	helmchartcommon "helm.sh/helm/v4/pkg/chart/common"
+	helmchart "helm.sh/helm/v4/pkg/chart/v2"
+	helmchartutil "helm.sh/helm/v4/pkg/chart/v2/util"
+	"helm.sh/helm/v4/pkg/kube"
+	helmkube "helm.sh/helm/v4/pkg/kube"
 	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
@@ -66,20 +68,25 @@ func (*rootScoped) Name() apimeta.RESTScopeName {
 }
 
 func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmchart.Chart,
-	vals helmchartutil.Values, visitorFunc ...resource.VisitorFunc) error {
+	vals helmchartcommon.Values, serverSideApply bool, visitorFunc ...resource.VisitorFunc) error {
 
 	if len(chrt.CRDObjects()) == 0 {
 		return nil
 	}
 
+	l := cfg.Logger()
+
 	if policy == v2.Skip {
-		cfg.Log("skipping CustomResourceDefinition apply: policy is set to %s", policy)
+		l.Info(fmt.Sprintf("skipping CustomResourceDefinition apply: policy is set to %s", policy))
 		return nil
 	}
 
-	if err := helmchartutil.ProcessDependenciesWithMerge(chrt, vals); err != nil {
+	if err := helmchartutil.ProcessDependencies(chrt, vals); err != nil {
 		return fmt.Errorf("failed to process chart dependencies: %w", err)
 	}
+
+	// We always force conflicts on server-side apply.
+	forceConflicts := serverSideApply
 
 	// Collect all CRDs from all files in `crds` directory.
 	allCRDs := make(helmkube.ResourceList, 0)
@@ -88,7 +95,7 @@ func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmch
 		res, err := cfg.KubeClient.Build(bytes.NewBuffer(obj.File.Data), false)
 		if err != nil {
 			err = fmt.Errorf("failed to parse CustomResourceDefinitions from %s: %w", obj.Name, err)
-			cfg.Log(err.Error())
+			l.Error(err.Error())
 			return err
 		}
 		allCRDs = append(allCRDs, res...)
@@ -101,23 +108,24 @@ func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmch
 		}
 	}
 
-	cfg.Log("applying CustomResourceDefinition(s) with policy %s", policy)
+	l.Info(fmt.Sprintf("applying CustomResourceDefinition(s) with policy %s", policy))
 	var totalItems []*resource.Info
 	switch policy {
 	case v2.Create:
 		for i := range allCRDs {
-			if rr, err := cfg.KubeClient.Create(allCRDs[i : i+1]); err != nil {
+			if rr, err := cfg.KubeClient.Create(allCRDs[i:i+1],
+				helmkube.ClientCreateOptionServerSideApply(serverSideApply, forceConflicts)); err != nil {
 				crdName := allCRDs[i].Name
 				// If the CustomResourceDefinition already exists, we skip it.
 				if apierrors.IsAlreadyExists(err) {
-					cfg.Log("CustomResourceDefinition %s is already present. Skipping.", crdName)
+					l.Info(fmt.Sprintf("CustomResourceDefinition %s is already present. Skipping.", crdName))
 					if rr != nil && rr.Created != nil {
 						totalItems = append(totalItems, rr.Created...)
 					}
 					continue
 				}
 				err = fmt.Errorf("failed to create CustomResourceDefinition %s: %w", crdName, err)
-				cfg.Log(err.Error())
+				l.Error(err.Error())
 				return err
 			} else {
 				if rr != nil && rr.Created != nil {
@@ -129,13 +137,13 @@ func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmch
 		config, err := cfg.RESTClientGetter.ToRESTConfig()
 		if err != nil {
 			err = fmt.Errorf("could not create Kubernetes client REST config: %w", err)
-			cfg.Log(err.Error())
+			l.Error(err.Error())
 			return err
 		}
 		clientSet, err := apiextension.NewForConfig(config)
 		if err != nil {
 			err = fmt.Errorf("could not create Kubernetes client set for API extensions: %w", err)
-			cfg.Log(err.Error())
+			l.Error(err.Error())
 			return err
 		}
 		client := clientSet.ApiextensionsV1().CustomResourceDefinitions()
@@ -170,13 +178,15 @@ func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmch
 				})
 			} else if !apierrors.IsNotFound(err) {
 				err = fmt.Errorf("failed to get CustomResourceDefinition %s: %w", r.Name, err)
-				cfg.Log(err.Error())
+				l.Error(err.Error())
 				return err
 			}
 		}
 
 		// Send them to Kubernetes...
-		if rr, err := cfg.KubeClient.Update(original, allCRDs, true); err != nil {
+		if rr, err := cfg.KubeClient.Update(original, allCRDs,
+			kube.ClientUpdateOptionForceReplace(true),
+			kube.ClientUpdateOptionServerSideApply(serverSideApply, forceConflicts)); err != nil {
 			err = fmt.Errorf("failed to update CustomResourceDefinition(s): %w", err)
 			return err
 		} else {
@@ -194,25 +204,31 @@ func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmch
 		}
 	default:
 		err := fmt.Errorf("unexpected policy %s", policy)
-		cfg.Log(err.Error())
+		l.Error(err.Error())
 		return err
 	}
 
 	if len(totalItems) > 0 {
 		// Give time for the CRD to be recognized.
-		if err := cfg.KubeClient.Wait(totalItems, 60*time.Second); err != nil {
-			err = fmt.Errorf("failed to wait for CustomResourceDefinition(s): %w", err)
-			cfg.Log(err.Error())
+		waiter, err := cfg.KubeClient.GetWaiter(helmkube.LegacyStrategy)
+		if err != nil {
+			err = fmt.Errorf("failed to create CustomResourceDefinition waiter: %w", err)
+			l.Error(err.Error())
 			return err
 		}
-		cfg.Log("successfully applied %d CustomResourceDefinition(s)", len(totalItems))
+		if err := waiter.Wait(totalItems, 60*time.Second); err != nil {
+			err = fmt.Errorf("failed to wait for CustomResourceDefinition(s): %w", err)
+			l.Error(err.Error())
+			return err
+		}
+		l.Info(fmt.Sprintf("successfully applied %d CustomResourceDefinition(s)", len(totalItems)))
 
 		// Clear the RESTMapper cache, since it will not have the new CRDs.
 		// Helm does further invalidation of the client at a later stage
 		// when it gathers the server capabilities.
 		if m, err := cfg.RESTClientGetter.ToRESTMapper(); err == nil {
 			if rm, ok := m.(apimeta.ResettableRESTMapper); ok {
-				cfg.Log("clearing REST mapper cache")
+				l.Info("clearing REST mapper cache")
 				rm.Reset()
 			}
 		}

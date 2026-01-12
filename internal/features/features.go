@@ -77,6 +77,10 @@ const (
 
 	// ExternalArtifact controls whether the ExternalArtifact source type is enabled.
 	ExternalArtifact = "ExternalArtifact"
+
+	// UseHelm3Defaults makes the controller use the Helm 3 default behaviors
+	// when defaults are used.
+	UseHelm3Defaults = "UseHelm3Defaults"
 )
 
 var features = map[string]bool{
@@ -110,6 +114,9 @@ var features = map[string]bool{
 	// DisableConfigWatchers
 	// opt-in from v1.4.4
 	controller.FeatureGateDisableConfigWatchers: false,
+	// UseHelm3Defaults
+	// opt-in from v1.5.0
+	UseHelm3Defaults: false,
 }
 
 func init() {

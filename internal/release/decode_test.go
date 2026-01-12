@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"io"
 
-	rspb "helm.sh/helm/v3/pkg/release"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 )
 
 var (
@@ -38,7 +38,7 @@ var (
 // It is copied over from the Helm project to be able to deal
 // with encoded releases.
 // Ref: https://github.com/helm/helm/blob/v3.9.0/pkg/storage/driver/util.go#L56
-func decodeRelease(data string) (*rspb.Release, error) {
+func decodeRelease(data string) (*helmrelease.Release, error) {
 	// base64 decode string
 	b, err := b64.DecodeString(data)
 	if err != nil {
@@ -61,7 +61,7 @@ func decodeRelease(data string) (*rspb.Release, error) {
 		b = b2
 	}
 
-	var rls rspb.Release
+	var rls helmrelease.Release
 	// unmarshal release object bytes
 	if err := json.Unmarshal(b, &rls); err != nil {
 		return nil, err

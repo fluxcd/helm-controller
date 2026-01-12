@@ -20,12 +20,12 @@ import (
 	"errors"
 
 	"github.com/opencontainers/go-digest"
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmaction "helm.sh/helm/v4/pkg/action"
+	helmchartutil "helm.sh/helm/v4/pkg/chart/common"
+	helmchart "helm.sh/helm/v4/pkg/chart/v2"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/release"
@@ -87,7 +87,7 @@ func LastRelease(config *helmaction.Configuration, releaseName string) (*helmrel
 		}
 		return nil, err
 	}
-	return rls, nil
+	return rls.(*helmrelease.Release), nil
 }
 
 // VerifySnapshot verifies the data of the given v2.Snapshot
@@ -100,13 +100,14 @@ func VerifySnapshot(config *helmaction.Configuration, snapshot *v2.Snapshot) (rl
 		return nil, ErrReleaseNotFound
 	}
 
-	rls, err = config.Releases.Get(snapshot.Name, snapshot.Version)
+	rlsr, err := config.Releases.Get(snapshot.Name, snapshot.Version)
 	if err != nil {
 		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
 			return nil, ErrReleaseDisappeared
 		}
 		return nil, err
 	}
+	rls = rlsr.(*helmrelease.Release)
 
 	if err = VerifyReleaseObject(snapshot, rls); err != nil {
 		return nil, err

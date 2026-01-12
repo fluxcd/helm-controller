@@ -22,12 +22,11 @@ import (
 	"fmt"
 	"strings"
 
+	helmreleasev1 "helm.sh/helm/v4/pkg/release/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/fluxcd/pkg/runtime/conditions"
-	"github.com/fluxcd/pkg/runtime/logger"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -81,8 +80,8 @@ func NewUninstallRemediation(cfg *action.ConfigFactory, recorder record.EventRec
 func (r *UninstallRemediation) Reconcile(ctx context.Context, req *Request) error {
 	var (
 		cur    = req.Object.Status.History.Latest().DeepCopy()
-		logBuf = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
-		cfg    = r.configFactory.Build(logBuf.Log, observeUninstall(req.Object))
+		logBuf = action.NewDebugLogBuffer(ctx)
+		cfg    = r.configFactory.Build(logBuf, observeUninstall(req.Object))
 	)
 
 	// Require current to run uninstall.
@@ -96,9 +95,12 @@ func (r *UninstallRemediation) Reconcile(ctx context.Context, req *Request) erro
 	// The Helm uninstall action does always target the latest release. Before
 	// accepting results, we need to confirm this is actually the release we
 	// have recorded as latest.
-	if res != nil && !release.ObserveRelease(res.Release).Targets(cur.Name, cur.Namespace, cur.Version) {
-		err = fmt.Errorf("%w: uninstalled release %s/%s.v%d != current release %s",
-			ErrReleaseMismatch, res.Release.Namespace, res.Release.Name, res.Release.Version, cur.FullReleaseName())
+	if res != nil {
+		rls := res.Release.(*helmreleasev1.Release)
+		if !release.ObserveRelease(rls).Targets(cur.Name, cur.Namespace, cur.Version) {
+			err = fmt.Errorf("%w: uninstalled release %s/%s.v%d != current release %s",
+				ErrReleaseMismatch, rls.Namespace, rls.Name, rls.Version, cur.FullReleaseName())
+		}
 	}
 
 	// The Helm uninstall action may return without an error while the update

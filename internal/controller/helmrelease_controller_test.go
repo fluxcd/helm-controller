@@ -26,10 +26,11 @@ import (
 
 	. "github.com/onsi/gomega"
 	"github.com/opencontainers/go-digest"
-	"helm.sh/helm/v3/pkg/chart"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmstorage "helm.sh/helm/v3/pkg/storage"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
+	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	helmstorage "helm.sh/helm/v4/pkg/storage"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -464,7 +465,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Namespace: ns.Name,
 			Version:   1,
 			Chart:     chartMock,
-			Status:    helmrelease.StatusDeployed,
+			Status:    helmreleasecommon.StatusDeployed,
 		}, testutil.ReleaseWithConfig(nil))
 		valChecksum := chartutil.DigestValues("sha1", rls.Config)
 
@@ -872,7 +873,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Namespace: ns.Name,
 			Version:   1,
 			Chart:     chartMock,
-			Status:    helmrelease.StatusDeployed,
+			Status:    helmreleasecommon.StatusDeployed,
 		}, testutil.ReleaseWithConfig(nil))
 
 		obj := &v2.HelmRelease{
@@ -1335,7 +1336,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			Namespace: ns.Name,
 			Version:   1,
 			Chart:     chartMock,
-			Status:    helmrelease.StatusDeployed,
+			Status:    helmreleasecommon.StatusDeployed,
 		})
 
 		obj := &v2.HelmRelease{
@@ -2198,7 +2199,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			Namespace: ns.Name,
 			Version:   1,
 			Chart:     chartMock,
-			Status:    helmrelease.StatusDeployed,
+			Status:    helmreleasecommon.StatusDeployed,
 		})
 
 		obj := &v2.HelmRelease{
@@ -2302,7 +2303,7 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 			Namespace: ns.Name,
 			Version:   1,
 			Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
-			Status:    helmrelease.StatusDeployed,
+			Status:    helmreleasecommon.StatusDeployed,
 		})
 
 		obj := &v2.HelmRelease{
@@ -2415,7 +2416,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 			Namespace: ns.Name,
 			Version:   1,
 			Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
-			Status:    helmrelease.StatusDeployed,
+			Status:    helmreleasecommon.StatusDeployed,
 		})
 
 		obj := &v2.HelmRelease{
@@ -2478,7 +2479,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 			Namespace: ns.Name,
 			Version:   1,
 			Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
-			Status:    helmrelease.StatusDeployed,
+			Status:    helmreleasecommon.StatusDeployed,
 		})
 
 		obj := &v2.HelmRelease{
@@ -2579,7 +2580,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 			Namespace: ns.Name,
 			Version:   1,
 			Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
-			Status:    helmrelease.StatusDeployed,
+			Status:    helmreleasecommon.StatusDeployed,
 		})
 
 		obj := &v2.HelmRelease{
@@ -2705,8 +2706,8 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 		err := r.reconcileReleaseDeletion(context.TODO(), obj)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
-			*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallFailedReason, "Kubernetes cluster unreachable"),
-			*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallFailedReason, "Kubernetes cluster unreachable"),
+			*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallFailedReason, "kubernetes cluster unreachable"),
+			*conditions.FalseCondition(v2.ReleasedCondition, v2.UninstallFailedReason, "kubernetes cluster unreachable"),
 		}))
 	})
 
@@ -2844,7 +2845,7 @@ func TestHelmReleaseReconciler_reconcileUninstall(t *testing.T) {
 			Namespace: ns.Name,
 			Version:   1,
 			Chart:     testutil.BuildChart(testutil.ChartWithFailingHook()),
-			Status:    helmrelease.StatusDeployed,
+			Status:    helmreleasecommon.StatusDeployed,
 		}, testutil.ReleaseWithFailingHook())
 
 		obj := &v2.HelmRelease{
@@ -3318,7 +3319,7 @@ func TestHelmReleaseReconciler_adoptLegacyRelease(t *testing.T) {
 						Namespace: namespace,
 						Version:   6,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}, testutil.ReleaseWithTestHook()),
 				}
 			},
@@ -3344,7 +3345,7 @@ func TestHelmReleaseReconciler_adoptLegacyRelease(t *testing.T) {
 						Namespace: namespace,
 						Version:   3,
 						Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}, testutil.ReleaseWithTestHook()),
 				}
 			},

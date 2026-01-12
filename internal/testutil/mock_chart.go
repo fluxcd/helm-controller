@@ -19,8 +19,8 @@ package testutil
 import (
 	"fmt"
 
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
+	helmchartutil "helm.sh/helm/v4/pkg/chart/common"
+	helmchart "helm.sh/helm/v4/pkg/chart/v2"
 )
 
 var manifestTmpl = `apiVersion: v1
@@ -145,14 +145,14 @@ func BuildChart(opts ...ChartOption) *helmchart.Chart {
 				AppVersion: "1.2.3",
 			},
 			// This adds a basic template and hooks.
-			Templates: []*helmchart.File{
+			Templates: []*helmchartutil.File{
 				{
 					Name: "templates/manifest",
-					Data: []byte(fmt.Sprintf(manifestTmpl, "{{ default .Release.Namespace }}")),
+					Data: fmt.Appendf(nil, manifestTmpl, "{{ default .Release.Namespace }}"),
 				},
 				{
 					Name: "templates/hooks",
-					Data: []byte(fmt.Sprintf(manifestWithHookTmpl, "{{ default .Release.Namespace }}")),
+					Data: fmt.Appendf(nil, manifestWithHookTmpl, "{{ default .Release.Namespace }}"),
 				},
 			},
 		},
@@ -182,9 +182,9 @@ func ChartWithVersion(version string) ChartOption {
 // ChartWithFailingHook appends a failing hook to the chart.
 func ChartWithFailingHook() ChartOption {
 	return func(opts *ChartOptions) {
-		opts.Templates = append(opts.Templates, &helmchart.File{
+		opts.Templates = append(opts.Templates, &helmchartutil.File{
 			Name: "templates/failing-hook",
-			Data: []byte(fmt.Sprintf(manifestWithFailingHookTmpl, "{{ default .Release.Namespace }}")),
+			Data: fmt.Appendf(nil, manifestWithFailingHookTmpl, "{{ default .Release.Namespace }}"),
 		})
 	}
 }
@@ -192,9 +192,9 @@ func ChartWithFailingHook() ChartOption {
 // ChartWithTestHook appends a test hook to the chart.
 func ChartWithTestHook() ChartOption {
 	return func(opts *ChartOptions) {
-		opts.Templates = append(opts.Templates, &helmchart.File{
+		opts.Templates = append(opts.Templates, &helmchartutil.File{
 			Name: "templates/test-hooks",
-			Data: []byte(fmt.Sprintf(manifestWithTestHookTmpl, "{{ default .Release.Namespace }}")),
+			Data: fmt.Appendf(nil, manifestWithTestHookTmpl, "{{ default .Release.Namespace }}"),
 		})
 	}
 }
@@ -202,9 +202,9 @@ func ChartWithTestHook() ChartOption {
 // ChartWithFailingTestHook appends a failing test hook to the chart.
 func ChartWithFailingTestHook() ChartOption {
 	return func(options *ChartOptions) {
-		options.Templates = append(options.Templates, &helmchart.File{
+		options.Templates = append(options.Templates, &helmchartutil.File{
 			Name: "templates/test-hooks",
-			Data: []byte(fmt.Sprintf(manifestWithFailingTestHookTmpl, "{{ default .Release.Namespace }}")),
+			Data: fmt.Appendf(nil, manifestWithFailingTestHookTmpl, "{{ default .Release.Namespace }}"),
 		})
 	}
 }
@@ -212,10 +212,10 @@ func ChartWithFailingTestHook() ChartOption {
 // ChartWithManifestWithCustomName sets the name of the manifest.
 func ChartWithManifestWithCustomName(name string) ChartOption {
 	return func(opts *ChartOptions) {
-		opts.Templates = []*helmchart.File{
+		opts.Templates = []*helmchartutil.File{
 			{
 				Name: "templates/manifest",
-				Data: []byte(fmt.Sprintf(manifestWithCustomNameTmpl, name, "{{ default .Release.Namespace }}")),
+				Data: fmt.Appendf(nil, manifestWithCustomNameTmpl, name, "{{ default .Release.Namespace }}"),
 			},
 		}
 	}
@@ -224,7 +224,7 @@ func ChartWithManifestWithCustomName(name string) ChartOption {
 // ChartWithCRD appends a CRD to the chart.
 func ChartWithCRD() ChartOption {
 	return func(opts *ChartOptions) {
-		opts.Files = []*helmchart.File{
+		opts.Files = []*helmchartutil.File{
 			{
 				Name: "crds/crd.yaml",
 				Data: []byte(crdManifest),

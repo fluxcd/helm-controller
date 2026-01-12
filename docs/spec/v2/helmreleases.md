@@ -745,7 +745,11 @@ The field offers the following subfields:
 - `.force` (Optional): Forces resource updates through a replacement strategy.
   Defaults to `false`.
 - `.recreate` (Optional): Performs Pod restarts if applicable. Defaults to
-  `false`.
+  `false`. **Warning**: As of Flux v2.8, this option is deprecated and no
+  longer has any effect. It will be removed in a future release. The
+  helm-controller will print a warning if this option is used. Please
+  see the [Helm 4 issue](https://github.com/fluxcd/helm-controller/issues/1300#issuecomment-3740272924)
+  for more details.
 
 ### Uninstall configuration
 

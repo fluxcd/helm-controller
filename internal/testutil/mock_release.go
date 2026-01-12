@@ -19,7 +19,7 @@ package testutil
 import (
 	"fmt"
 
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 )
 
 // ReleaseOptions is a helper to build a Helm release mock.
@@ -44,7 +44,7 @@ func BuildRelease(mockOpts *helmrelease.MockReleaseOptions, opts ...ReleaseOptio
 }
 
 // ReleaseWithConfig sets the config on the release.
-func ReleaseWithConfig(config map[string]interface{}) ReleaseOption {
+func ReleaseWithConfig(config map[string]any) ReleaseOption {
 	return func(options *ReleaseOptions) {
 		options.Config = config
 	}

@@ -19,8 +19,8 @@ package action
 import (
 	"context"
 
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmaction "helm.sh/helm/v4/pkg/action"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
@@ -40,7 +40,12 @@ type TestOption func(action *helmaction.ReleaseTesting)
 // storage.ObserveFunc, which provides superior access to Helm storage writes.
 func Test(_ context.Context, config *helmaction.Configuration, obj *v2.HelmRelease, opts ...TestOption) (*helmrelease.Release, error) {
 	test := newTest(config, obj, opts)
-	return test.Run(obj.GetReleaseName())
+	rlsr, shutdownFunc, err := test.Run(obj.GetReleaseName())
+	defer shutdownFunc() // A non-nil shutdownFunc is always returned.
+	if err != nil {
+		return nil, err
+	}
+	return rlsr.(*helmrelease.Release), err
 }
 
 func newTest(config *helmaction.Configuration, obj *v2.HelmRelease, opts []TestOption) *helmaction.ReleaseTesting {

@@ -25,11 +25,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/fluxcd/pkg/chartutil"
 	"github.com/fluxcd/pkg/runtime/conditions"
-	"github.com/fluxcd/pkg/runtime/logger"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -71,9 +69,9 @@ func NewInstall(cfg *action.ConfigFactory, recorder record.EventRecorder) *Insta
 
 func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 	var (
-		logBuf      = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
+		logBuf      = action.NewDebugLogBuffer(ctx)
 		obsReleases = make(observedReleases)
-		cfg         = r.configFactory.Build(logBuf.Log, observeRelease(obsReleases))
+		cfg         = r.configFactory.Build(logBuf, observeRelease(obsReleases))
 		startTime   = time.Now()
 	)
 

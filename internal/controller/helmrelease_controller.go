@@ -25,7 +25,8 @@ import (
 
 	"github.com/fluxcd/pkg/runtime/cel"
 	celtypes "github.com/google/cel-go/common/types"
-	"helm.sh/helm/v3/pkg/chart"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -203,6 +204,12 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelper *patch.SerialPatcher, obj *v2.HelmRelease) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
+
+	// Check deprecated fields.
+	if obj.GetRollback().Recreate {
+		log.Info("warning: the .spec.rollback.recreate field is deprecated and has no effect. " +
+			"for details, please see: https://github.com/fluxcd/helm-controller/issues/1300#issuecomment-3740272924")
+	}
 
 	// Mark the resource as under reconciliation.
 	// We set Ready=Unknown down below after we assess the readiness of dependencies and the source.
@@ -382,7 +389,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	// Construct config factory for any further Helm actions.
 	cfg, err := action.NewConfigFactory(getter,
 		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
-		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
+		action.WithStorageLog(action.NewTraceLogger(ctx)),
 	)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "FactoryError", "%s", err)
@@ -547,7 +554,7 @@ func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter g
 	// Construct config factory for current release.
 	cfg, err := action.NewConfigFactory(getter,
 		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
-		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
+		action.WithStorageLog(action.NewTraceLogger(ctx)),
 	)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "ConfigFactoryErr", "%s", err)
@@ -669,7 +676,7 @@ func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter g
 	// Construct config factory for current release.
 	cfg, err := action.NewConfigFactory(getter,
 		action.WithStorage(action.DefaultStorageDriver, storageNamespace),
-		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
+		action.WithStorageLog(action.NewTraceLogger(ctx)),
 	)
 	if err != nil {
 		return err
@@ -683,11 +690,11 @@ func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter g
 	}
 
 	// Convert it to a v2 release snapshot.
-	snap := release.ObservedToSnapshot(release.ObserveRelease(rls))
+	snap := release.ObservedToSnapshot(release.ObserveRelease(rls.(*helmrelease.Release)))
 
 	// If tests are enabled, include them as well.
 	if obj.GetTest().Enable {
-		snap.SetTestHooks(release.TestHooksFromRelease(rls))
+		snap.SetTestHooks(release.TestHooksFromRelease(rls.(*helmrelease.Release)))
 	}
 
 	// Adopt it as the current release in the history.
