@@ -21,7 +21,8 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
-	helmaction "helm.sh/helm/v3/pkg/action"
+	helmaction "helm.sh/helm/v4/pkg/action"
+	helmkube "helm.sh/helm/v4/pkg/kube"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -82,14 +83,14 @@ func Test_newUninstall(t *testing.T) {
 
 		got := newUninstall(&helmaction.Configuration{}, obj, []UninstallOption{
 			func(uninstall *helmaction.Uninstall) {
-				uninstall.Wait = true
+				uninstall.WaitStrategy = helmkube.LegacyStrategy
 			},
 			func(uninstall *helmaction.Uninstall) {
 				uninstall.DisableHooks = true
 			},
 		})
 		g.Expect(got).ToNot(BeNil())
-		g.Expect(got.Wait).To(BeTrue())
+		g.Expect(got.WaitStrategy).To(Equal(helmkube.LegacyStrategy))
 		g.Expect(got.DisableHooks).To(BeTrue())
 	})
 }

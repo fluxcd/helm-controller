@@ -20,10 +20,10 @@ import (
 	"context"
 	"fmt"
 
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmaction "helm.sh/helm/v4/pkg/action"
+	helmchartutil "helm.sh/helm/v4/pkg/chart/common"
+	helmchart "helm.sh/helm/v4/pkg/chart/v2"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/features"
@@ -50,26 +50,37 @@ type InstallOption func(action *helmaction.Install)
 func Install(ctx context.Context, config *helmaction.Configuration, obj *v2.HelmRelease,
 	chrt *helmchart.Chart, vals helmchartutil.Values, opts ...InstallOption) (*helmrelease.Release, error) {
 	install := newInstall(config, obj, opts)
+	install.ForceConflicts = install.ServerSideApply // We always force conflicts on server-side apply.
 
 	policy, err := crdPolicyOrDefault(obj.GetInstall().CRDs)
 	if err != nil {
 		return nil, err
 	}
-	if err := applyCRDs(config, policy, chrt, vals, setOriginVisitor(v2.GroupVersion.Group, obj.Namespace, obj.Name)); err != nil {
+	if err := applyCRDs(config, policy, chrt, vals, install.ServerSideApply, setOriginVisitor(v2.GroupVersion.Group, obj.Namespace, obj.Name)); err != nil {
 		return nil, fmt.Errorf("failed to apply CustomResourceDefinitions: %w", err)
 	}
 
-	return install.RunWithContext(ctx, chrt, vals.AsMap())
+	rlsr, err := install.RunWithContext(ctx, chrt, vals.AsMap())
+	if err != nil {
+		return nil, err
+	}
+	return rlsr.(*helmrelease.Release), err
 }
 
 func newInstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []InstallOption) *helmaction.Install {
 	install := helmaction.NewInstall(config)
+	switch {
+	case UseHelm3Defaults:
+		install.ServerSideApply = false
+	default:
+		install.ServerSideApply = true
+	}
 
 	install.ReleaseName = release.ShortenName(obj.GetReleaseName())
 	install.Namespace = obj.GetReleaseNamespace()
 	install.Timeout = obj.GetInstall().GetTimeout(obj.GetTimeout()).Duration
 	install.TakeOwnership = !obj.GetInstall().DisableTakeOwnership
-	install.Wait = !obj.GetInstall().DisableWait
+	install.WaitStrategy = getWaitStrategy(obj.GetInstall())
 	install.WaitForJobs = !obj.GetInstall().DisableWaitForJobs
 	install.DisableHooks = obj.GetInstall().DisableHooks
 	install.DisableOpenAPIValidation = obj.GetInstall().DisableOpenAPIValidation

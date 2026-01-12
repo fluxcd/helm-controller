@@ -40,7 +40,7 @@ import (
 
 // Equal uses go-cmp to compare actual with expected. Equal is strict about
 // types when performing comparisons.
-func Equal(expected interface{}, options ...cmp.Option) types.GomegaMatcher {
+func Equal(expected any, options ...cmp.Option) types.GomegaMatcher {
 	return &equalCmpMatcher{
 		expected: expected,
 		options:  options,
@@ -48,20 +48,20 @@ func Equal(expected interface{}, options ...cmp.Option) types.GomegaMatcher {
 }
 
 type equalCmpMatcher struct {
-	expected interface{}
+	expected any
 	options  cmp.Options
 }
 
-func (matcher *equalCmpMatcher) Match(actual interface{}) (success bool, err error) {
+func (matcher *equalCmpMatcher) Match(actual any) (success bool, err error) {
 	return cmp.Equal(actual, matcher.expected, matcher.options), nil
 }
 
-func (matcher *equalCmpMatcher) FailureMessage(actual interface{}) (message string) {
+func (matcher *equalCmpMatcher) FailureMessage(actual any) (message string) {
 	diff := cmp.Diff(matcher.expected, actual, matcher.options)
 	return "Mismatch (-want, +got):\n" + diff
 }
 
-func (matcher *equalCmpMatcher) NegatedFailureMessage(actual interface{}) (message string) {
+func (matcher *equalCmpMatcher) NegatedFailureMessage(actual any) (message string) {
 	diff := cmp.Diff(matcher.expected, actual, matcher.options)
 	return "Mismatch (-want, +got):\n" + diff
 }

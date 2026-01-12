@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Flux authors
+Copyright 2026 The Flux authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,18 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package testutil
+package action
 
-import (
-	"time"
-)
-
-// MustParseHelmTime parses a string into a Helm time.Time, panicking if it
-// fails.
-func MustParseHelmTime(t string) time.Time {
-	res, err := time.Parse(time.RFC3339, t)
-	if err != nil {
-		panic(err)
-	}
-	return res
-}
+// UseHelm3Defaults must be set from the feature gate of same name in main.go.
+var UseHelm3Defaults bool

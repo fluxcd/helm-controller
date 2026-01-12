@@ -716,8 +716,16 @@ spec:
                       strategy.
                     type: boolean
                   recreate:
-                    description: Recreate performs pod restarts for the resource if
-                      applicable.
+                    description: |-
+                      Recreate performs pod restarts for any managed workloads.
+
+                      Deprecated: This behavior was deprecated in Helm 3:
+                        - Deprecation: https://github.com/helm/helm/pull/6463
+                        - Removal: https://github.com/helm/helm/pull/31023
+                      After helm-controller was upgraded to the Helm 4 SDK,
+                      this field is no longer functional and will print a
+                      warning if set to true. It will also be removed in a
+                      future release.
                     type: boolean
                   timeout:
                     description: |-

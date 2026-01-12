@@ -22,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	"helm.sh/helm/v3/pkg/release"
+	release "helm.sh/helm/v4/pkg/release/v1"
 )
 
 var (

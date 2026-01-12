@@ -21,12 +21,13 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chartutil"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmstorage "helm.sh/helm/v3/pkg/storage"
-	"helm.sh/helm/v3/pkg/storage/driver"
+	helmaction "helm.sh/helm/v4/pkg/action"
+	"helm.sh/helm/v4/pkg/chart/common"
+	helmchart "helm.sh/helm/v4/pkg/chart/v2"
+	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	helmstorage "helm.sh/helm/v4/pkg/storage"
+	"helm.sh/helm/v4/pkg/storage/driver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -229,13 +230,13 @@ func TestVerifySnapshot(t *testing.T) {
 	mock := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 		Name:      "release",
 		Version:   1,
-		Status:    helmrelease.StatusDeployed,
+		Status:    helmreleasecommon.StatusDeployed,
 		Namespace: "default",
 	})
 	otherMock := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 		Name:      "release",
 		Version:   1,
-		Status:    helmrelease.StatusSuperseded,
+		Status:    helmreleasecommon.StatusSuperseded,
 		Namespace: "default",
 	})
 	mockInfo := release.ObservedToSnapshot(release.ObserveRelease(mock))
@@ -312,7 +313,7 @@ func TestVerifyReleaseObject(t *testing.T) {
 	mockRls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 		Name:      "release",
 		Version:   1,
-		Status:    helmrelease.StatusSuperseded,
+		Status:    helmreleasecommon.StatusSuperseded,
 		Namespace: "default",
 	})
 	mockSnapshot := release.ObservedToSnapshot(release.ObserveRelease(mockRls))
@@ -341,7 +342,7 @@ func TestVerifyReleaseObject(t *testing.T) {
 			rls: testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 				Name:      "release",
 				Version:   1,
-				Status:    helmrelease.StatusDeployed,
+				Status:    helmreleasecommon.StatusDeployed,
 				Namespace: "default",
 			}),
 			wantErr: ErrReleaseNotObserved,
@@ -368,7 +369,7 @@ func TestVerifyRelease(t *testing.T) {
 	mockRls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 		Name:      "release",
 		Version:   1,
-		Status:    helmrelease.StatusSuperseded,
+		Status:    helmreleasecommon.StatusSuperseded,
 		Namespace: "default",
 	})
 	mockSnapshot := release.ObservedToSnapshot(release.ObserveRelease(mockRls))
@@ -378,7 +379,7 @@ func TestVerifyRelease(t *testing.T) {
 		rls      *helmrelease.Release
 		snapshot *v2.Snapshot
 		chrt     *helmchart.Metadata
-		vals     chartutil.Values
+		vals     common.Values
 		wantErr  error
 	}{
 		{
@@ -420,7 +421,7 @@ func TestVerifyRelease(t *testing.T) {
 			rls:      mockRls,
 			snapshot: mockSnapshot,
 			chrt:     mockRls.Chart.Metadata,
-			vals: chartutil.Values{
+			vals: common.Values{
 				"some": "other",
 			},
 			wantErr: ErrConfigDigest,

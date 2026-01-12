@@ -17,7 +17,7 @@ limitations under the License.
 package release
 
 import (
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 )
 
 // GetTestHooks returns the list of test hooks for the given release, indexed

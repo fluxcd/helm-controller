@@ -17,7 +17,10 @@ limitations under the License.
 package action
 
 import (
-	helmaction "helm.sh/helm/v3/pkg/action"
+	"fmt"
+
+	helmaction "helm.sh/helm/v4/pkg/action"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
@@ -35,16 +38,9 @@ func RollbackToVersion(version int) RollbackOption {
 	}
 }
 
-// RollbackDryRun returns a RollbackOption which enables the dry-run setting.
-func RollbackDryRun() RollbackOption {
-	return func(rollback *helmaction.Rollback) {
-		rollback.DryRun = true
-	}
-}
-
 // Rollback runs the Helm rollback action with the provided config. Targeting
 // a specific release or enabling dry-run is possible by providing
-// RollbackToVersion and/or RollbackDryRun as options.
+// RollbackToVersion as option.
 //
 // It does not determine if there is a desire to perform the action, this is
 // expected to be done by the caller. In addition, it does not take note of the
@@ -52,18 +48,57 @@ func RollbackDryRun() RollbackOption {
 // storage.ObserveFunc, which provides superior access to Helm storage writes.
 func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease, releaseName string, opts ...RollbackOption) error {
 	rollback := newRollback(config, obj, opts)
+
+	// Resolve "auto" server-side apply setting.
+	// We need to copy this code from Helm because we need to set ForceConflicts
+	// based on the resolved value, since we always force conflicts on server-side apply
+	// (Helm does not).
+	serverSideApply := rollback.ServerSideApply == "true"
+	if rollback.ServerSideApply == "auto" {
+		currentRelease, err := config.Releases.Last(releaseName)
+		if err != nil {
+			return err
+		}
+		previousVersion := rollback.Version
+		if rollback.Version == 0 {
+			previousVersion = currentRelease.(*helmrelease.Release).Version - 1
+		}
+		historyReleases, err := config.Releases.History(releaseName)
+		if err != nil {
+			return err
+		}
+		previousVersionExist := false
+		for _, rlsr := range historyReleases {
+			version := rlsr.(*helmrelease.Release).Version
+			if previousVersion == version {
+				previousVersionExist = true
+				break
+			}
+		}
+		if !previousVersionExist {
+			return fmt.Errorf("release has no %d version", previousVersion)
+		}
+		previousRelease, err := config.Releases.Get(releaseName, previousVersion)
+		if err != nil {
+			return err
+		}
+		serverSideApply = previousRelease.(*helmrelease.Release).ApplyMethod == "ssa"
+		rollback.ServerSideApply = fmt.Sprint(serverSideApply)
+	}
+	rollback.ForceConflicts = serverSideApply // We always force conflicts on server-side apply.
+
 	return rollback.Run(releaseName)
 }
 
 func newRollback(config *helmaction.Configuration, obj *v2.HelmRelease, opts []RollbackOption) *helmaction.Rollback {
 	rollback := helmaction.NewRollback(config)
+	rollback.ServerSideApply = "auto" // This must be the rollback default regardless of UseHelm3Defaults.
 
 	rollback.Timeout = obj.GetRollback().GetTimeout(obj.GetTimeout()).Duration
-	rollback.Wait = !obj.GetRollback().DisableWait
+	rollback.WaitStrategy = getWaitStrategy(obj.GetRollback())
 	rollback.WaitForJobs = !obj.GetRollback().DisableWaitForJobs
 	rollback.DisableHooks = obj.GetRollback().DisableHooks
-	rollback.Force = obj.GetRollback().Force
-	rollback.Recreate = obj.GetRollback().Recreate
+	rollback.ForceReplace = obj.GetRollback().Force
 	rollback.CleanupOnFail = obj.GetRollback().CleanupOnFail
 	rollback.MaxHistory = obj.GetMaxHistory()
 
