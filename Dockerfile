@@ -19,6 +19,7 @@ COPY api/ api/
 # copy modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
+COPY helm/ helm/
 
 # cache modules
 RUN go mod download

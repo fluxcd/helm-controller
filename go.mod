@@ -14,6 +14,9 @@ replace (
 	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.20.1
 )
 
+// Just checking if CI passes with my bugfix: https://github.com/helm/helm/pull/31730
+replace helm.sh/helm/v4 => ./helm
+
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/fluxcd/cli-utils v0.37.0-flux.1
@@ -201,7 +204,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/oauth2 v0.33.0 // indirect
