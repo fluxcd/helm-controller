@@ -153,7 +153,10 @@ func (r *Unlock) success(req *Request, cur *v2.Snapshot, status helmreleasecommo
 // that release.
 func observeUnlock(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rlsr helmrelease.Releaser) {
-		rls := rlsr.(*helmreleasev1.Release)
+		rls, ok := rlsr.(*helmreleasev1.Release)
+		if !ok {
+			return
+		}
 		for i := range obj.Status.History {
 			snap := obj.Status.History[i]
 			if snap.Targets(rls.Name, rls.Namespace, rls.Version) {

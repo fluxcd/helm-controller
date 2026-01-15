@@ -18,6 +18,7 @@ package action
 
 import (
 	"context"
+	"fmt"
 
 	helmaction "helm.sh/helm/v4/pkg/action"
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
@@ -45,7 +46,11 @@ func Test(_ context.Context, config *helmaction.Configuration, obj *v2.HelmRelea
 	if err != nil {
 		return nil, err
 	}
-	return rlsr.(*helmrelease.Release), err
+	rlsrTyped, ok := rlsr.(*helmrelease.Release)
+	if !ok {
+		return nil, fmt.Errorf("only the Chart API v2 is supported")
+	}
+	return rlsrTyped, err
 }
 
 func newTest(config *helmaction.Configuration, obj *v2.HelmRelease, opts []TestOption) *helmaction.ReleaseTesting {

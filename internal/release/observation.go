@@ -126,7 +126,9 @@ func ObserveRelease(rel *helmrelease.Release, filter ...DataFilter) Observation 
 
 	if rel.Chart != nil && rel.Chart.Metadata != nil {
 		if v, err := copystructure.Copy(rel.Chart.Metadata); err == nil {
-			obsRel.ChartMetadata = *v.(*chart.Metadata)
+			if vTyped, ok := v.(*chart.Metadata); ok {
+				obsRel.ChartMetadata = *vTyped
+			}
 		}
 	}
 

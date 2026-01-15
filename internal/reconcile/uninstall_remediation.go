@@ -96,7 +96,10 @@ func (r *UninstallRemediation) Reconcile(ctx context.Context, req *Request) erro
 	// accepting results, we need to confirm this is actually the release we
 	// have recorded as latest.
 	if res != nil {
-		rls := res.Release.(*helmreleasev1.Release)
+		rls, ok := res.Release.(*helmreleasev1.Release)
+		if !ok {
+			return fmt.Errorf("only the Chart API v2 is supported")
+		}
 		if !release.ObserveRelease(rls).Targets(cur.Name, cur.Namespace, cur.Version) {
 			err = fmt.Errorf("%w: uninstalled release %s/%s.v%d != current release %s",
 				ErrReleaseMismatch, rls.Namespace, rls.Name, rls.Version, cur.FullReleaseName())

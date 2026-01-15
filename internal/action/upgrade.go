@@ -67,7 +67,11 @@ func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 			}
 			return nil, err
 		}
-		serverSideApply = lastRelease.(*helmrelease.Release).ApplyMethod == "ssa"
+		lastReleaseTyped, ok := lastRelease.(*helmrelease.Release)
+		if !ok {
+			return nil, fmt.Errorf("only the Chart API v2 is supported")
+		}
+		serverSideApply = lastReleaseTyped.ApplyMethod == "ssa"
 		upgrade.ServerSideApply = fmt.Sprint(serverSideApply)
 	}
 	upgrade.ForceConflicts = serverSideApply // We always force conflicts on server-side apply.
@@ -85,7 +89,11 @@ func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 	if err != nil {
 		return nil, err
 	}
-	return rlsr.(*helmrelease.Release), err
+	rlsrTyped, ok := rlsr.(*helmrelease.Release)
+	if !ok {
+		return nil, fmt.Errorf("only the Chart API v2 is supported")
+	}
+	return rlsrTyped, err
 }
 
 func newUpgrade(config *helmaction.Configuration, obj *v2.HelmRelease, opts []UpgradeOption) *helmaction.Upgrade {

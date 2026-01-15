@@ -64,7 +64,11 @@ func Install(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 	if err != nil {
 		return nil, err
 	}
-	return rlsr.(*helmrelease.Release), err
+	rlsrTyped, ok := rlsr.(*helmrelease.Release)
+	if !ok {
+		return nil, fmt.Errorf("only the Chart API v2 is supported")
+	}
+	return rlsrTyped, err
 }
 
 func newInstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []InstallOption) *helmaction.Install {

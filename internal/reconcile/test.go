@@ -193,7 +193,10 @@ func (r *Test) success(req *Request) {
 // latest snapshot with the observed test results.
 func observeTest(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rlsr helmrelease.Releaser) {
-		rls := rlsr.(*helmreleasev1.Release)
+		rls, ok := rlsr.(*helmreleasev1.Release)
+		if !ok {
+			return
+		}
 		// Only accept test results for the latest release.
 		if !obj.Status.History.Latest().Targets(rls.Name, rls.Namespace, rls.Version) {
 			return

@@ -18,6 +18,7 @@ package action
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/opencontainers/go-digest"
 	helmaction "helm.sh/helm/v4/pkg/action"
@@ -87,7 +88,11 @@ func LastRelease(config *helmaction.Configuration, releaseName string) (*helmrel
 		}
 		return nil, err
 	}
-	return rls.(*helmrelease.Release), nil
+	rlsTyped, ok := rls.(*helmrelease.Release)
+	if !ok {
+		return nil, fmt.Errorf("only the Chart API v2 is supported")
+	}
+	return rlsTyped, nil
 }
 
 // VerifySnapshot verifies the data of the given v2.Snapshot
@@ -107,7 +112,10 @@ func VerifySnapshot(config *helmaction.Configuration, snapshot *v2.Snapshot) (rl
 		}
 		return nil, err
 	}
-	rls = rlsr.(*helmrelease.Release)
+	rls, ok := rlsr.(*helmrelease.Release)
+	if !ok {
+		return nil, fmt.Errorf("only the Chart API v2 is supported")
+	}
 
 	if err = VerifyReleaseObject(snapshot, rls); err != nil {
 		return nil, err
