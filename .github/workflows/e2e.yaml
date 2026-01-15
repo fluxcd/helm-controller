@@ -63,6 +63,80 @@ jobs:
           kubectl -n helm-system wait helmreleases/podinfo-git --for=condition=ready --timeout=4m
           kubectl -n helm-system wait helmreleases/podinfo-oci --for=condition=ready --timeout=4m
           kubectl -n helm-system delete -f config/testdata/podinfo
+      - name: Run server-side apply test
+        run: |
+          test_name=server-side-apply
+          kubectl -n helm-system apply -f config/testdata/$test_name/install.yaml
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Verify the release is deployed with SSA.
+          APPLY_METHOD=$(kubectl -n helm-system get secret sh.helm.release.v1.$test_name.v1 -o jsonpath='{.data.release}' | base64 -d | base64 -d | gunzip | jq -r '.apply_method')
+          if [ "$APPLY_METHOD" != "ssa" ]; then
+            echo -e "Unexpected apply method: $APPLY_METHOD (expected: ssa)"
+            exit 1
+          fi
+
+          # Upgrade with SSA.
+          kubectl -n helm-system apply -f config/testdata/$test_name/upgrade.yaml
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Validate release was upgraded.
+          REVISION_COUNT=$(helm -n helm-system history -o json $test_name | jq 'length')
+          if [ "$REVISION_COUNT" != 2 ]; then
+            echo -e "Unexpected revision count: $REVISION_COUNT"
+            exit 1
+          fi
+
+          kubectl -n helm-system delete -f config/testdata/$test_name/install.yaml
+      - name: Run server-side apply rollback test
+        run: |
+          test_name=server-side-apply-rollback
+          kubectl -n helm-system apply -f config/testdata/server-side-apply/rollback-install.yaml
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Verify the release is deployed with SSA.
+          APPLY_METHOD=$(kubectl -n helm-system get secret sh.helm.release.v1.$test_name.v1 -o jsonpath='{.data.release}' | base64 -d | base64 -d | gunzip | jq -r '.apply_method')
+          if [ "$APPLY_METHOD" != "ssa" ]; then
+            echo -e "Unexpected apply method: $APPLY_METHOD (expected: ssa)"
+            exit 1
+          fi
+
+          # Upgrade with failing config to trigger rollback.
+          kubectl -n helm-system apply -f config/testdata/server-side-apply/rollback-upgrade.yaml
+          echo -n ">>> Waiting for rollback"
+          count=0
+          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="False" and .Ready=="False" and .Remediated=="True"' )" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 24 ]]; then
+              echo ' No more retries left!'
+              exit 1
+            fi
+          done
+          echo ' done'
+
+          # Validate rollback happened with SSA (revision 3 = rollback to 1).
+          HISTORY=$(helm -n helm-system history -o json $test_name)
+          REVISION_COUNT=$(echo "$HISTORY" | jq 'length')
+          if [ "$REVISION_COUNT" != 3 ]; then
+            echo -e "Unexpected revision count: $REVISION_COUNT"
+            exit 1
+          fi
+          LAST_REVISION_DESCRIPTION=$(echo "$HISTORY" | jq -r 'last | .description')
+          if [ "$LAST_REVISION_DESCRIPTION" != "Rollback to 1" ]; then
+            echo -e "Unexpected last revision description: $LAST_REVISION_DESCRIPTION"
+            exit 1
+          fi
+
+          # Verify the rollback release used SSA.
+          APPLY_METHOD=$(kubectl -n helm-system get secret sh.helm.release.v1.$test_name.v3 -o jsonpath='{.data.release}' | base64 -d | base64 -d | gunzip | jq -r '.apply_method')
+          if [ "$APPLY_METHOD" != "ssa" ]; then
+            echo -e "Unexpected apply method after rollback: $APPLY_METHOD (expected: ssa)"
+            exit 1
+          fi
+
+          kubectl -n helm-system delete -f config/testdata/server-side-apply/rollback-install.yaml
       - name: Run dependency tests
         run: |
           kubectl -n helm-system apply -f config/testdata/dependencies
