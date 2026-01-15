@@ -690,11 +690,15 @@ func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter g
 	}
 
 	// Convert it to a v2 release snapshot.
-	snap := release.ObservedToSnapshot(release.ObserveRelease(rls.(*helmrelease.Release)))
+	rlsTyped, ok := rls.(*helmrelease.Release)
+	if !ok {
+		return fmt.Errorf("only the Chart API v2 is supported")
+	}
+	snap := release.ObservedToSnapshot(release.ObserveRelease(rlsTyped))
 
 	// If tests are enabled, include them as well.
 	if obj.GetTest().Enable {
-		snap.SetTestHooks(release.TestHooksFromRelease(rls.(*helmrelease.Release)))
+		snap.SetTestHooks(release.TestHooksFromRelease(rlsTyped))
 	}
 
 	// Adopt it as the current release in the history.

@@ -59,9 +59,13 @@ func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease, releaseName
 		if err != nil {
 			return err
 		}
+		currentReleaseTyped, ok := currentRelease.(*helmrelease.Release)
+		if !ok {
+			return fmt.Errorf("only the Chart API v2 is supported")
+		}
 		previousVersion := rollback.Version
 		if rollback.Version == 0 {
-			previousVersion = currentRelease.(*helmrelease.Release).Version - 1
+			previousVersion = currentReleaseTyped.Version - 1
 		}
 		historyReleases, err := config.Releases.History(releaseName)
 		if err != nil {
@@ -69,8 +73,11 @@ func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease, releaseName
 		}
 		previousVersionExist := false
 		for _, rlsr := range historyReleases {
-			version := rlsr.(*helmrelease.Release).Version
-			if previousVersion == version {
+			rlsrTyped, ok := rlsr.(*helmrelease.Release)
+			if !ok {
+				return fmt.Errorf("only the Chart API v2 is supported")
+			}
+			if previousVersion == rlsrTyped.Version {
 				previousVersionExist = true
 				break
 			}
@@ -82,7 +89,11 @@ func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease, releaseName
 		if err != nil {
 			return err
 		}
-		serverSideApply = previousRelease.(*helmrelease.Release).ApplyMethod == "ssa"
+		previousReleaseTyped, ok := previousRelease.(*helmrelease.Release)
+		if !ok {
+			return fmt.Errorf("only the Chart API v2 is supported")
+		}
+		serverSideApply = previousReleaseTyped.ApplyMethod == "ssa"
 		rollback.ServerSideApply = fmt.Sprint(serverSideApply)
 	}
 	rollback.ForceConflicts = serverSideApply // We always force conflicts on server-side apply.

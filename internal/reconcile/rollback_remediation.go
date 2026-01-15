@@ -180,7 +180,10 @@ func (r *RollbackRemediation) success(req *Request, prev *v2.Snapshot) {
 // to the release history.
 func observeRollback(obj *v2.HelmRelease) storage.ObserveFunc {
 	return func(rlsr helmrelease.Releaser) {
-		rls := rlsr.(*helmreleasev1.Release)
+		rls, ok := rlsr.(*helmreleasev1.Release)
+		if !ok {
+			return
+		}
 		for i := range obj.Status.History {
 			snap := obj.Status.History[i]
 			if snap.Targets(rls.Name, rls.Namespace, rls.Version) {

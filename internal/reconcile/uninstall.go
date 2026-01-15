@@ -120,7 +120,10 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	// accepting results, we need to confirm this is actually the release we
 	// have recorded as latest.
 	if res != nil {
-		rls := res.Release.(*helmreleasev1.Release)
+		rls, ok := res.Release.(*helmreleasev1.Release)
+		if !ok {
+			return fmt.Errorf("only the Chart API v2 is supported")
+		}
 		if !release.ObserveRelease(rls).Targets(cur.Name, cur.Namespace, cur.Version) {
 			err = fmt.Errorf("%w: uninstalled release %s/%s.v%d != current release %s",
 				ErrReleaseMismatch, rls.Namespace, rls.Name, rls.Version, cur.FullReleaseName())
@@ -221,7 +224,10 @@ func observeUninstall(obj *v2.HelmRelease) storage.ObserveFunc {
 	// As such, we need to update all releases we have in our history.
 	// xref: https://github.com/helm/helm/pull/12564
 	return func(rlsr helmrelease.Releaser) {
-		rls := rlsr.(*helmreleasev1.Release)
+		rls, ok := rlsr.(*helmreleasev1.Release)
+		if !ok {
+			return
+		}
 		for i := range obj.Status.History {
 			snap := obj.Status.History[i]
 			if snap.Targets(rls.Name, rls.Namespace, rls.Version) {

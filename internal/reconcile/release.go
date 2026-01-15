@@ -117,7 +117,11 @@ func releaseToObservation(rls *helmreleasev1.Release, snapshot *v2.Snapshot) rel
 // Helm storage, such as install and upgrade.
 func observeRelease(observed observedReleases) storage.ObserveFunc {
 	return func(rls helmrelease.Releaser) {
-		obs := release.ObserveRelease(rls.(*helmreleasev1.Release))
+		rlsTyped, ok := rls.(*helmreleasev1.Release)
+		if !ok {
+			return
+		}
+		obs := release.ObserveRelease(rlsTyped)
 		observed[obs.Version] = obs
 	}
 }
