@@ -142,4 +142,29 @@ func Test_newUpgrade(t *testing.T) {
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.ServerSideApply).To(Equal("auto"))
 	})
+
+	t.Run("server side apply user specified", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "upgrade",
+				Namespace: "upgrade-ns",
+			},
+			Spec: v2.HelmReleaseSpec{
+				Upgrade: &v2.Upgrade{
+					ServerSideApply: v2.ServerSideApplyEnabled,
+				},
+			},
+		}
+
+		got := newUpgrade(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.ServerSideApply).To(Equal("true"))
+
+		obj.Spec.Upgrade.ServerSideApply = v2.ServerSideApplyDisabled
+		got = newUpgrade(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.ServerSideApply).To(Equal("false"))
+	})
 }

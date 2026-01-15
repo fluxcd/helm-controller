@@ -75,6 +75,9 @@ func newInstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []In
 	default:
 		install.ServerSideApply = true
 	}
+	if ssa := obj.GetInstall().ServerSideApply; ssa != nil {
+		install.ServerSideApply = *ssa
+	}
 
 	install.ReleaseName = release.ShortenName(obj.GetReleaseName())
 	install.Namespace = obj.GetReleaseNamespace()
