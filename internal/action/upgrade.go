@@ -91,6 +91,9 @@ func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 func newUpgrade(config *helmaction.Configuration, obj *v2.HelmRelease, opts []UpgradeOption) *helmaction.Upgrade {
 	upgrade := helmaction.NewUpgrade(config)
 	upgrade.ServerSideApply = "auto" // This must be the upgrade default regardless of UseHelm3Defaults.
+	if ssa := obj.GetUpgrade().ServerSideApply; ssa != "" {
+		upgrade.ServerSideApply = toHelmSSAValue(ssa)
+	}
 
 	upgrade.Namespace = obj.GetReleaseNamespace()
 	upgrade.ResetValues = !obj.GetUpgrade().PreserveValues

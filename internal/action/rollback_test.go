@@ -137,4 +137,29 @@ func Test_newRollback(t *testing.T) {
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.ServerSideApply).To(Equal("auto"))
 	})
+
+	t.Run("server side apply user specified", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rollback",
+				Namespace: "rollback-ns",
+			},
+			Spec: v2.HelmReleaseSpec{
+				Rollback: &v2.Rollback{
+					ServerSideApply: v2.ServerSideApplyEnabled,
+				},
+			},
+		}
+
+		got := newRollback(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.ServerSideApply).To(Equal("true"))
+
+		obj.Spec.Rollback.ServerSideApply = v2.ServerSideApplyDisabled
+		got = newRollback(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.ServerSideApply).To(Equal("false"))
+	})
 }

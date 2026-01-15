@@ -2109,6 +2109,19 @@ HelmReleaseSpec.TargetNamespace if it does not exist yet.
 On uninstall, the namespace will not be garbage collected.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>serverSideApply</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServerSideApply enables server-side apply for resources during install.
+Defaults to true (or false when UseHelm3Defaults feature gate is enabled).</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -2449,10 +2462,36 @@ bool
 rollback action when it fails.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>serverSideApply</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.ServerSideApplyMode">
+ServerSideApplyMode
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServerSideApply enables server-side apply for resources during rollback.
+Can be &ldquo;enabled&rdquo;, &ldquo;disabled&rdquo;, or &ldquo;auto&rdquo;.
+When &ldquo;auto&rdquo;, server-side apply usage will be based on the release&rsquo;s previous usage.
+Defaults to &ldquo;auto&rdquo;.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2.ServerSideApplyMode">ServerSideApplyMode
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.Rollback">Rollback</a>, 
+<a href="#helm.toolkit.fluxcd.io/v2.Upgrade">Upgrade</a>)
+</p>
+<p>ServerSideApplyMode defines the server-side apply mode for Helm upgrade and
+rollback actions.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.Snapshot">Snapshot
 </h3>
 <p>Snapshot captures a point-in-time copy of the status information for a Helm release,
@@ -3096,6 +3135,23 @@ but not deleted.</p>
 <p>By default, CRDs are not applied during Helm upgrade action. With this
 option users can opt-in to CRD upgrade, which is not (yet) natively supported by Helm.
 <a href="https://helm.sh/docs/chart_best_practices/custom_resource_definitions">https://helm.sh/docs/chart_best_practices/custom_resource_definitions</a>.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serverSideApply</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.ServerSideApplyMode">
+ServerSideApplyMode
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServerSideApply enables server-side apply for resources during upgrade.
+Can be &ldquo;enabled&rdquo;, &ldquo;disabled&rdquo;, or &ldquo;auto&rdquo;.
+When &ldquo;auto&rdquo;, server-side apply usage will be based on the release&rsquo;s previous usage.
+Defaults to &ldquo;auto&rdquo;.</p>
 </td>
 </tr>
 </tbody>
