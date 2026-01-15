@@ -439,6 +439,11 @@ spec:
                       Replace tells the Helm install action to re-use the 'ReleaseName', but only
                       if that name is a deleted release which remains in the history.
                     type: boolean
+                  serverSideApply:
+                    description: |-
+                      ServerSideApply enables server-side apply for resources during install.
+                      Defaults to true (or false when UseHelm3Defaults feature gate is enabled).
+                    type: boolean
                   skipCRDs:
                     description: |-
                       SkipCRDs tells the Helm install action to not install any CRDs. By default,
@@ -727,6 +732,17 @@ spec:
                       warning if set to true. It will also be removed in a
                       future release.
                     type: boolean
+                  serverSideApply:
+                    description: |-
+                      ServerSideApply enables server-side apply for resources during rollback.
+                      Can be "enabled", "disabled", or "auto".
+                      When "auto", server-side apply usage will be based on the release's previous usage.
+                      Defaults to "auto".
+                    enum:
+                    - enabled
+                    - disabled
+                    - auto
+                    type: string
                   timeout:
                     description: |-
                       Timeout is the time to wait for any individual Kubernetes operation (like
@@ -945,6 +961,17 @@ spec:
                         - uninstall
                         type: string
                     type: object
+                  serverSideApply:
+                    description: |-
+                      ServerSideApply enables server-side apply for resources during upgrade.
+                      Can be "enabled", "disabled", or "auto".
+                      When "auto", server-side apply usage will be based on the release's previous usage.
+                      Defaults to "auto".
+                    enum:
+                    - enabled
+                    - disabled
+                    - auto
+                    type: string
                   strategy:
                     description: |-
                       Strategy defines the upgrade strategy to use for this HelmRelease.

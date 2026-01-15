@@ -156,4 +156,56 @@ func Test_newInstall(t *testing.T) {
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.ServerSideApply).To(BeFalse())
 	})
+
+	t.Run("server side apply user specified true", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Save and restore UseHelm3Defaults
+		oldUseHelm3Defaults := UseHelm3Defaults
+		t.Cleanup(func() { UseHelm3Defaults = oldUseHelm3Defaults })
+		UseHelm3Defaults = true // default would be false
+
+		ssa := true
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "install",
+				Namespace: "install-ns",
+			},
+			Spec: v2.HelmReleaseSpec{
+				Install: &v2.Install{
+					ServerSideApply: &ssa,
+				},
+			},
+		}
+
+		got := newInstall(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.ServerSideApply).To(BeTrue())
+	})
+
+	t.Run("server side apply user specified false", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Save and restore UseHelm3Defaults
+		oldUseHelm3Defaults := UseHelm3Defaults
+		t.Cleanup(func() { UseHelm3Defaults = oldUseHelm3Defaults })
+		UseHelm3Defaults = false // default would be true
+
+		ssa := false
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "install",
+				Namespace: "install-ns",
+			},
+			Spec: v2.HelmReleaseSpec{
+				Install: &v2.Install{
+					ServerSideApply: &ssa,
+				},
+			},
+		}
+
+		got := newInstall(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.ServerSideApply).To(BeFalse())
+	})
 }

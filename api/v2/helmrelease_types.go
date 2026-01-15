@@ -541,6 +541,11 @@ type Install struct {
 	// On uninstall, the namespace will not be garbage collected.
 	// +optional
 	CreateNamespace bool `json:"createNamespace,omitempty"`
+
+	// ServerSideApply enables server-side apply for resources during install.
+	// Defaults to true (or false when UseHelm3Defaults feature gate is enabled).
+	// +optional
+	ServerSideApply *bool `json:"serverSideApply,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm install action,
@@ -679,6 +684,21 @@ const (
 	CreateReplace CRDsPolicy = "CreateReplace"
 )
 
+// ServerSideApplyMode defines the server-side apply mode for Helm upgrade and
+// rollback actions.
+type ServerSideApplyMode string
+
+var (
+	// ServerSideApplyEnabled enables server-side apply for resources.
+	ServerSideApplyEnabled ServerSideApplyMode = "enabled"
+
+	// ServerSideApplyDisabled disables server-side apply for resources.
+	ServerSideApplyDisabled ServerSideApplyMode = "disabled"
+
+	// ServerSideApplyAuto uses the release's previous apply method.
+	ServerSideApplyAuto ServerSideApplyMode = "auto"
+)
+
 // Upgrade holds the configuration for Helm upgrade actions for this
 // HelmRelease.
 type Upgrade struct {
@@ -763,6 +783,14 @@ type Upgrade struct {
 	// +kubebuilder:validation:Enum=Skip;Create;CreateReplace
 	// +optional
 	CRDs CRDsPolicy `json:"crds,omitempty"`
+
+	// ServerSideApply enables server-side apply for resources during upgrade.
+	// Can be "enabled", "disabled", or "auto".
+	// When "auto", server-side apply usage will be based on the release's previous usage.
+	// Defaults to "auto".
+	// +kubebuilder:validation:Enum=enabled;disabled;auto
+	// +optional
+	ServerSideApply ServerSideApplyMode `json:"serverSideApply,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm upgrade action, or the
@@ -1021,6 +1049,14 @@ type Rollback struct {
 	// rollback action when it fails.
 	// +optional
 	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
+
+	// ServerSideApply enables server-side apply for resources during rollback.
+	// Can be "enabled", "disabled", or "auto".
+	// When "auto", server-side apply usage will be based on the release's previous usage.
+	// Defaults to "auto".
+	// +kubebuilder:validation:Enum=enabled;disabled;auto
+	// +optional
+	ServerSideApply ServerSideApplyMode `json:"serverSideApply,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm rollback action, or

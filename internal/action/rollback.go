@@ -93,6 +93,9 @@ func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease, releaseName
 func newRollback(config *helmaction.Configuration, obj *v2.HelmRelease, opts []RollbackOption) *helmaction.Rollback {
 	rollback := helmaction.NewRollback(config)
 	rollback.ServerSideApply = "auto" // This must be the rollback default regardless of UseHelm3Defaults.
+	if ssa := obj.GetRollback().ServerSideApply; ssa != "" {
+		rollback.ServerSideApply = toHelmSSAValue(ssa)
+	}
 
 	rollback.Timeout = obj.GetRollback().GetTimeout(obj.GetTimeout()).Duration
 	rollback.WaitStrategy = getWaitStrategy(obj.GetRollback())
