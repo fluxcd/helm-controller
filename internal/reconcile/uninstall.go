@@ -197,6 +197,9 @@ func (r *Uninstall) success(req *Request) {
 	cur := req.Object.Status.History.Latest()
 	msg := fmt.Sprintf(fmtUninstallSuccess, cur.FullReleaseName(), cur.VersionedChartName())
 
+	// Clear inventory as the release has been uninstalled.
+	req.Object.Status.Inventory = nil
+
 	// Mark remediation success on object.
 	conditions.MarkFalse(req.Object, v2.ReleasedCondition, v2.UninstallSucceededReason, "%s", msg)
 

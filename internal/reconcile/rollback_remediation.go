@@ -76,7 +76,7 @@ func (r *RollbackRemediation) Reconcile(ctx context.Context, req *Request) error
 	var (
 		cur    = req.Object.Status.History.Latest().DeepCopy()
 		logBuf = action.NewDebugLogBuffer(ctx)
-		cfg    = r.configFactory.Build(logBuf, observeRollback(req.Object))
+		cfg    = r.configFactory.Build(logBuf, observeRollback(req.Object), observeInventory(req.Object, req.Chart, r.configFactory.Getter, r.eventRecorder))
 	)
 
 	defer summarize(req)

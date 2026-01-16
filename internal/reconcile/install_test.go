@@ -74,6 +74,9 @@ func TestInstall_Reconcile(t *testing.T) {
 		// expectHistory is the expected History of the HelmRelease after
 		// install.
 		expectHistory func(releases []*helmrelease.Release) v2.Snapshots
+		// expectInventory is the expected Inventory of the HelmRelease after
+		// install.
+		expectInventory func(namespace string) *v2.ResourceInventory
 		// expectFailures is the expected Failures count of the HelmRelease.
 		expectFailures int64
 		// expectInstallFailures is the expected InstallFailures count of the
@@ -95,6 +98,16 @@ func TestInstall_Reconcile(t *testing.T) {
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
+			expectInventory: func(namespace string) *v2.ResourceInventory {
+				return &v2.ResourceInventory{
+					Entries: []v2.ResourceRef{
+						{
+							ID:      namespace + "_cm__ConfigMap",
+							Version: "v1",
+						},
+					},
 				}
 			},
 		},
@@ -301,6 +314,10 @@ func TestInstall_Reconcile(t *testing.T) {
 			g.Expect(obj.Status.UpgradeFailures).To(Equal(tt.expectUpgradeFailures))
 			g.Expect(obj.Status.LastAttemptedReleaseAction).To(Equal(v2.ReleaseActionInstall))
 			g.Expect(obj.Status.LastAttemptedReleaseActionDuration).ToNot(BeNil())
+
+			if tt.expectInventory != nil {
+				g.Expect(obj.Status.Inventory).To(testutil.Equal(tt.expectInventory(releaseNamespace)))
+			}
 		})
 	}
 }

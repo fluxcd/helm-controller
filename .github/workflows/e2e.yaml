@@ -60,6 +60,23 @@ jobs:
         run: |
           kubectl -n helm-system apply -f config/testdata/podinfo
           kubectl -n helm-system wait helmreleases/podinfo --for=condition=ready --timeout=4m
+
+          # Inventory tracking enables drift detection and garbage collection.
+          # Ensure it captures managed objects from the Helm release.
+          INVENTORY=$(kubectl -n helm-system get helmrelease/podinfo -o jsonpath='{.status.inventory.entries}')
+          INVENTORY_COUNT=$(echo "$INVENTORY" | jq 'length')
+          if [ "$INVENTORY_COUNT" -lt 1 ]; then
+            echo "Expected inventory entries, got $INVENTORY_COUNT"
+            exit 1
+          fi
+          # Deployment is a primary workload resource; its presence confirms
+          # that the inventory correctly tracks resources from the rendered manifests.
+          if ! echo "$INVENTORY" | jq -e '.[] | select(.id | contains("_Deployment"))' > /dev/null; then
+            echo "Expected Deployment in inventory"
+            echo "Inventory: $INVENTORY"
+            exit 1
+          fi
+
           kubectl -n helm-system wait helmreleases/podinfo-git --for=condition=ready --timeout=4m
           kubectl -n helm-system wait helmreleases/podinfo-oci --for=condition=ready --timeout=4m
           kubectl -n helm-system delete -f config/testdata/podinfo

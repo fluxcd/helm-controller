@@ -1182,6 +1182,11 @@ type HelmReleaseStatus struct {
 	// +optional
 	History Snapshots `json:"history,omitempty"`
 
+	// Inventory contains the list of Kubernetes resource object references
+	// that have been applied for this release.
+	// +optional
+	Inventory *ResourceInventory `json:"inventory,omitempty"`
+
 	// LastAttemptedReleaseAction is the last release action performed for this
 	// HelmRelease. It is used to determine the active retry or remediation
 	// strategy.

@@ -73,6 +73,9 @@ func TestUninstall_Reconcile(t *testing.T) {
 		// expectHistory is the expected History of the HelmRelease after
 		// uninstall.
 		expectHistory func(namespace string, releases []*helmrelease.Release) v2.Snapshots
+		// expectInventory is the expected Inventory of the HelmRelease after
+		// uninstall. If nil, inventory is not checked.
+		expectInventory func() *v2.ResourceInventory
 		// expectFailures is the expected Failures count of the HelmRelease.
 		expectFailures int64
 		// expectInstallFailures is the expected InstallFailures count of the
@@ -117,6 +120,9 @@ func TestUninstall_Reconcile(t *testing.T) {
 				return v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
+			},
+			expectInventory: func() *v2.ResourceInventory {
+				return nil
 			},
 		},
 		{
@@ -510,6 +516,10 @@ func TestUninstall_Reconcile(t *testing.T) {
 			g.Expect(obj.Status.Failures).To(Equal(tt.expectFailures))
 			g.Expect(obj.Status.InstallFailures).To(Equal(tt.expectInstallFailures))
 			g.Expect(obj.Status.UpgradeFailures).To(Equal(tt.expectUpgradeFailures))
+
+			if tt.expectInventory != nil {
+				g.Expect(obj.Status.Inventory).To(testutil.Equal(tt.expectInventory()))
+			}
 		})
 	}
 }
