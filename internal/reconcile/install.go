@@ -71,7 +71,7 @@ func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 	var (
 		logBuf      = action.NewDebugLogBuffer(ctx)
 		obsReleases = make(observedReleases)
-		cfg         = r.configFactory.Build(logBuf, observeRelease(obsReleases))
+		cfg         = r.configFactory.Build(logBuf, observeRelease(obsReleases), observeInventory(req.Object, req.Chart, r.configFactory.Getter, r.eventRecorder))
 		startTime   = time.Now()
 	)
 

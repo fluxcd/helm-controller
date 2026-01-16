@@ -1669,6 +1669,21 @@ up to the last successfully completed release.</p>
 </tr>
 <tr>
 <td>
+<code>inventory</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.ResourceInventory">
+ResourceInventory
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Inventory contains the list of Kubernetes resource object references
+that have been applied for this release.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>lastAttemptedReleaseAction</code><br>
 <em>
 <a href="#helm.toolkit.fluxcd.io/v2.ReleaseAction">
@@ -2342,6 +2357,85 @@ UpgradeRemediation.</p>
 </p>
 <p>RemediationStrategy returns the strategy to use to remediate a failed install
 or upgrade.</p>
+<h3 id="helm.toolkit.fluxcd.io/v2.ResourceInventory">ResourceInventory
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseStatus">HelmReleaseStatus</a>)
+</p>
+<p>ResourceInventory contains a list of Kubernetes resource object references
+that have been applied by a HelmRelease.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>entries</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.ResourceRef">
+[]ResourceRef
+</a>
+</em>
+</td>
+<td>
+<p>Entries of Kubernetes resource object references.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2.ResourceRef">ResourceRef
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.ResourceInventory">ResourceInventory</a>)
+</p>
+<p>ResourceRef contains the information necessary to locate a resource within a cluster.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>id</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>ID is the string representation of the Kubernetes resource object&rsquo;s metadata,
+in the format &lsquo;<namespace><em><name></em><group>_<kind>&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>v</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Version is the API version of the Kubernetes resource object&rsquo;s kind.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="helm.toolkit.fluxcd.io/v2.Retry">Retry
 </h3>
 <p>Retry defines a consistent interface for retry strategies from

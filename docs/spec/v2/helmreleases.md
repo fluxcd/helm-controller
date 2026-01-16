@@ -1884,6 +1884,36 @@ status:
       version: 1
 ```
 
+### Inventory
+
+The HelmRelease reports the list of Kubernetes resource objects that have been
+applied by the Helm release in `.status.inventory`. This can be used to
+identify which objects are managed by the HelmRelease. The inventory records
+are in the format `<namespace>_<name>_<group>_<kind>`.
+
+The inventory includes all resources from the rendered manifests, as well as
+CRDs from the chart's `crds/` directory. Helm hooks are not included in the
+inventory, as they are not considered part of the release by Helm.
+
+#### Inventory example
+
+```yaml
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: <release-name>
+status:
+  inventory:
+    entries:
+      - id: default_podinfo__Service
+        v: v1
+      - id: default_podinfo_apps_Deployment
+        v: v1
+      - id: default_podinfo_autoscaling_HorizontalPodAutoscaler
+        v: v2
+```
+
 ### Conditions
 
 A HelmRelease enters various states during its lifecycle, reflected as

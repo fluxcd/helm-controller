@@ -19,16 +19,24 @@ package reconcile
 import (
 	"errors"
 	"sort"
+	"strings"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	helmchart "helm.sh/helm/v4/pkg/chart/v2"
 	helmrelease "helm.sh/helm/v4/pkg/release"
 	helmreleasev1 "helm.sh/helm/v4/pkg/release/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
+	"github.com/fluxcd/helm-controller/internal/inventory"
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
 )
@@ -123,6 +131,51 @@ func observeRelease(observed observedReleases) storage.ObserveFunc {
 		}
 		obs := release.ObserveRelease(rlsTyped)
 		observed[obs.Version] = obs
+	}
+}
+
+// observeInventory returns a storage.ObserveFunc that builds an inventory
+// from the release manifest and chart CRDs, and stores it in the HelmRelease
+// status.
+func observeInventory(obj *v2.HelmRelease, chart *helmchart.Chart, getter genericclioptions.RESTClientGetter, recorder record.EventRecorder) storage.ObserveFunc {
+	return func(rls helmrelease.Releaser) {
+		rlsTyped, ok := rls.(*helmreleasev1.Release)
+		if !ok {
+			return
+		}
+
+		restCfg, err := getter.ToRESTConfig()
+		if err != nil {
+			recorder.Eventf(obj, corev1.EventTypeWarning, v2.InventoryBuildFailedReason,
+				"failed to build inventory for %s/%s: %s", obj.GetNamespace(), obj.GetName(), err.Error())
+			return
+		}
+		c, err := client.New(restCfg, client.Options{})
+		if err != nil {
+			recorder.Eventf(obj, corev1.EventTypeWarning, v2.InventoryBuildFailedReason,
+				"failed to build inventory for %s/%s: %s", obj.GetNamespace(), obj.GetName(), err.Error())
+			return
+		}
+
+		inv := inventory.New()
+		warnings, err := inventory.AddManifest(inv, rlsTyped.Manifest, rlsTyped.Namespace, c)
+		if err != nil {
+			recorder.Eventf(obj, corev1.EventTypeWarning, v2.InventoryBuildFailedReason,
+				"failed to build inventory for %s/%s: %s", obj.GetNamespace(), obj.GetName(), err.Error())
+			return
+		}
+		if len(warnings) > 0 {
+			recorder.Eventf(obj, corev1.EventTypeWarning, v2.NamespaceCheckSkippedReason,
+				strings.Join(warnings, "; "))
+		}
+		if chart != nil {
+			if err := inventory.AddCRDs(inv, chart); err != nil {
+				recorder.Eventf(obj, corev1.EventTypeWarning, v2.InventoryBuildFailedReason,
+					"failed to build inventory for %s/%s: %s", obj.GetNamespace(), obj.GetName(), err.Error())
+				return
+			}
+		}
+		obj.Status.Inventory = inv
 	}
 }
 
