@@ -78,26 +78,26 @@ func parseManifest(manifest string) ([]*unstructured.Unstructured, error) {
 // This is necessary because Helm manifests don't include namespace for namespaced resources.
 func setNamespaces(objects []*unstructured.Unstructured, releaseNamespace string, c client.Client) []string {
 	var warnings []string
-	isNamespacedGVK := map[schema.GroupVersionKind]bool{}
+	isNamespacedGK := map[schema.GroupKind]bool{}
 
 	for _, obj := range objects {
 		if obj.GetNamespace() != "" {
 			continue
 		}
 
-		objGVK := obj.GetObjectKind().GroupVersionKind()
-		if _, ok := isNamespacedGVK[objGVK]; !ok {
+		objGK := obj.GetObjectKind().GroupVersionKind().GroupKind()
+		if _, ok := isNamespacedGK[objGK]; !ok {
 			namespaced, err := apiutil.IsObjectNamespaced(obj, c.Scheme(), c.RESTMapper())
 			if err != nil {
 				warnings = append(warnings, fmt.Sprintf(
 					"failed to determine if %s is namespace scoped, skipping namespace: %s",
-					objGVK.Kind, err.Error()))
+					objGK.Kind, err.Error()))
 				continue
 			}
-			isNamespacedGVK[objGVK] = namespaced
+			isNamespacedGK[objGK] = namespaced
 		}
 
-		if isNamespacedGVK[objGVK] {
+		if isNamespacedGK[objGK] {
 			obj.SetNamespace(releaseNamespace)
 		}
 	}
