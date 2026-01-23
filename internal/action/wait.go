@@ -16,7 +16,11 @@ limitations under the License.
 
 package action
 
-import helmkube "helm.sh/helm/v4/pkg/kube"
+import (
+	helmkube "helm.sh/helm/v4/pkg/kube"
+
+	v2 "github.com/fluxcd/helm-controller/api/v2"
+)
 
 // actionThatWaits is implemented by HelmRelease action specs that
 // support wait strategies.
@@ -25,10 +29,12 @@ type actionThatWaits interface {
 }
 
 // getWaitStrategy returns the wait strategy for the given action spec.
-func getWaitStrategy(spec actionThatWaits) helmkube.WaitStrategy {
+func getWaitStrategy(strategy v2.WaitStrategyName, spec actionThatWaits) helmkube.WaitStrategy {
 	switch {
 	case spec.GetDisableWait():
 		return helmkube.HookOnlyStrategy
+	case strategy != "":
+		return helmkube.WaitStrategy(strategy)
 	case UseHelm3Defaults:
 		return helmkube.LegacyStrategy
 	default:

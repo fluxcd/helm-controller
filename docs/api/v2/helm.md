@@ -405,6 +405,39 @@ overridden if its key matches a common one.</p>
 of their definition.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>waitStrategy</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.WaitStrategy">
+WaitStrategy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>WaitStrategy defines Helm&rsquo;s wait strategy for waiting for applied
+resources to become ready.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>healthCheckExprs</code><br>
+<em>
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/kustomize#CustomHealthCheck">
+[]github.com/fluxcd/pkg/apis/kustomize.CustomHealthCheck
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>HealthCheckExprs is a list of healthcheck expressions for evaluating the
+health of custom resources using Common Expression Language (CEL).
+The expressions are evaluated only when the specific Helm action
+taking place has wait enabled, i.e. DisableWait is false, and the
+&lsquo;watcher&rsquo; WaitStrategy is used.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -1538,6 +1571,39 @@ overridden if its key matches a common one.</p>
 <em>(Optional)</em>
 <p>PostRenderers holds an array of Helm PostRenderers, which will be applied in order
 of their definition.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>waitStrategy</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.WaitStrategy">
+WaitStrategy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>WaitStrategy defines Helm&rsquo;s wait strategy for waiting for applied
+resources to become ready.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>healthCheckExprs</code><br>
+<em>
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/kustomize#CustomHealthCheck">
+[]github.com/fluxcd/pkg/apis/kustomize.CustomHealthCheck
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>HealthCheckExprs is a list of healthcheck expressions for evaluating the
+health of custom resources using Common Expression Language (CEL).
+The expressions are evaluated only when the specific Helm action
+taking place has wait enabled, i.e. DisableWait is false, and the
+&lsquo;watcher&rsquo; WaitStrategy is used.</p>
 </td>
 </tr>
 </tbody>
@@ -3376,6 +3442,53 @@ Defaults to &lsquo;5m&rsquo;.</p>
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2.WaitStrategy">WaitStrategy
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>WaitStrategy defines Helm&rsquo;s wait strategy for waiting for applied
+resources to become ready.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.WaitStrategyName">
+WaitStrategyName
+</a>
+</em>
+</td>
+<td>
+<p>Name is Helm&rsquo;s wait strategy for waiting for applied resources to
+become ready. One of &lsquo;watcher&rsquo; or &lsquo;legacy&rsquo;. The &lsquo;watcher&rsquo; strategy uses
+kstatus to watch resource statuses, while the &lsquo;legacy&rsquo; strategy uses
+Helm v3&rsquo;s waiting logic.
+Defaults to &lsquo;watcher&rsquo;, or to &lsquo;legacy&rsquo; when UseHelm3Defaults feature
+gate is enabled.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2.WaitStrategyName">WaitStrategyName
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.WaitStrategy">WaitStrategy</a>)
+</p>
+<p>WaitStrategyName is a strategy for waiting for resources to be ready.</p>
 <div class="admonition note">
 <p class="last">This page was automatically generated with <code>gen-crd-api-reference-docs</code></p>
 </div>

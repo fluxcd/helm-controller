@@ -19,7 +19,9 @@ package action
 import (
 	"fmt"
 
+	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	helmaction "helm.sh/helm/v4/pkg/action"
+	helmkube "helm.sh/helm/v4/pkg/kube"
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -30,11 +32,11 @@ import (
 // example useful to enable the dry-run setting as a CLI.
 type RollbackOption func(*helmaction.Rollback)
 
-// RollbackToVersion returns a RollbackOption which sets the version to
-// roll back to.
-func RollbackToVersion(version int) RollbackOption {
+// WithRollbackStatusReader sets the status reader used to evaluate
+// health checks during rollback wait.
+func WithRollbackStatusReader(reader engine.StatusReader) RollbackOption {
 	return func(rollback *helmaction.Rollback) {
-		rollback.Version = version
+		rollback.WaitOptions = append(rollback.WaitOptions, helmkube.WithKStatusReaders(reader))
 	}
 }
 
@@ -46,8 +48,10 @@ func RollbackToVersion(version int) RollbackOption {
 // expected to be done by the caller. In addition, it does not take note of the
 // action result. The caller is expected to listen to this using a
 // storage.ObserveFunc, which provides superior access to Helm storage writes.
-func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease, releaseName string, opts ...RollbackOption) error {
-	rollback := newRollback(config, obj, opts)
+func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease,
+	releaseName string, version int, opts ...RollbackOption) error {
+
+	rollback := newRollback(config, obj, version, opts)
 
 	// Resolve "auto" server-side apply setting.
 	// We need to copy this code from Helm because we need to set ForceConflicts
@@ -101,15 +105,18 @@ func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease, releaseName
 	return rollback.Run(releaseName)
 }
 
-func newRollback(config *helmaction.Configuration, obj *v2.HelmRelease, opts []RollbackOption) *helmaction.Rollback {
+func newRollback(config *helmaction.Configuration, obj *v2.HelmRelease,
+	version int, opts []RollbackOption) *helmaction.Rollback {
+
 	rollback := helmaction.NewRollback(config)
 	rollback.ServerSideApply = "auto" // This must be the rollback default regardless of UseHelm3Defaults.
 	if ssa := obj.GetRollback().ServerSideApply; ssa != "" {
 		rollback.ServerSideApply = toHelmSSAValue(ssa)
 	}
 
+	rollback.Version = version
 	rollback.Timeout = obj.GetRollback().GetTimeout(obj.GetTimeout()).Duration
-	rollback.WaitStrategy = getWaitStrategy(obj.GetRollback())
+	rollback.WaitStrategy = getWaitStrategy(obj.GetWaitStrategy(), obj.GetRollback())
 	rollback.WaitForJobs = !obj.GetRollback().DisableWaitForJobs
 	rollback.DisableHooks = obj.GetRollback().DisableHooks
 	rollback.ForceReplace = obj.GetRollback().Force

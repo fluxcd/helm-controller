@@ -113,7 +113,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 		r.APIReader = r.Client
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(Equal(errWaitForDependency))
 		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
@@ -145,7 +145,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 		r.APIReader = r.Client
 
-		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(HaveOccurred())
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
@@ -177,7 +177,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 		r.APIReader = r.Client
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
 		g.Expect(res.IsZero()).To(BeTrue())
@@ -234,7 +234,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				Build(),
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(Equal(errWaitForChart))
 		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
@@ -291,7 +291,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 		r.APIReader = r.Client
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(Equal(errWaitForChart))
 		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
@@ -353,7 +353,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 		r.APIReader = r.Client
 
-		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(HaveOccurred())
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
@@ -405,7 +405,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 		r.APIReader = r.Client
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(Equal(errWaitForDependency))
 		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
@@ -508,7 +508,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g.Expect(store.Create(rls)).To(Succeed())
 
 		// Reconcile the Helm release.
-		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Assert that the Helm release has been adopted.
@@ -578,7 +578,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj, nil)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(res.Requeue).To(BeTrue())
 
@@ -654,7 +654,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
 
-		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj)
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj, nil)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("namespaces \"not-exist\" not found"))
 
@@ -727,7 +727,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj, nil)
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(res.RequeueAfter).To(BeNumerically("==", time.Minute))
 
@@ -815,7 +815,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
 
-		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj)
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj, nil)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("namespaces \"not-exist\" not found"))
 
@@ -939,7 +939,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			)
 			g.Expect(err).ToNot(HaveOccurred())
 
-			_, err = r.reconcileRelease(context.TODO(), sp, obj)
+			_, err = r.reconcileRelease(context.TODO(), sp, obj, nil)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			ready := conditions.Get(obj, meta.ReadyCondition)
@@ -1021,7 +1021,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			EventRecorder: record.NewFakeRecorder(32),
 		}
 
-		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(HaveOccurred())
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
@@ -1056,7 +1056,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			EventRecorder: record.NewFakeRecorder(32),
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
 		g.Expect(res.IsZero()).To(BeTrue())
@@ -1114,7 +1114,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 				Build(),
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(Equal(errWaitForChart))
 		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
@@ -1174,7 +1174,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			EventRecorder:             record.NewFakeRecorder(32),
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(Equal(errWaitForDependency))
 		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
@@ -1254,7 +1254,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 			EventRecorder:             record.NewFakeRecorder(32),
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(Equal(errWaitForDependency))
 		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
@@ -1396,7 +1396,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		g.Expect(err).ToNot(HaveOccurred())
 		obj.Spec.PostRenderers[0].Kustomize.Patches = targeted
 
-		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Verify attempted values are set.
@@ -1488,7 +1488,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			EventRecorder: record.NewFakeRecorder(32),
 		}
 
-		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(HaveOccurred())
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
@@ -1523,7 +1523,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			EventRecorder: record.NewFakeRecorder(32),
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
 		g.Expect(res.IsZero()).To(BeTrue())
@@ -1581,7 +1581,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				Build(),
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(Equal(errWaitForChart))
 		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
@@ -1644,7 +1644,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			EventRecorder: record.NewFakeRecorder(32),
 		}
 
-		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(HaveOccurred())
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
@@ -1703,7 +1703,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			EventRecorder:             record.NewFakeRecorder(32),
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(Equal(errWaitForDependency))
 		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
@@ -1783,7 +1783,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			EventRecorder:             record.NewFakeRecorder(32),
 		}
 
-		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(Equal(errWaitForDependency))
 		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
 
@@ -1847,7 +1847,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
 
-		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("namespaces \"mock\" not found"))
 
@@ -1863,7 +1863,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		ocirepo.Status.Artifact = chartArtifact
 		r.Client.Update(context.Background(), ocirepo)
 
-		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("namespaces \"mock\" not found"))
 
@@ -1941,7 +1941,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
 
-		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Verify attempted values are set.
@@ -1959,7 +1959,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		chartArtifact.Revision = "0.1.0_20241102104025" + "@" + "sha256:adebc5e3cbcd6a0918bd470f3a6c9855bfe95d506c74726bc0f2edb0aecb1f4e"
 		ocirepo.Status.Artifact = chartArtifact
 		r.Client.Update(context.Background(), ocirepo)
-		r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 
 		// Verify attempted values are set.
 		g.Expect(obj.Status.LastAttemptedGeneration).To(Equal(obj.Generation))
@@ -2038,7 +2038,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
 
-		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Verify attempted values are set.
@@ -2115,7 +2115,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			EventRecorder:    record.NewFakeRecorder(32),
 		}
 
-		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Verify attempted values are set.
@@ -2244,7 +2244,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		store := helmstorage.Init(cfg.Driver)
 		g.Expect(store.Create(rls)).To(Succeed())
 
-		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj)
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Verify attempted values are set.
@@ -3455,7 +3455,7 @@ func TestHelmReleaseReconciler_adoptLegacyRelease(t *testing.T) {
 			}
 
 			// Adopt the Helm release mock.
-			err = r.adoptLegacyRelease(context.TODO(), getter, obj)
+			err = r.adoptLegacyRelease(context.TODO(), getter, nil, obj)
 			g.Expect(err != nil).To(Equal(tt.wantErr), "unexpected error: %s", err)
 
 			// Verify the Helm release mock has been adopted.

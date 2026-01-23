@@ -81,6 +81,9 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 		// expectUpgradeFailures is the expected UpgradeFailures count on the
 		// HelmRelease.
 		expectUpgradeFailures int64
+		// statusReader is an optional StatusReader to configure on the
+		// ConfigFactory.
+		statusReader bool
 	}{
 		{
 			name: "rollback",
@@ -297,6 +300,47 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			},
 			expectFailures: 1,
 		},
+		{
+			name: "rollback with status reader",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Version:   1,
+						Chart:     testutil.BuildChart(),
+						Status:    helmreleasecommon.StatusSuperseded,
+						Namespace: namespace,
+					}),
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Version:   2,
+						Chart:     testutil.BuildChart(),
+						Status:    helmreleasecommon.StatusFailed,
+						Namespace: namespace,
+					}),
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+				}
+			},
+			statusReader: true,
+			expectConditions: []metav1.Condition{
+				*conditions.FalseCondition(meta.ReadyCondition, v2.RollbackSucceededReason, "succeeded"),
+				*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason, "succeeded"),
+			},
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
+					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -330,9 +374,15 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfgOpts := []action.ConfigFactoryOption{
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
-			)
+			}
+			var mockSR *testutil.MockStatusReader
+			if tt.statusReader {
+				mockSR = &testutil.MockStatusReader{}
+				cfgOpts = append(cfgOpts, action.WithStatusReader(mockSR))
+			}
+			cfg, err := action.NewConfigFactory(getter, cfgOpts...)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			store := helmstorage.Init(cfg.Driver)
@@ -368,6 +418,10 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			g.Expect(obj.Status.Failures).To(Equal(tt.expectFailures))
 			g.Expect(obj.Status.InstallFailures).To(Equal(tt.expectInstallFailures))
 			g.Expect(obj.Status.UpgradeFailures).To(Equal(tt.expectUpgradeFailures))
+
+			if mockSR != nil {
+				g.Expect(mockSR.SupportsCalled()).To(BeNumerically(">", 0), "expected StatusReader.Supports to be called")
+			}
 		})
 	}
 }

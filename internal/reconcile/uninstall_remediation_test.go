@@ -79,6 +79,9 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 		// expectUpgradeFailures is the expected UpgradeFailures count of the
 		// HelmRelease.
 		expectUpgradeFailures int64
+		// statusReader is an optional StatusReader to configure on the
+		// ConfigFactory.
+		statusReader bool
 	}{
 		{
 			name: "uninstall success",
@@ -300,6 +303,42 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			expectFailures: 1,
 			wantErr:        ErrReleaseMismatch,
 		},
+		{
+			name: "uninstall success with status reader",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Chart:     testutil.BuildChart(testutil.ChartWithTestHook()),
+						Status:    helmreleasecommon.StatusDeployed,
+					}),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Uninstall = &v2.Uninstall{
+					KeepHistory: true,
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+				}
+			},
+			statusReader: true,
+			expectConditions: []metav1.Condition{
+				*conditions.TrueCondition(v2.RemediatedCondition, v2.UninstallSucceededReason,
+					"succeeded"),
+			},
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -336,9 +375,13 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfgOpts := []action.ConfigFactoryOption{
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
-			)
+			}
+			if tt.statusReader {
+				cfgOpts = append(cfgOpts, action.WithStatusReader(&testutil.MockStatusReader{}))
+			}
+			cfg, err := action.NewConfigFactory(getter, cfgOpts...)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			store := helmstorage.Init(cfg.Driver)
@@ -374,6 +417,10 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			g.Expect(obj.Status.Failures).To(Equal(tt.expectFailures))
 			g.Expect(obj.Status.InstallFailures).To(Equal(tt.expectInstallFailures))
 			g.Expect(obj.Status.UpgradeFailures).To(Equal(tt.expectUpgradeFailures))
+
+			// Note: For uninstall, StatusReader is configured but not actively used
+			// since uninstall waits for resource deletion, not health checks.
+			// The test verifies that configuring a StatusReader doesn't break uninstall.
 		})
 	}
 }

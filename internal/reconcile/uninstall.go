@@ -93,7 +93,11 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	}
 
 	// Run the Helm uninstall action.
-	res, err := action.Uninstall(ctx, cfg, req.Object, cur.Name)
+	var opts []action.UninstallOption
+	if sr := r.configFactory.StatusReader; sr != nil {
+		opts = append(opts, action.WithUninstallStatusReader(sr))
+	}
+	res, err := action.Uninstall(ctx, cfg, req.Object, cur.Name, opts...)
 
 	// When the release is not found, something else has already uninstalled
 	// the release. As such, we can assume the release is uninstalled while

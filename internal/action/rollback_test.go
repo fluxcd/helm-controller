@@ -45,7 +45,7 @@ func Test_newRollback(t *testing.T) {
 			},
 		}
 
-		got := newRollback(&helmaction.Configuration{}, obj, nil)
+		got := newRollback(&helmaction.Configuration{}, obj, 0, nil)
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.Timeout).To(Equal(obj.Spec.Rollback.Timeout.Duration))
 		g.Expect(got.ForceReplace).To(Equal(obj.Spec.Rollback.Force))
@@ -63,7 +63,7 @@ func Test_newRollback(t *testing.T) {
 		}
 
 		toVersion := 3
-		got := newRollback(&helmaction.Configuration{}, obj, []RollbackOption{RollbackToVersion(toVersion)})
+		got := newRollback(&helmaction.Configuration{}, obj, toVersion, nil)
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.Version).To(Equal(toVersion))
 	})
@@ -81,7 +81,7 @@ func Test_newRollback(t *testing.T) {
 			},
 		}
 
-		got := newRollback(&helmaction.Configuration{}, obj, nil)
+		got := newRollback(&helmaction.Configuration{}, obj, 0, nil)
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.Timeout).To(Equal(obj.Spec.Timeout.Duration))
 	})
@@ -97,7 +97,7 @@ func Test_newRollback(t *testing.T) {
 			Spec: v2.HelmReleaseSpec{},
 		}
 
-		got := newRollback(&helmaction.Configuration{}, obj, []RollbackOption{
+		got := newRollback(&helmaction.Configuration{}, obj, 0, []RollbackOption{
 			func(rollback *helmaction.Rollback) {
 				rollback.CleanupOnFail = true
 			},
@@ -127,13 +127,13 @@ func Test_newRollback(t *testing.T) {
 
 		// Test with UseHelm3Defaults = false
 		UseHelm3Defaults = false
-		got := newRollback(&helmaction.Configuration{}, obj, nil)
+		got := newRollback(&helmaction.Configuration{}, obj, 0, nil)
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.ServerSideApply).To(Equal("auto"))
 
 		// Test with UseHelm3Defaults = true
 		UseHelm3Defaults = true
-		got = newRollback(&helmaction.Configuration{}, obj, nil)
+		got = newRollback(&helmaction.Configuration{}, obj, 0, nil)
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.ServerSideApply).To(Equal("auto"))
 	})
@@ -153,12 +153,12 @@ func Test_newRollback(t *testing.T) {
 			},
 		}
 
-		got := newRollback(&helmaction.Configuration{}, obj, nil)
+		got := newRollback(&helmaction.Configuration{}, obj, 0, nil)
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.ServerSideApply).To(Equal("true"))
 
 		obj.Spec.Rollback.ServerSideApply = v2.ServerSideApplyDisabled
-		got = newRollback(&helmaction.Configuration{}, obj, nil)
+		got = newRollback(&helmaction.Configuration{}, obj, 0, nil)
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.ServerSideApply).To(Equal("false"))
 	})

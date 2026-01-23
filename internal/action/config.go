@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	helmaction "helm.sh/helm/v4/pkg/action"
 	helmkube "helm.sh/helm/v4/pkg/kube"
 	helmstorage "helm.sh/helm/v4/pkg/storage"
@@ -51,6 +52,8 @@ type ConfigFactory struct {
 	Driver helmdriver.Driver
 	// StorageLog is the logger to use for the Helm storage driver.
 	StorageLog slog.Handler
+	// StatusReader is the status reader used to evaluate custom health checks.
+	StatusReader engine.StatusReader
 }
 
 // ConfigFactoryOption is a function that configures a ConfigFactory.
@@ -126,6 +129,14 @@ func WithDriver(driver helmdriver.Driver) ConfigFactoryOption {
 func WithStorageLog(log slog.Handler) ConfigFactoryOption {
 	return func(f *ConfigFactory) error {
 		f.StorageLog = log
+		return nil
+	}
+}
+
+// WithStatusReader sets the ConfigFactory.StatusReader.
+func WithStatusReader(reader engine.StatusReader) ConfigFactoryOption {
+	return func(f *ConfigFactory) error {
+		f.StatusReader = reader
 		return nil
 	}
 }

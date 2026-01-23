@@ -21,6 +21,8 @@ import (
 
 	. "github.com/onsi/gomega"
 	helmkube "helm.sh/helm/v4/pkg/kube"
+
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
 
 type mockActionThatWaits struct {
@@ -35,6 +37,7 @@ func TestGetWaitStrategy(t *testing.T) {
 	for _, tt := range []struct {
 		name             string
 		useHelm3Defaults bool
+		strategy         v2.WaitStrategyName
 		actionSpec       actionThatWaits
 		expectedWait     helmkube.WaitStrategy
 	}{
@@ -62,6 +65,27 @@ func TestGetWaitStrategy(t *testing.T) {
 			actionSpec:       &mockActionThatWaits{disableWait: false},
 			expectedWait:     helmkube.StatusWatcherStrategy,
 		},
+		{
+			name:             "user specified watcher strategy",
+			useHelm3Defaults: true, // default would be legacy
+			strategy:         v2.WaitStrategyWatcher,
+			actionSpec:       &mockActionThatWaits{disableWait: false},
+			expectedWait:     helmkube.StatusWatcherStrategy,
+		},
+		{
+			name:             "user specified legacy strategy",
+			useHelm3Defaults: false, // default would be watcher
+			strategy:         v2.WaitStrategyLegacy,
+			actionSpec:       &mockActionThatWaits{disableWait: false},
+			expectedWait:     helmkube.LegacyStrategy,
+		},
+		{
+			name:             "wait disabled takes precedence over user specified strategy",
+			useHelm3Defaults: false,
+			strategy:         v2.WaitStrategyWatcher,
+			actionSpec:       &mockActionThatWaits{disableWait: true},
+			expectedWait:     helmkube.HookOnlyStrategy,
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
@@ -71,7 +95,7 @@ func TestGetWaitStrategy(t *testing.T) {
 			t.Cleanup(func() { UseHelm3Defaults = oldUseHelm3Defaults })
 			UseHelm3Defaults = tt.useHelm3Defaults
 
-			waitStrategy := getWaitStrategy(tt.actionSpec)
+			waitStrategy := getWaitStrategy(tt.strategy, tt.actionSpec)
 			g.Expect(waitStrategy).To(Equal(tt.expectedWait))
 		})
 	}

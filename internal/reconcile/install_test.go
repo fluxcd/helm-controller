@@ -85,6 +85,9 @@ func TestInstall_Reconcile(t *testing.T) {
 		// expectUpgradeFailures is the expected UpgradeFailures count of the
 		// HelmRelease.
 		expectUpgradeFailures int64
+		// statusReader is an optional StatusReader to configure on the
+		// ConfigFactory.
+		statusReader bool
 	}{
 		{
 			name:  "install success",
@@ -236,6 +239,32 @@ func TestInstall_Reconcile(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:         "install success with status reader",
+			chart:        testutil.BuildChart(),
+			statusReader: true,
+			expectConditions: []metav1.Condition{
+				*conditions.TrueCondition(meta.ReadyCondition, v2.InstallSucceededReason,
+					"Helm install succeeded"),
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason,
+					"Helm install succeeded"),
+			},
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
+			expectInventory: func(namespace string) *v2.ResourceInventory {
+				return &v2.ResourceInventory{
+					Entries: []v2.ResourceRef{
+						{
+							ID:      namespace + "_cm__ConfigMap",
+							Version: "v1",
+						},
+					},
+				}
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -272,9 +301,15 @@ func TestInstall_Reconcile(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfgOpts := []action.ConfigFactoryOption{
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
-			)
+			}
+			var mockSR *testutil.MockStatusReader
+			if tt.statusReader {
+				mockSR = &testutil.MockStatusReader{}
+				cfgOpts = append(cfgOpts, action.WithStatusReader(mockSR))
+			}
+			cfg, err := action.NewConfigFactory(getter, cfgOpts...)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			store := helmstorage.Init(cfg.Driver)
@@ -317,6 +352,10 @@ func TestInstall_Reconcile(t *testing.T) {
 
 			if tt.expectInventory != nil {
 				g.Expect(obj.Status.Inventory).To(testutil.Equal(tt.expectInventory(releaseNamespace)))
+			}
+
+			if mockSR != nil {
+				g.Expect(mockSR.SupportsCalled()).To(BeNumerically(">", 0), "expected StatusReader.Supports to be called")
 			}
 		})
 	}

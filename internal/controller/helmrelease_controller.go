@@ -23,13 +23,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fluxcd/pkg/runtime/cel"
+	"github.com/Masterminds/semver/v3"
+	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	celtypes "github.com/google/cel-go/common/types"
 	chart "helm.sh/helm/v4/pkg/chart/v2"
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"
@@ -42,13 +44,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/Masterminds/semver/v3"
 	aclv1 "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/auth"
 	authutils "github.com/fluxcd/pkg/auth/utils"
 	"github.com/fluxcd/pkg/cache"
+	"github.com/fluxcd/pkg/chartutil"
 	"github.com/fluxcd/pkg/runtime/acl"
+	"github.com/fluxcd/pkg/runtime/cel"
 	runtimeClient "github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	helper "github.com/fluxcd/pkg/runtime/controller"
@@ -56,9 +59,8 @@ import (
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/object"
 	"github.com/fluxcd/pkg/runtime/patch"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
-	"github.com/fluxcd/pkg/chartutil"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
@@ -110,6 +112,8 @@ type HelmReleaseReconciler struct {
 	AllowExternalArtifact      bool
 	DisableChartDigestTracking bool
 }
+
+const terminalErrorMessage = "Reconciliation failed terminally due to configuration error"
 
 var (
 	errWaitForDependency = errors.New("must wait for dependency")
@@ -194,15 +198,29 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, nil
 	}
 
+	// Configure custom health checks.
+	statusReader, err := cel.NewStatusReader(obj.Spec.HealthCheckExprs)
+	if err != nil {
+		errMsg := fmt.Sprintf("%s: %v", terminalErrorMessage, err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, meta.InvalidCELExpressionReason, "%s", errMsg)
+		conditions.MarkStalled(obj, meta.InvalidCELExpressionReason, "%s", errMsg)
+		obj.Status.ObservedGeneration = obj.Generation
+		r.Eventf(obj, corev1.EventTypeWarning, meta.InvalidCELExpressionReason, err.Error())
+		return ctrl.Result{}, reconcile.TerminalError(err)
+	}
+
 	// Reconcile the HelmChart template.
 	if err := r.reconcileChartTemplate(ctx, obj); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	return r.reconcileRelease(ctx, patchHelper, obj)
+	return r.reconcileRelease(ctx, patchHelper, obj, statusReader)
 }
 
-func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelper *patch.SerialPatcher, obj *v2.HelmRelease) (ctrl.Result, error) {
+func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
+	patchHelper *patch.SerialPatcher, obj *v2.HelmRelease,
+	newStatusReader func(apimeta.RESTMapper) engine.StatusReader) (ctrl.Result, error) {
+
 	log := ctrl.LoggerFrom(ctx)
 
 	// Check deprecated fields.
@@ -225,7 +243,6 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		if err := r.checkDependencies(ctx, obj); err != nil {
 			// Check if this is a terminal error that should not trigger retries
 			if errors.Is(err, reconcile.TerminalError(nil)) {
-				const terminalErrorMessage = "Reconciliation failed terminally due to configuration error"
 				errMsg := fmt.Sprintf("%s: %v", terminalErrorMessage, err)
 				conditions.MarkFalse(obj, meta.ReadyCondition, meta.InvalidCELExpressionReason, "%s", errMsg)
 				conditions.MarkStalled(obj, meta.InvalidCELExpressionReason, "%s", errMsg)
@@ -337,6 +354,16 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		conditions.MarkFalse(obj, meta.ReadyCondition, "RESTClientError", "%s", err)
 		return ctrl.Result{}, err
 	}
+	restMapper, err := getter.ToRESTMapper()
+	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, "RESTMapperError", "%s", err)
+		return ctrl.Result{}, err
+	}
+	var statusReader engine.StatusReader
+	if newStatusReader != nil {
+		statusReader = newStatusReader(restMapper)
+	}
+
 	// Remove any stale corresponding Ready=False condition with Unknown.
 	if conditions.HasAnyReason(obj, meta.ReadyCondition, "RESTClientError") {
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
@@ -349,7 +376,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		// If this fails, the controller will fall back to performing an upgrade
 		// to settle on the desired state.
 		// TODO(hidde): remove this in a future release.
-		if err := r.adoptLegacyRelease(ctx, getter, obj); err != nil {
+		if err := r.adoptLegacyRelease(ctx, getter, statusReader, obj); err != nil {
 			log.Error(err, "failed to adopt v2beta1 release state")
 		}
 		r.adoptPostRenderersStatus(obj)
@@ -390,6 +417,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	cfg, err := action.NewConfigFactory(getter,
 		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
 		action.WithStorageLog(action.NewTraceLogger(ctx)),
+		action.WithStatusReader(statusReader),
 	)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "FactoryError", "%s", err)
@@ -658,7 +686,9 @@ func (r *HelmReleaseReconciler) evalReadyExpr(
 // This is done by retrieving the last successful release from the Helm storage
 // and converting it to a v2 release snapshot.
 // If the v2beta1 release has already been adopted, this function is a no-op.
-func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter genericclioptions.RESTClientGetter, obj *v2.HelmRelease) error {
+func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context,
+	getter genericclioptions.RESTClientGetter, statusReader engine.StatusReader, obj *v2.HelmRelease) error {
+
 	if obj.Status.LastReleaseRevision < 1 || len(obj.Status.History) > 0 {
 		return nil
 	}
@@ -677,6 +707,7 @@ func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter g
 	cfg, err := action.NewConfigFactory(getter,
 		action.WithStorage(action.DefaultStorageDriver, storageNamespace),
 		action.WithStorageLog(action.NewTraceLogger(ctx)),
+		action.WithStatusReader(statusReader),
 	)
 	if err != nil {
 		return err

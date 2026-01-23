@@ -184,6 +184,19 @@ type HelmReleaseSpec struct {
 	// of their definition.
 	// +optional
 	PostRenderers []PostRenderer `json:"postRenderers,omitempty"`
+
+	// WaitStrategy defines Helm's wait strategy for waiting for applied
+	// resources to become ready.
+	// +optional
+	WaitStrategy *WaitStrategy `json:"waitStrategy,omitempty"`
+
+	// HealthCheckExprs is a list of healthcheck expressions for evaluating the
+	// health of custom resources using Common Expression Language (CEL).
+	// The expressions are evaluated only when the specific Helm action
+	// taking place has wait enabled, i.e. DisableWait is false, and the
+	// 'watcher' WaitStrategy is used.
+	// +optional
+	HealthCheckExprs []kustomize.CustomHealthCheck `json:"healthCheckExprs,omitempty"`
 }
 
 // +kubebuilder:object:generate=false
@@ -422,6 +435,40 @@ type HelmChartTemplateVerification struct {
 	// trusted public keys.
 	// +optional
 	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
+}
+
+// WaitStrategyName is a strategy for waiting for resources to be ready.
+type WaitStrategyName string
+
+const (
+	// WaitStrategyWatcher is the strategy for watching resource statuses via kstatus.
+	WaitStrategyWatcher WaitStrategyName = "watcher"
+
+	// WaitStrategyLegacy is the legacy strategy for waiting for resources to be ready
+	// used in Helm v3.
+	WaitStrategyLegacy WaitStrategyName = "legacy"
+)
+
+// WaitStrategy defines Helm's wait strategy for waiting for applied
+// resources to become ready.
+type WaitStrategy struct {
+	// Name is Helm's wait strategy for waiting for applied resources to
+	// become ready. One of 'watcher' or 'legacy'. The 'watcher' strategy uses
+	// kstatus to watch resource statuses, while the 'legacy' strategy uses
+	// Helm v3's waiting logic.
+	// Defaults to 'watcher', or to 'legacy' when UseHelm3Defaults feature
+	// gate is enabled.
+	// +kubebuilder:validation:Enum=watcher;legacy
+	// +required
+	Name WaitStrategyName `json:"name"`
+}
+
+// GetWaitStrategy returns the wait strategy for the Helm actions.
+func (in *HelmRelease) GetWaitStrategy() WaitStrategyName {
+	if in.Spec.WaitStrategy != nil {
+		return in.Spec.WaitStrategy.Name
+	}
+	return ""
 }
 
 // Remediation defines a consistent interface for InstallRemediation and
@@ -688,7 +735,7 @@ const (
 // rollback actions.
 type ServerSideApplyMode string
 
-var (
+const (
 	// ServerSideApplyEnabled enables server-side apply for resources.
 	ServerSideApplyEnabled ServerSideApplyMode = "enabled"
 

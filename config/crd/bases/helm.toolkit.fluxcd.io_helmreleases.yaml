@@ -349,6 +349,44 @@ spec:
                     - disabled
                     type: string
                 type: object
+              healthCheckExprs:
+                description: |-
+                  HealthCheckExprs is a list of healthcheck expressions for evaluating the
+                  health of custom resources using Common Expression Language (CEL).
+                  The expressions are evaluated only when the specific Helm action
+                  taking place has wait enabled, i.e. DisableWait is false, and the
+                  'watcher' WaitStrategy is used.
+                items:
+                  description: CustomHealthCheck defines the health check for custom
+                    resources.
+                  properties:
+                    apiVersion:
+                      description: APIVersion of the custom resource under evaluation.
+                      type: string
+                    current:
+                      description: |-
+                        Current is the CEL expression that determines if the status
+                        of the custom resource has reached the desired state.
+                      type: string
+                    failed:
+                      description: |-
+                        Failed is the CEL expression that determines if the status
+                        of the custom resource has failed to reach the desired state.
+                      type: string
+                    inProgress:
+                      description: |-
+                        InProgress is the CEL expression that determines if the status
+                        of the custom resource has not yet reached the desired state.
+                      type: string
+                    kind:
+                      description: Kind of the custom resource under evaluation.
+                      type: string
+                  required:
+                  - apiVersion
+                  - current
+                  - kind
+                  type: object
+                type: array
               install:
                 description: Install holds the configuration for Helm install actions
                   for this HelmRelease.
@@ -1056,6 +1094,26 @@ spec:
                   - name
                   type: object
                 type: array
+              waitStrategy:
+                description: |-
+                  WaitStrategy defines Helm's wait strategy for waiting for applied
+                  resources to become ready.
+                properties:
+                  name:
+                    description: |-
+                      Name is Helm's wait strategy for waiting for applied resources to
+                      become ready. One of 'watcher' or 'legacy'. The 'watcher' strategy uses
+                      kstatus to watch resource statuses, while the 'legacy' strategy uses
+                      Helm v3's waiting logic.
+                      Defaults to 'watcher', or to 'legacy' when UseHelm3Defaults feature
+                      gate is enabled.
+                    enum:
+                    - watcher
+                    - legacy
+                    type: string
+                required:
+                - name
+                type: object
             required:
             - interval
             type: object

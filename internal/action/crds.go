@@ -68,7 +68,8 @@ func (*rootScoped) Name() apimeta.RESTScopeName {
 }
 
 func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmchart.Chart,
-	vals helmchartcommon.Values, serverSideApply bool, visitorFunc ...resource.VisitorFunc) error {
+	vals helmchartcommon.Values, serverSideApply bool, waitStrategy helmkube.WaitStrategy,
+	waitOptions []helmkube.WaitOption, visitorFunc ...resource.VisitorFunc) error {
 
 	if len(chrt.CRDObjects()) == 0 {
 		return nil
@@ -210,7 +211,13 @@ func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmch
 
 	if len(totalItems) > 0 {
 		// Give time for the CRD to be recognized.
-		waiter, err := cfg.KubeClient.GetWaiter(helmkube.LegacyStrategy)
+		var waiter kube.Waiter
+		var err error
+		if c, supportsOptions := cfg.KubeClient.(helmkube.InterfaceWaitOptions); supportsOptions {
+			waiter, err = c.GetWaiterWithOptions(waitStrategy, waitOptions...)
+		} else {
+			waiter, err = cfg.KubeClient.GetWaiter(waitStrategy)
+		}
 		if err != nil {
 			err = fmt.Errorf("failed to create CustomResourceDefinition waiter: %w", err)
 			l.Error(err.Error())

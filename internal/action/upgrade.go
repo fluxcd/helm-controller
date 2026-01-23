@@ -21,9 +21,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	helmaction "helm.sh/helm/v4/pkg/action"
 	helmchartutil "helm.sh/helm/v4/pkg/chart/common"
 	helmchart "helm.sh/helm/v4/pkg/chart/v2"
+	helmkube "helm.sh/helm/v4/pkg/kube"
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 
@@ -37,6 +39,14 @@ import (
 // from the v2.HelmRelease have been applied. This is for example useful to
 // enable the dry-run setting as a CLI.
 type UpgradeOption func(upgrade *helmaction.Upgrade)
+
+// WithUpgradeStatusReader sets the status reader used to evaluate
+// health checks during upgrade wait.
+func WithUpgradeStatusReader(reader engine.StatusReader) UpgradeOption {
+	return func(upgrade *helmaction.Upgrade) {
+		upgrade.WaitOptions = append(upgrade.WaitOptions, helmkube.WithKStatusReaders(reader))
+	}
+}
 
 // Upgrade runs the Helm upgrade action with the provided config, using the
 // v2.HelmReleaseSpec of the given object to determine the target release
@@ -81,7 +91,9 @@ func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 		return nil, err
 	}
 
-	if err := applyCRDs(config, policy, chrt, vals, serverSideApply, setOriginVisitor(v2.GroupVersion.Group, obj.Namespace, obj.Name)); err != nil {
+	if err := applyCRDs(config, policy, chrt, vals, serverSideApply,
+		upgrade.WaitStrategy, upgrade.WaitOptions,
+		setOriginVisitor(v2.GroupVersion.Group, obj.Namespace, obj.Name)); err != nil {
 		return nil, fmt.Errorf("failed to apply CustomResourceDefinitions: %w", err)
 	}
 
@@ -109,7 +121,7 @@ func newUpgrade(config *helmaction.Configuration, obj *v2.HelmRelease, opts []Up
 	upgrade.MaxHistory = obj.GetMaxHistory()
 	upgrade.Timeout = obj.GetUpgrade().GetTimeout(obj.GetTimeout()).Duration
 	upgrade.TakeOwnership = !obj.GetUpgrade().DisableTakeOwnership
-	upgrade.WaitStrategy = getWaitStrategy(obj.GetUpgrade())
+	upgrade.WaitStrategy = getWaitStrategy(obj.GetWaitStrategy(), obj.GetUpgrade())
 	upgrade.WaitForJobs = !obj.GetUpgrade().DisableWaitForJobs
 	upgrade.DisableHooks = obj.GetUpgrade().DisableHooks
 	upgrade.DisableOpenAPIValidation = obj.GetUpgrade().DisableOpenAPIValidation
