@@ -159,6 +159,7 @@ func ObserveRelease(rel *helmrelease.Release, filter ...DataFilter) Observation 
 // digest.Canonical algorithm.
 func ObservedToSnapshot(rls Observation) *v2.Snapshot {
 	return &v2.Snapshot{
+		APIVersion:    v2.CurrentSnapshotAPIVersion,
 		Digest:        Digest(digest.Canonical, rls).String(),
 		Name:          rls.Name,
 		Namespace:     rls.Namespace,

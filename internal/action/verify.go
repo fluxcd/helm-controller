@@ -127,7 +127,18 @@ func VerifySnapshot(config *helmaction.Configuration, snapshot *v2.Snapshot) (rl
 // matches the given Helm release object. It returns an error of type
 // ErrReleaseDigest or ErrReleaseNotObserved indicating the reason for the
 // verification failure, or nil.
+//
+// For legacy snapshots (those with an APIVersion missing or not matching the
+// current version), digest verification is skipped to allow graceful migration
+// from older helm-controller versions.
 func VerifyReleaseObject(snapshot *v2.Snapshot, rls *helmrelease.Release) error {
+	// Skip digest verification for legacy snapshots to allow migration.
+	// The release ownership is still verified by matching the release
+	// name, namespace, and version in the caller.
+	if snapshot.APIVersion != v2.CurrentSnapshotAPIVersion {
+		return nil
+	}
+
 	relDig, err := digest.Parse(snapshot.Digest)
 	if err != nil {
 		return ErrReleaseDigest

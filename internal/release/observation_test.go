@@ -302,6 +302,7 @@ func TestObservedToSnapshot(t *testing.T) {
 
 	got := ObservedToSnapshot(obs)
 
+	g.Expect(got.APIVersion).To(Equal(v2.CurrentSnapshotAPIVersion))
 	g.Expect(got.Name).To(Equal(obs.Name))
 	g.Expect(got.Namespace).To(Equal(obs.Namespace))
 	g.Expect(got.Version).To(Equal(obs.Version))

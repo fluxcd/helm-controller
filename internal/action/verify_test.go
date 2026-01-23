@@ -320,6 +320,20 @@ func TestVerifyReleaseObject(t *testing.T) {
 	mockSnapshotIllegal := mockSnapshot.DeepCopy()
 	mockSnapshotIllegal.Digest = "illegal"
 
+	// Current snapshot with wrong digest (simulates tampered release)
+	mockSnapshotCurrentWrongDigest := mockSnapshot.DeepCopy()
+	mockSnapshotCurrentWrongDigest.Digest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+	// Legacy snapshot without APIVersion (simulates pre-Helm v4 snapshot)
+	mockSnapshotLegacyEmpty := mockSnapshot.DeepCopy()
+	mockSnapshotLegacyEmpty.APIVersion = ""
+	mockSnapshotLegacyEmpty.Digest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+	// Legacy snapshot with old APIVersion (simulates future version change)
+	mockSnapshotLegacyOld := mockSnapshot.DeepCopy()
+	mockSnapshotLegacyOld.APIVersion = "v1"
+	mockSnapshotLegacyOld.Digest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
 	tests := []struct {
 		name     string
 		snapshot *v2.Snapshot
@@ -346,6 +360,34 @@ func TestVerifyReleaseObject(t *testing.T) {
 				Namespace: "default",
 			}),
 			wantErr: ErrReleaseNotObserved,
+		},
+		{
+			name:     "current APIVersion with wrong digest fails verification",
+			snapshot: mockSnapshotCurrentWrongDigest,
+			rls:      mockRls,
+			wantErr:  ErrReleaseNotObserved,
+		},
+		{
+			name:     "legacy snapshot without APIVersion skips verification",
+			snapshot: mockSnapshotLegacyEmpty,
+			rls: testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+				Name:      "release",
+				Version:   1,
+				Status:    helmreleasecommon.StatusDeployed,
+				Namespace: "default",
+			}),
+			wantErr: nil,
+		},
+		{
+			name:     "legacy snapshot with old APIVersion skips verification",
+			snapshot: mockSnapshotLegacyOld,
+			rls: testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+				Name:      "release",
+				Version:   1,
+				Status:    helmreleasecommon.StatusDeployed,
+				Namespace: "default",
+			}),
+			wantErr: nil,
 		},
 	}
 	for _, tt := range tests {
