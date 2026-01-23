@@ -559,6 +559,11 @@ The field offers the following subfields:
   the installation of the chart. Defaults to `false`.
 - `.disableWaitForJobs` (Optional): Disables waiting for any Jobs to complete
   after the installation of the chart. Defaults to `false`.
+- `.serverSideApply` (Optional): Enables Server-Side Apply for resources during
+  the installation. When `true`, the controller uses Kubernetes Server-Side
+  Apply which provides better conflict detection and field ownership tracking.
+  Defaults to `true` (or `false` when the `UseHelm3Defaults` feature gate is
+  enabled).
 
 #### Install strategy
 
@@ -635,6 +640,9 @@ The field offers the following subfields:
 - `.preserveValues` (Optional): Instructs Helm to re-use the values from the
   last release while merging in overrides from [values](#values). Setting
   this flag makes the HelmRelease non-declarative. Defaults to `false`.
+- `.serverSideApply` (Optional): Controls Server-Side Apply for resources during
+  the upgrade. Can be `enabled`, `disabled`, or `auto`. When `auto`, the apply
+  method will be based on the release's previous usage. Defaults to `auto`.
 
 #### Upgrade strategy
 
@@ -750,6 +758,9 @@ The field offers the following subfields:
   helm-controller will print a warning if this option is used. Please
   see the [Helm 4 issue](https://github.com/fluxcd/helm-controller/issues/1300#issuecomment-3740272924)
   for more details.
+- `.serverSideApply` (Optional): Controls Server-Side Apply for resources during
+  the rollback. Can be `enabled`, `disabled`, or `auto`. When `auto`, the apply
+  method will be based on the release's previous usage. Defaults to `auto`.
 
 ### Uninstall configuration
 
