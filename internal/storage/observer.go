@@ -17,8 +17,8 @@ limitations under the License.
 package storage
 
 import (
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmrelease "helm.sh/helm/v4/pkg/release"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 )
 
 // ObserverDriverName contains the string representation of Observer.
@@ -46,7 +46,7 @@ type Observer struct {
 // storage.
 // NOTE: while it takes a pointer, the caller is expected to perform a
 // read-only operation.
-type ObserveFunc func(rel *helmrelease.Release)
+type ObserveFunc func(rel helmrelease.Releaser)
 
 // NewObserver creates a new Observer for the given Helm storage driver.
 func NewObserver(driver helmdriver.Driver, observers ...ObserveFunc) *Observer {
@@ -62,23 +62,23 @@ func (o *Observer) Name() string {
 }
 
 // Get returns the release named by key or returns ErrReleaseNotFound.
-func (o *Observer) Get(key string) (*helmrelease.Release, error) {
+func (o *Observer) Get(key string) (helmrelease.Releaser, error) {
 	return o.driver.Get(key)
 }
 
 // List returns the list of all releases such that filter(release) == true.
-func (o *Observer) List(filter func(*helmrelease.Release) bool) ([]*helmrelease.Release, error) {
+func (o *Observer) List(filter func(helmrelease.Releaser) bool) ([]helmrelease.Releaser, error) {
 	return o.driver.List(filter)
 }
 
 // Query returns the set of releases that match the provided set of labels.
-func (o *Observer) Query(keyvals map[string]string) ([]*helmrelease.Release, error) {
+func (o *Observer) Query(keyvals map[string]string) ([]helmrelease.Releaser, error) {
 	return o.driver.Query(keyvals)
 }
 
 // Create creates a new release or returns driver.ErrReleaseExists.
 // It observes the release as provided after a successful creation.
-func (o *Observer) Create(key string, rls *helmrelease.Release) error {
+func (o *Observer) Create(key string, rls helmrelease.Releaser) error {
 	if err := o.driver.Create(key, rls); err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func (o *Observer) Create(key string, rls *helmrelease.Release) error {
 
 // Update updates a release or returns driver.ErrReleaseNotFound.
 // After a successful update, it observes the release as provided.
-func (o *Observer) Update(key string, rls *helmrelease.Release) error {
+func (o *Observer) Update(key string, rls helmrelease.Releaser) error {
 	if err := o.driver.Update(key, rls); err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (o *Observer) Update(key string, rls *helmrelease.Release) error {
 // Delete deletes a release or returns driver.ErrReleaseNotFound.
 // After a successful deletion, it observes the release as returned by the
 // embedded driver.Deletor.
-func (o *Observer) Delete(key string) (*helmrelease.Release, error) {
+func (o *Observer) Delete(key string) (helmrelease.Releaser, error) {
 	rls, err := o.driver.Delete(key)
 	if err != nil {
 		return nil, err

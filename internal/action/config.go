@@ -18,11 +18,13 @@ package action
 
 import (
 	"fmt"
+	"log/slog"
 
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmkube "helm.sh/helm/v3/pkg/kube"
-	helmstorage "helm.sh/helm/v3/pkg/storage"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
+	helmaction "helm.sh/helm/v4/pkg/action"
+	helmkube "helm.sh/helm/v4/pkg/kube"
+	helmstorage "helm.sh/helm/v4/pkg/storage"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/fluxcd/helm-controller/internal/storage"
@@ -49,7 +51,9 @@ type ConfigFactory struct {
 	// Driver to use for the Helm action.
 	Driver helmdriver.Driver
 	// StorageLog is the logger to use for the Helm storage driver.
-	StorageLog helmaction.DebugLog
+	StorageLog slog.Handler
+	// StatusReader is the status reader used to evaluate custom health checks.
+	StatusReader engine.StatusReader
 }
 
 // ConfigFactoryOption is a function that configures a ConfigFactory.
@@ -122,9 +126,17 @@ func WithDriver(driver helmdriver.Driver) ConfigFactoryOption {
 }
 
 // WithStorageLog sets the ConfigFactory.StorageLog.
-func WithStorageLog(log helmaction.DebugLog) ConfigFactoryOption {
+func WithStorageLog(log slog.Handler) ConfigFactoryOption {
 	return func(f *ConfigFactory) error {
 		f.StorageLog = log
+		return nil
+	}
+}
+
+// WithStatusReader sets the ConfigFactory.StatusReader.
+func WithStatusReader(reader engine.StatusReader) ConfigFactoryOption {
+	return func(f *ConfigFactory) error {
+		f.StatusReader = reader
 		return nil
 	}
 }
@@ -137,31 +149,27 @@ func (c *ConfigFactory) NewStorage(observers ...storage.ObserveFunc) *helmstorag
 		driver = storage.NewObserver(driver, observers...)
 	}
 	s := helmstorage.Init(driver)
-	if c.StorageLog != nil {
-		s.Log = c.StorageLog
-	}
+	s.SetLogger(c.StorageLog)
 	return s
 }
 
 // Build returns a new Helm action.Configuration configured with the receiver
 // values, and the provided logger and observer(s).
-func (c *ConfigFactory) Build(log helmaction.DebugLog, observers ...storage.ObserveFunc) *helmaction.Configuration {
+func (c *ConfigFactory) Build(log slog.Handler, observers ...storage.ObserveFunc) *helmaction.Configuration {
 	client := c.KubeClient
+
+	var opts []helmaction.ConfigurationOption
 	if log != nil {
-		// As Helm emits important information to the log of the client, we
-		// need to configure it with the same logger as the action.Configuration.
-		// This is not ideal, as we would like to re-use the client between
-		// actions, but otherwise this would not be thread-safe.
 		client = helmkube.New(c.Getter)
-		client.Log = log
+		client.SetLogger(log)
+		opts = append(opts, helmaction.ConfigurationSetLogger(log))
 	}
 
-	return &helmaction.Configuration{
-		RESTClientGetter: c.Getter,
-		Releases:         c.NewStorage(observers...),
-		KubeClient:       client,
-		Log:              log,
-	}
+	conf := helmaction.NewConfiguration(opts...)
+	conf.RESTClientGetter = c.Getter
+	conf.Releases = c.NewStorage(observers...)
+	conf.KubeClient = client
+	return conf
 }
 
 // Valid returns an error if the ConfigFactory is missing configuration

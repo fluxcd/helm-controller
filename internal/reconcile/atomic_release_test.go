@@ -24,11 +24,12 @@ import (
 
 	. "github.com/onsi/gomega"
 	extjsondiff "github.com/wI2L/jsondiff"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	"helm.sh/helm/v3/pkg/releaseutil"
-	helmstorage "helm.sh/helm/v3/pkg/storage"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmchart "helm.sh/helm/v4/pkg/chart/v2"
+	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	releaseutil "helm.sh/helm/v4/pkg/release/v1/util"
+	helmstorage "helm.sh/helm/v4/pkg/storage"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -148,7 +149,7 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 					Enable: true,
 				},
 				StorageNamespace: releaseNamespace,
-				Timeout:          &metav1.Duration{Duration: 100 * time.Millisecond},
+				Timeout:          &metav1.Duration{Duration: 200 * time.Second},
 			},
 		}
 
@@ -219,7 +220,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 		spec          func(spec *v2.HelmReleaseSpec)
 		status        func(namespace string, releases []*helmrelease.Release) v2.HelmReleaseStatus
 		chart         *helmchart.Chart
-		values        map[string]interface{}
+		values        map[string]any
 		expectHistory func(releases []*helmrelease.Release) v2.Snapshots
 		wantErr       error
 	}{
@@ -232,7 +233,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}, testutil.ReleaseWithConfig(nil)),
 				}
 			},
@@ -260,7 +261,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}, testutil.ReleaseWithConfig(nil)),
 				}
 			},
@@ -289,8 +290,8 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
-					}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+						Status:    helmreleasecommon.StatusDeployed,
+					}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 				}
 			},
 			status: func(namespace string, releases []*helmrelease.Release) v2.HelmReleaseStatus {
@@ -301,7 +302,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 				}
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "baz"},
+			values: map[string]any{"foo": "baz"},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
@@ -318,7 +319,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusPendingInstall,
+						Status:    helmreleasecommon.StatusPendingInstall,
 					}, testutil.ReleaseWithConfig(nil)),
 				}
 			},
@@ -343,14 +344,14 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}, testutil.ReleaseWithConfig(nil)),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusPendingUpgrade,
+						Status:    helmreleasecommon.StatusPendingUpgrade,
 					}, testutil.ReleaseWithConfig(nil)),
 				}
 			},
@@ -377,21 +378,21 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}, testutil.ReleaseWithConfig(nil)),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusFailed,
+						Status:    helmreleasecommon.StatusFailed,
 					}, testutil.ReleaseWithConfig(nil)),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   3,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusPendingRollback,
+						Status:    helmreleasecommon.StatusPendingRollback,
 					}, testutil.ReleaseWithConfig(nil)),
 				}
 			},
@@ -428,7 +429,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -448,27 +449,27 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   3,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}),
 				}
 			},
 			status: func(namespace string, releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				previousDeployed := release.ObserveRelease(releases[1])
-				previousDeployed.Info.Status = helmrelease.StatusDeployed
+				previousDeployed.Info.Status = helmreleasecommon.StatusDeployed
 
 				return v2.HelmReleaseStatus{
 					History: v2.Snapshots{
@@ -492,27 +493,27 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   3,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}),
 				}
 			},
 			status: func(namespace string, releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				modifiedRelease := release.ObserveRelease(releases[1])
-				modifiedRelease.Info.Status = helmrelease.StatusFailed
+				modifiedRelease.Info.Status = helmreleasecommon.StatusFailed
 
 				return v2.HelmReleaseStatus{
 					History: v2.Snapshots{
@@ -538,7 +539,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 								Namespace: namespace,
 								Version:   1,
 								Chart:     testutil.BuildChart(),
-								Status:    helmrelease.StatusDeployed,
+								Status:    helmreleasecommon.StatusDeployed,
 							}),
 						)),
 					},
@@ -560,21 +561,21 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   3,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -585,7 +586,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   4,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusFailed,
+						Status:    helmreleasecommon.StatusFailed,
 					}),
 				))
 
@@ -736,7 +737,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 								Namespace: namespace,
 								Version:   1,
 								Chart:     testutil.BuildChart(),
-								Status:    helmrelease.StatusUninstalling,
+								Status:    helmreleasecommon.StatusUninstalling,
 							}),
 						)),
 					},
@@ -756,7 +757,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -785,7 +786,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -822,7 +823,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -863,7 +864,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -900,7 +901,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -943,7 +944,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -986,7 +987,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -1023,21 +1024,21 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   3,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 					}),
 				}
 			},
@@ -1072,21 +1073,21 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   3,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusFailed,
+						Status:    helmreleasecommon.StatusFailed,
 					}),
 				}
 			},
@@ -1121,21 +1122,21 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 						Namespace: namespace,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   3,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusFailed,
+						Status:    helmreleasecommon.StatusFailed,
 					}),
 				}
 			},
@@ -1188,7 +1189,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 					ReleaseName:      mockReleaseName,
 					TargetNamespace:  releaseNamespace,
 					StorageNamespace: releaseNamespace,
-					Timeout:          &metav1.Duration{Duration: 100 * time.Millisecond},
+					Timeout:          &metav1.Duration{Duration: 200 * time.Millisecond},
 				},
 			}
 			if tt.spec != nil {
@@ -1237,7 +1238,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			g.Expect(err).To(wantErr)
 
 			if tt.expectHistory != nil {
-				history, _ := store.History(mockReleaseName)
+				history, _ := storeHistory(store, mockReleaseName)
 				releaseutil.SortByRevision(history)
 
 				g.Expect(req.Object.Status.History).To(testutil.Equal(tt.expectHistory(history)))
@@ -1251,7 +1252,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 		name              string
 		releases          func(namespace string) []*helmrelease.Release
 		spec              func(spec *v2.HelmReleaseSpec)
-		values            map[string]interface{}
+		values            map[string]any
 		status            func(releases []*helmrelease.Release) v2.HelmReleaseStatus
 		wantDigest        string
 		wantReleaseAction v2.ReleaseAction
@@ -1264,7 +1265,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 						Chart:     testutil.BuildChart(),
 					}, testutil.ReleaseWithConfig(nil)),
 				}
@@ -1297,7 +1298,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 						Chart:     testutil.BuildChart(),
 					}, testutil.ReleaseWithConfig(nil)),
 				}
@@ -1319,7 +1320,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 					},
 				}
 			},
-			values:            map[string]interface{}{"foo": "baz"},
+			values:            map[string]any{"foo": "baz"},
 			wantDigest:        postrender.Digest(digest.Canonical, postRenderers).String(),
 			wantReleaseAction: v2.ReleaseActionUpgrade,
 		},
@@ -1331,7 +1332,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 						Chart:     testutil.BuildChart(),
 					}, testutil.ReleaseWithConfig(nil)),
 				}
@@ -1365,7 +1366,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 						Chart:     testutil.BuildChart(),
 					}, testutil.ReleaseWithConfig(nil)),
 				}
@@ -1418,7 +1419,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 					ReleaseName:      mockReleaseName,
 					TargetNamespace:  releaseNamespace,
 					StorageNamespace: releaseNamespace,
-					Timeout:          &metav1.Duration{Duration: 100 * time.Millisecond},
+					Timeout:          &metav1.Duration{Duration: 200 * time.Millisecond},
 				},
 			}
 
@@ -1597,10 +1598,10 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 				{
 					Type: jsondiff.DiffTypeCreate,
 					DesiredObject: &unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "apps/v1",
 							"kind":       "Deployment",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name":      "mock",
 								"namespace": "something",
 							},
@@ -1657,27 +1658,27 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 				{
 					Type: jsondiff.DiffTypeUpdate,
 					DesiredObject: &unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "apps/v1",
 							"kind":       "Deployment",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name":      "mock",
 								"namespace": "something",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"replicas": 2,
 							},
 						},
 					},
 					ClusterObject: &unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "apps/v1",
 							"kind":       "Deployment",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name":      "mock",
 								"namespace": "something",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"replicas": 1,
 							},
 						},
@@ -1855,14 +1856,14 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusSuperseded,
+					Status:    helmreleasecommon.StatusSuperseded,
 					Chart:     testutil.BuildChart(),
 				}),
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   2,
-					Status:    helmrelease.StatusFailed,
+					Status:    helmreleasecommon.StatusFailed,
 					Chart:     testutil.BuildChart(),
 				}),
 			},
@@ -1893,14 +1894,14 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusSuperseded,
+					Status:    helmreleasecommon.StatusSuperseded,
 					Chart:     testutil.BuildChart(),
 				}),
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   2,
-					Status:    helmrelease.StatusFailed,
+					Status:    helmreleasecommon.StatusFailed,
 					Chart:     testutil.BuildChart(),
 				}),
 			},
@@ -1931,7 +1932,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   2,
-					Status:    helmrelease.StatusFailed,
+					Status:    helmreleasecommon.StatusFailed,
 					Chart:     testutil.BuildChart(),
 				}),
 			},
@@ -1961,7 +1962,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   2,
-					Status:    helmrelease.StatusFailed,
+					Status:    helmreleasecommon.StatusFailed,
 					Chart:     testutil.BuildChart(),
 				}),
 			},
@@ -1981,7 +1982,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 								Name:      mockReleaseName,
 								Namespace: mockReleaseNamespace,
 								Version:   1,
-								Status:    helmrelease.StatusSuperseded,
+								Status:    helmreleasecommon.StatusSuperseded,
 								Chart:     testutil.BuildChart(),
 							}),
 						)),
@@ -2002,7 +2003,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusSuperseded,
+					Status:    helmreleasecommon.StatusSuperseded,
 					Chart:     testutil.BuildChart(),
 				}),
 			},
@@ -2212,7 +2213,7 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 		name              string
 		releases          func(namespace string) []*helmrelease.Release
 		spec              func(spec *v2.HelmReleaseSpec)
-		values            map[string]interface{}
+		values            map[string]any
 		status            func(releases []*helmrelease.Release) v2.HelmReleaseStatus
 		wantDigest        string
 		wantReleaseAction v2.ReleaseAction
@@ -2225,7 +2226,7 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 						Chart:     testutil.BuildChart(),
 					}, testutil.ReleaseWithConfig(nil)),
 				}
@@ -2258,7 +2259,7 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 						Chart:     testutil.BuildChart(),
 					}, testutil.ReleaseWithConfig(nil)),
 				}
@@ -2280,7 +2281,7 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 					},
 				}
 			},
-			values:            map[string]interface{}{"foo": "baz"},
+			values:            map[string]any{"foo": "baz"},
 			wantDigest:        postrender.CommonMetadataDigest(digest.Canonical, commonMetadata).String(),
 			wantReleaseAction: v2.ReleaseActionUpgrade,
 		},
@@ -2292,7 +2293,7 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 						Chart:     testutil.BuildChart(),
 					}, testutil.ReleaseWithConfig(nil)),
 				}
@@ -2326,7 +2327,7 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: namespace,
 						Version:   1,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 						Chart:     testutil.BuildChart(),
 					}, testutil.ReleaseWithConfig(nil)),
 				}
@@ -2379,7 +2380,7 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 					ReleaseName:      mockReleaseName,
 					TargetNamespace:  releaseNamespace,
 					StorageNamespace: releaseNamespace,
-					Timeout:          &metav1.Duration{Duration: 100 * time.Millisecond},
+					Timeout:          &metav1.Duration{Duration: 200 * time.Millisecond},
 				},
 			}
 

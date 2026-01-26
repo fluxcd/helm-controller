@@ -18,14 +18,12 @@ package testutil
 
 import (
 	"time"
-
-	helmtime "helm.sh/helm/v3/pkg/time"
 )
 
 // MustParseHelmTime parses a string into a Helm time.Time, panicking if it
 // fails.
-func MustParseHelmTime(t string) helmtime.Time {
-	res, err := helmtime.Parse(time.RFC3339, t)
+func MustParseHelmTime(t string) time.Time {
+	res, err := time.Parse(time.RFC3339, t)
 	if err != nil {
 		panic(err)
 	}

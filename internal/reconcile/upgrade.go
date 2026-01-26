@@ -25,11 +25,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/fluxcd/pkg/chartutil"
 	"github.com/fluxcd/pkg/runtime/conditions"
-	"github.com/fluxcd/pkg/runtime/logger"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -67,9 +65,9 @@ func NewUpgrade(cfg *action.ConfigFactory, recorder record.EventRecorder) *Upgra
 
 func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	var (
-		logBuf      = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
+		logBuf      = action.NewDebugLogBuffer(ctx)
 		obsReleases = make(observedReleases)
-		cfg         = r.configFactory.Build(logBuf.Log, observeRelease(obsReleases))
+		cfg         = r.configFactory.Build(logBuf, observeRelease(obsReleases), observeInventory(req.Object, req.Chart, r.configFactory.Getter, r.eventRecorder))
 		startTime   = time.Now()
 	)
 
@@ -83,7 +81,11 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	conditions.Delete(req.Object, v2.RemediatedCondition)
 
 	// Run the Helm upgrade action.
-	_, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values)
+	var opts []action.UpgradeOption
+	if sr := r.configFactory.StatusReader; sr != nil {
+		opts = append(opts, action.WithUpgradeStatusReader(sr))
+	}
+	_, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values, opts...)
 
 	// Record the action duration in status.
 	req.Object.Status.LastAttemptedReleaseActionDuration = &metav1.Duration{Duration: time.Since(startTime)}

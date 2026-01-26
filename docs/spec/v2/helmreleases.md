@@ -559,6 +559,11 @@ The field offers the following subfields:
   the installation of the chart. Defaults to `false`.
 - `.disableWaitForJobs` (Optional): Disables waiting for any Jobs to complete
   after the installation of the chart. Defaults to `false`.
+- `.serverSideApply` (Optional): Enables Server-Side Apply for resources during
+  the installation. When `true`, the controller uses Kubernetes Server-Side
+  Apply which provides better conflict detection and field ownership tracking.
+  Defaults to `true` (or `false` when the `UseHelm3Defaults` feature gate is
+  enabled).
 
 #### Install strategy
 
@@ -635,6 +640,9 @@ The field offers the following subfields:
 - `.preserveValues` (Optional): Instructs Helm to re-use the values from the
   last release while merging in overrides from [values](#values). Setting
   this flag makes the HelmRelease non-declarative. Defaults to `false`.
+- `.serverSideApply` (Optional): Controls Server-Side Apply for resources during
+  the upgrade. Can be `enabled`, `disabled`, or `auto`. When `auto`, the apply
+  method will be based on the release's previous usage. Defaults to `auto`.
 
 #### Upgrade strategy
 
@@ -745,7 +753,14 @@ The field offers the following subfields:
 - `.force` (Optional): Forces resource updates through a replacement strategy.
   Defaults to `false`.
 - `.recreate` (Optional): Performs Pod restarts if applicable. Defaults to
-  `false`.
+  `false`. **Warning**: As of Flux v2.8, this option is deprecated and no
+  longer has any effect. It will be removed in a future release. The
+  helm-controller will print a warning if this option is used. Please
+  see the [Helm 4 issue](https://github.com/fluxcd/helm-controller/issues/1300#issuecomment-3740272924)
+  for more details.
+- `.serverSideApply` (Optional): Controls Server-Side Apply for resources during
+  the rollback. Can be `enabled`, `disabled`, or `auto`. When `auto`, the apply
+  method will be based on the release's previous usage. Defaults to `auto`.
 
 ### Uninstall configuration
 
@@ -927,6 +942,88 @@ spec:
             newTag: 0.4.1-debian-10-r54
 ```
 
+### Wait strategy
+
+`.spec.waitStrategy` is an optional field to configure how the controller waits
+for resources to become ready after Helm actions.
+
+The field offers the following subfields:
+
+- `.name` (Required): The strategy for waiting for resources to be ready.
+  One of `watcher` or `legacy`. The `watcher` strategy uses kstatus to watch resource
+  statuses, while the `legacy` strategy uses Helm v3's waiting logic. Defaults to
+  `watcher`, or to `legacy` when the `UseHelm3Defaults` feature gate is enabled.
+
+```yaml
+spec:
+  waitStrategy:
+    name: watcher
+```
+
+### Health check expressions
+
+`.spec.healthCheckExprs` can be used to define custom logic for performing health
+checks on custom resources using [Common Expression Language (CEL)](https://cel.dev/).
+
+The expressions are evaluated only when the Helm action taking place has wait
+enabled (i.e. `.spec.<action>.disableWait` is `false`) and the `watcher`
+wait strategy is used (i.e. `.spec.waitStrategy.name` is `watcher`).
+
+The `.spec.healthCheckExprs` field accepts a list of objects with the following fields:
+
+- `apiVersion`: The API version of the custom resource. Required.
+- `kind`: The kind of the custom resource. Required.
+- `current`: A required CEL expression that returns `true` if the resource is ready.
+- `inProgress`: An optional CEL expression that returns `true` if the resource
+  is still being reconciled.
+- `failed`: An optional CEL expression that returns `true` if the resource
+  failed to reconcile.
+
+The controller will evaluate the expressions in the following order:
+
+1. `inProgress` if specified
+2. `failed` if specified
+3. `current`
+
+The first expression that evaluates to `true` will determine the health
+status of the custom resource.
+
+For example, to define a set of health check expressions for the `SealedSecret`
+custom resource:
+
+```yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: sealed-secrets
+spec:
+  interval: 10m
+  chartRef:
+    kind: OCIRepository
+    name: sealed-secrets-chart
+  values:
+    replicaCount: 2
+  healthCheckExprs:
+    - apiVersion: bitnami.com/v1alpha1
+      kind: SealedSecret
+      failed: status.conditions.filter(e, e.type == 'Synced').all(e, e.status == 'False')
+      current: status.conditions.filter(e, e.type == 'Synced').all(e, e.status == 'True')
+```
+
+A common error is writing expressions that reference fields that do not
+exist in the custom resource. This will cause the controller to wait
+for the resource to be ready until the timeout is reached. To avoid this,
+make sure your CEL expressions are correct. The
+[CEL Playground](https://playcel.undistro.io/) is a useful resource for
+this task. The input passed to each expression is the custom resource
+object itself. You can check for field existence with the
+[`has(...)` CEL macro](https://github.com/google/cel-spec/blob/master/doc/langdef.md#macros),
+just be aware that `has(status)` errors if `status` does not (yet) exist
+on the top level of the resource you are using.
+
+It's worth checking if [the library](/flux/cheatsheets/cel-healthchecks/)
+has expressions for the custom resources you are using.
+
 ### KubeConfig (Remote clusters)
 
 With the `.spec.kubeConfig` field a HelmRelease
@@ -993,7 +1090,7 @@ stringData:
   value.yaml: |
     apiVersion: v1
     kind: Config
-    # ...omitted for brevity   
+    # ...omitted for brevity
 ```
 
 **Note:** The KubeConfig should be self-contained and not rely on binaries, the
@@ -1878,6 +1975,36 @@ status:
           lastStarted: "2024-05-07T04:54:23Z"
           phase: Succeeded
       version: 1
+```
+
+### Inventory
+
+The HelmRelease reports the list of Kubernetes resource objects that have been
+applied by the Helm release in `.status.inventory`. This can be used to
+identify which objects are managed by the HelmRelease. The inventory records
+are in the format `<namespace>_<name>_<group>_<kind>`.
+
+The inventory includes all resources from the rendered manifests, as well as
+CRDs from the chart's `crds/` directory. Helm hooks are not included in the
+inventory, as they are not considered part of the release by Helm.
+
+#### Inventory example
+
+```yaml
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: <release-name>
+status:
+  inventory:
+    entries:
+      - id: default_podinfo__Service
+        v: v1
+      - id: default_podinfo_apps_Deployment
+        v: v1
+      - id: default_podinfo_autoscaling_HorizontalPodAutoscaler
+        v: v2
 ```
 
 ### Conditions

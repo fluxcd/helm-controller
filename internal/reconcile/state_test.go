@@ -22,11 +22,12 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmstorage "helm.sh/helm/v3/pkg/storage"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmchartutil "helm.sh/helm/v4/pkg/chart/common"
+	helmchart "helm.sh/helm/v4/pkg/chart/v2"
+	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	helmstorage "helm.sh/helm/v4/pkg/storage"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -62,9 +63,9 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusDeployed,
+					Status:    helmreleasecommon.StatusDeployed,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
@@ -74,7 +75,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				}
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "bar"},
+			values: map[string]any{"foo": "bar"},
 			want: ReleaseState{
 				Status: ReleaseStatusInSync,
 			},
@@ -95,7 +96,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 							Name:      mockReleaseName,
 							Namespace: mockReleaseNamespace,
 							Version:   1,
-							Status:    helmrelease.StatusDeployed,
+							Status:    helmreleasecommon.StatusDeployed,
 							Chart:     testutil.BuildChart(),
 						}))),
 					},
@@ -112,7 +113,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusDeployed,
+					Status:    helmreleasecommon.StatusDeployed,
 					Chart:     testutil.BuildChart(),
 				}),
 			},
@@ -127,9 +128,9 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusDeployed,
+					Status:    helmreleasecommon.StatusDeployed,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				cur := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
@@ -141,7 +142,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				}
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "bar"},
+			values: map[string]any{"foo": "bar"},
 			want: ReleaseState{
 				Status: ReleaseStatusUnmanaged,
 			},
@@ -153,9 +154,9 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusDeployed,
+					Status:    helmreleasecommon.StatusDeployed,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				cur := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
@@ -168,7 +169,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				}
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "bar"},
+			values: map[string]any{"foo": "bar"},
 			want: ReleaseState{
 				Status: ReleaseStatusUnmanaged,
 			},
@@ -180,12 +181,12 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusPendingInstall,
+					Status:    helmreleasecommon.StatusPendingInstall,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "bar"},
+			values: map[string]any{"foo": "bar"},
 			want: ReleaseState{
 				Status: ReleaseStatusLocked,
 			},
@@ -197,9 +198,9 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusDeployed,
+					Status:    helmreleasecommon.StatusDeployed,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.Test = &v2.Test{
@@ -214,7 +215,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				}
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "bar"},
+			values: map[string]any{"foo": "bar"},
 			want: ReleaseState{
 				Status: ReleaseStatusUntested,
 			},
@@ -226,7 +227,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusSuperseded,
+					Status:    helmreleasecommon.StatusSuperseded,
 					Chart:     testutil.BuildChart(),
 				}),
 				testutil.BuildRelease(
@@ -234,10 +235,10 @@ func Test_DetermineReleaseState(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: mockReleaseNamespace,
 						Version:   2,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 						Chart:     testutil.BuildChart(),
 					},
-					testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"}),
+					testutil.ReleaseWithConfig(map[string]any{"foo": "bar"}),
 					testutil.ReleaseWithHookExecution("failure-tests", []helmrelease.HookEvent{helmrelease.HookTest},
 						helmrelease.HookPhaseFailed),
 				),
@@ -259,7 +260,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				}
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "bar"},
+			values: map[string]any{"foo": "bar"},
 			want: ReleaseState{
 				Status: ReleaseStatusFailed,
 			},
@@ -272,16 +273,16 @@ func Test_DetermineReleaseState(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: mockReleaseNamespace,
 						Version:   2,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 						Chart:     testutil.BuildChart(),
 					},
-					testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"}),
+					testutil.ReleaseWithConfig(map[string]any{"foo": "bar"}),
 					testutil.ReleaseWithHookExecution("failure-tests", []helmrelease.HookEvent{helmrelease.HookTest},
 						helmrelease.HookPhaseFailed),
 				),
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "bar"},
+			values: map[string]any{"foo": "bar"},
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.Test = &v2.Test{
 					Enable:         true,
@@ -311,16 +312,16 @@ func Test_DetermineReleaseState(t *testing.T) {
 						Name:      mockReleaseName,
 						Namespace: mockReleaseNamespace,
 						Version:   2,
-						Status:    helmrelease.StatusDeployed,
+						Status:    helmreleasecommon.StatusDeployed,
 						Chart:     testutil.BuildChart(),
 					},
-					testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"}),
+					testutil.ReleaseWithConfig(map[string]any{"foo": "bar"}),
 					testutil.ReleaseWithHookExecution("failure-tests", []helmrelease.HookEvent{helmrelease.HookTest},
 						helmrelease.HookPhaseFailed),
 				),
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "bar"},
+			values: map[string]any{"foo": "bar"},
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.Test = &v2.Test{
 					Enable: true,
@@ -344,19 +345,19 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusSuperseded,
+					Status:    helmreleasecommon.StatusSuperseded,
 					Chart:     testutil.BuildChart(),
 				}),
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   2,
-					Status:    helmrelease.StatusFailed,
+					Status:    helmreleasecommon.StatusFailed,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{},
+			values: map[string]any{},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
 					History: v2.Snapshots{
@@ -376,12 +377,12 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusUninstalled,
+					Status:    helmreleasecommon.StatusUninstalled,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{},
+			values: map[string]any{},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
 					History: v2.Snapshots{
@@ -400,9 +401,9 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusUninstalled,
+					Status:    helmreleasecommon.StatusUninstalled,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			want: ReleaseState{
 				Status: ReleaseStatusAbsent,
@@ -415,9 +416,9 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusDeployed,
+					Status:    helmreleasecommon.StatusDeployed,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
@@ -427,7 +428,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				}
 			},
 			chart:  testutil.BuildChart(testutil.ChartWithName("other-name")),
-			values: map[string]interface{}{"foo": "bar"},
+			values: map[string]any{"foo": "bar"},
 			want: ReleaseState{
 				Status: ReleaseStatusOutOfSync,
 			},
@@ -439,9 +440,9 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusDeployed,
+					Status:    helmreleasecommon.StatusDeployed,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
@@ -451,7 +452,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				}
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"bar": "foo"},
+			values: map[string]any{"bar": "foo"},
 			want: ReleaseState{
 				Status: ReleaseStatusOutOfSync,
 			},
@@ -463,9 +464,9 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusDeployed,
+					Status:    helmreleasecommon.StatusDeployed,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.PostRenderers = postRenderers2
@@ -486,7 +487,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				}
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "bar"},
+			values: map[string]any{"foo": "bar"},
 			want: ReleaseState{
 				Status: ReleaseStatusOutOfSync,
 			},
@@ -498,9 +499,9 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusDeployed,
+					Status:    helmreleasecommon.StatusDeployed,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.PostRenderers = postRenderers2
@@ -521,7 +522,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				}
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "bar"},
+			values: map[string]any{"foo": "bar"},
 			want: ReleaseState{
 				Status: ReleaseStatusInSync,
 			},
@@ -533,9 +534,9 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusDeployed,
+					Status:    helmreleasecommon.StatusDeployed,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.CommonMetadata = commonMetadata2
@@ -556,7 +557,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				}
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "bar"},
+			values: map[string]any{"foo": "bar"},
 			want: ReleaseState{
 				Status: ReleaseStatusOutOfSync,
 			},
@@ -568,9 +569,9 @@ func Test_DetermineReleaseState(t *testing.T) {
 					Name:      mockReleaseName,
 					Namespace: mockReleaseNamespace,
 					Version:   1,
-					Status:    helmrelease.StatusDeployed,
+					Status:    helmreleasecommon.StatusDeployed,
 					Chart:     testutil.BuildChart(),
-				}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
 			},
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.CommonMetadata = commonMetadata2
@@ -591,7 +592,7 @@ func Test_DetermineReleaseState(t *testing.T) {
 				}
 			},
 			chart:  testutil.BuildChart(),
-			values: map[string]interface{}{"foo": "bar"},
+			values: map[string]any{"foo": "bar"},
 			want: ReleaseState{
 				Status: ReleaseStatusInSync,
 			},
@@ -667,17 +668,17 @@ func TestDetermineReleaseState_DriftDetection(t *testing.T) {
 						{
 							Type: jsondiff.DiffTypeCreate,
 							DesiredObject: &unstructured.Unstructured{
-								Object: map[string]interface{}{
+								Object: map[string]any{
 									"apiVersion": "v1",
 									"kind":       "Secret",
-									"metadata": map[string]interface{}{
+									"metadata": map[string]any{
 										"name":              "fixture",
 										"namespace":         namespace,
 										"creationTimestamp": nil,
-										"labels": map[string]interface{}{
+										"labels": map[string]any{
 											"app.kubernetes.io/managed-by": "Helm",
 										},
-										"annotations": map[string]interface{}{
+										"annotations": map[string]any{
 											"meta.helm.sh/release-name":      mockReleaseName,
 											"meta.helm.sh/release-namespace": namespace,
 										},
@@ -707,17 +708,17 @@ func TestDetermineReleaseState_DriftDetection(t *testing.T) {
 						{
 							Type: jsondiff.DiffTypeCreate,
 							DesiredObject: &unstructured.Unstructured{
-								Object: map[string]interface{}{
+								Object: map[string]any{
 									"apiVersion": "v1",
 									"kind":       "Secret",
-									"metadata": map[string]interface{}{
+									"metadata": map[string]any{
 										"name":              "fixture",
 										"namespace":         namespace,
 										"creationTimestamp": nil,
-										"labels": map[string]interface{}{
+										"labels": map[string]any{
 											"app.kubernetes.io/managed-by": "Helm",
 										},
-										"annotations": map[string]interface{}{
+										"annotations": map[string]any{
 											"meta.helm.sh/release-name":      mockReleaseName,
 											"meta.helm.sh/release-namespace": namespace,
 										},
@@ -763,7 +764,7 @@ func TestDetermineReleaseState_DriftDetection(t *testing.T) {
 				Name:      mockReleaseName,
 				Namespace: releaseNamespace,
 				Version:   1,
-				Status:    helmrelease.StatusDeployed,
+				Status:    helmreleasecommon.StatusDeployed,
 				Chart:     chart,
 			})
 

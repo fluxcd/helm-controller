@@ -19,8 +19,10 @@ package action
 import (
 	"context"
 
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
+	helmaction "helm.sh/helm/v4/pkg/action"
+	helmkube "helm.sh/helm/v4/pkg/kube"
+	helmrelease "helm.sh/helm/v4/pkg/release"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
@@ -29,6 +31,14 @@ import (
 // instructions from the v2.HelmRelease have been applied. This is for
 // example useful to enable the dry-run setting as a CLI.
 type UninstallOption func(cfg *helmaction.Uninstall)
+
+// WithUninstallStatusReader sets the status reader used to evaluate
+// health checks during uninstall wait.
+func WithUninstallStatusReader(reader engine.StatusReader) UninstallOption {
+	return func(uninstall *helmaction.Uninstall) {
+		uninstall.WaitOptions = append(uninstall.WaitOptions, helmkube.WithKStatusReaders(reader))
+	}
+}
 
 // Uninstall runs the Helm uninstall action with the provided config, using the
 // v2.HelmReleaseSpec of the given object to determine the target release
@@ -49,7 +59,7 @@ func newUninstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []
 	uninstall.Timeout = obj.GetUninstall().GetTimeout(obj.GetTimeout()).Duration
 	uninstall.DisableHooks = obj.GetUninstall().DisableHooks
 	uninstall.KeepHistory = obj.GetUninstall().KeepHistory
-	uninstall.Wait = !obj.GetUninstall().DisableWait
+	uninstall.WaitStrategy = getWaitStrategy(obj.GetWaitStrategy(), obj.GetUninstall())
 	uninstall.DeletionPropagation = obj.GetUninstall().GetDeletionPropagation()
 
 	for _, opt := range opts {

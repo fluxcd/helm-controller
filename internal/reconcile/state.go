@@ -24,8 +24,9 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
-	"helm.sh/helm/v3/pkg/kube"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	"helm.sh/helm/v4/pkg/kube"
+	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -106,7 +107,7 @@ func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *
 
 	// Confirm we have a release object to compare against.
 	if req.Object.Status.History.Len() == 0 {
-		if rls.Info.Status == helmrelease.StatusUninstalled {
+		if rls.Info.Status == helmreleasecommon.StatusUninstalled {
 			return ReleaseState{Status: ReleaseStatusAbsent, Reason: "found uninstalled release in storage"}, nil
 		}
 		return ReleaseState{Status: ReleaseStatusUnmanaged, Reason: "found existing release in storage"}, err
@@ -130,11 +131,11 @@ func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *
 	// Further determine the state of the release based on the Helm release
 	// status, which can now be considered reliable.
 	switch rls.Info.Status {
-	case helmrelease.StatusFailed:
+	case helmreleasecommon.StatusFailed:
 		return ReleaseState{Status: ReleaseStatusFailed}, nil
-	case helmrelease.StatusUninstalled:
+	case helmreleasecommon.StatusUninstalled:
 		return ReleaseState{Status: ReleaseStatusAbsent, Reason: "found uninstalled release in storage"}, nil
-	case helmrelease.StatusDeployed:
+	case helmreleasecommon.StatusDeployed:
 		// Verify the release is in sync with the desired configuration.
 		if err = action.VerifyRelease(rls, cur, req.Chart.Metadata, req.Values); err != nil {
 			switch err {

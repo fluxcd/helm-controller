@@ -21,11 +21,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fluxcd/pkg/runtime/logger"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmrelease "helm.sh/helm/v4/pkg/release"
+	helmreleasev1 "helm.sh/helm/v4/pkg/release/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/fluxcd/pkg/runtime/conditions"
 
@@ -73,7 +72,7 @@ func NewTest(cfg *action.ConfigFactory, recorder record.EventRecorder) *Test {
 func (r *Test) Reconcile(ctx context.Context, req *Request) error {
 	var (
 		cur = req.Object.Status.History.Latest().DeepCopy()
-		cfg = r.configFactory.Build(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), observeTest(req.Object))
+		cfg = r.configFactory.Build(action.NewDebugLogBuffer(ctx), observeTest(req.Object))
 	)
 
 	defer summarize(req)
@@ -193,7 +192,11 @@ func (r *Test) success(req *Request) {
 // It only accepts test results for the latest release and updates the
 // latest snapshot with the observed test results.
 func observeTest(obj *v2.HelmRelease) storage.ObserveFunc {
-	return func(rls *helmrelease.Release) {
+	return func(rlsr helmrelease.Releaser) {
+		rls, ok := rlsr.(*helmreleasev1.Release)
+		if !ok {
+			return
+		}
 		// Only accept test results for the latest release.
 		if !obj.Status.History.Latest().Targets(rls.Name, rls.Namespace, rls.Version) {
 			return

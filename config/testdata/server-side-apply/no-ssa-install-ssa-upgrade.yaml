@@ -1,0 +1,23 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: no-ssa-install-ssa-upgrade
+spec:
+  interval: 5m
+  install:
+    serverSideApply: false
+  upgrade:
+    serverSideApply: enabled
+  chart:
+    spec:
+      chart: podinfo
+      version: '>=6.0.0 <7.0.0'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+      interval: 1m
+  values:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi

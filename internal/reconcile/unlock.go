@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"strings"
 
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmrelease "helm.sh/helm/v4/pkg/release"
+	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
+	helmreleasev1 "helm.sh/helm/v4/pkg/release/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 
@@ -80,7 +82,7 @@ func (r *Unlock) Reconcile(_ context.Context, req *Request) error {
 	cur := processCurrentSnaphot(req.Object, rls)
 	if status := rls.Info.Status; status.IsPending() {
 		// Update pending status to failed and persist.
-		rls.SetStatus(helmrelease.StatusFailed, fmt.Sprintf("Release unlocked from stale '%s' state", status.String()))
+		rls.SetStatus(helmreleasecommon.StatusFailed, fmt.Sprintf("Release unlocked from stale '%s' state", status.String()))
 		if err = cfg.Releases.Update(rls); err != nil {
 			r.failure(req, cur, status, err)
 			return err
@@ -108,7 +110,7 @@ const (
 // failure records the failure of an unlock action in the status of the given
 // Request.Object by marking ReleasedCondition=False and increasing the failure
 // counter. In addition, it emits a warning event for the Request.Object.
-func (r *Unlock) failure(req *Request, cur *v2.Snapshot, status helmrelease.Status, err error) {
+func (r *Unlock) failure(req *Request, cur *v2.Snapshot, status helmreleasecommon.Status, err error) {
 	// Compose failure message.
 	msg := fmt.Sprintf(fmtUnlockFailure, cur.FullReleaseName(), cur.VersionedChartName(), status.String(), strings.TrimSpace(err.Error()))
 
@@ -128,7 +130,7 @@ func (r *Unlock) failure(req *Request, cur *v2.Snapshot, status helmrelease.Stat
 
 // success records the success of an unlock action in the status of the given
 // Request.Object by marking ReleasedCondition=False and emitting an event.
-func (r *Unlock) success(req *Request, cur *v2.Snapshot, status helmrelease.Status) {
+func (r *Unlock) success(req *Request, cur *v2.Snapshot, status helmreleasecommon.Status) {
 	// Compose success message.
 	msg := fmt.Sprintf(fmtUnlockSuccess, cur.FullReleaseName(), cur.VersionedChartName(), status.String())
 
@@ -150,7 +152,11 @@ func (r *Unlock) success(req *Request, cur *v2.Snapshot, status helmrelease.Stat
 // It updates the snapshot of a release when an unlock action is observed for
 // that release.
 func observeUnlock(obj *v2.HelmRelease) storage.ObserveFunc {
-	return func(rls *helmrelease.Release) {
+	return func(rlsr helmrelease.Releaser) {
+		rls, ok := rlsr.(*helmreleasev1.Release)
+		if !ok {
+			return
+		}
 		for i := range obj.Status.History {
 			snap := obj.Status.History[i]
 			if snap.Targets(rls.Name, rls.Namespace, rls.Version) {
@@ -164,7 +170,7 @@ func observeUnlock(obj *v2.HelmRelease) storage.ObserveFunc {
 // processCurrentSnaphot processes the current snapshot based on a Helm release.
 // It also looks for the OCIDigest in the corresponding v2.HelmRelease history and
 // updates the current snapshot with the OCIDigest if found.
-func processCurrentSnaphot(obj *v2.HelmRelease, rls *helmrelease.Release) *v2.Snapshot {
+func processCurrentSnaphot(obj *v2.HelmRelease, rls *helmreleasev1.Release) *v2.Snapshot {
 	cur := release.ObservedToSnapshot(release.ObserveRelease(rls))
 	for i := range obj.Status.History {
 		snap := obj.Status.History[i]

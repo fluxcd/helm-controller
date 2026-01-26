@@ -24,6 +24,21 @@ import (
 )
 
 const (
+	// CurrentSnapshotAPIVersion is the current API version for snapshots.
+	// This is used to distinguish between snapshots created with different
+	// helm-controller versions, allowing for graceful migration when the
+	// digest calculation method changes. This will typically happen when
+	// there is a major Helm version upgrade that introduces breaking
+	// changes to the Chart or Release APIs. This version should be bumped
+	// accordingly when such changes occur.
+	CurrentSnapshotAPIVersion = SnapshotAPIVersion2
+
+	// SnapshotAPIVersion2 is the API version for snapshots created with
+	// Helm v4 (Chart API v2), introduced in helm-controller v1.5.0.
+	SnapshotAPIVersion2 = "v2"
+)
+
+const (
 	// snapshotStatusDeployed indicates that the release the snapshot was taken
 	// from is currently deployed.
 	snapshotStatusDeployed = "deployed"

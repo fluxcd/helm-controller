@@ -18,11 +18,12 @@ package action
 
 import (
 	"github.com/opencontainers/go-digest"
-	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chartutil"
+	"helm.sh/helm/v4/pkg/chart/common"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
+
+	intchartutil "github.com/fluxcd/pkg/chartutil"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
-	intchartutil "github.com/fluxcd/pkg/chartutil"
 )
 
 const (
@@ -38,7 +39,7 @@ const (
 // changed in a way that indicates that a new attempt should be made.
 // For example, a change in generation, chart version, or values.
 // If no change is detected, an empty string is returned along with false.
-func MustResetFailures(obj *v2.HelmRelease, chart *chart.Metadata, values chartutil.Values) (string, bool) {
+func MustResetFailures(obj *v2.HelmRelease, chart *chart.Metadata, values common.Values) (string, bool) {
 	// Always check if a reset is requested.
 	// This is done first, so that the HelmReleaseStatus.LastHandledResetAt
 	// field is updated even if the reset request is not handled due to other
