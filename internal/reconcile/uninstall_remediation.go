@@ -91,8 +91,8 @@ func (r *UninstallRemediation) Reconcile(ctx context.Context, req *Request) erro
 
 	// Run the Helm uninstall action.
 	var opts []action.UninstallOption
-	if sr := r.configFactory.StatusReader; sr != nil {
-		opts = append(opts, action.WithUninstallStatusReader(sr))
+	if waitOpts := r.configFactory.WaitOptions; len(waitOpts) > 0 {
+		opts = append(opts, action.WithUninstallWaitOptions(waitOpts...))
 	}
 	res, err := action.Uninstall(ctx, cfg, req.Object, cur.Name, opts...)
 

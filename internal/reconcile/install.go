@@ -91,8 +91,8 @@ func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 
 	// Run the Helm install action.
 	var opts []action.InstallOption
-	if sr := r.configFactory.StatusReader; sr != nil {
-		opts = append(opts, action.WithInstallStatusReader(sr))
+	if waitOpts := r.configFactory.WaitOptions; len(waitOpts) > 0 {
+		opts = append(opts, action.WithInstallWaitOptions(waitOpts...))
 	}
 	_, err := action.Install(ctx, cfg, req.Object, req.Chart, req.Values, opts...)
 

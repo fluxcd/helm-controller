@@ -95,8 +95,8 @@ func (r *RollbackRemediation) Reconcile(ctx context.Context, req *Request) error
 
 	// Run the Helm rollback action.
 	var opts []action.RollbackOption
-	if sr := r.configFactory.StatusReader; sr != nil {
-		opts = append(opts, action.WithRollbackStatusReader(sr))
+	if waitOpts := r.configFactory.WaitOptions; len(waitOpts) > 0 {
+		opts = append(opts, action.WithRollbackWaitOptions(waitOpts...))
 	}
 	if err := action.Rollback(cfg, req.Object, prev.Name, prev.Version, opts...); err != nil {
 		r.failure(req, prev, logBuf, err)

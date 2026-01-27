@@ -82,8 +82,8 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 
 	// Run the Helm upgrade action.
 	var opts []action.UpgradeOption
-	if sr := r.configFactory.StatusReader; sr != nil {
-		opts = append(opts, action.WithUpgradeStatusReader(sr))
+	if waitOpts := r.configFactory.WaitOptions; len(waitOpts) > 0 {
+		opts = append(opts, action.WithUpgradeWaitOptions(waitOpts...))
 	}
 	_, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values, opts...)
 

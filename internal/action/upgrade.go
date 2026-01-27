@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	helmaction "helm.sh/helm/v4/pkg/action"
 	helmchartutil "helm.sh/helm/v4/pkg/chart/common"
 	helmchart "helm.sh/helm/v4/pkg/chart/v2"
@@ -40,11 +39,11 @@ import (
 // enable the dry-run setting as a CLI.
 type UpgradeOption func(upgrade *helmaction.Upgrade)
 
-// WithUpgradeStatusReader sets the status reader used to evaluate
-// health checks during upgrade wait.
-func WithUpgradeStatusReader(reader engine.StatusReader) UpgradeOption {
+// WithUpgradeWaitOptions appends the provided wait options to the
+// action.Upgrade wait options.
+func WithUpgradeWaitOptions(opts ...helmkube.WaitOption) UpgradeOption {
 	return func(upgrade *helmaction.Upgrade) {
-		upgrade.WaitOptions = append(upgrade.WaitOptions, helmkube.WithKStatusReaders(reader))
+		upgrade.WaitOptions = append(upgrade.WaitOptions, opts...)
 	}
 }
 

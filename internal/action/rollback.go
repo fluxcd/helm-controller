@@ -19,7 +19,6 @@ package action
 import (
 	"fmt"
 
-	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	helmaction "helm.sh/helm/v4/pkg/action"
 	helmkube "helm.sh/helm/v4/pkg/kube"
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
@@ -32,11 +31,11 @@ import (
 // example useful to enable the dry-run setting as a CLI.
 type RollbackOption func(*helmaction.Rollback)
 
-// WithRollbackStatusReader sets the status reader used to evaluate
-// health checks during rollback wait.
-func WithRollbackStatusReader(reader engine.StatusReader) RollbackOption {
+// WithRollbackWaitOptions appends the provided wait options to the
+// action.Rollback wait options.
+func WithRollbackWaitOptions(opts ...helmkube.WaitOption) RollbackOption {
 	return func(rollback *helmaction.Rollback) {
-		rollback.WaitOptions = append(rollback.WaitOptions, helmkube.WithKStatusReaders(reader))
+		rollback.WaitOptions = append(rollback.WaitOptions, opts...)
 	}
 }
 

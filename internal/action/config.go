@@ -17,6 +17,7 @@ limitations under the License.
 package action
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
@@ -52,8 +53,8 @@ type ConfigFactory struct {
 	Driver helmdriver.Driver
 	// StorageLog is the logger to use for the Helm storage driver.
 	StorageLog slog.Handler
-	// StatusReader is the status reader used to evaluate custom health checks.
-	StatusReader engine.StatusReader
+	// WaitOptions is a list of helmkube.WaitOption to use for Helm actions.
+	WaitOptions []helmkube.WaitOption
 }
 
 // ConfigFactoryOption is a function that configures a ConfigFactory.
@@ -133,10 +134,27 @@ func WithStorageLog(log slog.Handler) ConfigFactoryOption {
 	}
 }
 
-// WithStatusReader sets the ConfigFactory.StatusReader.
+// WithStatusReader appends the status reader as a WaitOption to the
+// ConfigFactory.
 func WithStatusReader(reader engine.StatusReader) ConfigFactoryOption {
 	return func(f *ConfigFactory) error {
-		f.StatusReader = reader
+		f.WaitOptions = append(f.WaitOptions, helmkube.WithKStatusReaders(reader))
+		return nil
+	}
+}
+
+// WithWaitContext appends a wait context as a WaitOption to the
+// ConfigFactory.
+func WithWaitContext(waitCtx context.Context) ConfigFactoryOption {
+	return func(f *ConfigFactory) error {
+		f.WaitOptions = append(f.WaitOptions,
+			// Here, we don't use helmkube.WithWatchUntilReadyMethodContext()
+			// because the WatchUntilReady method is for Helm hooks, which we
+			// don't want ever to cancel proactively (only timeout should do
+			// that). We don't use helmkube.WithWaitForDeleteMethodContext()
+			// due to a similar reasoning.
+			helmkube.WithWaitMethodContext(waitCtx),
+			helmkube.WithWaitWithJobsMethodContext(waitCtx))
 		return nil
 	}
 }

@@ -55,6 +55,7 @@ import (
 	runtimeClient "github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	helper "github.com/fluxcd/pkg/runtime/controller"
+	runtimeCtrl "github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/jitter"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/object"
@@ -376,7 +377,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		// If this fails, the controller will fall back to performing an upgrade
 		// to settle on the desired state.
 		// TODO(hidde): remove this in a future release.
-		if err := r.adoptLegacyRelease(ctx, getter, statusReader, obj); err != nil {
+		if err := r.adoptLegacyRelease(ctx, getter, obj); err != nil {
 			log.Error(err, "failed to adopt v2beta1 release state")
 		}
 		r.adoptPostRenderersStatus(obj)
@@ -413,12 +414,19 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	obj.Status.LastAttemptedValuesChecksum = ""
 	obj.Status.LastReleaseRevision = 0
 
+	// Get the interrupt context for wait operations.
+	interruptCtx := runtimeCtrl.GetInterruptContext(ctx)
+
 	// Construct config factory for any further Helm actions.
-	cfg, err := action.NewConfigFactory(getter,
+	cfgOpts := []action.ConfigFactoryOption{
 		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
 		action.WithStorageLog(action.NewTraceLogger(ctx)),
-		action.WithStatusReader(statusReader),
-	)
+		action.WithWaitContext(interruptCtx),
+	}
+	if statusReader != nil {
+		cfgOpts = append(cfgOpts, action.WithStatusReader(statusReader))
+	}
+	cfg, err := action.NewConfigFactory(getter, cfgOpts...)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "FactoryError", "%s", err)
 		return ctrl.Result{}, err
@@ -434,6 +442,17 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		Chart:  loadedChart,
 		Values: values,
 	}); err != nil {
+		// Handle health check cancellation due to requeue.
+		// Check if a new reconciliation request has been enqueued and the interrupt context was canceled.
+		if enqueued, qes := runtimeCtrl.IsObjectEnqueued(ctx); enqueued && interruptCtx.Err() != nil {
+			conditions.MarkFalse(obj, meta.ReadyCondition, meta.HealthCheckCanceledReason,
+				"New reconciliation triggered by %s/%s/%s", qes.Kind, qes.Namespace, qes.Name)
+			log.Info("New reconciliation triggered, canceling health checks", "trigger", qes)
+			r.Eventf(obj, corev1.EventTypeNormal, meta.HealthCheckCanceledReason,
+				"Health checks canceled due to new reconciliation triggered by %s/%s/%s",
+				qes.Kind, qes.Namespace, qes.Name)
+			return ctrl.Result{Requeue: true}, nil
+		}
 		switch {
 		case errors.Is(err, intreconcile.ErrRetryAfterInterval):
 			return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetActiveRetry().GetRetryInterval()}), nil
@@ -687,7 +706,7 @@ func (r *HelmReleaseReconciler) evalReadyExpr(
 // and converting it to a v2 release snapshot.
 // If the v2beta1 release has already been adopted, this function is a no-op.
 func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context,
-	getter genericclioptions.RESTClientGetter, statusReader engine.StatusReader, obj *v2.HelmRelease) error {
+	getter genericclioptions.RESTClientGetter, obj *v2.HelmRelease) error {
 
 	if obj.Status.LastReleaseRevision < 1 || len(obj.Status.History) > 0 {
 		return nil
@@ -707,7 +726,6 @@ func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context,
 	cfg, err := action.NewConfigFactory(getter,
 		action.WithStorage(action.DefaultStorageDriver, storageNamespace),
 		action.WithStorageLog(action.NewTraceLogger(ctx)),
-		action.WithStatusReader(statusReader),
 	)
 	if err != nil {
 		return err

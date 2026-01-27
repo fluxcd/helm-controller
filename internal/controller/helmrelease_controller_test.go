@@ -3455,7 +3455,7 @@ func TestHelmReleaseReconciler_adoptLegacyRelease(t *testing.T) {
 			}
 
 			// Adopt the Helm release mock.
-			err = r.adoptLegacyRelease(context.TODO(), getter, nil, obj)
+			err = r.adoptLegacyRelease(context.TODO(), getter, obj)
 			g.Expect(err != nil).To(Equal(tt.wantErr), "unexpected error: %s", err)
 
 			// Verify the Helm release mock has been adopted.

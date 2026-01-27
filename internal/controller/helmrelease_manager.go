@@ -20,8 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fluxcd/pkg/runtime/predicates"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -32,15 +30,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	runtimeCtrl "github.com/fluxcd/pkg/runtime/controller"
+	"github.com/fluxcd/pkg/runtime/predicates"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	intpredicates "github.com/fluxcd/helm-controller/internal/predicates"
 )
 
 type HelmReleaseReconcilerOptions struct {
-	RateLimiter            workqueue.TypedRateLimiter[reconcile.Request]
-	WatchConfigs           bool
-	WatchConfigsPredicate  predicate.Predicate
-	WatchExternalArtifacts bool
+	RateLimiter                workqueue.TypedRateLimiter[reconcile.Request]
+	WatchConfigs               bool
+	WatchConfigsPredicate      predicate.Predicate
+	WatchExternalArtifacts     bool
+	CancelHealthCheckOnRequeue bool
 }
 
 func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, opts HelmReleaseReconcilerOptions) error {
@@ -114,44 +117,64 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 	); err != nil {
 		return err
 	}
+	var blder *builder.Builder
+	var toComplete reconcile.TypedReconciler[reconcile.Request]
+	var enqueueRequestsFromMapFunc func(objKind string, fn handler.MapFunc) handler.EventHandler
 
-	ctrlBuilder := ctrl.NewControllerManagedBy(mgr).
-		For(&v2.HelmRelease{}, builder.WithPredicates(
-			predicate.Or(predicate.GenerationChangedPredicate{}, predicates.ReconcileRequestedPredicate{}),
-		)).
+	hrPredicate := predicate.Or(
+		predicate.GenerationChangedPredicate{},
+		predicates.ReconcileRequestedPredicate{},
+	)
+
+	if !opts.CancelHealthCheckOnRequeue {
+		toComplete = r
+		enqueueRequestsFromMapFunc = func(objKind string, fn handler.MapFunc) handler.EventHandler {
+			return handler.EnqueueRequestsFromMapFunc(fn)
+		}
+		blder = ctrl.NewControllerManagedBy(mgr).
+			For(&v2.HelmRelease{}, builder.WithPredicates(hrPredicate))
+	} else {
+		wr := runtimeCtrl.WrapReconciler(r)
+		toComplete = wr
+		enqueueRequestsFromMapFunc = wr.EnqueueRequestsFromMapFunc
+		blder = runtimeCtrl.NewControllerManagedBy(mgr, wr).
+			For(&v2.HelmRelease{}, hrPredicate).Builder
+	}
+
+	blder.
 		Watches(
 			&sourcev1.HelmChart{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForHelmChartChange),
+			enqueueRequestsFromMapFunc(sourcev1.HelmChartKind, r.requestsForHelmChartChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		).
 		Watches(
 			&sourcev1.OCIRepository{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForOCIRepositoryChange),
+			enqueueRequestsFromMapFunc(sourcev1.OCIRepositoryKind, r.requestsForOCIRepositoryChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		)
 
 	if opts.WatchConfigs {
-		ctrlBuilder = ctrlBuilder.
+		blder = blder.
 			WatchesMetadata(
 				&corev1.ConfigMap{},
-				handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexConfigMap)),
+				enqueueRequestsFromMapFunc("ConfigMap", r.requestsForConfigDependency(indexConfigMap)),
 				builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, opts.WatchConfigsPredicate),
 			).
 			WatchesMetadata(
 				&corev1.Secret{},
-				handler.EnqueueRequestsFromMapFunc(r.requestsForConfigDependency(indexSecret)),
+				enqueueRequestsFromMapFunc("Secret", r.requestsForConfigDependency(indexSecret)),
 				builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, opts.WatchConfigsPredicate),
 			)
 	}
 
 	if opts.WatchExternalArtifacts {
-		ctrlBuilder = ctrlBuilder.Watches(
+		blder = blder.Watches(
 			&sourcev1.ExternalArtifact{},
-			handler.EnqueueRequestsFromMapFunc(r.requestsForExternalArtifactChange),
+			enqueueRequestsFromMapFunc(sourcev1.ExternalArtifactKind, r.requestsForExternalArtifactChange),
 			builder.WithPredicates(intpredicates.SourceRevisionChangePredicate{}),
 		)
 	}
 
-	return ctrlBuilder.WithOptions(controller.Options{RateLimiter: opts.RateLimiter}).Complete(r)
+	return blder.WithOptions(controller.Options{RateLimiter: opts.RateLimiter}).Complete(toComplete)
 
 }

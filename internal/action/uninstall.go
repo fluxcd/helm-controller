@@ -19,7 +19,6 @@ package action
 import (
 	"context"
 
-	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	helmaction "helm.sh/helm/v4/pkg/action"
 	helmkube "helm.sh/helm/v4/pkg/kube"
 	helmrelease "helm.sh/helm/v4/pkg/release"
@@ -32,11 +31,11 @@ import (
 // example useful to enable the dry-run setting as a CLI.
 type UninstallOption func(cfg *helmaction.Uninstall)
 
-// WithUninstallStatusReader sets the status reader used to evaluate
-// health checks during uninstall wait.
-func WithUninstallStatusReader(reader engine.StatusReader) UninstallOption {
+// WithUninstallWaitOptions appends the provided wait options to the
+// action.Uninstall wait options.
+func WithUninstallWaitOptions(opts ...helmkube.WaitOption) UninstallOption {
 	return func(uninstall *helmaction.Uninstall) {
-		uninstall.WaitOptions = append(uninstall.WaitOptions, helmkube.WithKStatusReaders(reader))
+		uninstall.WaitOptions = append(uninstall.WaitOptions, opts...)
 	}
 }
 

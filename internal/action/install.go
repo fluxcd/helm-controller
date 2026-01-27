@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	helmaction "helm.sh/helm/v4/pkg/action"
 	helmchartutil "helm.sh/helm/v4/pkg/chart/common"
 	helmchart "helm.sh/helm/v4/pkg/chart/v2"
@@ -38,11 +37,11 @@ import (
 // enable the dry-run setting as a CLI.
 type InstallOption func(action *helmaction.Install)
 
-// WithInstallStatusReader sets the status reader used to evaluate
-// health checks during install wait.
-func WithInstallStatusReader(reader engine.StatusReader) InstallOption {
+// WithInstallWaitOptions appends the provided wait options to the
+// action.Install wait options.
+func WithInstallWaitOptions(opts ...helmkube.WaitOption) InstallOption {
 	return func(action *helmaction.Install) {
-		action.WaitOptions = append(action.WaitOptions, helmkube.WithKStatusReaders(reader))
+		action.WaitOptions = append(action.WaitOptions, opts...)
 	}
 }
 
