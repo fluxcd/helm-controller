@@ -462,15 +462,17 @@ data:
 						Patch: extjsondiff.Patch{
 							{
 								Type: extjsondiff.OperationAdd,
-								Path: "/metadata",
+								Path: "/metadata/annotations",
 								Value: map[string]any{
-									"labels": map[string]any{
-										appManagedByLabel: appManagedByHelm,
-									},
-									"annotations": map[string]any{
-										helmReleaseNameAnnotation:      "configures Helm metadata",
-										helmReleaseNamespaceAnnotation: namespace,
-									},
+									helmReleaseNameAnnotation:      "configures Helm metadata",
+									helmReleaseNamespaceAnnotation: namespace,
+								},
+							},
+							{
+								Type: extjsondiff.OperationAdd,
+								Path: "/metadata/labels",
+								Value: map[string]any{
+									appManagedByLabel: appManagedByHelm,
 								},
 							},
 						},
