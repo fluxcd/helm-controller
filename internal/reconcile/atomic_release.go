@@ -1,5 +1,6 @@
 /*
 Copyright 2022 The Flux authors
+Test CI with controller-runtime v0.22.4
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
