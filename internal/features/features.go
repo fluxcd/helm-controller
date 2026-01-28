@@ -61,6 +61,8 @@ const (
 	// This is enabled by default to support an upgrade path from v2beta1 to v2
 	// without the need to upgrade the Helm release. But it can be disabled to
 	// avoid potential abuse of the adoption mechanism.
+	//
+	// Ignored from v1.5.0, prints a warning if set.
 	AdoptLegacyReleases = "AdoptLegacyReleases"
 
 	// DisableChartDigestTracking disables the tracking of digest changes
@@ -100,8 +102,8 @@ var features = map[string]bool{
 	// opt-in from v0.31
 	OOMWatch: false,
 	// AdoptLegacyReleases
-	// opt-out from v0.37
-	AdoptLegacyReleases: true,
+	// ignored, prints warning from v1.5.0
+	AdoptLegacyReleases: false,
 	// DisableChartDigestTracking
 	// opt-in from v1.3.0
 	DisableChartDigestTracking: false,
