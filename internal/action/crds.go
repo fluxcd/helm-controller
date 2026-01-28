@@ -184,10 +184,18 @@ func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmch
 			}
 		}
 
+		// We cannot pass both SSA=true and ForceReplace=true to the Helm client, but
+		// we always need to pass ClientUpdateOptionServerSideApply in order to disable
+		// SSA if serverSideApply is false (since the Helm SDK defaults to SSA=true).
+		opts := []helmkube.ClientUpdateOption{
+			kube.ClientUpdateOptionServerSideApply(serverSideApply, forceConflicts),
+		}
+		if !serverSideApply { // Pass ForceReplace only when SSA is disabled.
+			opts = append(opts, kube.ClientUpdateOptionForceReplace(true))
+		}
+
 		// Send them to Kubernetes...
-		if rr, err := cfg.KubeClient.Update(original, allCRDs,
-			kube.ClientUpdateOptionForceReplace(true),
-			kube.ClientUpdateOptionServerSideApply(serverSideApply, forceConflicts)); err != nil {
+		if rr, err := cfg.KubeClient.Update(original, allCRDs, opts...); err != nil {
 			err = fmt.Errorf("failed to update CustomResourceDefinition(s): %w", err)
 			return err
 		} else {

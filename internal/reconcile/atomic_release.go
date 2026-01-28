@@ -309,7 +309,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 				}
 
 				remediation := req.Object.GetActiveRemediation()
-				if remediation == nil || !remediation.RetriesExhausted(req.Object) {
+				if remediation == nil || !remediation.RetriesExhausted(req.Object) || remediation.IsUninstallAfterUpgrade() {
 					conditions.MarkReconciling(req.Object, meta.ProgressingWithRetryReason, "%s", conditions.GetMessage(req.Object, meta.ReadyCondition))
 					return ErrMustRequeue
 				}

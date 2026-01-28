@@ -681,6 +681,8 @@ The field offers the following subfields:
   infinite number of retries.
 - `.strategy` (Optional): The remediation strategy to use when a Helm upgrade
   fails. Valid values are `rollback` and `uninstall`. Defaults to `rollback`.
+  After an `uninstall` remediation, the controller will attempt to reinstall
+  the release.
 - `.ignoreTestFailures` (Optional): Instructs the controller to not remediate
   when a [Helm test](#test-configuration) failure occurs. Defaults to
   `.spec.test.ignoreFailures`.
