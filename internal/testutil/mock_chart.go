@@ -92,6 +92,28 @@ spec:
   restartPolicy: Never
 `
 
+var manifestWithFailingDeploymentTmpl = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: failing-deployment
+  namespace: %[1]s
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: failing-app
+  template:
+    metadata:
+      labels:
+        app: failing-app
+    spec:
+      containers:
+      - name: app
+        image: nonexistent.registry/badimage:v999.999.999
+        ports:
+        - containerPort: 8080
+`
+
 var crdManifest = `apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -205,6 +227,17 @@ func ChartWithFailingTestHook() ChartOption {
 		options.Templates = append(options.Templates, &helmchartutil.File{
 			Name: "templates/test-hooks",
 			Data: fmt.Appendf(nil, manifestWithFailingTestHookTmpl, "{{ default .Release.Namespace }}"),
+		})
+	}
+}
+
+// ChartWithFailingDeployment appends a deployment with a non-existent image to the chart.
+// This is useful for testing health check timeout and cancellation scenarios.
+func ChartWithFailingDeployment() ChartOption {
+	return func(opts *ChartOptions) {
+		opts.Templates = append(opts.Templates, &helmchartutil.File{
+			Name: "templates/failing-deployment",
+			Data: fmt.Appendf(nil, manifestWithFailingDeploymentTmpl, "{{ default .Release.Namespace }}"),
 		})
 	}
 }

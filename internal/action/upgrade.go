@@ -21,11 +21,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	helmaction "helm.sh/helm/v4/pkg/action"
 	helmchartutil "helm.sh/helm/v4/pkg/chart/common"
 	helmchart "helm.sh/helm/v4/pkg/chart/v2"
-	helmkube "helm.sh/helm/v4/pkg/kube"
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 
@@ -39,14 +37,6 @@ import (
 // from the v2.HelmRelease have been applied. This is for example useful to
 // enable the dry-run setting as a CLI.
 type UpgradeOption func(upgrade *helmaction.Upgrade)
-
-// WithUpgradeStatusReader sets the status reader used to evaluate
-// health checks during upgrade wait.
-func WithUpgradeStatusReader(reader engine.StatusReader) UpgradeOption {
-	return func(upgrade *helmaction.Upgrade) {
-		upgrade.WaitOptions = append(upgrade.WaitOptions, helmkube.WithKStatusReaders(reader))
-	}
-}
 
 // Upgrade runs the Helm upgrade action with the provided config, using the
 // v2.HelmReleaseSpec of the given object to determine the target release

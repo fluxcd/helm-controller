@@ -24,6 +24,8 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/fluxcd/cli-utils/pkg/kstatus/polling"
+	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/clusterreader"
 	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	celtypes "github.com/google/cel-go/common/types"
 	chart "helm.sh/helm/v4/pkg/chart/v2"
@@ -58,6 +60,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/object"
 	"github.com/fluxcd/pkg/runtime/patch"
+	"github.com/fluxcd/pkg/ssa"
 
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
@@ -351,14 +354,12 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		conditions.MarkFalse(obj, meta.ReadyCondition, "RESTClientError", "%s", err)
 		return ctrl.Result{}, err
 	}
-	restMapper, err := getter.ToRESTMapper()
+
+	// Build resource manager for wait operations.
+	resourceManager, err := r.newResourceManager(getter, newStatusReader)
 	if err != nil {
-		conditions.MarkFalse(obj, meta.ReadyCondition, "RESTMapperError", "%s", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, "ResourceManagerError", "%s", err)
 		return ctrl.Result{}, err
-	}
-	var statusReader engine.StatusReader
-	if newStatusReader != nil {
-		statusReader = newStatusReader(restMapper)
 	}
 
 	// Remove any stale corresponding Ready=False condition with Unknown.
@@ -401,7 +402,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	cfg, err := action.NewConfigFactory(getter,
 		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
 		action.WithStorageLog(action.NewTraceLogger(ctx)),
-		action.WithStatusReader(statusReader),
+		action.WithResourceManager(resourceManager),
+		action.WithWaitContext(ctx),
 	)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "FactoryError", "%s", err)
@@ -418,6 +420,17 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		Chart:  loadedChart,
 		Values: values,
 	}); err != nil {
+		// Handle health check cancellation due to requeue.
+		// Check if a new reconciliation request has been enqueued and the interrupt context was canceled.
+		if enqueued, qes := helper.IsObjectEnqueued(ctx); enqueued {
+			conditions.MarkFalse(obj, meta.ReadyCondition, meta.HealthCheckCanceledReason,
+				"New reconciliation triggered by %s/%s/%s", qes.Kind, qes.Namespace, qes.Name)
+			log.Info("New reconciliation triggered, canceling health checks", "trigger", qes)
+			r.Eventf(obj, corev1.EventTypeNormal, meta.HealthCheckCanceledReason,
+				"Health checks canceled due to new reconciliation triggered by %s/%s/%s",
+				qes.Kind, qes.Namespace, qes.Name)
+			return ctrl.Result{Requeue: true}, nil
+		}
 		switch {
 		case errors.Is(err, intreconcile.ErrRetryAfterInterval):
 			return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetActiveRetry().GetRetryInterval()}), nil
@@ -563,15 +576,26 @@ func (r *HelmReleaseReconciler) reconcileChartTemplate(ctx context.Context, obj 
 }
 
 func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter genericclioptions.RESTClientGetter, obj *v2.HelmRelease) error {
-	// Construct config factory for current release.
+	// Construct config factory for current release first to validate
+	// storage configuration before building the resource manager.
 	cfg, err := action.NewConfigFactory(getter,
 		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
 		action.WithStorageLog(action.NewTraceLogger(ctx)),
+		action.WithWaitContext(ctx),
 	)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "ConfigFactoryErr", "%s", err)
 		return err
 	}
+
+	// Build resource manager for wait operations during uninstall.
+	resourceManager, err := r.newResourceManager(getter, nil)
+	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, v2.UninstallFailedReason,
+			"failed to build resource manager to uninstall release: %s", err)
+		return err
+	}
+	cfg.NewResourceManager = resourceManager
 
 	// Run uninstall.
 	return intreconcile.NewUninstall(cfg, r.EventRecorder).Reconcile(ctx, &intreconcile.Request{Object: obj})
@@ -982,4 +1006,61 @@ func extractDigest(revision string) string {
 		// revision in the <algorithm>:<digest> format
 		return revision
 	}
+}
+
+// newResourceManager creates a constructor for a new SSA ResourceManager with
+// custom status readers for wait operations taking additional status readers
+// as parameters. The additional status readers can for example be used to
+// conditionally append built-in status readers based on API fields, such as
+// DisableWaitForJobs (should append the custom built-in Job status reader when
+// this field is false). This argument is left for lazy injection because
+// different Helm actions may have different field values in the HelmRelease
+// spec. Which Helm action will use the ResourceManager is not known at the time
+// when this function is called.
+func (r *HelmReleaseReconciler) newResourceManager(
+	getter genericclioptions.RESTClientGetter,
+	newStatusReader func(apimeta.RESTMapper) engine.StatusReader,
+) (func(sr ...action.NewStatusReaderFunc) *ssa.ResourceManager, error) {
+
+	// Build controller-runtime client.
+	restConfig, err := getter.ToRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+	c, err := client.New(restConfig, client.Options{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Get REST mapper for later use.
+	restMapper, err := getter.ToRESTMapper()
+	if err != nil {
+		return nil, err
+	}
+
+	// Return constructor function.
+	return func(sr ...action.NewStatusReaderFunc) *ssa.ResourceManager {
+		var statusReaders []engine.StatusReader
+
+		// Spec-defined status readers have precedence.
+		if newStatusReader != nil {
+			statusReaders = append(statusReaders, newStatusReader(restMapper))
+		}
+
+		// Additional built-in status readers come last.
+		for _, f := range sr {
+			statusReaders = append(statusReaders, f(restMapper))
+		}
+
+		// Build poller.
+		poller := polling.NewStatusPoller(c, restMapper, polling.Options{
+			CustomStatusReaders: statusReaders,
+			// The kustomize-controller has an opt-out feature gate that enables
+			// this direct cluster reader: DisableStatusPollerCache.
+			ClusterReaderFactory: engine.ClusterReaderFactoryFunc(clusterreader.NewDirectClusterReader),
+		})
+
+		// Build resource manager.
+		return ssa.NewResourceManager(c, poller, ssa.Owner{})
+	}, nil
 }

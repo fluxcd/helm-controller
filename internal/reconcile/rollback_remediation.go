@@ -94,11 +94,7 @@ func (r *RollbackRemediation) Reconcile(ctx context.Context, req *Request) error
 	}
 
 	// Run the Helm rollback action.
-	var opts []action.RollbackOption
-	if sr := r.configFactory.StatusReader; sr != nil {
-		opts = append(opts, action.WithRollbackStatusReader(sr))
-	}
-	if err := action.Rollback(cfg, req.Object, prev.Name, prev.Version, opts...); err != nil {
+	if err := action.Rollback(cfg, req.Object, prev.Name, prev.Version); err != nil {
 		r.failure(req, prev, logBuf, err)
 
 		// Return error if we did not store a release, as this does not

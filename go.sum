@@ -162,8 +162,8 @@ github.com/fluxcd/pkg/chartutil v1.21.0 h1:NJYhlekwBwuqMpRgsOlcsJrw2Xq0cBJW0Nmvz
 github.com/fluxcd/pkg/chartutil v1.21.0/go.mod h1:Gv50bF3SS4OvvKCyyIMRkGeNzZk6Fsh4+lAdrjx97T4=
 github.com/fluxcd/pkg/runtime v0.96.0 h1:sF4ic8131BwbOE+T2pkiXlkr2gCaxAho500zlZJJLck=
 github.com/fluxcd/pkg/runtime v0.96.0/go.mod h1:FyjNMFNAERkCsF/muTWJYU9MZOsq/m4Sc4aQk/EgQ9E=
-github.com/fluxcd/pkg/ssa v0.64.0 h1:B/8VYMIYMeRmolup2HOoWNqXh4UeXi6w2LvXXvl6MZM=
-github.com/fluxcd/pkg/ssa v0.64.0/go.mod h1:RjvVjJIoRo1ecsv91yMuiqzO6cpNag80M6MOB/vrJdc=
+github.com/fluxcd/pkg/ssa v0.64.1-0.20260129035215-b6af1e9c6cd7 h1:rEETiKw6+g1YoiEysOV6y6C9nJ3eFfgnn9yoJlAMLEY=
+github.com/fluxcd/pkg/ssa v0.64.1-0.20260129035215-b6af1e9c6cd7/go.mod h1:RjvVjJIoRo1ecsv91yMuiqzO6cpNag80M6MOB/vrJdc=
 github.com/fluxcd/pkg/testserver v0.13.0 h1:xEpBcEYtD7bwvZ+i0ZmChxKkDo/wfQEV3xmnzVybSSg=
 github.com/fluxcd/pkg/testserver v0.13.0/go.mod h1:akRYv3FLQUsme15na9ihECRG6hBuqni4XEY9W8kzs8E=
 github.com/fluxcd/source-controller/api v1.7.2 h1:/lg/xoyRjxwdhHKqjTxQS2o1cp+DMKJ8W4rpm+ZLemQ=

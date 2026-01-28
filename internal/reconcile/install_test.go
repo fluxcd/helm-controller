@@ -307,7 +307,7 @@ func TestInstall_Reconcile(t *testing.T) {
 			var mockSR *testutil.MockStatusReader
 			if tt.statusReader {
 				mockSR = &testutil.MockStatusReader{}
-				cfgOpts = append(cfgOpts, action.WithStatusReader(mockSR))
+				cfgOpts = append(cfgOpts, action.WithResourceManager(mockSR.NewResourceManagerFuncWithClient(testEnv.Client, testEnv.Manager.GetRESTMapper())))
 			}
 			cfg, err := action.NewConfigFactory(getter, cfgOpts...)
 			g.Expect(err).ToNot(HaveOccurred())

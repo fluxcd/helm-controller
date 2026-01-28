@@ -93,7 +93,7 @@ func TestWithStorage(t *testing.T) {
 			name:      "default_" + DefaultStorageDriver,
 			namespace: "default",
 			factory: ConfigFactory{
-				KubeClient: helmkube.New(cmdtest.NewTestFactory()),
+				KubeClient: &Client{Client: helmkube.New(cmdtest.NewTestFactory())},
 			},
 			wantDriver: helmdriver.SecretsDriverName,
 		},
@@ -102,7 +102,7 @@ func TestWithStorage(t *testing.T) {
 			driverName: helmdriver.SecretsDriverName,
 			namespace:  "default",
 			factory: ConfigFactory{
-				KubeClient: helmkube.New(cmdtest.NewTestFactory()),
+				KubeClient: &Client{Client: helmkube.New(cmdtest.NewTestFactory())},
 			},
 			wantDriver: helmdriver.SecretsDriverName,
 		},
@@ -111,7 +111,7 @@ func TestWithStorage(t *testing.T) {
 			driverName: helmdriver.ConfigMapsDriverName,
 			namespace:  "default",
 			factory: ConfigFactory{
-				KubeClient: helmkube.New(cmdtest.NewTestFactory()),
+				KubeClient: &Client{Client: helmkube.New(cmdtest.NewTestFactory())},
 			},
 			wantDriver: helmdriver.ConfigMapsDriverName,
 		},
@@ -223,12 +223,12 @@ func TestConfigFactory_Build(t *testing.T) {
 		getter := &kube.MemoryRESTClientGetter{}
 		factory := &ConfigFactory{
 			Getter:     getter,
-			KubeClient: helmkube.New(getter),
+			KubeClient: &Client{Client: helmkube.New(getter)},
 		}
 
 		cfg := factory.Build(nil)
 		g.Expect(cfg).ToNot(BeNil())
-		g.Expect(cfg.KubeClient).To(Equal(factory.KubeClient))
+		g.Expect(cfg.KubeClient).To(BeAssignableToTypeOf(&Client{}))
 		g.Expect(cfg.RESTClientGetter).To(Equal(factory.Getter))
 	})
 
@@ -270,7 +270,7 @@ func TestConfigFactory_Valid(t *testing.T) {
 			factory: &ConfigFactory{
 				Driver:     helmdriver.NewMemory(),
 				Getter:     &kube.MemoryRESTClientGetter{},
-				KubeClient: helmkube.New(&kube.MemoryRESTClientGetter{}),
+				KubeClient: &Client{Client: helmkube.New(&kube.MemoryRESTClientGetter{})},
 			},
 			wantErr: nil,
 		},
@@ -286,14 +286,14 @@ func TestConfigFactory_Valid(t *testing.T) {
 			name: "no Kubernetes getter",
 			factory: &ConfigFactory{
 				Driver:     helmdriver.NewMemory(),
-				KubeClient: helmkube.New(&kube.MemoryRESTClientGetter{}),
+				KubeClient: &Client{Client: helmkube.New(&kube.MemoryRESTClientGetter{})},
 			},
 			wantErr: errors.New("no Kubernetes client and/or getter configured"),
 		},
 		{
 			name: "no driver",
 			factory: &ConfigFactory{
-				KubeClient: helmkube.New(&kube.MemoryRESTClientGetter{}),
+				KubeClient: &Client{Client: helmkube.New(&kube.MemoryRESTClientGetter{})},
 				Getter:     &kube.MemoryRESTClientGetter{},
 			},
 			wantErr: errors.New("no Helm storage driver configured"),
