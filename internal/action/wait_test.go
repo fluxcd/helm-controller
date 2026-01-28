@@ -66,15 +66,15 @@ func TestGetWaitStrategy(t *testing.T) {
 			expectedWait:     helmkube.StatusWatcherStrategy,
 		},
 		{
-			name:             "user specified watcher strategy",
+			name:             "user specified poller strategy",
 			useHelm3Defaults: true, // default would be legacy
-			strategy:         v2.WaitStrategyWatcher,
+			strategy:         v2.WaitStrategyPoller,
 			actionSpec:       &mockActionThatWaits{disableWait: false},
 			expectedWait:     helmkube.StatusWatcherStrategy,
 		},
 		{
 			name:             "user specified legacy strategy",
-			useHelm3Defaults: false, // default would be watcher
+			useHelm3Defaults: false, // default would be poller
 			strategy:         v2.WaitStrategyLegacy,
 			actionSpec:       &mockActionThatWaits{disableWait: false},
 			expectedWait:     helmkube.LegacyStrategy,
@@ -82,7 +82,7 @@ func TestGetWaitStrategy(t *testing.T) {
 		{
 			name:             "wait disabled takes precedence over user specified strategy",
 			useHelm3Defaults: false,
-			strategy:         v2.WaitStrategyWatcher,
+			strategy:         v2.WaitStrategyPoller,
 			actionSpec:       &mockActionThatWaits{disableWait: true},
 			expectedWait:     helmkube.HookOnlyStrategy,
 		},

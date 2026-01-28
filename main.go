@@ -179,6 +179,12 @@ func main() {
 		action.UseHelm3Defaults = enabled
 	}
 
+	cancelHealthCheckOnNewRevision, err := features.Enabled(features.CancelHealthCheckOnNewRevision)
+	if err != nil {
+		setupLog.Error(err, "unable to check feature gate "+features.CancelHealthCheckOnNewRevision)
+		os.Exit(1)
+	}
+
 	if defaultKubeConfigServiceAccount != "" {
 		auth.SetDefaultKubeConfigServiceAccount(defaultKubeConfigServiceAccount)
 	}
@@ -293,7 +299,7 @@ func main() {
 
 	if watchNamespace != "" {
 		mgrConfig.Cache.DefaultNamespaces = map[string]ctrlcache.Config{
-			watchNamespace: ctrlcache.Config{},
+			watchNamespace: {},
 		}
 	}
 
@@ -372,10 +378,11 @@ func main() {
 		AllowExternalArtifact:      allowExternalArtifact,
 		DisallowedFieldManagers:    disallowedFieldManagers,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
-		RateLimiter:            helper.GetRateLimiter(rateLimiterOptions),
-		WatchConfigs:           watchConfigs,
-		WatchConfigsPredicate:  watchConfigsPredicate,
-		WatchExternalArtifacts: allowExternalArtifact,
+		RateLimiter:                helper.GetRateLimiter(rateLimiterOptions),
+		WatchConfigs:               watchConfigs,
+		WatchConfigsPredicate:      watchConfigsPredicate,
+		WatchExternalArtifacts:     allowExternalArtifact,
+		CancelHealthCheckOnRequeue: cancelHealthCheckOnNewRevision,
 	}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", v2.HelmReleaseKind)
 		os.Exit(1)

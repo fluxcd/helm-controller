@@ -355,7 +355,7 @@ spec:
                   health of custom resources using Common Expression Language (CEL).
                   The expressions are evaluated only when the specific Helm action
                   taking place has wait enabled, i.e. DisableWait is false, and the
-                  'watcher' WaitStrategy is used.
+                  'poller' WaitStrategy is used.
                 items:
                   description: CustomHealthCheck defines the health check for custom
                     resources.
@@ -1102,13 +1102,13 @@ spec:
                   name:
                     description: |-
                       Name is Helm's wait strategy for waiting for applied resources to
-                      become ready. One of 'watcher' or 'legacy'. The 'watcher' strategy uses
-                      kstatus to watch resource statuses, while the 'legacy' strategy uses
+                      become ready. One of 'poller' or 'legacy'. The 'poller' strategy uses
+                      kstatus to poll resource statuses, while the 'legacy' strategy uses
                       Helm v3's waiting logic.
-                      Defaults to 'watcher', or to 'legacy' when UseHelm3Defaults feature
+                      Defaults to 'poller', or to 'legacy' when UseHelm3Defaults feature
                       gate is enabled.
                     enum:
-                    - watcher
+                    - poller
                     - legacy
                     type: string
                 required:

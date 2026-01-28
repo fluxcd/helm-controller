@@ -17,15 +17,16 @@ limitations under the License.
 package action
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
-	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	helmaction "helm.sh/helm/v4/pkg/action"
-	helmkube "helm.sh/helm/v4/pkg/kube"
 	helmstorage "helm.sh/helm/v4/pkg/storage"
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+
+	"github.com/fluxcd/pkg/ssa"
 
 	"github.com/fluxcd/helm-controller/internal/storage"
 )
@@ -45,15 +46,18 @@ type ConfigFactory struct {
 	// Getter is the RESTClientGetter used to get the RESTClient for the
 	// Kubernetes API.
 	Getter genericclioptions.RESTClientGetter
-	// KubeClient is the (Helm) Kubernetes client, it is Helm-specific and
+	// KubeClient is the (wrapped) Helm Kubernetes client, it is Helm-specific and
 	// contains a factory used for lazy-loading.
-	KubeClient *helmkube.Client
+	KubeClient *Client
 	// Driver to use for the Helm action.
 	Driver helmdriver.Driver
 	// StorageLog is the logger to use for the Helm storage driver.
 	StorageLog slog.Handler
-	// StatusReader is the status reader used to evaluate custom health checks.
-	StatusReader engine.StatusReader
+	// NewResourceManager is the resource manager used to evaluate custom health checks.
+	NewResourceManager func(sr ...NewStatusReaderFunc) *ssa.ResourceManager
+	// WaitContext is the context used for waiting operations in the Helm
+	// Kubernetes client.
+	WaitContext context.Context
 }
 
 // ConfigFactoryOption is a function that configures a ConfigFactory.
@@ -62,7 +66,7 @@ type ConfigFactoryOption func(*ConfigFactory) error
 // NewConfigFactory returns a new ConfigFactory configured with the provided
 // options.
 func NewConfigFactory(getter genericclioptions.RESTClientGetter, opts ...ConfigFactoryOption) (*ConfigFactory, error) {
-	kubeClient := helmkube.New(getter)
+	kubeClient := NewClient(getter)
 	factory := &ConfigFactory{
 		Getter:     getter,
 		KubeClient: kubeClient,
@@ -133,10 +137,19 @@ func WithStorageLog(log slog.Handler) ConfigFactoryOption {
 	}
 }
 
-// WithStatusReader sets the ConfigFactory.StatusReader.
-func WithStatusReader(reader engine.StatusReader) ConfigFactoryOption {
+// WithResourceManager sets the ConfigFactory.ResourceManager.
+func WithResourceManager(mgr func(sr ...NewStatusReaderFunc) *ssa.ResourceManager) ConfigFactoryOption {
 	return func(f *ConfigFactory) error {
-		f.StatusReader = reader
+		f.NewResourceManager = mgr
+		return nil
+	}
+}
+
+// WithWaitContext sets the context used for waiting operations in the Helm
+// Kubernetes client.
+func WithWaitContext(ctx context.Context) ConfigFactoryOption {
+	return func(f *ConfigFactory) error {
+		f.WaitContext = ctx
 		return nil
 	}
 }
@@ -156,11 +169,12 @@ func (c *ConfigFactory) NewStorage(observers ...storage.ObserveFunc) *helmstorag
 // Build returns a new Helm action.Configuration configured with the receiver
 // values, and the provided logger and observer(s).
 func (c *ConfigFactory) Build(log slog.Handler, observers ...storage.ObserveFunc) *helmaction.Configuration {
-	client := c.KubeClient
+	client := NewClient(c.Getter)
+	client.newResourceManager = c.NewResourceManager
+	client.waitContext = c.WaitContext
 
 	var opts []helmaction.ConfigurationOption
 	if log != nil {
-		client = helmkube.New(c.Getter)
 		client.SetLogger(log)
 		opts = append(opts, helmaction.ConfigurationSetLogger(log))
 	}
