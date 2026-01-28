@@ -237,6 +237,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if ok, _ := features.Enabled(features.AdoptLegacyReleases); ok {
+		setupLog.Info("warning: the 'AdoptLegacyReleases' feature gate is ignored and has no effect since v1.5.0, " +
+			"adoption of HelmRelease resources in legacy API versions is no longer supported")
+	}
+
 	// Set the managedFields owner for resources reconciled from Helm charts.
 	kube.ManagedFieldsManager = controllerName
 

@@ -27,7 +27,6 @@ import (
 	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	celtypes "github.com/google/cel-go/common/types"
 	chart "helm.sh/helm/v4/pkg/chart/v2"
-	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -70,9 +69,7 @@ import (
 	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/loader"
-	"github.com/fluxcd/helm-controller/internal/postrender"
 	intreconcile "github.com/fluxcd/helm-controller/internal/reconcile"
-	"github.com/fluxcd/helm-controller/internal/release"
 )
 
 // +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete
@@ -367,19 +364,6 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	// Remove any stale corresponding Ready=False condition with Unknown.
 	if conditions.HasAnyReason(obj, meta.ReadyCondition, "RESTClientError") {
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
-	}
-
-	// Keep feature flagged code paths separate from the main reconciliation
-	// logic to ensure easy removal when the feature flag is removed.
-	if ok, _ := features.Enabled(features.AdoptLegacyReleases); ok {
-		// Attempt to adopt "legacy" v2beta1 release state on a best-effort basis.
-		// If this fails, the controller will fall back to performing an upgrade
-		// to settle on the desired state.
-		// TODO(hidde): remove this in a future release.
-		if err := r.adoptLegacyRelease(ctx, getter, statusReader, obj); err != nil {
-			log.Error(err, "failed to adopt v2beta1 release state")
-		}
-		r.adoptPostRenderersStatus(obj)
 	}
 
 	// If the release target configuration has changed, we need to uninstall the
@@ -679,81 +663,6 @@ func (r *HelmReleaseReconciler) evalReadyExpr(
 	}
 
 	return celExpr.EvaluateBoolean(ctx, vars)
-}
-
-// adoptLegacyRelease attempts to adopt a v2beta1 release into a v2
-// release.
-// This is done by retrieving the last successful release from the Helm storage
-// and converting it to a v2 release snapshot.
-// If the v2beta1 release has already been adopted, this function is a no-op.
-func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context,
-	getter genericclioptions.RESTClientGetter, statusReader engine.StatusReader, obj *v2.HelmRelease) error {
-
-	if obj.Status.LastReleaseRevision < 1 || len(obj.Status.History) > 0 {
-		return nil
-	}
-
-	var (
-		log              = ctrl.LoggerFrom(ctx).V(logger.DebugLevel)
-		storageNamespace = obj.GetStorageNamespace()
-		releaseNamespace = obj.GetReleaseNamespace()
-		releaseName      = obj.GetReleaseName()
-		version          = obj.Status.LastReleaseRevision
-	)
-
-	log.Info("adopting %s/%s.v%d release from v2beta1 state", releaseNamespace, releaseName, version)
-
-	// Construct config factory for current release.
-	cfg, err := action.NewConfigFactory(getter,
-		action.WithStorage(action.DefaultStorageDriver, storageNamespace),
-		action.WithStorageLog(action.NewTraceLogger(ctx)),
-		action.WithStatusReader(statusReader),
-	)
-	if err != nil {
-		return err
-	}
-
-	// Get the last successful release based on the observation for the v2beta1
-	// object.
-	rls, err := cfg.NewStorage().Get(releaseName, version)
-	if err != nil {
-		return err
-	}
-
-	// Convert it to a v2 release snapshot.
-	rlsTyped, ok := rls.(*helmrelease.Release)
-	if !ok {
-		return fmt.Errorf("only the Chart API v2 is supported")
-	}
-	snap := release.ObservedToSnapshot(release.ObserveRelease(rlsTyped))
-
-	// If tests are enabled, include them as well.
-	if obj.GetTest().Enable {
-		snap.SetTestHooks(release.TestHooksFromRelease(rlsTyped))
-	}
-
-	// Adopt it as the current release in the history.
-	obj.Status.History = append(obj.Status.History, snap)
-	obj.Status.StorageNamespace = storageNamespace
-
-	// Erase the last release revision from the status.
-	obj.Status.LastReleaseRevision = 0
-
-	return nil
-}
-
-// adoptPostRenderersStatus attempts to set obj.Status.ObservedPostRenderersDigest
-// for v2beta1 and v2beta2 HelmReleases.
-func (*HelmReleaseReconciler) adoptPostRenderersStatus(obj *v2.HelmRelease) {
-	if obj.GetGeneration() != obj.Status.ObservedGeneration {
-		return
-	}
-
-	// if we have a reconciled object with PostRenderers not reflected in the
-	// status, we need to update the status.
-	if obj.Spec.PostRenderers != nil && obj.Status.ObservedPostRenderersDigest == "" {
-		obj.Status.ObservedPostRenderersDigest = postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()
-	}
 }
 
 func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {
