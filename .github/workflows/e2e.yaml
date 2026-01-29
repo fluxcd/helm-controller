@@ -712,8 +712,6 @@ jobs:
 
           kubectl -n helm-system delete -f config/testdata/$test_name
       - name: Run install test fail test
-        # TODO: re-enable after upgrading to Helm 4.1.1 (https://github.com/helm/helm/pull/31730)
-        if: false
         run: |
           test_name=install-test-fail
           kubectl -n helm-system apply -f config/testdata/$test_name
@@ -739,8 +737,6 @@ jobs:
 
           kubectl -n helm-system delete -f config/testdata/$test_name
       - name: Run install test fail ignore test
-        # TODO: re-enable after upgrading to Helm 4.1.1 (https://github.com/helm/helm/pull/31730)
-        if: false
         run: |
           test_name=install-test-fail-ignore
           kubectl -n helm-system apply -f config/testdata/$test_name
@@ -863,8 +859,6 @@ jobs:
 
           kubectl delete -n helm-system -f config/testdata/$test_name/install.yaml
       - name: Run upgrade test fail test
-        # TODO: re-enable after upgrading to Helm 4.1.1 (https://github.com/helm/helm/pull/31730)
-        if: false
         run: |
           test_name=upgrade-test-fail
           kubectl -n helm-system apply -f config/testdata/$test_name/install.yaml

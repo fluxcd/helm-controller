@@ -20,11 +20,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	helmaction "helm.sh/helm/v4/pkg/action"
 	helmchartutil "helm.sh/helm/v4/pkg/chart/common"
 	helmchart "helm.sh/helm/v4/pkg/chart/v2"
-	helmkube "helm.sh/helm/v4/pkg/kube"
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -37,14 +35,6 @@ import (
 // from the v2.HelmRelease have been applied. This is for example useful to
 // enable the dry-run setting as a CLI.
 type InstallOption func(action *helmaction.Install)
-
-// WithInstallStatusReader sets the status reader used to evaluate
-// health checks during install wait.
-func WithInstallStatusReader(reader engine.StatusReader) InstallOption {
-	return func(action *helmaction.Install) {
-		action.WaitOptions = append(action.WaitOptions, helmkube.WithKStatusReaders(reader))
-	}
-}
 
 // Install runs the Helm install action with the provided config, using the
 // v2.HelmReleaseSpec of the given object to determine the target release

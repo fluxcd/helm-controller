@@ -523,9 +523,6 @@ func TestUninstall_Reconcile(t *testing.T) {
 			cfgOpts := []action.ConfigFactoryOption{
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
 			}
-			if tt.statusReader {
-				cfgOpts = append(cfgOpts, action.WithStatusReader(&testutil.MockStatusReader{}))
-			}
 			cfg, err := action.NewConfigFactory(getter, cfgOpts...)
 			g.Expect(err).ToNot(HaveOccurred())
 

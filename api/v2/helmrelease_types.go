@@ -194,7 +194,7 @@ type HelmReleaseSpec struct {
 	// health of custom resources using Common Expression Language (CEL).
 	// The expressions are evaluated only when the specific Helm action
 	// taking place has wait enabled, i.e. DisableWait is false, and the
-	// 'watcher' WaitStrategy is used.
+	// 'poller' WaitStrategy is used.
 	// +optional
 	HealthCheckExprs []kustomize.CustomHealthCheck `json:"healthCheckExprs,omitempty"`
 }
@@ -441,8 +441,8 @@ type HelmChartTemplateVerification struct {
 type WaitStrategyName string
 
 const (
-	// WaitStrategyWatcher is the strategy for watching resource statuses via kstatus.
-	WaitStrategyWatcher WaitStrategyName = "watcher"
+	// WaitStrategyPoller is the strategy for polling resource statuses via kstatus.
+	WaitStrategyPoller WaitStrategyName = "poller"
 
 	// WaitStrategyLegacy is the legacy strategy for waiting for resources to be ready
 	// used in Helm v3.
@@ -453,12 +453,12 @@ const (
 // resources to become ready.
 type WaitStrategy struct {
 	// Name is Helm's wait strategy for waiting for applied resources to
-	// become ready. One of 'watcher' or 'legacy'. The 'watcher' strategy uses
-	// kstatus to watch resource statuses, while the 'legacy' strategy uses
+	// become ready. One of 'poller' or 'legacy'. The 'poller' strategy uses
+	// kstatus to poll resource statuses, while the 'legacy' strategy uses
 	// Helm v3's waiting logic.
-	// Defaults to 'watcher', or to 'legacy' when UseHelm3Defaults feature
+	// Defaults to 'poller', or to 'legacy' when UseHelm3Defaults feature
 	// gate is enabled.
-	// +kubebuilder:validation:Enum=watcher;legacy
+	// +kubebuilder:validation:Enum=poller;legacy
 	// +required
 	Name WaitStrategyName `json:"name"`
 }

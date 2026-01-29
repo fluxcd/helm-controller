@@ -81,11 +81,7 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	conditions.Delete(req.Object, v2.RemediatedCondition)
 
 	// Run the Helm upgrade action.
-	var opts []action.UpgradeOption
-	if sr := r.configFactory.StatusReader; sr != nil {
-		opts = append(opts, action.WithUpgradeStatusReader(sr))
-	}
-	_, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values, opts...)
+	_, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values)
 
 	// Record the action duration in status.
 	req.Object.Status.LastAttemptedReleaseActionDuration = &metav1.Duration{Duration: time.Since(startTime)}

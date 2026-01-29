@@ -83,6 +83,17 @@ const (
 	// UseHelm3Defaults makes the controller use the Helm 3 default behaviors
 	// when defaults are used.
 	UseHelm3Defaults = "UseHelm3Defaults"
+
+	// CancelHealthCheckOnNewRevision controls whether ongoing health checks
+	// should be cancelled when a new reconciliation is triggered for the
+	// same HelmRelease, regardless of the reason. The name does not match
+	// this behavior exactly for historical reasons.
+	//
+	// When enabled, if a new reconciliation request is detected while waiting
+	// for resources to become ready, the current health check will be cancelled
+	// to allow immediate processing of the new reconciliation request. This can
+	// help avoid getting stuck on failing deployments when fixes are available.
+	CancelHealthCheckOnNewRevision = "CancelHealthCheckOnNewRevision"
 )
 
 var features = map[string]bool{
@@ -119,6 +130,9 @@ var features = map[string]bool{
 	// UseHelm3Defaults
 	// opt-in from v1.5.0
 	UseHelm3Defaults: false,
+	// CancelHealthCheckOnNewRevision
+	// opt-in from v1.5.0
+	CancelHealthCheckOnNewRevision: false,
 }
 
 func init() {

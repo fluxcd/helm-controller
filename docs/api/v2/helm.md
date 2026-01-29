@@ -435,7 +435,7 @@ resources to become ready.</p>
 health of custom resources using Common Expression Language (CEL).
 The expressions are evaluated only when the specific Helm action
 taking place has wait enabled, i.e. DisableWait is false, and the
-&lsquo;watcher&rsquo; WaitStrategy is used.</p>
+&lsquo;poller&rsquo; WaitStrategy is used.</p>
 </td>
 </tr>
 </table>
@@ -1603,7 +1603,7 @@ resources to become ready.</p>
 health of custom resources using Common Expression Language (CEL).
 The expressions are evaluated only when the specific Helm action
 taking place has wait enabled, i.e. DisableWait is false, and the
-&lsquo;watcher&rsquo; WaitStrategy is used.</p>
+&lsquo;poller&rsquo; WaitStrategy is used.</p>
 </td>
 </tr>
 </tbody>
@@ -3471,10 +3471,10 @@ WaitStrategyName
 </td>
 <td>
 <p>Name is Helm&rsquo;s wait strategy for waiting for applied resources to
-become ready. One of &lsquo;watcher&rsquo; or &lsquo;legacy&rsquo;. The &lsquo;watcher&rsquo; strategy uses
-kstatus to watch resource statuses, while the &lsquo;legacy&rsquo; strategy uses
+become ready. One of &lsquo;poller&rsquo; or &lsquo;legacy&rsquo;. The &lsquo;poller&rsquo; strategy uses
+kstatus to poll resource statuses, while the &lsquo;legacy&rsquo; strategy uses
 Helm v3&rsquo;s waiting logic.
-Defaults to &lsquo;watcher&rsquo;, or to &lsquo;legacy&rsquo; when UseHelm3Defaults feature
+Defaults to &lsquo;poller&rsquo;, or to &lsquo;legacy&rsquo; when UseHelm3Defaults feature
 gate is enabled.</p>
 </td>
 </tr>

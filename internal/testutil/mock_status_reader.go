@@ -20,13 +20,22 @@ import (
 	"context"
 	"sync/atomic"
 
+	"github.com/fluxcd/cli-utils/pkg/kstatus/polling"
 	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/event"
 	"github.com/fluxcd/cli-utils/pkg/kstatus/status"
 	"github.com/fluxcd/cli-utils/pkg/object"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/fluxcd/pkg/ssa"
 )
+
+// newStatusReaderFunc matches the action.NewStatusReaderFunc type alias
+// without importing the action package (to avoid import cycles).
+type newStatusReaderFunc = func(apimeta.RESTMapper) engine.StatusReader
 
 // MockStatusReader is a mock implementation of engine.StatusReader that
 // returns a healthy status for all resources and tracks method calls.
@@ -71,4 +80,33 @@ func (m *MockStatusReader) SupportsCalled() int {
 // ReadStatusForObjectCalled returns the number of times ReadStatusForObject was called.
 func (m *MockStatusReader) ReadStatusForObjectCalled() int {
 	return int(m.readStatusForObjectCalled.Load())
+}
+
+// NewResourceManagerFunc returns a function compatible with
+// action.WithResourceManager that uses this MockStatusReader as a custom
+// status reader in the returned ResourceManager.
+func (m *MockStatusReader) NewResourceManagerFunc() func(sr ...newStatusReaderFunc) *ssa.ResourceManager {
+	return m.NewResourceManagerFuncWithClient(nil, nil)
+}
+
+// NewResourceManagerFuncWithClient returns a function compatible with
+// action.WithResourceManager that uses this MockStatusReader with a real
+// client and REST mapper for the poller engine.
+func (m *MockStatusReader) NewResourceManagerFuncWithClient(c client.Client, mapper apimeta.RESTMapper) func(sr ...newStatusReaderFunc) *ssa.ResourceManager {
+	return func(sr ...newStatusReaderFunc) *ssa.ResourceManager {
+		readers := []engine.StatusReader{m}
+		for _, f := range sr {
+			readers = append(readers, f(mapper))
+		}
+		poller := polling.NewStatusPoller(c, mapper, polling.Options{
+			CustomStatusReaders: readers,
+		})
+		return ssa.NewResourceManager(c, poller, ssa.Owner{})
+	}
+}
+
+// NewMockResourceManagerFunc returns a function compatible with
+// action.WithResourceManager using a new MockStatusReader.
+func NewMockResourceManagerFunc() func(sr ...newStatusReaderFunc) *ssa.ResourceManager {
+	return (&MockStatusReader{}).NewResourceManagerFunc()
 }

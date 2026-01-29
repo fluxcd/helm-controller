@@ -952,14 +952,14 @@ for resources to become ready after Helm actions.
 The field offers the following subfields:
 
 - `.name` (Required): The strategy for waiting for resources to be ready.
-  One of `watcher` or `legacy`. The `watcher` strategy uses kstatus to watch resource
+  One of `poller` or `legacy`. The `poller` strategy uses kstatus to poll resource
   statuses, while the `legacy` strategy uses Helm v3's waiting logic. Defaults to
-  `watcher`, or to `legacy` when the `UseHelm3Defaults` feature gate is enabled.
+  `poller`, or to `legacy` when the `UseHelm3Defaults` feature gate is enabled.
 
 ```yaml
 spec:
   waitStrategy:
-    name: watcher
+    name: poller
 ```
 
 ### Health check expressions
@@ -968,8 +968,8 @@ spec:
 checks on custom resources using [Common Expression Language (CEL)](https://cel.dev/).
 
 The expressions are evaluated only when the Helm action taking place has wait
-enabled (i.e. `.spec.<action>.disableWait` is `false`) and the `watcher`
-wait strategy is used (i.e. `.spec.waitStrategy.name` is `watcher`).
+enabled (i.e. `.spec.<action>.disableWait` is `false`) and the `poller`
+wait strategy is used (i.e. `.spec.waitStrategy.name` is `poller`).
 
 The `.spec.healthCheckExprs` field accepts a list of objects with the following fields:
 
