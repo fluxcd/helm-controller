@@ -14,7 +14,7 @@ replace (
 	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.20.1
 )
 
-replace helm.sh/helm/v4 => github.com/matheuscscp/helm/v4 v4.0.0-20260127110952-d7010ed3cf54
+replace helm.sh/helm/v4 => github.com/matheuscscp/helm/v4 v4.0.0-20260129053308-13fa63fb12bd
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
