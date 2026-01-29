@@ -482,6 +482,7 @@ type Remediation interface {
 	GetFailureCount(hr *HelmRelease) int64
 	IncrementFailureCount(hr *HelmRelease)
 	RetriesExhausted(hr *HelmRelease) bool
+	IsUninstallAfterUpgrade() bool
 }
 
 // Strategy defines a consistent interface for InstallStrategy and
@@ -714,6 +715,11 @@ func (in InstallRemediation) IncrementFailureCount(hr *HelmRelease) {
 // RetriesExhausted returns true if there are no remaining retries.
 func (in InstallRemediation) RetriesExhausted(hr *HelmRelease) bool {
 	return in.Retries >= 0 && in.GetFailureCount(hr) > int64(in.Retries)
+}
+
+// IsUninstallAfterUpgrade returns false.
+func (in InstallRemediation) IsUninstallAfterUpgrade() bool {
+	return false
 }
 
 // CRDsPolicy defines the install/upgrade approach to use for CRDs when
@@ -968,6 +974,11 @@ func (in UpgradeRemediation) IncrementFailureCount(hr *HelmRelease) {
 // RetriesExhausted returns true if there are no remaining retries.
 func (in UpgradeRemediation) RetriesExhausted(hr *HelmRelease) bool {
 	return in.Retries >= 0 && in.GetFailureCount(hr) > int64(in.Retries)
+}
+
+// IsUninstallAfterUpgrade returns true if the remediation strategy is uninstall.
+func (in UpgradeRemediation) IsUninstallAfterUpgrade() bool {
+	return in.GetStrategy() == UninstallRemediationStrategy
 }
 
 // ActionStrategyName is a valid name for an action strategy.

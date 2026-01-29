@@ -853,7 +853,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
-			wantErr: ErrExceededMaxRetries,
+			wantErr: ErrMustRequeue,
 		},
 		{
 			name: "upgrade failure with retry",
