@@ -1232,6 +1232,11 @@ spec:
                       description: Deleted is when the release was deleted.
                       format: date-time
                       type: string
+                    description:
+                      description: |-
+                        Description is the human-readable description of the current state
+                        of the release.
+                      type: string
                     digest:
                       description: |-
                         Digest is the checksum of the release object in storage.
@@ -1291,6 +1296,7 @@ spec:
                   - chartName
                   - chartVersion
                   - configDigest
+                  - description
                   - digest
                   - firstDeployed
                   - lastDeployed
@@ -2579,6 +2585,11 @@ spec:
                       description: Deleted is when the release was deleted.
                       format: date-time
                       type: string
+                    description:
+                      description: |-
+                        Description is the human-readable description of the current state
+                        of the release.
+                      type: string
                     digest:
                       description: |-
                         Digest is the checksum of the release object in storage.
@@ -2638,6 +2649,7 @@ spec:
                   - chartName
                   - chartVersion
                   - configDigest
+                  - description
                   - digest
                   - firstDeployed
                   - lastDeployed

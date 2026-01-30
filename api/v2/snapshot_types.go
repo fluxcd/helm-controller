@@ -155,6 +155,10 @@ type Snapshot struct {
 	// Status is the current state of the release.
 	// +required
 	Status string `json:"status"`
+	// Description is the human-readable description of the current state
+	// of the release.
+	// +required
+	Description string `json:"description"`
 	// ChartName is the chart name of the release object in storage.
 	// +required
 	ChartName string `json:"chartName"`

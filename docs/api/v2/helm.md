@@ -2738,6 +2738,18 @@ string
 </tr>
 <tr>
 <td>
+<code>description</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Description is the human-readable description of the current state
+of the release.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>chartName</code><br>
 <em>
 string

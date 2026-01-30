@@ -172,6 +172,7 @@ func ObservedToSnapshot(rls Observation) *v2.Snapshot {
 		LastDeployed:  metav1.NewTime(rls.Info.LastDeployed),
 		Deleted:       metav1.NewTime(rls.Info.Deleted),
 		Status:        rls.Info.Status.String(),
+		Description:   rls.Info.Description,
 		OCIDigest:     rls.OCIDigest,
 	}
 }
