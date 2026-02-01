@@ -1195,6 +1195,12 @@ const (
 	ReleaseActionInstall ReleaseAction = "install"
 	// ReleaseActionUpgrade represents a Helm upgrade action.
 	ReleaseActionUpgrade ReleaseAction = "upgrade"
+	// ReleaseActionRollback represents a Helm rollback action.
+	ReleaseActionRollback ReleaseAction = "rollback"
+	// ReleaseActionUninstall represents a Helm uninstall action.
+	ReleaseActionUninstall ReleaseAction = "uninstall"
+	// ReleaseActionUninstallRemediation represents a Helm uninstall action for remediation.
+	ReleaseActionUninstallRemediation ReleaseAction = "uninstall-remediation"
 )
 
 // HelmReleaseStatus defines the observed state of a HelmRelease.

@@ -204,7 +204,7 @@ func observeTest(obj *v2.HelmRelease) storage.ObserveFunc {
 
 		// Update the latest snapshot with the test result.
 		latest := obj.Status.History.Latest()
-		tested := release.ObservedToSnapshot(releaseToObservation(rls, latest))
+		tested := release.ObservedToSnapshot(releaseToObservation(rls, latest, latest.GetAction()))
 		tested.SetTestHooks(release.TestHooksFromRelease(rls))
 		obj.Status.History[0] = tested
 	}

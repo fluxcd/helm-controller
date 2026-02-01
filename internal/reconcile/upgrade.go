@@ -87,7 +87,9 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	req.Object.Status.LastAttemptedReleaseActionDuration = &metav1.Duration{Duration: time.Since(startTime)}
 
 	// Record the history of releases observed during the upgrade.
-	obsReleases.recordOnObject(req.Object, mutateOCIDigest)
+	obsReleases.recordOnObject(req.Object,
+		mutateOCIDigest,
+		mutateAction(v2.ReleaseActionUpgrade))
 
 	if err != nil {
 		r.failure(req, logBuf, err)

@@ -113,9 +113,19 @@ func mutateOCIDigest(obj *v2.HelmRelease, obs release.Observation) release.Obser
 	return obs
 }
 
-func releaseToObservation(rls *helmreleasev1.Release, snapshot *v2.Snapshot) release.Observation {
+func mutateAction(action v2.ReleaseAction) func(obj *v2.HelmRelease, obs release.Observation) release.Observation {
+	return func(obj *v2.HelmRelease, obs release.Observation) release.Observation {
+		obs.Action = action
+		return obs
+	}
+}
+
+func releaseToObservation(rls *helmreleasev1.Release,
+	snapshot *v2.Snapshot, action v2.ReleaseAction) release.Observation {
+
 	obs := release.ObserveRelease(rls)
 	obs.OCIDigest = snapshot.OCIDigest
+	obs.Action = action
 	return obs
 }
 
