@@ -100,7 +100,11 @@ func TestInstall_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					func() *v2.Snapshot {
+						obs := release.ObserveRelease(releases[0])
+						obs.Action = v2.ReleaseActionInstall
+						return release.ObservedToSnapshot(obs)
+					}(),
 				}
 			},
 			expectInventory: func(namespace string) *v2.ResourceInventory {
@@ -125,7 +129,11 @@ func TestInstall_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					func() *v2.Snapshot {
+						obs := release.ObserveRelease(releases[0])
+						obs.Action = v2.ReleaseActionInstall
+						return release.ObservedToSnapshot(obs)
+					}(),
 				}
 			},
 			expectFailures:        1,
@@ -184,7 +192,11 @@ func TestInstall_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					func() *v2.Snapshot {
+						obs := release.ObserveRelease(releases[1])
+						obs.Action = v2.ReleaseActionInstall
+						return release.ObservedToSnapshot(obs)
+					}(),
 				}
 			},
 		},
@@ -212,7 +224,11 @@ func TestInstall_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					func() *v2.Snapshot {
+						obs := release.ObserveRelease(releases[0])
+						obs.Action = v2.ReleaseActionInstall
+						return release.ObservedToSnapshot(obs)
+					}(),
 				}
 			},
 		},
@@ -235,7 +251,11 @@ func TestInstall_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					func() *v2.Snapshot {
+						obs := release.ObserveRelease(releases[0])
+						obs.Action = v2.ReleaseActionInstall
+						return release.ObservedToSnapshot(obs)
+					}(),
 				}
 			},
 		},
@@ -251,7 +271,11 @@ func TestInstall_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					func() *v2.Snapshot {
+						obs := release.ObserveRelease(releases[0])
+						obs.Action = v2.ReleaseActionInstall
+						return release.ObservedToSnapshot(obs)
+					}(),
 				}
 			},
 			expectInventory: func(namespace string) *v2.ResourceInventory {
@@ -374,8 +398,10 @@ func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
 	}
 
 	expectHistory := func(releases []*helmrelease.Release) v2.Snapshots {
+		obs := release.ObserveRelease(releases[0])
+		obs.Action = v2.ReleaseActionInstall
 		return v2.Snapshots{
-			release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+			release.ObservedToSnapshot(obs),
 		}
 	}
 

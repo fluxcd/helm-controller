@@ -297,6 +297,57 @@ func TestSnapshots_Truncate(t *testing.T) {
 	}
 }
 
+func TestSnapshot_GetAction(t *testing.T) {
+	tests := []struct {
+		name     string
+		snapshot *Snapshot
+		want     ReleaseAction
+	}{
+		{
+			name:     "nil snapshot",
+			snapshot: nil,
+			want:     "",
+		},
+		{
+			name:     "empty action",
+			snapshot: &Snapshot{},
+			want:     "",
+		},
+		{
+			name:     "install action",
+			snapshot: &Snapshot{Action: ReleaseActionInstall},
+			want:     ReleaseActionInstall,
+		},
+		{
+			name:     "upgrade action",
+			snapshot: &Snapshot{Action: ReleaseActionUpgrade},
+			want:     ReleaseActionUpgrade,
+		},
+		{
+			name:     "rollback action",
+			snapshot: &Snapshot{Action: ReleaseActionRollback},
+			want:     ReleaseActionRollback,
+		},
+		{
+			name:     "uninstall action",
+			snapshot: &Snapshot{Action: ReleaseActionUninstall},
+			want:     ReleaseActionUninstall,
+		},
+		{
+			name:     "uninstall-remediation action",
+			snapshot: &Snapshot{Action: ReleaseActionUninstallRemediation},
+			want:     ReleaseActionUninstallRemediation,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.snapshot.GetAction(); got != tt.want {
+				t.Errorf("GetAction() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestSnapshots_TruncateIgnoringPreviousSnapshots(t *testing.T) {
 	tests := []struct {
 		name string

@@ -82,7 +82,7 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	var (
 		cur    = req.Object.Status.History.Latest().DeepCopy()
 		logBuf = action.NewDebugLogBuffer(ctx)
-		cfg    = r.configFactory.Build(logBuf, observeUninstall(req.Object))
+		cfg    = r.configFactory.Build(logBuf, observeUninstall(req.Object, v2.ReleaseActionUninstall))
 	)
 
 	defer summarize(req)
@@ -220,7 +220,7 @@ func (r *Uninstall) success(req *Request) {
 // information.
 // If a matching snapshot for the uninstalled release is found, it updates the
 // snapshot with the observed release data.
-func observeUninstall(obj *v2.HelmRelease) storage.ObserveFunc {
+func observeUninstall(obj *v2.HelmRelease, action v2.ReleaseAction) storage.ObserveFunc {
 	// NB: One could argue that we should only update the latest release in
 	// the history.
 	// But like during rollback, Helm may supersede any previous releases.
@@ -234,7 +234,7 @@ func observeUninstall(obj *v2.HelmRelease) storage.ObserveFunc {
 		for i := range obj.Status.History {
 			snap := obj.Status.History[i]
 			if snap.Targets(rls.Name, rls.Namespace, rls.Version) {
-				newSnap := release.ObservedToSnapshot(releaseToObservation(rls, snap))
+				newSnap := release.ObservedToSnapshot(releaseToObservation(rls, snap, action))
 				newSnap.SetTestHooks(snap.GetTestHooks())
 				obj.Status.History[i] = newSnap
 				return

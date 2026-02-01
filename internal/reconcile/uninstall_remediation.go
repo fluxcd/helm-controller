@@ -81,7 +81,7 @@ func (r *UninstallRemediation) Reconcile(ctx context.Context, req *Request) erro
 	var (
 		cur    = req.Object.Status.History.Latest().DeepCopy()
 		logBuf = action.NewDebugLogBuffer(ctx)
-		cfg    = r.configFactory.Build(logBuf, observeUninstall(req.Object))
+		cfg    = r.configFactory.Build(logBuf, observeUninstall(req.Object, v2.ReleaseActionUninstallRemediation))
 	)
 
 	// Require current to run uninstall.

@@ -2408,7 +2408,8 @@ Kustomize
 (<code>string</code> alias)</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseStatus">HelmReleaseStatus</a>)
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseStatus">HelmReleaseStatus</a>, 
+<a href="#helm.toolkit.fluxcd.io/v2.Snapshot">Snapshot</a>)
 </p>
 <p>ReleaseAction is the action to perform a Helm release.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.Remediation">Remediation
@@ -2676,8 +2677,8 @@ string
 <td>
 <em>(Optional)</em>
 <p>APIVersion is the API version of the Snapshot.
-Provisional: when the calculation method of the Digest field is changed,
-this field will be used to distinguish between the old and new methods.</p>
+When the calculation method of the Digest field is changed, this
+field will be used to distinguish between the old and new methods.</p>
 </td>
 </tr>
 <tr>
@@ -2734,6 +2735,20 @@ string
 </td>
 <td>
 <p>Status is the current state of the release.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>action</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.ReleaseAction">
+ReleaseAction
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Action is the action that resulted in this snapshot being created.</p>
 </td>
 </tr>
 <tr>

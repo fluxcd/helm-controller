@@ -314,11 +314,32 @@ func TestObservedToSnapshot(t *testing.T) {
 	g.Expect(obs.Info.LastDeployed.Equal(got.LastDeployed.Time)).To(BeTrue())
 	g.Expect(obs.Info.Deleted.Equal(got.Deleted.Time)).To(BeTrue())
 
+	g.Expect(got.Action).To(BeEmpty())
+
 	g.Expect(got.Digest).ToNot(BeEmpty())
 	g.Expect(digest.Digest(got.Digest).Validate()).To(Succeed())
 
 	g.Expect(got.ConfigDigest).ToNot(BeEmpty())
 	g.Expect(digest.Digest(got.ConfigDigest).Validate()).To(Succeed())
+}
+
+func TestObservedToSnapshot_WithAction(t *testing.T) {
+	g := NewWithT(t)
+
+	obs := ObserveRelease(testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+		Name:      "foo",
+		Namespace: "namespace",
+		Version:   1,
+		Chart:     testutil.BuildChart(),
+	}))
+	obs.Action = v2.ReleaseActionInstall
+
+	got := ObservedToSnapshot(obs)
+
+	g.Expect(got.Action).To(Equal(v2.ReleaseActionInstall))
+	g.Expect(got.Name).To(Equal(obs.Name))
+	g.Expect(got.Namespace).To(Equal(obs.Namespace))
+	g.Expect(got.Version).To(Equal(obs.Version))
 }
 
 func TestTestHooksFromRelease(t *testing.T) {

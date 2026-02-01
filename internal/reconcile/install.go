@@ -96,7 +96,9 @@ func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 	req.Object.Status.LastAttemptedReleaseActionDuration = &metav1.Duration{Duration: time.Since(startTime)}
 
 	// Record the history of releases observed during the install.
-	obsReleases.recordOnObject(req.Object, mutateOCIDigest)
+	obsReleases.recordOnObject(req.Object,
+		mutateOCIDigest,
+		mutateAction(v2.ReleaseActionInstall))
 
 	if err != nil {
 		r.failure(req, logBuf, err)
