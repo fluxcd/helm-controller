@@ -410,6 +410,31 @@ func Test_observeTest(t *testing.T) {
 		}))
 	})
 
+	t.Run("test with current preserves action", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
+				History: v2.Snapshots{
+					&v2.Snapshot{
+						Name:      mockReleaseName,
+						Namespace: mockReleaseNamespace,
+						Version:   1,
+						Action:    v2.ReleaseActionInstall,
+					},
+				},
+			},
+		}
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Version:   1,
+		}, testutil.ReleaseWithHooks(testHookFixtures))
+
+		observeTest(obj)(rls)
+		g.Expect(obj.Status.History.Latest().Action).To(Equal(v2.ReleaseActionInstall))
+	})
+
 	t.Run("test targeting different version than latest", func(t *testing.T) {
 		g := NewWithT(t)
 

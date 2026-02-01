@@ -160,7 +160,7 @@ func observeUnlock(obj *v2.HelmRelease) storage.ObserveFunc {
 		for i := range obj.Status.History {
 			snap := obj.Status.History[i]
 			if snap.Targets(rls.Name, rls.Namespace, rls.Version) {
-				obj.Status.History[i] = release.ObservedToSnapshot(releaseToObservation(rls, snap))
+				obj.Status.History[i] = release.ObservedToSnapshot(releaseToObservation(rls, snap, snap.GetAction()))
 				return
 			}
 		}

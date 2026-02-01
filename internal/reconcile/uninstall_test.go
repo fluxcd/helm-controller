@@ -121,7 +121,7 @@ func TestUninstall_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(namespace string, releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionUninstall),
 				}
 			},
 			expectInventory: func() *v2.ResourceInventory {
@@ -161,7 +161,7 @@ func TestUninstall_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(namespace string, releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionUninstall),
 				}
 			},
 			expectFailures: 1,
@@ -256,7 +256,7 @@ func TestUninstall_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(namespace string, releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionUninstall),
 				}
 			},
 			expectFailures: 1,
@@ -402,7 +402,7 @@ func TestUninstall_Reconcile(t *testing.T) {
 					Status:    helmreleasecommon.StatusUninstalled,
 				})
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(rls)),
+					observeReleaseWithAction(rls, v2.ReleaseActionUninstall),
 				}
 			},
 		},
@@ -477,7 +477,7 @@ func TestUninstall_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(namespace string, releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionUninstall),
 				}
 			},
 			expectInventory: func() *v2.ResourceInventory {
@@ -718,9 +718,11 @@ func Test_observeUninstall(t *testing.T) {
 			Version:   current.Version,
 			Status:    helmreleasecommon.StatusUninstalled,
 		})
-		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
+		obs := release.ObserveRelease(rls)
+		obs.Action = v2.ReleaseActionUninstall
+		expect := release.ObservedToSnapshot(obs)
 
-		observeUninstall(obj)(rls)
+		observeUninstall(obj, v2.ReleaseActionUninstall)(rls)
 		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
 			expect,
 		}))
@@ -741,7 +743,7 @@ func Test_observeUninstall(t *testing.T) {
 			Status:    helmreleasecommon.StatusUninstalling,
 		})
 
-		observeUninstall(obj)(rls)
+		observeUninstall(obj, v2.ReleaseActionUninstall)(rls)
 		g.Expect(obj.Status.History).To(BeNil())
 	})
 
@@ -768,7 +770,7 @@ func Test_observeUninstall(t *testing.T) {
 			Status:    helmreleasecommon.StatusUninstalled,
 		})
 
-		observeUninstall(obj)(rls)
+		observeUninstall(obj, v2.ReleaseActionUninstall)(rls)
 		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
 			current,
 		}))
@@ -798,9 +800,42 @@ func Test_observeUninstall(t *testing.T) {
 		})
 		obs := release.ObserveRelease(rls)
 		obs.OCIDigest = "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6"
+		obs.Action = v2.ReleaseActionUninstall
 		expect := release.ObservedToSnapshot(obs)
 
-		observeUninstall(obj)(rls)
+		observeUninstall(obj, v2.ReleaseActionUninstall)(rls)
+		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
+			expect,
+		}))
+	})
+
+	t.Run("uninstall-remediation of current", func(t *testing.T) {
+		g := NewWithT(t)
+
+		current := &v2.Snapshot{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Version:   1,
+			Status:    helmreleasecommon.StatusDeployed.String(),
+		}
+		obj := &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
+				History: v2.Snapshots{
+					current,
+				},
+			},
+		}
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      current.Name,
+			Namespace: current.Namespace,
+			Version:   current.Version,
+			Status:    helmreleasecommon.StatusUninstalled,
+		})
+		obs := release.ObserveRelease(rls)
+		obs.Action = v2.ReleaseActionUninstallRemediation
+		expect := release.ObservedToSnapshot(obs)
+
+		observeUninstall(obj, v2.ReleaseActionUninstallRemediation)(rls)
 		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
 			expect,
 		}))

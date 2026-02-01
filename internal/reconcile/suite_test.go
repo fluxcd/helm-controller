@@ -44,6 +44,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
+	"github.com/fluxcd/helm-controller/internal/release"
 )
 
 const testFieldManager = "helm-controller"
@@ -162,4 +163,12 @@ func storeHistory(store *helmstorage.Storage, releaseName string) ([]*helmreleas
 		history = append(history, r.(*helmrelease.Release))
 	}
 	return history, nil
+}
+
+// observeReleaseWithAction creates a Snapshot from a release with the given
+// action set. This is a test helper to simplify constructing expected snapshots.
+func observeReleaseWithAction(rls *helmrelease.Release, action v2.ReleaseAction) *v2.Snapshot {
+	obs := release.ObserveRelease(rls)
+	obs.Action = action
+	return release.ObservedToSnapshot(obs)
 }

@@ -67,6 +67,10 @@ type Observation struct {
 	Version int `json:"version"`
 	// Info provides information about the release.
 	Info helmrelease.Info `json:"info"`
+	// Action is the action that resulted in this observation.
+	// It's not serialized to JSON because it's not needed for
+	// the digest. The action is only tracked for visibility.
+	Action v2.ReleaseAction `json:"-"`
 	// ChartMetadata contains the current Chartfile data of the release.
 	ChartMetadata chart.Metadata `json:"chartMetadata"`
 	// Config is the set of extra Values added to the chart.
@@ -172,6 +176,7 @@ func ObservedToSnapshot(rls Observation) *v2.Snapshot {
 		LastDeployed:  metav1.NewTime(rls.Info.LastDeployed),
 		Deleted:       metav1.NewTime(rls.Info.Deleted),
 		Status:        rls.Info.Status.String(),
+		Action:        rls.Action,
 		OCIDigest:     rls.OCIDigest,
 	}
 }

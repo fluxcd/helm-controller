@@ -613,6 +613,33 @@ func Test_observeUnlock(t *testing.T) {
 		}))
 	})
 
+	t.Run("unlock preserves action", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			Status: v2.HelmReleaseStatus{
+				History: v2.Snapshots{
+					{
+						Name:      mockReleaseName,
+						Namespace: mockReleaseNamespace,
+						Version:   1,
+						Status:    helmreleasecommon.StatusPendingRollback.String(),
+						Action:    v2.ReleaseActionUpgrade,
+					},
+				},
+			},
+		}
+		rls := helmrelease.Mock(&helmrelease.MockReleaseOptions{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Version:   1,
+			Status:    helmreleasecommon.StatusFailed,
+		})
+		observeUnlock(obj)(rls)
+
+		g.Expect(obj.Status.History.Latest().Action).To(Equal(v2.ReleaseActionUpgrade))
+	})
+
 	t.Run("unlock without current", func(t *testing.T) {
 		g := NewWithT(t)
 
