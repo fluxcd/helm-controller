@@ -121,7 +121,11 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					func() *v2.Snapshot {
+						obs := release.ObserveRelease(releases[1])
+						obs.Action = v2.ReleaseActionUpgrade
+						return release.ObservedToSnapshot(obs)
+					}(),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
@@ -165,7 +169,11 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					func() *v2.Snapshot {
+						obs := release.ObserveRelease(releases[1])
+						obs.Action = v2.ReleaseActionUpgrade
+						return release.ObservedToSnapshot(obs)
+					}(),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
@@ -249,7 +257,11 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					func() *v2.Snapshot {
+						obs := release.ObserveRelease(releases[1])
+						obs.Action = v2.ReleaseActionUpgrade
+						return release.ObservedToSnapshot(obs)
+					}(),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
@@ -281,7 +293,11 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					func() *v2.Snapshot {
+						obs := release.ObserveRelease(releases[1])
+						obs.Action = v2.ReleaseActionUpgrade
+						return release.ObservedToSnapshot(obs)
+					}(),
 				}
 			},
 		},
@@ -326,7 +342,11 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
+					func() *v2.Snapshot {
+						obs := release.ObserveRelease(releases[2])
+						obs.Action = v2.ReleaseActionUpgrade
+						return release.ObservedToSnapshot(obs)
+					}(),
 					{
 						Name:      mockReleaseName,
 						Namespace: releases[0].Namespace,
@@ -366,7 +386,11 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					func() *v2.Snapshot {
+						obs := release.ObserveRelease(releases[1])
+						obs.Action = v2.ReleaseActionUpgrade
+						return release.ObservedToSnapshot(obs)
+					}(),
 				}
 			},
 		},
@@ -398,7 +422,11 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					func() *v2.Snapshot {
+						obs := release.ObserveRelease(releases[1])
+						obs.Action = v2.ReleaseActionUpgrade
+						return release.ObservedToSnapshot(obs)
+					}(),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
@@ -540,8 +568,10 @@ func TestUpgrade_Reconcile_withSubchartWithCRDs(t *testing.T) {
 	}
 
 	expectHistory := func(releases []*helmrelease.Release) v2.Snapshots {
+		obs := release.ObserveRelease(releases[1])
+		obs.Action = v2.ReleaseActionUpgrade
 		return v2.Snapshots{
-			release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+			release.ObservedToSnapshot(obs),
 			release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 		}
 	}

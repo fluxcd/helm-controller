@@ -1954,6 +1954,7 @@ status:
       namespace: podinfo
       ociDigest: sha256:0cc9a8446c95009ef382f5eade883a67c257f77d50f84e78ecef2aac9428d1e5
       status: deployed
+      action: upgrade
       testHooks:
         podinfo-grpc-test-goyey:
           lastCompleted: "2024-05-07T04:55:11Z"
@@ -1971,6 +1972,7 @@ status:
       namespace: podinfo
       ociDigest: sha256:cdd538a0167e4b51152b71a477e51eb6737553510ce8797dbcc537e1342311bb
       status: superseded
+      action: install
       testHooks:
         podinfo-grpc-test-q0ucx:
           lastCompleted: "2024-05-07T04:54:25Z"

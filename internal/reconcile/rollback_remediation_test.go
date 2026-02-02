@@ -119,7 +119,7 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
+					observeReleaseWithAction(releases[2], v2.ReleaseActionRollback),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
@@ -335,7 +335,7 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
+					observeReleaseWithAction(releases[2], v2.ReleaseActionRollback),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
@@ -618,7 +618,9 @@ func Test_observeRollback(t *testing.T) {
 			Version:   previous.Version,
 			Status:    helmreleasecommon.StatusSuperseded,
 		})
-		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
+		obs := release.ObserveRelease(rls)
+		obs.Action = v2.ReleaseActionRollback
+		expect := release.ObservedToSnapshot(obs)
 
 		observeRollback(obj)(rls)
 		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
@@ -662,7 +664,9 @@ func Test_observeRollback(t *testing.T) {
 			Version:   previous.Version,
 			Status:    helmreleasecommon.StatusSuperseded,
 		})
-		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
+		obs := release.ObserveRelease(rls)
+		obs.Action = v2.ReleaseActionRollback
+		expect := release.ObservedToSnapshot(obs)
 		expect.SetTestHooks(previous.GetTestHooks())
 
 		observeRollback(obj)(rls)
@@ -706,6 +710,7 @@ func Test_observeRollback(t *testing.T) {
 		})
 		obs := release.ObserveRelease(rls)
 		obs.OCIDigest = "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6"
+		obs.Action = v2.ReleaseActionRollback
 		expect := release.ObservedToSnapshot(obs)
 
 		observeRollback(obj)(rls)

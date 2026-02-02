@@ -114,7 +114,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionUninstallRemediation),
 				}
 			},
 		},
@@ -149,7 +149,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionUninstallRemediation),
 				}
 			},
 			expectFailures: 1,
@@ -238,7 +238,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionUninstallRemediation),
 				}
 			},
 			expectFailures: 1,
@@ -335,7 +335,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionUninstallRemediation),
 				}
 			},
 		},

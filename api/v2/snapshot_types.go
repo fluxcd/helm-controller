@@ -135,8 +135,8 @@ func (in *Snapshots) TruncateIgnoringPreviousSnapshots() {
 // as managed by the controller.
 type Snapshot struct {
 	// APIVersion is the API version of the Snapshot.
-	// Provisional: when the calculation method of the Digest field is changed,
-	// this field will be used to distinguish between the old and new methods.
+	// When the calculation method of the Digest field is changed, this
+	// field will be used to distinguish between the old and new methods.
 	// +optional
 	APIVersion string `json:"apiVersion,omitempty"`
 	// Digest is the checksum of the release object in storage.
@@ -155,6 +155,9 @@ type Snapshot struct {
 	// Status is the current state of the release.
 	// +required
 	Status string `json:"status"`
+	// Action is the action that resulted in this snapshot being created.
+	// +optional
+	Action ReleaseAction `json:"action,omitempty"`
 	// ChartName is the chart name of the release object in storage.
 	// +required
 	ChartName string `json:"chartName"`
@@ -246,6 +249,14 @@ func (in *Snapshot) Targets(name, namespace string, version int) bool {
 		return in.Name == name && in.Namespace == namespace && in.Version == version
 	}
 	return false
+}
+
+// GetAction returns the ReleaseAction for the Snapshot.
+func (in *Snapshot) GetAction() ReleaseAction {
+	if in == nil {
+		return ""
+	}
+	return in.Action
 }
 
 // TestHookStatus holds the status information for a test hook as observed

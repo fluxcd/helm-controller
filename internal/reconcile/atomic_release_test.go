@@ -276,7 +276,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			values: nil,
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					observeReleaseWithAction(releases[1], v2.ReleaseActionUpgrade),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
@@ -305,7 +305,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			values: map[string]any{"foo": "baz"},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					observeReleaseWithAction(releases[1], v2.ReleaseActionUpgrade),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
@@ -331,7 +331,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[len(releases)-1])),
+					observeReleaseWithAction(releases[len(releases)-1], v2.ReleaseActionUpgrade),
 				}
 			},
 		},
@@ -365,7 +365,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[len(releases)-1])),
+					observeReleaseWithAction(releases[len(releases)-1], v2.ReleaseActionUpgrade),
 				}
 			},
 		},
@@ -407,7 +407,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[len(releases)-1])),
+					observeReleaseWithAction(releases[len(releases)-1], v2.ReleaseActionUpgrade),
 				}
 			},
 		},
@@ -416,7 +416,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionInstall),
 				}
 			},
 		},
@@ -436,7 +436,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					observeReleaseWithAction(releases[1], v2.ReleaseActionUpgrade),
 				}
 			},
 		},
@@ -480,7 +480,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[len(releases)-1])),
+					observeReleaseWithAction(releases[len(releases)-1], v2.ReleaseActionUpgrade),
 				}
 			},
 		},
@@ -524,7 +524,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[len(releases)-1])),
+					observeReleaseWithAction(releases[len(releases)-1], v2.ReleaseActionUpgrade),
 				}
 			},
 		},
@@ -548,7 +548,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionInstall),
 				}
 			},
 		},
@@ -600,7 +600,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[len(releases)-1])),
+					observeReleaseWithAction(releases[len(releases)-1], v2.ReleaseActionUpgrade),
 				}
 			},
 		},
@@ -609,7 +609,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(testutil.ChartWithFailingHook()),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionInstall),
 				}
 			},
 			wantErr: ErrExceededMaxRetries,
@@ -629,7 +629,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(testutil.ChartWithFailingHook()),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionUninstallRemediation),
 				}
 			},
 			wantErr: ErrExceededMaxRetries,
@@ -650,7 +650,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(testutil.ChartWithFailingHook()),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionInstall),
 				}
 			},
 			wantErr: ErrRetryAfterInterval,
@@ -672,7 +672,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			},
 			chart: testutil.BuildChart(testutil.ChartWithFailingTestHook()),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
-				snap := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+				snap := observeReleaseWithAction(releases[0], v2.ReleaseActionUninstallRemediation)
 				snap.SetTestHooks(release.TestHooksFromRelease(releases[0]))
 
 				return v2.Snapshots{
@@ -699,7 +699,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			},
 			chart: testutil.BuildChart(testutil.ChartWithFailingTestHook()),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
-				snap := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+				snap := observeReleaseWithAction(releases[0], v2.ReleaseActionInstall)
 				snap.SetTestHooks(release.TestHooksFromRelease(releases[0]))
 
 				return v2.Snapshots{
@@ -718,7 +718,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			},
 			chart: testutil.BuildChart(testutil.ChartWithFailingTestHook()),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
-				snap := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+				snap := observeReleaseWithAction(releases[0], v2.ReleaseActionInstall)
 				snap.SetTestHooks(release.TestHooksFromRelease(releases[0]))
 
 				return v2.Snapshots{
@@ -771,7 +771,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(testutil.ChartWithFailingHook()),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					observeReleaseWithAction(releases[1], v2.ReleaseActionUpgrade),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
@@ -807,9 +807,9 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(testutil.ChartWithFailingHook()),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
-					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					observeReleaseWithAction(releases[2], v2.ReleaseActionRollback),
+					observeReleaseWithAction(releases[1], v2.ReleaseActionUpgrade),
+					observeReleaseWithAction(releases[0], v2.ReleaseActionRollback),
 				}
 			},
 			wantErr: ErrExceededMaxRetries,
@@ -849,7 +849,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(testutil.ChartWithFailingHook()),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					observeReleaseWithAction(releases[1], v2.ReleaseActionUninstallRemediation),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
@@ -886,7 +886,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			chart: testutil.BuildChart(testutil.ChartWithFailingHook()),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					observeReleaseWithAction(releases[1], v2.ReleaseActionUpgrade),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
 			},
@@ -924,11 +924,11 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			},
 			chart: testutil.BuildChart(testutil.ChartWithFailingTestHook()),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
-				testedSnap := release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
+				testedSnap := observeReleaseWithAction(releases[1], v2.ReleaseActionRollback)
 				testedSnap.SetTestHooks(release.TestHooksFromRelease(releases[1]))
 
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
+					observeReleaseWithAction(releases[2], v2.ReleaseActionRollback),
 					testedSnap,
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
@@ -968,7 +968,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			},
 			chart: testutil.BuildChart(testutil.ChartWithFailingTestHook()),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
-				testedSnap := release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
+				testedSnap := observeReleaseWithAction(releases[1], v2.ReleaseActionUpgrade)
 				testedSnap.SetTestHooks(release.TestHooksFromRelease(releases[1]))
 
 				return v2.Snapshots{
@@ -1006,7 +1006,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			},
 			chart: testutil.BuildChart(testutil.ChartWithFailingTestHook()),
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
-				testedSnap := release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
+				testedSnap := observeReleaseWithAction(releases[1], v2.ReleaseActionUpgrade)
 				testedSnap.SetTestHooks(release.TestHooksFromRelease(releases[1]))
 
 				return v2.Snapshots{
