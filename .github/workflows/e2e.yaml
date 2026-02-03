@@ -80,6 +80,14 @@ jobs:
           kubectl -n helm-system wait helmreleases/podinfo-git --for=condition=ready --timeout=4m
           kubectl -n helm-system wait helmreleases/podinfo-oci --for=condition=ready --timeout=4m
           kubectl -n helm-system delete -f config/testdata/podinfo
+      - name: Run Job with TTL test
+        run: |
+          # This test verifies that the wait logic correctly handles Jobs with
+          # ttlSecondsAfterFinished that get garbage-collected after completion.
+          # Without the fix, the wait would fail with NotFound error.
+          kubectl -n helm-system apply -f config/testdata/job-ttl
+          kubectl -n helm-system wait helmreleases/job-ttl --for=condition=ready --timeout=4m
+          kubectl -n helm-system delete -f config/testdata/job-ttl
       - name: Run client-side apply upgrade test
         run: |
           set -euo pipefail
@@ -1147,7 +1155,7 @@ jobs:
             exit 1
           fi
           kubectl -n helm-system delete -f config/testdata/post-renderer-kustomize
-      - name: Bootstrap CRDs Upgrade Tests
+      - name: Bootstrap Tests Using Local Helm Chart
         if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') }}
         run: |
           REF=${{ github.ref }}

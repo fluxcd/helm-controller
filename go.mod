@@ -26,7 +26,7 @@ require (
 	github.com/fluxcd/pkg/cache v0.13.0
 	github.com/fluxcd/pkg/chartutil v1.21.0
 	github.com/fluxcd/pkg/runtime v0.97.0
-	github.com/fluxcd/pkg/ssa v0.65.0
+	github.com/fluxcd/pkg/ssa v0.66.0
 	github.com/fluxcd/pkg/testserver v0.13.0
 	github.com/fluxcd/source-controller/api v1.7.2
 	github.com/go-logr/logr v1.4.3
