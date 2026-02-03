@@ -25,14 +25,16 @@ import (
 	"github.com/fluxcd/cli-utils/pkg/kstatus/status"
 	"github.com/fluxcd/cli-utils/pkg/object"
 	helmkube "helm.sh/helm/v4/pkg/kube"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/fluxcd/pkg/runtime/controller"
 	runtimestatusreaders "github.com/fluxcd/pkg/runtime/statusreaders"
 	"github.com/fluxcd/pkg/ssa"
+	ssautils "github.com/fluxcd/pkg/ssa/utils"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
@@ -152,10 +154,12 @@ func (w *waiter) wait(ctx context.Context, resources helmkube.ResourceList,
 	timeout time.Duration, failFast bool, sr ...NewStatusReaderFunc) error {
 
 	// WaitForSetWithContext expects a list of ObjMetadata.
-	objs := []object.ObjMetadata{}
+	var objs object.ObjMetadataSet
+	var jobs []*unstructured.Unstructured
 	for _, res := range resources {
-		// Skip paused apps/v1/Deployment (copied from Helm).
 		gvk := res.Object.GetObjectKind().GroupVersionKind()
+
+		// Skip paused apps/v1/Deployment (copied from Helm).
 		if gvk == deploymentGVK {
 			uns, err := runtime.DefaultUnstructuredConverter.ToUnstructured(res.Object)
 			if err != nil {
@@ -167,6 +171,15 @@ func (w *waiter) wait(ctx context.Context, resources helmkube.ResourceList,
 			}
 		}
 
+		// Collect Jobs with TTL for special handling.
+		if gvk == jobGVK {
+			uns, err := runtime.DefaultUnstructuredConverter.ToUnstructured(res.Object)
+			if err != nil {
+				return err
+			}
+			jobs = append(jobs, &unstructured.Unstructured{Object: uns})
+		}
+
 		// Convert to ObjMetadata.
 		obj, err := object.RuntimeToObjMeta(res.Object)
 		if err != nil {
@@ -176,12 +189,16 @@ func (w *waiter) wait(ctx context.Context, resources helmkube.ResourceList,
 	}
 
 	return w.newResourceManager(sr...).WaitForSetWithContext(ctx, objs, ssa.WaitOptions{
-		Interval: 5 * time.Second, // Copied from kustomize-controller.
-		Timeout:  timeout,
+		JobsWithTTL: ssautils.ExtractJobsWithTTL(jobs),
+		Interval:    5 * time.Second, // Copied from kustomize-controller.
+		Timeout:     timeout,
 		// The kustomize-controller has an opt-in feature gate that disables
 		// fail fast here: DisableFailFastBehavior.
 		FailFast: failFast,
 	})
 }
 
-var deploymentGVK = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}
+var (
+	deploymentGVK = appsv1.SchemeGroupVersion.WithKind("Deployment")
+	jobGVK        = batchv1.SchemeGroupVersion.WithKind("Job")
+)

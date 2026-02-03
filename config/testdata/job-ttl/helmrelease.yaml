@@ -1,0 +1,25 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: job-ttl
+spec:
+  interval: 5m
+  timeout: 2m
+  chart:
+    spec:
+      chart: podinfo
+      version: '>=6.10.1 <7.0.0'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+      interval: 1m
+  values:
+    # Enable a post-install hook Job with ttlSecondsAfterFinished.
+    # The Job completes immediately and gets garbage-collected by the TTL controller.
+    # The fix ensures the wait doesn't fail when the Job is NotFound after being
+    # garbage-collected.
+    hooks:
+      postInstall:
+        job:
+          enabled: true
+          ttlSecondsAfterFinished: 0
