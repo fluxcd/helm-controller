@@ -41,7 +41,7 @@ require (
 	github.com/wI2L/jsondiff v0.7.0
 	go.uber.org/zap v1.27.1
 	golang.org/x/text v0.33.0
-	helm.sh/helm/v4 v4.1.0
+	helm.sh/helm/v4 v4.1.1-0.20260129180905-b2c487c4368d
 	k8s.io/api v0.35.0
 	k8s.io/apiextensions-apiserver v0.35.0
 	k8s.io/apimachinery v0.35.0
