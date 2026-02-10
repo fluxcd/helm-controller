@@ -1156,32 +1156,33 @@ jobs:
           fi
           kubectl -n helm-system delete -f config/testdata/post-renderer-kustomize
       - name: Bootstrap Tests Using Local Helm Chart
-        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') }}
+        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         run: |
-          REF=${{ github.ref }}
-          if echo "$REF" | grep 'refs/tags/'; then 
-            TYPE=tag
-            REF=${REF#refs/tags/}
-          else
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
             TYPE=branch
-            if echo "$REF" | grep 'refs/pull/'; then 
-              REF=${REF#refs/pull/}
+            REF="${{ github.head_ref }}"
+          else
+            REF=${{ github.ref }}
+            if echo "$REF" | grep 'refs/tags/'; then
+              TYPE=tag
+              REF=${REF#refs/tags/}
             else
+              TYPE=branch
               REF=${REF#refs/heads/}
             fi
           fi
-          echo "$HEAD_REF,$CURR_REF -> $REF of type $TYPE"
+          echo "REF=$REF of type $TYPE"
           echo "helm install --namespace default --set $TYPE=$REF --set url=https://github.com/${{ github.repository }} this config/testdata/charts/crds/bootstrap"
           helm install --namespace default --set $TYPE=$REF --set url=https://github.com/${{ github.repository }} this config/testdata/charts/crds/bootstrap
           kubectl -n default apply -f config/testdata/crds-upgrade/init
           kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
       - name: CRDs Upgrade Test Create
-        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') }}
+        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         run: |
           kubectl -n default apply -f config/testdata/crds-upgrade/create
           kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
       - name: CRDs Upgrade Test CreateReplace
-        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') }}
+        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         run: |
           kubectl -n default apply -f config/testdata/crds-upgrade/create-replace
           kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
