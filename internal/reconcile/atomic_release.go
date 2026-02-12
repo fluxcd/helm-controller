@@ -188,6 +188,11 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 			}
 			return fmt.Errorf("atomic release canceled: %w", ctx.Err())
 		default:
+			// Remove the drifted condition if drift detection is disabled.
+			if conditions.Has(req.Object, v2.DriftedCondition) && !req.Object.GetDriftDetection().MustDetectChanges() {
+				conditions.Delete(req.Object, v2.DriftedCondition)
+			}
+
 			// Determine the current state of the Helm release.
 			log.V(logger.DebugLevel).Info("determining current state of Helm release")
 			state, err := DetermineReleaseState(ctx, r.configFactory, req, r.disallowedFieldManagers)
@@ -385,6 +390,10 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 			conditions.MarkTrue(req.Object, v2.ReleasedCondition, v2.UpgradeSucceededReason, "%s", msg)
 		}
 
+		if req.Object.GetDriftDetection().MustDetectChanges() {
+			conditions.MarkFalse(req.Object, v2.DriftedCondition, v2.NoDriftDetectedReason, "No drift detected against the cluster state")
+		}
+
 		return nil, nil
 	case ReleaseStatusLocked:
 		log.Info(msgWithReason("release locked", state.Reason))
@@ -440,10 +449,10 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 			}
 		}
 
-		r.eventRecorder.Eventf(req.Object, corev1.EventTypeWarning, "DriftDetected",
-			"Cluster state of release %s has drifted from the desired state:\n%s",
-			req.Object.Status.History.Latest().FullReleaseName(), diff.SummarizeDiffSet(state.Diff),
-		)
+		msg := fmt.Sprintf("Cluster state of release %s has drifted from the desired state:\n%s",
+			req.Object.Status.History.Latest().FullReleaseName(), diff.SummarizeDiffSet(state.Diff))
+		r.eventRecorder.Eventf(req.Object, corev1.EventTypeWarning, v2.DriftDetectedReason, msg)
+		conditions.MarkTrue(req.Object, v2.DriftedCondition, v2.DriftDetectedReason, "%s", msg)
 
 		if req.Object.GetDriftDetection().GetMode() == v2.DriftDetectionEnabled {
 			return NewCorrectClusterDrift(r.configFactory, r.eventRecorder, state.Diff, kube.ManagedFieldsManager), nil

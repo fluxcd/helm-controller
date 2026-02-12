@@ -29,6 +29,10 @@ const (
 	// (uninstall/rollback) due to a failure of the last release attempt against the
 	// latest desired state.
 	RemediatedCondition string = "Remediated"
+
+	// DriftedCondition represents the status of the Helm release drift detection,
+	// indicating that the deployed release has drifted from the desired state.
+	DriftedCondition string = "Drifted"
 )
 
 const (
@@ -79,4 +83,12 @@ const (
 	// DependencyNotReadyReason represents the fact that
 	// one of the dependencies is not ready.
 	DependencyNotReadyReason string = "DependencyNotReady"
+
+	// DriftDetectedReason represents the fact that drift has been detected in the
+	// Helm release compared to the expected state.
+	DriftDetectedReason string = "DriftDetected"
+
+	// NoDriftDetectedReason represents the fact that no drift has been detected in
+	// the Helm release compared to the expected state.
+	NoDriftDetectedReason string = "NoDriftDetected"
 )

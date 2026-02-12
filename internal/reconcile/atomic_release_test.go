@@ -215,14 +215,15 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 
 func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 	tests := []struct {
-		name          string
-		releases      func(namespace string) []*helmrelease.Release
-		spec          func(spec *v2.HelmReleaseSpec)
-		status        func(namespace string, releases []*helmrelease.Release) v2.HelmReleaseStatus
-		chart         *helmchart.Chart
-		values        map[string]any
-		expectHistory func(releases []*helmrelease.Release) v2.Snapshots
-		wantErr       error
+		name             string
+		releases         func(namespace string) []*helmrelease.Release
+		spec             func(spec *v2.HelmReleaseSpec)
+		status           func(namespace string, releases []*helmrelease.Release) v2.HelmReleaseStatus
+		chart            *helmchart.Chart
+		values           map[string]any
+		expectHistory    func(releases []*helmrelease.Release) v2.Snapshots
+		expectConditions []metav1.Condition
+		wantErr          error
 	}{
 		{
 			name: "release is in-sync",
@@ -1162,6 +1163,42 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			},
 			chart: testutil.BuildChart(),
 		},
+		{
+			name: "removes Drifted condition when drift detection is disabled",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Chart:     testutil.BuildChart(),
+						Status:    helmrelease.StatusDeployed,
+					}, testutil.ReleaseWithConfig(nil)),
+				}
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.DriftDetection = &v2.DriftDetection{
+					Mode: v2.DriftDetectionDisabled,
+				}
+			},
+			status: func(namespace string, releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+					Conditions: []metav1.Condition{
+						*conditions.TrueCondition(v2.DriftedCondition, v2.DriftDetectedReason, "drift detected"),
+					},
+				}
+			},
+			chart: testutil.BuildChart(),
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
+			expectConditions: []metav1.Condition{},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1242,6 +1279,10 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 				releaseutil.SortByRevision(history)
 
 				g.Expect(req.Object.Status.History).To(testutil.Equal(tt.expectHistory(history)))
+			}
+
+			if tt.expectConditions != nil {
+				g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions(tt.expectConditions))
 			}
 		})
 	}
@@ -1554,6 +1595,63 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			},
 		},
 		{
+			name: "in-sync release with drift detection enabled sets Drifted condition to false",
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.DriftDetection = &v2.DriftDetection{
+					Mode: v2.DriftDetectionEnabled,
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{Version: 1},
+					},
+				}
+			},
+			state: ReleaseState{Status: ReleaseStatusInSync},
+			want:  nil,
+			assertConditions: []metav1.Condition{
+				*conditions.FalseCondition(v2.DriftedCondition, v2.NoDriftDetectedReason, "No drift detected against the cluster state"),
+			},
+		},
+		{
+			name: "in-sync release with drift detection warn sets Drifted condition to false",
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.DriftDetection = &v2.DriftDetection{
+					Mode: v2.DriftDetectionWarn,
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{Version: 1},
+					},
+				}
+			},
+			state: ReleaseState{Status: ReleaseStatusInSync},
+			want:  nil,
+			assertConditions: []metav1.Condition{
+				*conditions.FalseCondition(v2.DriftedCondition, v2.NoDriftDetectedReason, "No drift detected against the cluster state"),
+			},
+		},
+		{
+			name: "in-sync release with drift detection disabled does not set Drifted condition",
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.DriftDetection = &v2.DriftDetection{
+					Mode: v2.DriftDetectionDisabled,
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{Version: 1},
+					},
+				}
+			},
+			state: ReleaseState{Status: ReleaseStatusInSync},
+			want:  nil,
+		},
+		{
 			name:  "locked release triggers unlock action",
 			state: ReleaseState{Status: ReleaseStatusLocked},
 			want:  &Unlock{},
@@ -1635,6 +1733,9 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 					"Deployment/something/mock removed",
 				),
 			},
+			assertConditions: []metav1.Condition{
+				*conditions.TrueCondition(v2.DriftedCondition, v2.DriftDetectedReason, "Cluster state of release mock-ns/mock-release.v1 has drifted from the desired state:\nDeployment/something/mock removed"),
+			},
 		},
 		{
 			name: "drifted release only triggers event if mode is warn",
@@ -1703,6 +1804,81 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 					mockReleaseNamespace+"/"+mockReleaseName+".v1",
 					"Deployment/something/mock changed (0 additions, 1 changes, 0 removals)",
 				),
+			},
+			assertConditions: []metav1.Condition{
+				*conditions.TrueCondition(v2.DriftedCondition, v2.DriftDetectedReason, "Cluster state of release mock-ns/mock-release.v1 has drifted from the desired state:\nDeployment/something/mock changed (0 additions, 1 changes, 0 removals)"),
+			},
+		},
+		{
+			name: "drifted release sets Drifted condition if mode is warn",
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.DriftDetection = &v2.DriftDetection{
+					Mode: v2.DriftDetectionWarn,
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{
+							Name:      mockReleaseName,
+							Namespace: mockReleaseNamespace,
+							Version:   1,
+						},
+					},
+				}
+			},
+			state: ReleaseState{Status: ReleaseStatusDrifted, Diff: jsondiff.DiffSet{
+				{
+					Type: jsondiff.DiffTypeUpdate,
+					DesiredObject: &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "apps/v1",
+							"kind":       "Deployment",
+							"metadata": map[string]interface{}{
+								"name":      "mock",
+								"namespace": "something",
+							},
+							"spec": map[string]interface{}{
+								"replicas": 2,
+							},
+						},
+					},
+					ClusterObject: &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "apps/v1",
+							"kind":       "Deployment",
+							"metadata": map[string]interface{}{
+								"name":      "mock",
+								"namespace": "something",
+							},
+							"spec": map[string]interface{}{
+								"replicas": 1,
+							},
+						},
+					},
+					Patch: extjsondiff.Patch{
+						{
+							Type:     extjsondiff.OperationReplace,
+							Path:     "/spec/replicas",
+							OldValue: 1,
+							Value:    2,
+						},
+					},
+				},
+			}},
+			want:    nil,
+			wantErr: nil,
+			wantEvent: &corev1.Event{
+				Reason: "DriftDetected",
+				Type:   corev1.EventTypeWarning,
+				Message: fmt.Sprintf(
+					"Cluster state of release %s has drifted from the desired state:\n%s",
+					mockReleaseNamespace+"/"+mockReleaseName+".v1",
+					"Deployment/something/mock changed (0 additions, 1 changes, 0 removals)",
+				),
+			},
+			assertConditions: []metav1.Condition{
+				*conditions.TrueCondition(v2.DriftedCondition, v2.DriftDetectedReason, "Cluster state of release mock-ns/mock-release.v1 has drifted from the desired state:\nDeployment/something/mock changed (0 additions, 1 changes, 0 removals)"),
 			},
 		},
 		{
