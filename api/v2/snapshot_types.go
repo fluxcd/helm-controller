@@ -24,6 +24,21 @@ import (
 )
 
 const (
+	// CurrentSnapshotAPIVersion is the current API version for snapshots.
+	// This is used to distinguish between snapshots created with different
+	// helm-controller versions, allowing for graceful migration when the
+	// digest calculation method changes. This will typically happen when
+	// there is a major Helm version upgrade that introduces breaking
+	// changes to the Chart or Release APIs. This version should be bumped
+	// accordingly when such changes occur.
+	CurrentSnapshotAPIVersion = SnapshotAPIVersion2
+
+	// SnapshotAPIVersion2 is the API version for snapshots created with
+	// Helm v4 (Chart API v2), introduced in helm-controller v1.5.0.
+	SnapshotAPIVersion2 = "v2"
+)
+
+const (
 	// snapshotStatusDeployed indicates that the release the snapshot was taken
 	// from is currently deployed.
 	snapshotStatusDeployed = "deployed"
@@ -120,8 +135,8 @@ func (in *Snapshots) TruncateIgnoringPreviousSnapshots() {
 // as managed by the controller.
 type Snapshot struct {
 	// APIVersion is the API version of the Snapshot.
-	// Provisional: when the calculation method of the Digest field is changed,
-	// this field will be used to distinguish between the old and new methods.
+	// When the calculation method of the Digest field is changed, this
+	// field will be used to distinguish between the old and new methods.
 	// +optional
 	APIVersion string `json:"apiVersion,omitempty"`
 	// Digest is the checksum of the release object in storage.
@@ -140,6 +155,9 @@ type Snapshot struct {
 	// Status is the current state of the release.
 	// +required
 	Status string `json:"status"`
+	// Action is the action that resulted in this snapshot being created.
+	// +optional
+	Action ReleaseAction `json:"action,omitempty"`
 	// ChartName is the chart name of the release object in storage.
 	// +required
 	ChartName string `json:"chartName"`
@@ -231,6 +249,14 @@ func (in *Snapshot) Targets(name, namespace string, version int) bool {
 		return in.Name == name && in.Namespace == namespace && in.Version == version
 	}
 	return false
+}
+
+// GetAction returns the ReleaseAction for the Snapshot.
+func (in *Snapshot) GetAction() ReleaseAction {
+	if in == nil {
+		return ""
+	}
+	return in.Action
 }
 
 // TestHookStatus holds the status information for a test hook as observed

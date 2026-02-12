@@ -60,9 +60,593 @@ jobs:
         run: |
           kubectl -n helm-system apply -f config/testdata/podinfo
           kubectl -n helm-system wait helmreleases/podinfo --for=condition=ready --timeout=4m
+
+          # Inventory tracking enables drift detection and garbage collection.
+          # Ensure it captures managed objects from the Helm release.
+          INVENTORY=$(kubectl -n helm-system get helmrelease/podinfo -o jsonpath='{.status.inventory.entries}')
+          INVENTORY_COUNT=$(echo "$INVENTORY" | jq 'length')
+          if [ "$INVENTORY_COUNT" -lt 1 ]; then
+            echo "Expected inventory entries, got $INVENTORY_COUNT"
+            exit 1
+          fi
+          # Deployment is a primary workload resource; its presence confirms
+          # that the inventory correctly tracks resources from the rendered manifests.
+          if ! echo "$INVENTORY" | jq -e '.[] | select(.id | contains("_Deployment"))' > /dev/null; then
+            echo "Expected Deployment in inventory"
+            echo "Inventory: $INVENTORY"
+            exit 1
+          fi
+
           kubectl -n helm-system wait helmreleases/podinfo-git --for=condition=ready --timeout=4m
           kubectl -n helm-system wait helmreleases/podinfo-oci --for=condition=ready --timeout=4m
           kubectl -n helm-system delete -f config/testdata/podinfo
+      - name: Run Job with TTL test
+        run: |
+          # This test verifies that the wait logic correctly handles Jobs with
+          # ttlSecondsAfterFinished that get garbage-collected after completion.
+          # Without the fix, the wait would fail with NotFound error.
+          kubectl -n helm-system apply -f config/testdata/job-ttl
+          kubectl -n helm-system wait helmreleases/job-ttl --for=condition=ready --timeout=4m
+          kubectl -n helm-system delete -f config/testdata/job-ttl
+      - name: Run client-side apply upgrade test
+        run: |
+          set -euo pipefail
+
+          test_name=no-server-side-apply
+          deploy_name=$test_name-podinfo
+
+          kubectl -n helm-system apply -f config/testdata/server-side-apply/no-ssa.yaml
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Capture managed fields before upgrade.
+          echo ">>> Checking managed fields after install"
+          MANAGED_FIELDS_BEFORE=$(kubectl -n helm-system get deployment $deploy_name --show-managed-fields -o jsonpath='{.metadata.managedFields}')
+
+          # Ensure we got managed fields data.
+          FIELD_COUNT_BEFORE=$(echo "$MANAGED_FIELDS_BEFORE" | jq 'length')
+          if [ "$FIELD_COUNT_BEFORE" -lt 1 ]; then
+            echo "ERROR: No managed fields found on deployment"
+            exit 1
+          fi
+          echo "Found $FIELD_COUNT_BEFORE managed field entries"
+
+          # Show all managers and their operations.
+          echo "Managers before upgrade:"
+          echo "$MANAGED_FIELDS_BEFORE" | jq -r '.[] | "  - \(.manager): \(.operation)"'
+
+          # Verify helm-controller used Update (not Apply) after install.
+          HELM_UPDATE_COUNT_BEFORE=$(echo "$MANAGED_FIELDS_BEFORE" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Update")] | length')
+          HELM_APPLY_COUNT_BEFORE=$(echo "$MANAGED_FIELDS_BEFORE" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Apply")] | length')
+          echo "helm-controller operations: Update=$HELM_UPDATE_COUNT_BEFORE, Apply=$HELM_APPLY_COUNT_BEFORE"
+
+          if [ "$HELM_UPDATE_COUNT_BEFORE" -lt 1 ]; then
+            echo "ERROR: Expected helm-controller to use Update operation"
+            exit 1
+          fi
+          if [ "$HELM_APPLY_COUNT_BEFORE" != "0" ]; then
+            echo "ERROR: Unexpected Apply operation from helm-controller"
+            exit 1
+          fi
+          echo "PASS: Install used CSA (Update operation)"
+
+          # Trigger upgrade by changing values.
+          echo ">>> Triggering upgrade via patch (expecting CSA)"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          kubectl -n helm-system patch helmrelease/$test_name --type=merge -p '{"spec":{"values":{"podAnnotations":{"upgrade-timestamp":"'$TIMESTAMP'"}}}}'
+
+          # Wait for the upgrade to complete (revision count should be 2).
+          echo -n ">>> Waiting for upgrade"
+          count=0
+          until [ '2' == "$(helm -n helm-system history -o json $test_name 2>/dev/null | jq 'length')" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 24 ]]; then
+              echo ' No more retries left!'
+              exit 1
+            fi
+          done
+          echo ' done'
+
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Verify the pod annotation was applied.
+          POD_ANNOTATION=$(kubectl -n helm-system get deployment $deploy_name -o jsonpath='{.spec.template.metadata.annotations.upgrade-timestamp}')
+          echo "Pod annotation upgrade-timestamp: $POD_ANNOTATION"
+          if [ "$POD_ANNOTATION" != "$TIMESTAMP" ]; then
+            echo "ERROR: Pod annotation not updated, upgrade may not have occurred"
+            exit 1
+          fi
+
+          # Capture managed fields after upgrade.
+          echo ">>> Checking managed fields after upgrade"
+          MANAGED_FIELDS_AFTER=$(kubectl -n helm-system get deployment $deploy_name --show-managed-fields -o jsonpath='{.metadata.managedFields}')
+
+          # Show all managers and their operations.
+          echo "Managers after upgrade:"
+          echo "$MANAGED_FIELDS_AFTER" | jq -r '.[] | "  - \(.manager): \(.operation)"'
+
+          # Verify helm-controller used Update (not Apply) after upgrade.
+          HELM_UPDATE_COUNT_AFTER=$(echo "$MANAGED_FIELDS_AFTER" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Update")] | length')
+          HELM_APPLY_COUNT_AFTER=$(echo "$MANAGED_FIELDS_AFTER" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Apply")] | length')
+          echo "helm-controller operations: Update=$HELM_UPDATE_COUNT_AFTER, Apply=$HELM_APPLY_COUNT_AFTER"
+
+          if [ "$HELM_UPDATE_COUNT_AFTER" -lt 1 ]; then
+            echo "ERROR: Expected helm-controller to use Update operation"
+            exit 1
+          fi
+          if [ "$HELM_APPLY_COUNT_AFTER" != "0" ]; then
+            echo "ERROR: Unexpected Apply operation from helm-controller"
+            exit 1
+          fi
+          echo "PASS: Upgrade used CSA (Update operation)"
+
+          kubectl -n helm-system delete -f config/testdata/server-side-apply/no-ssa.yaml
+      - name: Run SSA install with CSA upgrade test
+        run: |
+          set -euo pipefail
+
+          test_name=ssa-install-no-ssa-upgrade
+          deploy_name=$test_name-podinfo
+
+          kubectl -n helm-system apply -f config/testdata/server-side-apply/$test_name.yaml
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Capture managed fields after install.
+          echo ">>> Checking managed fields after install (expecting SSA)"
+          MANAGED_FIELDS_INSTALL=$(kubectl -n helm-system get deployment $deploy_name --show-managed-fields -o jsonpath='{.metadata.managedFields}')
+
+          FIELD_COUNT=$(echo "$MANAGED_FIELDS_INSTALL" | jq 'length')
+          if [ "$FIELD_COUNT" -lt 1 ]; then
+            echo "ERROR: No managed fields found on deployment"
+            exit 1
+          fi
+          echo "Found $FIELD_COUNT managed field entries"
+
+          echo "Managers after install:"
+          echo "$MANAGED_FIELDS_INSTALL" | jq -r '.[] | "  - \(.manager): \(.operation)"'
+
+          # Show fields managed by helm-controller.
+          echo "Fields managed by helm-controller:"
+          echo "$MANAGED_FIELDS_INSTALL" | jq -r '.[] | select(.manager | test("helm")) | "\(.operation): \([.fieldsV1 | paths(type == "object" and length == 0)] | length) fields"'
+
+          # Verify helm-controller used Apply (SSA) after install.
+          HELM_APPLY_COUNT=$(echo "$MANAGED_FIELDS_INSTALL" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Apply")] | length')
+          HELM_UPDATE_COUNT=$(echo "$MANAGED_FIELDS_INSTALL" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Update")] | length')
+          echo "helm-controller operations: Apply=$HELM_APPLY_COUNT, Update=$HELM_UPDATE_COUNT"
+
+          if [ "$HELM_APPLY_COUNT" -lt 1 ]; then
+            echo "ERROR: Expected helm-controller to use Apply operation for SSA install"
+            exit 1
+          fi
+          echo "PASS: Install used SSA (Apply operation)"
+
+          # Trigger upgrade by changing values.
+          echo ">>> Triggering upgrade via patch (expecting CSA)"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          kubectl -n helm-system patch helmrelease/$test_name --type=merge -p '{"spec":{"values":{"podAnnotations":{"upgrade-timestamp":"'$TIMESTAMP'"}}}}'
+
+          # Wait for the upgrade to complete.
+          echo -n ">>> Waiting for upgrade"
+          count=0
+          until [ '2' == "$(helm -n helm-system history -o json $test_name 2>/dev/null | jq 'length')" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 24 ]]; then
+              echo ' No more retries left!'
+              echo "DEBUG: Helm history:"
+              helm -n helm-system history $test_name || true
+              echo "DEBUG: HelmRelease status:"
+              kubectl -n helm-system get helmrelease/$test_name -o jsonpath='{.status}' | jq . || true
+              exit 1
+            fi
+          done
+          echo ' done'
+
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Verify the pod annotation was applied.
+          POD_ANNOTATION=$(kubectl -n helm-system get deployment $deploy_name -o jsonpath='{.spec.template.metadata.annotations.upgrade-timestamp}')
+          echo "Pod annotation upgrade-timestamp: $POD_ANNOTATION"
+          if [ "$POD_ANNOTATION" != "$TIMESTAMP" ]; then
+            echo "ERROR: Pod annotation not updated, upgrade may not have occurred"
+            exit 1
+          fi
+
+          # Capture managed fields after upgrade.
+          echo ">>> Checking managed fields after upgrade (expecting CSA)"
+          MANAGED_FIELDS_UPGRADE=$(kubectl -n helm-system get deployment $deploy_name --show-managed-fields -o jsonpath='{.metadata.managedFields}')
+
+          echo "Managers after upgrade:"
+          echo "$MANAGED_FIELDS_UPGRADE" | jq -r '.[] | "  - \(.manager): \(.operation)"'
+
+          # Show fields managed by each helm-controller entry.
+          echo "Fields managed by helm-controller:"
+          echo "$MANAGED_FIELDS_UPGRADE" | jq -r '.[] | select(.manager | test("helm")) | if .operation == "Apply" then "\(.operation): \([.fieldsV1 | paths(type == "object" and length == 0)] | length) fields" else "\(.operation): \([.fieldsV1 | paths(type == "object" and length == 0) | map(tostring) | join(".")] | sort | join(", "))" end'
+
+          # Verify helm-controller used Update (CSA) after upgrade.
+          HELM_APPLY_COUNT=$(echo "$MANAGED_FIELDS_UPGRADE" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Apply")] | length')
+          HELM_UPDATE_COUNT=$(echo "$MANAGED_FIELDS_UPGRADE" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Update")] | length')
+          echo "helm-controller operations: Apply=$HELM_APPLY_COUNT, Update=$HELM_UPDATE_COUNT"
+
+          if [ "$HELM_UPDATE_COUNT" -lt 1 ]; then
+            echo "ERROR: Expected helm-controller to use Update operation for CSA upgrade"
+            exit 1
+          fi
+          echo "PASS: Upgrade used CSA (Update operation)"
+
+          kubectl -n helm-system delete -f config/testdata/server-side-apply/$test_name.yaml
+      - name: Run CSA install with SSA upgrade test
+        run: |
+          set -euo pipefail
+
+          test_name=no-ssa-install-ssa-upgrade
+          deploy_name=$test_name-podinfo
+
+          kubectl -n helm-system apply -f config/testdata/server-side-apply/$test_name.yaml
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Capture managed fields after install.
+          echo ">>> Checking managed fields after install (expecting CSA)"
+          MANAGED_FIELDS_INSTALL=$(kubectl -n helm-system get deployment $deploy_name --show-managed-fields -o jsonpath='{.metadata.managedFields}')
+
+          FIELD_COUNT=$(echo "$MANAGED_FIELDS_INSTALL" | jq 'length')
+          if [ "$FIELD_COUNT" -lt 1 ]; then
+            echo "ERROR: No managed fields found on deployment"
+            exit 1
+          fi
+          echo "Found $FIELD_COUNT managed field entries"
+
+          echo "Managers after install:"
+          echo "$MANAGED_FIELDS_INSTALL" | jq -r '.[] | "  - \(.manager): \(.operation)"'
+
+          # Show fields managed by helm-controller.
+          echo "Fields managed by helm-controller:"
+          echo "$MANAGED_FIELDS_INSTALL" | jq -r '.[] | select(.manager | test("helm")) | "\(.operation): \([.fieldsV1 | paths(type == "object" and length == 0)] | length) fields"'
+
+          # Verify helm-controller used Update (CSA) after install.
+          HELM_APPLY_COUNT=$(echo "$MANAGED_FIELDS_INSTALL" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Apply")] | length')
+          HELM_UPDATE_COUNT=$(echo "$MANAGED_FIELDS_INSTALL" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Update")] | length')
+          echo "helm-controller operations: Apply=$HELM_APPLY_COUNT, Update=$HELM_UPDATE_COUNT"
+
+          if [ "$HELM_UPDATE_COUNT" -lt 1 ]; then
+            echo "ERROR: Expected helm-controller to use Update operation for CSA install"
+            exit 1
+          fi
+          if [ "$HELM_APPLY_COUNT" != "0" ]; then
+            echo "ERROR: Unexpected Apply operation from helm-controller"
+            exit 1
+          fi
+          echo "PASS: Install used CSA (Update operation)"
+
+          # Trigger upgrade by changing values.
+          echo ">>> Triggering upgrade via patch (expecting SSA)"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          kubectl -n helm-system patch helmrelease/$test_name --type=merge -p '{"spec":{"values":{"podAnnotations":{"upgrade-timestamp":"'$TIMESTAMP'"}}}}'
+
+          # Wait for the upgrade to complete.
+          echo -n ">>> Waiting for upgrade"
+          count=0
+          until [ '2' == "$(helm -n helm-system history -o json $test_name 2>/dev/null | jq 'length')" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 24 ]]; then
+              echo ' No more retries left!'
+              exit 1
+            fi
+          done
+          echo ' done'
+
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Verify the pod annotation was applied.
+          POD_ANNOTATION=$(kubectl -n helm-system get deployment $deploy_name -o jsonpath='{.spec.template.metadata.annotations.upgrade-timestamp}')
+          echo "Pod annotation upgrade-timestamp: $POD_ANNOTATION"
+          if [ "$POD_ANNOTATION" != "$TIMESTAMP" ]; then
+            echo "ERROR: Pod annotation not updated, upgrade may not have occurred"
+            exit 1
+          fi
+
+          # Capture managed fields after upgrade.
+          echo ">>> Checking managed fields after upgrade (expecting SSA)"
+          MANAGED_FIELDS_UPGRADE=$(kubectl -n helm-system get deployment $deploy_name --show-managed-fields -o jsonpath='{.metadata.managedFields}')
+
+          echo "Managers after upgrade:"
+          echo "$MANAGED_FIELDS_UPGRADE" | jq -r '.[] | "  - \(.manager): \(.operation)"'
+
+          # Show fields managed by helm-controller.
+          echo "Fields managed by helm-controller:"
+          echo "$MANAGED_FIELDS_UPGRADE" | jq -r '.[] | select(.manager | test("helm")) | if .operation == "Apply" then "\(.operation): \([.fieldsV1 | paths(type == "object" and length == 0)] | length) fields" else "\(.operation): \([.fieldsV1 | paths(type == "object" and length == 0) | map(tostring) | join(".")] | sort | join(", "))" end'
+
+          # Verify helm-controller used Apply (SSA) after upgrade.
+          HELM_APPLY_COUNT=$(echo "$MANAGED_FIELDS_UPGRADE" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Apply")] | length')
+          HELM_UPDATE_COUNT=$(echo "$MANAGED_FIELDS_UPGRADE" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Update")] | length')
+          echo "helm-controller operations: Apply=$HELM_APPLY_COUNT, Update=$HELM_UPDATE_COUNT"
+
+          if [ "$HELM_APPLY_COUNT" -lt 1 ]; then
+            echo "ERROR: Expected helm-controller to use Apply operation for SSA upgrade"
+            exit 1
+          fi
+          echo "PASS: Upgrade used SSA (Apply operation)"
+
+          kubectl -n helm-system delete -f config/testdata/server-side-apply/$test_name.yaml
+      - name: Run SSA to CSA field removal test
+        run: |
+          set -euo pipefail
+
+          # This test verifies the behavior when switching from SSA to CSA and
+          # removing a field from values. The field WILL be removed because
+          # Helm tracks field ownership and removes fields that are no longer
+          # in the rendered manifests, regardless of the apply method.
+
+          test_name=ssa-to-csa-field-removal
+          deploy_name=$test_name-podinfo
+
+          kubectl -n helm-system apply -f config/testdata/server-side-apply/$test_name.yaml
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Verify install used SSA.
+          echo ">>> Checking managed fields after install (expecting SSA)"
+          MANAGED_FIELDS_INSTALL=$(kubectl -n helm-system get deployment $deploy_name --show-managed-fields -o jsonpath='{.metadata.managedFields}')
+
+          FIELD_COUNT=$(echo "$MANAGED_FIELDS_INSTALL" | jq 'length')
+          if [ "$FIELD_COUNT" -lt 1 ]; then
+            echo "ERROR: No managed fields found on deployment"
+            exit 1
+          fi
+          echo "Found $FIELD_COUNT managed field entries"
+
+          echo "Managers after install:"
+          echo "$MANAGED_FIELDS_INSTALL" | jq -r '.[] | "  - \(.manager): \(.operation)"'
+
+          # Show fields managed by helm-controller.
+          echo "Fields managed by helm-controller:"
+          HELM_FIELD_COUNT_BEFORE=$(echo "$MANAGED_FIELDS_INSTALL" | jq '[.[] | select(.manager | test("helm")) | [.fieldsV1 | paths(type == "object" and length == 0)] | length] | add')
+          echo "$MANAGED_FIELDS_INSTALL" | jq -r '.[] | select(.manager | test("helm")) | "\(.operation): \([.fieldsV1 | paths(type == "object" and length == 0)] | length) fields"'
+
+          HELM_APPLY_COUNT=$(echo "$MANAGED_FIELDS_INSTALL" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Apply")] | length')
+          HELM_UPDATE_COUNT=$(echo "$MANAGED_FIELDS_INSTALL" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Update")] | length')
+          echo "helm-controller operations: Apply=$HELM_APPLY_COUNT, Update=$HELM_UPDATE_COUNT"
+
+          if [ "$HELM_APPLY_COUNT" -lt 1 ]; then
+            echo "ERROR: Expected helm-controller to use Apply operation for SSA install"
+            exit 1
+          fi
+          echo "PASS: Install used SSA (Apply operation)"
+
+          # Verify the SSA-owned annotation is present after install.
+          echo ">>> Verifying SSA-owned annotation after install"
+          SSA_ANNOTATION=$(kubectl -n helm-system get deployment $deploy_name -o jsonpath='{.spec.template.metadata.annotations.ssa-owned-field}')
+          echo "Pod annotation ssa-owned-field: $SSA_ANNOTATION"
+          if [ "$SSA_ANNOTATION" != "this-should-persist-after-csa-upgrade" ]; then
+            echo "ERROR: Expected ssa-owned-field annotation to be present after install"
+            exit 1
+          fi
+          echo "PASS: SSA-owned annotation present after install"
+
+          # Trigger upgrade by REMOVING the podAnnotations entirely.
+          # This simulates someone removing a field from their HelmRelease values.
+          echo ">>> Triggering upgrade by removing podAnnotations from values"
+          kubectl -n helm-system patch helmrelease/$test_name --type=merge -p '{"spec":{"values":{"podAnnotations":null}}}'
+
+          # Wait for the upgrade to complete.
+          echo -n ">>> Waiting for upgrade"
+          count=0
+          until [ '2' == "$(helm -n helm-system history -o json $test_name 2>/dev/null | jq 'length')" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 24 ]]; then
+              echo ' No more retries left!'
+              echo "DEBUG: Helm history:"
+              helm -n helm-system history $test_name || true
+              echo "DEBUG: HelmRelease status:"
+              kubectl -n helm-system get helmrelease/$test_name -o jsonpath='{.status}' | jq . || true
+              exit 1
+            fi
+          done
+          echo ' done'
+
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Check managed fields after upgrade.
+          echo ">>> Checking managed fields after upgrade"
+          MANAGED_FIELDS_UPGRADE=$(kubectl -n helm-system get deployment $deploy_name --show-managed-fields -o jsonpath='{.metadata.managedFields}')
+
+          echo "Managers after upgrade:"
+          echo "$MANAGED_FIELDS_UPGRADE" | jq -r '.[] | "  - \(.manager): \(.operation)"'
+
+          # Show fields managed by helm-controller.
+          echo "Fields managed by helm-controller:"
+          HELM_FIELD_COUNT_AFTER=$(echo "$MANAGED_FIELDS_UPGRADE" | jq '[.[] | select(.manager | test("helm")) | [.fieldsV1 | paths(type == "object" and length == 0)] | length] | add')
+          echo "$MANAGED_FIELDS_UPGRADE" | jq -r '.[] | select(.manager | test("helm")) | "\(.operation): \([.fieldsV1 | paths(type == "object" and length == 0)] | length) fields"'
+
+          HELM_APPLY_COUNT=$(echo "$MANAGED_FIELDS_UPGRADE" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Apply")] | length')
+          HELM_UPDATE_COUNT=$(echo "$MANAGED_FIELDS_UPGRADE" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Update")] | length')
+          echo "helm-controller operations: Apply=$HELM_APPLY_COUNT, Update=$HELM_UPDATE_COUNT"
+
+          # Verify field count decreased (annotation was removed).
+          echo ">>> Verifying field count decreased"
+          echo "Field count before: $HELM_FIELD_COUNT_BEFORE"
+          echo "Field count after: $HELM_FIELD_COUNT_AFTER"
+          if [ "$HELM_FIELD_COUNT_AFTER" -ge "$HELM_FIELD_COUNT_BEFORE" ]; then
+            echo "ERROR: Expected field count to decrease after removing podAnnotations"
+            exit 1
+          fi
+          echo "PASS: Field count decreased from $HELM_FIELD_COUNT_BEFORE to $HELM_FIELD_COUNT_AFTER"
+
+          # THIS IS THE KEY ASSERTION: The field should be REMOVED because Helm
+          # tracks field ownership and removes fields no longer in the manifests.
+          echo ">>> Verifying SSA-owned field was removed after upgrade"
+          SSA_ANNOTATION_AFTER=$(kubectl -n helm-system get deployment $deploy_name -o jsonpath='{.spec.template.metadata.annotations.ssa-owned-field}')
+          echo "Pod annotation ssa-owned-field after upgrade: '$SSA_ANNOTATION_AFTER'"
+
+          if [ -n "$SSA_ANNOTATION_AFTER" ]; then
+            echo "FAIL: SSA-owned field was NOT removed after upgrade"
+            echo "Expected the field to be removed when podAnnotations is removed from values."
+            exit 1
+          fi
+
+          echo "PASS: SSA-owned field was removed after upgrade"
+          echo ""
+          echo "This confirms that removing a field from HelmRelease values WILL"
+          echo "remove it from the actual object, even when switching from SSA to CSA."
+          echo "Helm properly tracks field ownership and cleans up removed fields."
+
+          kubectl -n helm-system delete -f config/testdata/server-side-apply/$test_name.yaml
+      - name: Run server-side apply test
+        run: |
+          set -euo pipefail
+
+          test_name=server-side-apply
+          deploy_name=$test_name-podinfo
+
+          kubectl -n helm-system apply -f config/testdata/$test_name/install.yaml
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Verify the release is deployed with SSA via Helm secret.
+          echo ">>> Checking Helm release secret after install"
+          APPLY_METHOD=$(kubectl -n helm-system get secret sh.helm.release.v1.$test_name.v1 -o jsonpath='{.data.release}' | base64 -d | base64 -d | gunzip | jq -r '.apply_method')
+          echo "Helm release apply_method: $APPLY_METHOD"
+          if [ "$APPLY_METHOD" != "ssa" ]; then
+            echo "ERROR: Unexpected apply method: $APPLY_METHOD (expected: ssa)"
+            exit 1
+          fi
+
+          # Verify SSA via managed fields on deployment.
+          echo ">>> Checking managed fields after install"
+          MANAGED_FIELDS=$(kubectl -n helm-system get deployment $deploy_name --show-managed-fields -o jsonpath='{.metadata.managedFields}')
+          echo "Managers after install:"
+          echo "$MANAGED_FIELDS" | jq -r '.[] | "  - \(.manager): \(.operation)"'
+
+          HELM_APPLY_COUNT=$(echo "$MANAGED_FIELDS" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Apply")] | length')
+          echo "helm-controller Apply operations: $HELM_APPLY_COUNT"
+          if [ "$HELM_APPLY_COUNT" -lt 1 ]; then
+            echo "ERROR: Expected helm-controller to use Apply operation for SSA"
+            exit 1
+          fi
+          echo "PASS: Install used SSA (Apply operation)"
+
+          # Upgrade with SSA.
+          echo ">>> Applying upgrade manifest"
+          kubectl -n helm-system apply -f config/testdata/$test_name/upgrade.yaml
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Validate release was upgraded.
+          REVISION_COUNT=$(helm -n helm-system history -o json $test_name | jq 'length')
+          echo "Helm revision count: $REVISION_COUNT"
+          if [ "$REVISION_COUNT" != 2 ]; then
+            echo "ERROR: Unexpected revision count: $REVISION_COUNT (expected: 2)"
+            exit 1
+          fi
+
+          # Verify SSA via managed fields after upgrade.
+          echo ">>> Checking managed fields after upgrade"
+          MANAGED_FIELDS=$(kubectl -n helm-system get deployment $deploy_name --show-managed-fields -o jsonpath='{.metadata.managedFields}')
+          echo "Managers after upgrade:"
+          echo "$MANAGED_FIELDS" | jq -r '.[] | "  - \(.manager): \(.operation)"'
+
+          HELM_APPLY_COUNT=$(echo "$MANAGED_FIELDS" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Apply")] | length')
+          echo "helm-controller Apply operations: $HELM_APPLY_COUNT"
+          if [ "$HELM_APPLY_COUNT" -lt 1 ]; then
+            echo "ERROR: Expected helm-controller to use Apply operation for SSA"
+            exit 1
+          fi
+          echo "PASS: Upgrade used SSA (Apply operation)"
+
+          kubectl -n helm-system delete -f config/testdata/$test_name/install.yaml
+      - name: Run server-side apply rollback test
+        run: |
+          set -euo pipefail
+
+          test_name=server-side-apply-rollback
+          deploy_name=$test_name-podinfo
+
+          kubectl -n helm-system apply -f config/testdata/server-side-apply/rollback-install.yaml
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Verify the release is deployed with SSA via Helm secret.
+          echo ">>> Checking Helm release secret after install"
+          APPLY_METHOD=$(kubectl -n helm-system get secret sh.helm.release.v1.$test_name.v1 -o jsonpath='{.data.release}' | base64 -d | base64 -d | gunzip | jq -r '.apply_method')
+          echo "Helm release apply_method: $APPLY_METHOD"
+          if [ "$APPLY_METHOD" != "ssa" ]; then
+            echo "ERROR: Unexpected apply method: $APPLY_METHOD (expected: ssa)"
+            exit 1
+          fi
+
+          # Verify SSA via managed fields on deployment.
+          echo ">>> Checking managed fields after install"
+          MANAGED_FIELDS=$(kubectl -n helm-system get deployment $deploy_name --show-managed-fields -o jsonpath='{.metadata.managedFields}')
+          echo "Managers after install:"
+          echo "$MANAGED_FIELDS" | jq -r '.[] | "  - \(.manager): \(.operation)"'
+
+          HELM_APPLY_COUNT=$(echo "$MANAGED_FIELDS" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Apply")] | length')
+          echo "helm-controller Apply operations: $HELM_APPLY_COUNT"
+          if [ "$HELM_APPLY_COUNT" -lt 1 ]; then
+            echo "ERROR: Expected helm-controller to use Apply operation for SSA"
+            exit 1
+          fi
+          echo "PASS: Install used SSA (Apply operation)"
+
+          # Upgrade with failing config to trigger rollback.
+          echo ">>> Applying failing upgrade to trigger rollback"
+          kubectl -n helm-system apply -f config/testdata/server-side-apply/rollback-upgrade.yaml
+          echo -n ">>> Waiting for rollback"
+          count=0
+          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="False" and .Ready=="False" and .Remediated=="True"' )" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 24 ]]; then
+              echo ' No more retries left!'
+              exit 1
+            fi
+          done
+          echo ' done'
+
+          # Validate rollback happened (revision 3 = rollback to 1).
+          echo ">>> Checking Helm history after rollback"
+          HISTORY=$(helm -n helm-system history -o json $test_name)
+          REVISION_COUNT=$(echo "$HISTORY" | jq 'length')
+          echo "Helm revision count: $REVISION_COUNT"
+          if [ "$REVISION_COUNT" != 3 ]; then
+            echo "ERROR: Unexpected revision count: $REVISION_COUNT (expected: 3)"
+            exit 1
+          fi
+          LAST_REVISION_DESCRIPTION=$(echo "$HISTORY" | jq -r 'last | .description')
+          echo "Last revision description: $LAST_REVISION_DESCRIPTION"
+          if [ "$LAST_REVISION_DESCRIPTION" != "Rollback to 1" ]; then
+            echo "ERROR: Unexpected last revision description: $LAST_REVISION_DESCRIPTION (expected: Rollback to 1)"
+            exit 1
+          fi
+          echo "PASS: Rollback occurred (revision 3 = Rollback to 1)"
+
+          # Verify the rollback release used SSA via Helm secret.
+          echo ">>> Checking Helm release secret after rollback"
+          APPLY_METHOD=$(kubectl -n helm-system get secret sh.helm.release.v1.$test_name.v3 -o jsonpath='{.data.release}' | base64 -d | base64 -d | gunzip | jq -r '.apply_method')
+          echo "Helm release apply_method: $APPLY_METHOD"
+          if [ "$APPLY_METHOD" != "ssa" ]; then
+            echo "ERROR: Unexpected apply method after rollback: $APPLY_METHOD (expected: ssa)"
+            exit 1
+          fi
+
+          # Verify SSA via managed fields after rollback.
+          echo ">>> Checking managed fields after rollback"
+          MANAGED_FIELDS=$(kubectl -n helm-system get deployment $deploy_name --show-managed-fields -o jsonpath='{.metadata.managedFields}')
+          echo "Managers after rollback:"
+          echo "$MANAGED_FIELDS" | jq -r '.[] | "  - \(.manager): \(.operation)"'
+
+          HELM_APPLY_COUNT=$(echo "$MANAGED_FIELDS" | jq '[.[] | select(.manager | test("helm")) | select(.operation == "Apply")] | length')
+          echo "helm-controller Apply operations: $HELM_APPLY_COUNT"
+          if [ "$HELM_APPLY_COUNT" -lt 1 ]; then
+            echo "ERROR: Expected helm-controller to use Apply operation for SSA"
+            exit 1
+          fi
+          echo "PASS: Rollback used SSA (Apply operation)"
+
+          kubectl -n helm-system delete -f config/testdata/server-side-apply/rollback-install.yaml
       - name: Run dependency tests
         run: |
           kubectl -n helm-system apply -f config/testdata/dependencies
@@ -571,33 +1155,34 @@ jobs:
             exit 1
           fi
           kubectl -n helm-system delete -f config/testdata/post-renderer-kustomize
-      - name: Bootstrap CRDs Upgrade Tests
-        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') }}
+      - name: Bootstrap Tests Using Local Helm Chart
+        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         run: |
-          REF=${{ github.ref }}
-          if echo "$REF" | grep 'refs/tags/'; then 
-            TYPE=tag
-            REF=${REF#refs/tags/}
-          else
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
             TYPE=branch
-            if echo "$REF" | grep 'refs/pull/'; then 
-              REF=${REF#refs/pull/}
+            REF="${{ github.head_ref }}"
+          else
+            REF=${{ github.ref }}
+            if echo "$REF" | grep 'refs/tags/'; then
+              TYPE=tag
+              REF=${REF#refs/tags/}
             else
+              TYPE=branch
               REF=${REF#refs/heads/}
             fi
           fi
-          echo "$HEAD_REF,$CURR_REF -> $REF of type $TYPE"
+          echo "REF=$REF of type $TYPE"
           echo "helm install --namespace default --set $TYPE=$REF --set url=https://github.com/${{ github.repository }} this config/testdata/charts/crds/bootstrap"
           helm install --namespace default --set $TYPE=$REF --set url=https://github.com/${{ github.repository }} this config/testdata/charts/crds/bootstrap
           kubectl -n default apply -f config/testdata/crds-upgrade/init
           kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
       - name: CRDs Upgrade Test Create
-        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') }}
+        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         run: |
           kubectl -n default apply -f config/testdata/crds-upgrade/create
           kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
       - name: CRDs Upgrade Test CreateReplace
-        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') }}
+        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         run: |
           kubectl -n default apply -f config/testdata/crds-upgrade/create-replace
           kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m

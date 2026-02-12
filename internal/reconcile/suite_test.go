@@ -22,7 +22,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"helm.sh/helm/v3/pkg/kube"
+	"helm.sh/helm/v4/pkg/kube"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	helmstorage "helm.sh/helm/v4/pkg/storage"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -42,6 +44,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
+	"github.com/fluxcd/helm-controller/internal/release"
 )
 
 const testFieldManager = "helm-controller"
@@ -148,4 +151,24 @@ func (c namespaceClientConfig) Namespace() (string, bool, error) {
 
 func (c namespaceClientConfig) ConfigAccess() clientcmd.ConfigAccess {
 	return nil
+}
+
+func storeHistory(store *helmstorage.Storage, releaseName string) ([]*helmrelease.Release, error) {
+	releasers, err := store.History(releaseName)
+	if err != nil {
+		return nil, err
+	}
+	history := make([]*helmrelease.Release, 0, len(releasers))
+	for _, r := range releasers {
+		history = append(history, r.(*helmrelease.Release))
+	}
+	return history, nil
+}
+
+// observeReleaseWithAction creates a Snapshot from a release with the given
+// action set. This is a test helper to simplify constructing expected snapshots.
+func observeReleaseWithAction(rls *helmrelease.Release, action v2.ReleaseAction) *v2.Snapshot {
+	obs := release.ObserveRelease(rls)
+	obs.Action = action
+	return release.ObservedToSnapshot(obs)
 }

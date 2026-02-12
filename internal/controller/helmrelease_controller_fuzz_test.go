@@ -128,9 +128,9 @@ type DummyRecorder struct{}
 func (r *DummyRecorder) Event(object runtime.Object, eventtype, reason, message string) {
 }
 
-func (r *DummyRecorder) Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...interface{}) {
+func (r *DummyRecorder) Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...any) {
 }
 
 func (r *DummyRecorder) AnnotatedEventf(object runtime.Object, annotations map[string]string,
-	eventtype, reason string, messageFmt string, args ...interface{}) {
+	eventtype, reason string, messageFmt string, args ...any) {
 }

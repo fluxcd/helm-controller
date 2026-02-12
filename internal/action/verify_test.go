@@ -21,12 +21,13 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chartutil"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmstorage "helm.sh/helm/v3/pkg/storage"
-	"helm.sh/helm/v3/pkg/storage/driver"
+	helmaction "helm.sh/helm/v4/pkg/action"
+	"helm.sh/helm/v4/pkg/chart/common"
+	helmchart "helm.sh/helm/v4/pkg/chart/v2"
+	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	helmstorage "helm.sh/helm/v4/pkg/storage"
+	"helm.sh/helm/v4/pkg/storage/driver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -229,13 +230,13 @@ func TestVerifySnapshot(t *testing.T) {
 	mock := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 		Name:      "release",
 		Version:   1,
-		Status:    helmrelease.StatusDeployed,
+		Status:    helmreleasecommon.StatusDeployed,
 		Namespace: "default",
 	})
 	otherMock := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 		Name:      "release",
 		Version:   1,
-		Status:    helmrelease.StatusSuperseded,
+		Status:    helmreleasecommon.StatusSuperseded,
 		Namespace: "default",
 	})
 	mockInfo := release.ObservedToSnapshot(release.ObserveRelease(mock))
@@ -312,12 +313,26 @@ func TestVerifyReleaseObject(t *testing.T) {
 	mockRls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 		Name:      "release",
 		Version:   1,
-		Status:    helmrelease.StatusSuperseded,
+		Status:    helmreleasecommon.StatusSuperseded,
 		Namespace: "default",
 	})
 	mockSnapshot := release.ObservedToSnapshot(release.ObserveRelease(mockRls))
 	mockSnapshotIllegal := mockSnapshot.DeepCopy()
 	mockSnapshotIllegal.Digest = "illegal"
+
+	// Current snapshot with wrong digest (simulates tampered release)
+	mockSnapshotCurrentWrongDigest := mockSnapshot.DeepCopy()
+	mockSnapshotCurrentWrongDigest.Digest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+	// Legacy snapshot without APIVersion (simulates pre-Helm v4 snapshot)
+	mockSnapshotLegacyEmpty := mockSnapshot.DeepCopy()
+	mockSnapshotLegacyEmpty.APIVersion = ""
+	mockSnapshotLegacyEmpty.Digest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+	// Legacy snapshot with old APIVersion (simulates future version change)
+	mockSnapshotLegacyOld := mockSnapshot.DeepCopy()
+	mockSnapshotLegacyOld.APIVersion = "v1"
+	mockSnapshotLegacyOld.Digest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 
 	tests := []struct {
 		name     string
@@ -341,10 +356,38 @@ func TestVerifyReleaseObject(t *testing.T) {
 			rls: testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 				Name:      "release",
 				Version:   1,
-				Status:    helmrelease.StatusDeployed,
+				Status:    helmreleasecommon.StatusDeployed,
 				Namespace: "default",
 			}),
 			wantErr: ErrReleaseNotObserved,
+		},
+		{
+			name:     "current APIVersion with wrong digest fails verification",
+			snapshot: mockSnapshotCurrentWrongDigest,
+			rls:      mockRls,
+			wantErr:  ErrReleaseNotObserved,
+		},
+		{
+			name:     "legacy snapshot without APIVersion skips verification",
+			snapshot: mockSnapshotLegacyEmpty,
+			rls: testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+				Name:      "release",
+				Version:   1,
+				Status:    helmreleasecommon.StatusDeployed,
+				Namespace: "default",
+			}),
+			wantErr: nil,
+		},
+		{
+			name:     "legacy snapshot with old APIVersion skips verification",
+			snapshot: mockSnapshotLegacyOld,
+			rls: testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+				Name:      "release",
+				Version:   1,
+				Status:    helmreleasecommon.StatusDeployed,
+				Namespace: "default",
+			}),
+			wantErr: nil,
 		},
 	}
 	for _, tt := range tests {
@@ -368,7 +411,7 @@ func TestVerifyRelease(t *testing.T) {
 	mockRls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 		Name:      "release",
 		Version:   1,
-		Status:    helmrelease.StatusSuperseded,
+		Status:    helmreleasecommon.StatusSuperseded,
 		Namespace: "default",
 	})
 	mockSnapshot := release.ObservedToSnapshot(release.ObserveRelease(mockRls))
@@ -378,7 +421,7 @@ func TestVerifyRelease(t *testing.T) {
 		rls      *helmrelease.Release
 		snapshot *v2.Snapshot
 		chrt     *helmchart.Metadata
-		vals     chartutil.Values
+		vals     common.Values
 		wantErr  error
 	}{
 		{
@@ -420,7 +463,7 @@ func TestVerifyRelease(t *testing.T) {
 			rls:      mockRls,
 			snapshot: mockSnapshot,
 			chrt:     mockRls.Chart.Metadata,
-			vals: chartutil.Values{
+			vals: common.Values{
 				"some": "other",
 			},
 			wantErr: ErrConfigDigest,

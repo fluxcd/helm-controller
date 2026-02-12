@@ -18,18 +18,19 @@ package action
 
 import (
 	"errors"
+	"log/slog"
 	"testing"
 
 	. "github.com/onsi/gomega"
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmkube "helm.sh/helm/v3/pkg/kube"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmkube "helm.sh/helm/v4/pkg/kube"
+	helmrelease "helm.sh/helm/v4/pkg/release"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	cmdtest "k8s.io/kubectl/pkg/cmd/testing"
 
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/storage"
+	"github.com/fluxcd/helm-controller/internal/testutil"
 )
 
 func TestNewConfigFactory(t *testing.T) {
@@ -57,9 +58,7 @@ func TestNewConfigFactory(t *testing.T) {
 			getter: &kube.MemoryRESTClientGetter{},
 			opts: []ConfigFactoryOption{
 				WithDriver(helmdriver.NewMemory()),
-				WithStorageLog(func(format string, v ...interface{}) {
-					// noop
-				}),
+				WithStorageLog(slog.DiscardHandler),
 			},
 			wantErr: nil,
 		},
@@ -94,7 +93,7 @@ func TestWithStorage(t *testing.T) {
 			name:      "default_" + DefaultStorageDriver,
 			namespace: "default",
 			factory: ConfigFactory{
-				KubeClient: helmkube.New(cmdtest.NewTestFactory()),
+				KubeClient: &Client{Client: helmkube.New(cmdtest.NewTestFactory())},
 			},
 			wantDriver: helmdriver.SecretsDriverName,
 		},
@@ -103,7 +102,7 @@ func TestWithStorage(t *testing.T) {
 			driverName: helmdriver.SecretsDriverName,
 			namespace:  "default",
 			factory: ConfigFactory{
-				KubeClient: helmkube.New(cmdtest.NewTestFactory()),
+				KubeClient: &Client{Client: helmkube.New(cmdtest.NewTestFactory())},
 			},
 			wantDriver: helmdriver.SecretsDriverName,
 		},
@@ -112,7 +111,7 @@ func TestWithStorage(t *testing.T) {
 			driverName: helmdriver.ConfigMapsDriverName,
 			namespace:  "default",
 			factory: ConfigFactory{
-				KubeClient: helmkube.New(cmdtest.NewTestFactory()),
+				KubeClient: &Client{Client: helmkube.New(cmdtest.NewTestFactory())},
 			},
 			wantDriver: helmdriver.ConfigMapsDriverName,
 		},
@@ -170,10 +169,7 @@ func TestStorageLog(t *testing.T) {
 	g := NewWithT(t)
 
 	factory := &ConfigFactory{}
-	log := helmaction.DebugLog(func(format string, v ...interface{}) {
-		// noop
-	})
-	g.Expect(WithStorageLog(log)(factory)).NotTo(HaveOccurred())
+	g.Expect(WithStorageLog(slog.DiscardHandler)(factory)).NotTo(HaveOccurred())
 	g.Expect(factory.StorageLog).ToNot(BeNil())
 }
 
@@ -197,7 +193,7 @@ func TestConfigFactory_NewStorage(t *testing.T) {
 			Driver: helmdriver.NewMemory(),
 		}
 
-		obsFunc := func(rel *helmrelease.Release) {}
+		obsFunc := func(rel helmrelease.Releaser) {}
 		s := factory.NewStorage(obsFunc)
 		g.Expect(s).ToNot(BeNil())
 		g.Expect(s.Driver).To(BeAssignableToTypeOf(&storage.Observer{}))
@@ -206,10 +202,7 @@ func TestConfigFactory_NewStorage(t *testing.T) {
 	t.Run("with storage log", func(t *testing.T) {
 		g := NewWithT(t)
 
-		var called bool
-		log := func(fmt string, v ...interface{}) {
-			called = true
-		}
+		log := &testutil.MockSLogHandler{}
 
 		factory := &ConfigFactory{
 			Driver:     helmdriver.NewMemory(),
@@ -218,8 +211,8 @@ func TestConfigFactory_NewStorage(t *testing.T) {
 
 		s := factory.NewStorage()
 		g.Expect(s).ToNot(BeNil())
-		s.Log("test")
-		g.Expect(called).To(BeTrue())
+		s.Logger().Info("test log")
+		g.Expect(log.Called).To(BeTrue())
 	})
 }
 
@@ -230,27 +223,24 @@ func TestConfigFactory_Build(t *testing.T) {
 		getter := &kube.MemoryRESTClientGetter{}
 		factory := &ConfigFactory{
 			Getter:     getter,
-			KubeClient: helmkube.New(getter),
+			KubeClient: &Client{Client: helmkube.New(getter)},
 		}
 
 		cfg := factory.Build(nil)
 		g.Expect(cfg).ToNot(BeNil())
-		g.Expect(cfg.KubeClient).To(Equal(factory.KubeClient))
+		g.Expect(cfg.KubeClient).To(BeAssignableToTypeOf(&Client{}))
 		g.Expect(cfg.RESTClientGetter).To(Equal(factory.Getter))
 	})
 
 	t.Run("with log", func(t *testing.T) {
 		g := NewWithT(t)
 
-		var called bool
-		log := func(fmt string, v ...interface{}) {
-			called = true
-		}
+		log := &testutil.MockSLogHandler{}
 		cfg := (&ConfigFactory{}).Build(log)
 
 		g.Expect(cfg).ToNot(BeNil())
-		cfg.Log("")
-		g.Expect(called).To(BeTrue())
+		cfg.Logger().Info("test log")
+		g.Expect(log.Called).To(BeTrue())
 	})
 
 	t.Run("with observe func", func(t *testing.T) {
@@ -260,7 +250,7 @@ func TestConfigFactory_Build(t *testing.T) {
 			Driver: helmdriver.NewMemory(),
 		}
 
-		obsFunc := func(rel *helmrelease.Release) {}
+		obsFunc := func(rel helmrelease.Releaser) {}
 		cfg := factory.Build(nil, obsFunc)
 
 		g.Expect(cfg).To(Not(BeNil()))
@@ -280,7 +270,7 @@ func TestConfigFactory_Valid(t *testing.T) {
 			factory: &ConfigFactory{
 				Driver:     helmdriver.NewMemory(),
 				Getter:     &kube.MemoryRESTClientGetter{},
-				KubeClient: helmkube.New(&kube.MemoryRESTClientGetter{}),
+				KubeClient: &Client{Client: helmkube.New(&kube.MemoryRESTClientGetter{})},
 			},
 			wantErr: nil,
 		},
@@ -296,14 +286,14 @@ func TestConfigFactory_Valid(t *testing.T) {
 			name: "no Kubernetes getter",
 			factory: &ConfigFactory{
 				Driver:     helmdriver.NewMemory(),
-				KubeClient: helmkube.New(&kube.MemoryRESTClientGetter{}),
+				KubeClient: &Client{Client: helmkube.New(&kube.MemoryRESTClientGetter{})},
 			},
 			wantErr: errors.New("no Kubernetes client and/or getter configured"),
 		},
 		{
 			name: "no driver",
 			factory: &ConfigFactory{
-				KubeClient: helmkube.New(&kube.MemoryRESTClientGetter{}),
+				KubeClient: &Client{Client: helmkube.New(&kube.MemoryRESTClientGetter{})},
 				Getter:     &kube.MemoryRESTClientGetter{},
 			},
 			wantErr: errors.New("no Helm storage driver configured"),

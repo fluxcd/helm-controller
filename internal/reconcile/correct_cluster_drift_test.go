@@ -71,10 +71,10 @@ func TestCorrectClusterDrift_Reconcile(t *testing.T) {
 					{
 						Type: jsondiff.DiffTypeCreate,
 						DesiredObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "Secret",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name":      "secret",
 									"namespace": namespace,
 								},
@@ -84,23 +84,23 @@ func TestCorrectClusterDrift_Reconcile(t *testing.T) {
 					{
 						Type: jsondiff.DiffTypeUpdate,
 						DesiredObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "ConfigMap",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name":      "configmap",
 									"namespace": namespace,
 								},
-								"data": map[string]interface{}{
+								"data": map[string]any{
 									"key": "value",
 								},
 							},
 						},
 						ClusterObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "ConfigMap",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name":      "configmap",
 									"namespace": namespace,
 								},
@@ -110,7 +110,7 @@ func TestCorrectClusterDrift_Reconcile(t *testing.T) {
 							{
 								Type: extjsondiff.OperationAdd,
 								Path: "/data",
-								Value: map[string]interface{}{
+								Value: map[string]any{
 									"key": "value",
 								},
 							},

@@ -23,12 +23,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fluxcd/pkg/runtime/cel"
+	"github.com/Masterminds/semver/v3"
+	"github.com/fluxcd/cli-utils/pkg/kstatus/polling"
+	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/clusterreader"
+	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
 	celtypes "github.com/google/cel-go/common/types"
-	"helm.sh/helm/v3/pkg/chart"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"
@@ -41,13 +45,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/Masterminds/semver/v3"
 	aclv1 "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/auth"
 	authutils "github.com/fluxcd/pkg/auth/utils"
 	"github.com/fluxcd/pkg/cache"
+	"github.com/fluxcd/pkg/chartutil"
 	"github.com/fluxcd/pkg/runtime/acl"
+	"github.com/fluxcd/pkg/runtime/cel"
 	runtimeClient "github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	helper "github.com/fluxcd/pkg/runtime/controller"
@@ -55,9 +60,9 @@ import (
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/object"
 	"github.com/fluxcd/pkg/runtime/patch"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	"github.com/fluxcd/pkg/ssa"
 
-	"github.com/fluxcd/pkg/chartutil"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
@@ -67,9 +72,7 @@ import (
 	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/loader"
-	"github.com/fluxcd/helm-controller/internal/postrender"
 	intreconcile "github.com/fluxcd/helm-controller/internal/reconcile"
-	"github.com/fluxcd/helm-controller/internal/release"
 )
 
 // +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete
@@ -109,6 +112,8 @@ type HelmReleaseReconciler struct {
 	AllowExternalArtifact      bool
 	DisableChartDigestTracking bool
 }
+
+const terminalErrorMessage = "Reconciliation failed terminally due to configuration error"
 
 var (
 	errWaitForDependency = errors.New("must wait for dependency")
@@ -193,16 +198,36 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, nil
 	}
 
+	// Configure custom health checks.
+	statusReader, err := cel.NewStatusReader(obj.Spec.HealthCheckExprs)
+	if err != nil {
+		errMsg := fmt.Sprintf("%s: %v", terminalErrorMessage, err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, meta.InvalidCELExpressionReason, "%s", errMsg)
+		conditions.MarkStalled(obj, meta.InvalidCELExpressionReason, "%s", errMsg)
+		obj.Status.ObservedGeneration = obj.Generation
+		r.Eventf(obj, corev1.EventTypeWarning, meta.InvalidCELExpressionReason, err.Error())
+		return ctrl.Result{}, reconcile.TerminalError(err)
+	}
+
 	// Reconcile the HelmChart template.
 	if err := r.reconcileChartTemplate(ctx, obj); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	return r.reconcileRelease(ctx, patchHelper, obj)
+	return r.reconcileRelease(ctx, patchHelper, obj, statusReader)
 }
 
-func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelper *patch.SerialPatcher, obj *v2.HelmRelease) (ctrl.Result, error) {
+func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
+	patchHelper *patch.SerialPatcher, obj *v2.HelmRelease,
+	newStatusReader func(apimeta.RESTMapper) engine.StatusReader) (ctrl.Result, error) {
+
 	log := ctrl.LoggerFrom(ctx)
+
+	// Check deprecated fields.
+	if obj.GetRollback().Recreate {
+		log.Info("warning: the .spec.rollback.recreate field is deprecated and has no effect. " +
+			"for details, please see: https://github.com/fluxcd/helm-controller/issues/1300#issuecomment-3740272924")
+	}
 
 	// Mark the resource as under reconciliation.
 	// We set Ready=Unknown down below after we assess the readiness of dependencies and the source.
@@ -218,7 +243,6 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		if err := r.checkDependencies(ctx, obj); err != nil {
 			// Check if this is a terminal error that should not trigger retries
 			if errors.Is(err, reconcile.TerminalError(nil)) {
-				const terminalErrorMessage = "Reconciliation failed terminally due to configuration error"
 				errMsg := fmt.Sprintf("%s: %v", terminalErrorMessage, err)
 				conditions.MarkFalse(obj, meta.ReadyCondition, meta.InvalidCELExpressionReason, "%s", errMsg)
 				conditions.MarkStalled(obj, meta.InvalidCELExpressionReason, "%s", errMsg)
@@ -330,22 +354,17 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		conditions.MarkFalse(obj, meta.ReadyCondition, "RESTClientError", "%s", err)
 		return ctrl.Result{}, err
 	}
+
+	// Build resource manager for wait operations.
+	resourceManager, err := r.newResourceManager(getter, newStatusReader)
+	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, "ResourceManagerError", "%s", err)
+		return ctrl.Result{}, err
+	}
+
 	// Remove any stale corresponding Ready=False condition with Unknown.
 	if conditions.HasAnyReason(obj, meta.ReadyCondition, "RESTClientError") {
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
-	}
-
-	// Keep feature flagged code paths separate from the main reconciliation
-	// logic to ensure easy removal when the feature flag is removed.
-	if ok, _ := features.Enabled(features.AdoptLegacyReleases); ok {
-		// Attempt to adopt "legacy" v2beta1 release state on a best-effort basis.
-		// If this fails, the controller will fall back to performing an upgrade
-		// to settle on the desired state.
-		// TODO(hidde): remove this in a future release.
-		if err := r.adoptLegacyRelease(ctx, getter, obj); err != nil {
-			log.Error(err, "failed to adopt v2beta1 release state")
-		}
-		r.adoptPostRenderersStatus(obj)
 	}
 
 	// If the release target configuration has changed, we need to uninstall the
@@ -382,7 +401,9 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 	// Construct config factory for any further Helm actions.
 	cfg, err := action.NewConfigFactory(getter,
 		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
-		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
+		action.WithStorageLog(action.NewTraceLogger(ctx)),
+		action.WithResourceManager(resourceManager),
+		action.WithWaitContext(ctx),
 	)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "FactoryError", "%s", err)
@@ -399,6 +420,17 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context, patchHelpe
 		Chart:  loadedChart,
 		Values: values,
 	}); err != nil {
+		// Handle health check cancellation due to requeue.
+		// Check if a new reconciliation request has been enqueued and the interrupt context was canceled.
+		if enqueued, qes := helper.IsObjectEnqueued(ctx); enqueued {
+			conditions.MarkFalse(obj, meta.ReadyCondition, meta.HealthCheckCanceledReason,
+				"New reconciliation triggered by %s/%s/%s", qes.Kind, qes.Namespace, qes.Name)
+			log.Info("New reconciliation triggered, canceling health checks", "trigger", qes)
+			r.Eventf(obj, corev1.EventTypeNormal, meta.HealthCheckCanceledReason,
+				"Health checks canceled due to new reconciliation triggered by %s/%s/%s",
+				qes.Kind, qes.Namespace, qes.Name)
+			return ctrl.Result{Requeue: true}, nil
+		}
 		switch {
 		case errors.Is(err, intreconcile.ErrRetryAfterInterval):
 			return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetActiveRetry().GetRetryInterval()}), nil
@@ -544,15 +576,26 @@ func (r *HelmReleaseReconciler) reconcileChartTemplate(ctx context.Context, obj 
 }
 
 func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter genericclioptions.RESTClientGetter, obj *v2.HelmRelease) error {
-	// Construct config factory for current release.
+	// Construct config factory for current release first to validate
+	// storage configuration before building the resource manager.
 	cfg, err := action.NewConfigFactory(getter,
 		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
-		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
+		action.WithStorageLog(action.NewTraceLogger(ctx)),
+		action.WithWaitContext(ctx),
 	)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "ConfigFactoryErr", "%s", err)
 		return err
 	}
+
+	// Build resource manager for wait operations during uninstall.
+	resourceManager, err := r.newResourceManager(getter, nil)
+	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, v2.UninstallFailedReason,
+			"failed to build resource manager to uninstall release: %s", err)
+		return err
+	}
+	cfg.NewResourceManager = resourceManager
 
 	// Run uninstall.
 	return intreconcile.NewUninstall(cfg, r.EventRecorder).Reconcile(ctx, &intreconcile.Request{Object: obj})
@@ -644,74 +687,6 @@ func (r *HelmReleaseReconciler) evalReadyExpr(
 	}
 
 	return celExpr.EvaluateBoolean(ctx, vars)
-}
-
-// adoptLegacyRelease attempts to adopt a v2beta1 release into a v2
-// release.
-// This is done by retrieving the last successful release from the Helm storage
-// and converting it to a v2 release snapshot.
-// If the v2beta1 release has already been adopted, this function is a no-op.
-func (r *HelmReleaseReconciler) adoptLegacyRelease(ctx context.Context, getter genericclioptions.RESTClientGetter, obj *v2.HelmRelease) error {
-	if obj.Status.LastReleaseRevision < 1 || len(obj.Status.History) > 0 {
-		return nil
-	}
-
-	var (
-		log              = ctrl.LoggerFrom(ctx).V(logger.DebugLevel)
-		storageNamespace = obj.GetStorageNamespace()
-		releaseNamespace = obj.GetReleaseNamespace()
-		releaseName      = obj.GetReleaseName()
-		version          = obj.Status.LastReleaseRevision
-	)
-
-	log.Info("adopting %s/%s.v%d release from v2beta1 state", releaseNamespace, releaseName, version)
-
-	// Construct config factory for current release.
-	cfg, err := action.NewConfigFactory(getter,
-		action.WithStorage(action.DefaultStorageDriver, storageNamespace),
-		action.WithStorageLog(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.TraceLevel))),
-	)
-	if err != nil {
-		return err
-	}
-
-	// Get the last successful release based on the observation for the v2beta1
-	// object.
-	rls, err := cfg.NewStorage().Get(releaseName, version)
-	if err != nil {
-		return err
-	}
-
-	// Convert it to a v2 release snapshot.
-	snap := release.ObservedToSnapshot(release.ObserveRelease(rls))
-
-	// If tests are enabled, include them as well.
-	if obj.GetTest().Enable {
-		snap.SetTestHooks(release.TestHooksFromRelease(rls))
-	}
-
-	// Adopt it as the current release in the history.
-	obj.Status.History = append(obj.Status.History, snap)
-	obj.Status.StorageNamespace = storageNamespace
-
-	// Erase the last release revision from the status.
-	obj.Status.LastReleaseRevision = 0
-
-	return nil
-}
-
-// adoptPostRenderersStatus attempts to set obj.Status.ObservedPostRenderersDigest
-// for v2beta1 and v2beta2 HelmReleases.
-func (*HelmReleaseReconciler) adoptPostRenderersStatus(obj *v2.HelmRelease) {
-	if obj.GetGeneration() != obj.Status.ObservedGeneration {
-		return
-	}
-
-	// if we have a reconciled object with PostRenderers not reflected in the
-	// status, we need to update the status.
-	if obj.Spec.PostRenderers != nil && obj.Status.ObservedPostRenderersDigest == "" {
-		obj.Status.ObservedPostRenderersDigest = postrender.Digest(digest.Canonical, obj.Spec.PostRenderers).String()
-	}
 }
 
 func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *v2.HelmRelease) (genericclioptions.RESTClientGetter, error) {
@@ -1031,4 +1006,61 @@ func extractDigest(revision string) string {
 		// revision in the <algorithm>:<digest> format
 		return revision
 	}
+}
+
+// newResourceManager creates a constructor for a new SSA ResourceManager with
+// custom status readers for wait operations taking additional status readers
+// as parameters. The additional status readers can for example be used to
+// conditionally append built-in status readers based on API fields, such as
+// DisableWaitForJobs (should append the custom built-in Job status reader when
+// this field is false). This argument is left for lazy injection because
+// different Helm actions may have different field values in the HelmRelease
+// spec. Which Helm action will use the ResourceManager is not known at the time
+// when this function is called.
+func (r *HelmReleaseReconciler) newResourceManager(
+	getter genericclioptions.RESTClientGetter,
+	newStatusReader func(apimeta.RESTMapper) engine.StatusReader,
+) (func(sr ...action.NewStatusReaderFunc) *ssa.ResourceManager, error) {
+
+	// Build controller-runtime client.
+	restConfig, err := getter.ToRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+	c, err := client.New(restConfig, client.Options{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Get REST mapper for later use.
+	restMapper, err := getter.ToRESTMapper()
+	if err != nil {
+		return nil, err
+	}
+
+	// Return constructor function.
+	return func(sr ...action.NewStatusReaderFunc) *ssa.ResourceManager {
+		var statusReaders []engine.StatusReader
+
+		// Spec-defined status readers have precedence.
+		if newStatusReader != nil {
+			statusReaders = append(statusReaders, newStatusReader(restMapper))
+		}
+
+		// Additional built-in status readers come last.
+		for _, f := range sr {
+			statusReaders = append(statusReaders, f(restMapper))
+		}
+
+		// Build poller.
+		poller := polling.NewStatusPoller(c, restMapper, polling.Options{
+			CustomStatusReaders: statusReaders,
+			// The kustomize-controller has an opt-out feature gate that enables
+			// this direct cluster reader: DisableStatusPollerCache.
+			ClusterReaderFactory: engine.ClusterReaderFactoryFunc(clusterreader.NewDirectClusterReader),
+		})
+
+		// Build resource manager.
+		return ssa.NewResourceManager(c, poller, ssa.Owner{})
+	}, nil
 }

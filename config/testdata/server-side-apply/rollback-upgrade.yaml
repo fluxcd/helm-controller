@@ -1,0 +1,32 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: server-side-apply-rollback
+spec:
+  interval: 30s
+  install:
+    serverSideApply: true
+  upgrade:
+    serverSideApply: enabled
+    remediation:
+      remediateLastFailure: true
+  rollback:
+    serverSideApply: enabled
+  chart:
+    spec:
+      chart: podinfo
+      version: '>=6.0.0 <7.0.0'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+      interval: 10m
+  values:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+    # Make wait fail to trigger rollback
+    replicaCount: 2
+    faults:
+      unready: true
+  timeout: 10s

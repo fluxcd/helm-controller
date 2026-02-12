@@ -47,18 +47,18 @@ type errorLogger struct {
 	log logr.Logger
 }
 
-func (l *errorLogger) Error(msg string, keysAndValues ...interface{}) {
+func (l *errorLogger) Error(msg string, keysAndValues ...any) {
 	l.log.Info(msg, keysAndValues...)
 }
 
-func (l *errorLogger) Info(msg string, keysAndValues ...interface{}) {
+func (l *errorLogger) Info(msg string, keysAndValues ...any) {
 	// Do nothing.
 }
 
-func (l *errorLogger) Debug(msg string, keysAndValues ...interface{}) {
+func (l *errorLogger) Debug(msg string, keysAndValues ...any) {
 	// Do nothing.
 }
 
-func (l *errorLogger) Warn(msg string, keysAndValues ...interface{}) {
+func (l *errorLogger) Warn(msg string, keysAndValues ...any) {
 	// Do nothing.
 }

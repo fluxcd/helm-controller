@@ -19,7 +19,7 @@ package postrender
 import (
 	"bytes"
 
-	helmpostrender "helm.sh/helm/v3/pkg/postrender"
+	helmpostrender "helm.sh/helm/v4/pkg/postrenderer"
 )
 
 // Combined is a collection of Helm PostRenders which are

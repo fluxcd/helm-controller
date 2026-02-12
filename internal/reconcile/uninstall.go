@@ -22,14 +22,14 @@ import (
 	"fmt"
 	"strings"
 
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmrelease "helm.sh/helm/v4/pkg/release"
+	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
+	helmreleasev1 "helm.sh/helm/v4/pkg/release/v1"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/fluxcd/pkg/runtime/conditions"
-	"github.com/fluxcd/pkg/runtime/logger"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -81,8 +81,8 @@ func NewUninstall(cfg *action.ConfigFactory, recorder record.EventRecorder) *Uni
 func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	var (
 		cur    = req.Object.Status.History.Latest().DeepCopy()
-		logBuf = action.NewLogBuffer(action.NewDebugLog(ctrl.LoggerFrom(ctx).V(logger.DebugLevel)), 10)
-		cfg    = r.configFactory.Build(logBuf.Log, observeUninstall(req.Object))
+		logBuf = action.NewDebugLogBuffer(ctx)
+		cfg    = r.configFactory.Build(logBuf, observeUninstall(req.Object, v2.ReleaseActionUninstall))
 	)
 
 	defer summarize(req)
@@ -119,9 +119,15 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 	// The Helm uninstall action does always target the latest release. Before
 	// accepting results, we need to confirm this is actually the release we
 	// have recorded as latest.
-	if res != nil && !release.ObserveRelease(res.Release).Targets(cur.Name, cur.Namespace, cur.Version) {
-		err = fmt.Errorf("%w: uninstalled release %s/%s.v%d != current release %s",
-			ErrReleaseMismatch, res.Release.Namespace, res.Release.Name, res.Release.Version, cur.FullReleaseName())
+	if res != nil {
+		rls, ok := res.Release.(*helmreleasev1.Release)
+		if !ok {
+			return fmt.Errorf("only the Chart API v2 is supported")
+		}
+		if !release.ObserveRelease(rls).Targets(cur.Name, cur.Namespace, cur.Version) {
+			err = fmt.Errorf("%w: uninstalled release %s/%s.v%d != current release %s",
+				ErrReleaseMismatch, rls.Namespace, rls.Name, rls.Version, cur.FullReleaseName())
+		}
 	}
 
 	// The Helm uninstall action may return without an error while the update
@@ -130,7 +136,7 @@ func (r *Uninstall) Reconcile(ctx context.Context, req *Request) error {
 		// An exception is made for the case where the release was already marked
 		// as uninstalled, which would only result in the release object getting
 		// removed from the storage.
-		if s := helmrelease.Status(cur.Status); s != helmrelease.StatusUninstalled {
+		if s := helmreleasecommon.Status(cur.Status); s != helmreleasecommon.StatusUninstalled {
 			err = fmt.Errorf("uninstall completed with error: %w", ErrNoStorageUpdate)
 		}
 	}
@@ -191,6 +197,9 @@ func (r *Uninstall) success(req *Request) {
 	cur := req.Object.Status.History.Latest()
 	msg := fmt.Sprintf(fmtUninstallSuccess, cur.FullReleaseName(), cur.VersionedChartName())
 
+	// Clear inventory as the release has been uninstalled.
+	req.Object.Status.Inventory = nil
+
 	// Mark remediation success on object.
 	conditions.MarkFalse(req.Object, v2.ReleasedCondition, v2.UninstallSucceededReason, "%s", msg)
 
@@ -211,17 +220,21 @@ func (r *Uninstall) success(req *Request) {
 // information.
 // If a matching snapshot for the uninstalled release is found, it updates the
 // snapshot with the observed release data.
-func observeUninstall(obj *v2.HelmRelease) storage.ObserveFunc {
+func observeUninstall(obj *v2.HelmRelease, action v2.ReleaseAction) storage.ObserveFunc {
 	// NB: One could argue that we should only update the latest release in
 	// the history.
 	// But like during rollback, Helm may supersede any previous releases.
 	// As such, we need to update all releases we have in our history.
 	// xref: https://github.com/helm/helm/pull/12564
-	return func(rls *helmrelease.Release) {
+	return func(rlsr helmrelease.Releaser) {
+		rls, ok := rlsr.(*helmreleasev1.Release)
+		if !ok {
+			return
+		}
 		for i := range obj.Status.History {
 			snap := obj.Status.History[i]
 			if snap.Targets(rls.Name, rls.Namespace, rls.Version) {
-				newSnap := release.ObservedToSnapshot(releaseToObservation(rls, snap))
+				newSnap := release.ObservedToSnapshot(releaseToObservation(rls, snap, action))
 				newSnap.SetTestHooks(snap.GetTestHooks())
 				obj.Status.History[i] = newSnap
 				return

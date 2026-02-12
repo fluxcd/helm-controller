@@ -28,8 +28,8 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	. "github.com/onsi/gomega"
 	extjsondiff "github.com/wI2L/jsondiff"
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmaction "helm.sh/helm/v4/pkg/action"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -398,10 +398,10 @@ data:
 			mutateCluster: func(objs []*unstructured.Unstructured, namespace string) ([]*unstructured.Unstructured, error) {
 				var clusterObjs []*unstructured.Unstructured
 
-				otherNS := unstructured.Unstructured{Object: map[string]interface{}{
+				otherNS := unstructured.Unstructured{Object: map[string]any{
 					"apiVersion": "v1",
 					"kind":       "Namespace",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "diff-fixed-ns",
 					},
 				}}
@@ -462,15 +462,17 @@ data:
 						Patch: extjsondiff.Patch{
 							{
 								Type: extjsondiff.OperationAdd,
-								Path: "/metadata",
-								Value: map[string]interface{}{
-									"labels": map[string]interface{}{
-										appManagedByLabel: appManagedByHelm,
-									},
-									"annotations": map[string]interface{}{
-										helmReleaseNameAnnotation:      "configures Helm metadata",
-										helmReleaseNamespaceAnnotation: namespace,
-									},
+								Path: "/metadata/annotations",
+								Value: map[string]any{
+									helmReleaseNameAnnotation:      "configures Helm metadata",
+									helmReleaseNamespaceAnnotation: namespace,
+								},
+							},
+							{
+								Type: extjsondiff.OperationAdd,
+								Path: "/metadata/labels",
+								Value: map[string]any{
+									appManagedByLabel: appManagedByHelm,
 								},
 							},
 						},
@@ -602,14 +604,14 @@ func TestApplyDiff(t *testing.T) {
 					{
 						Type: jsondiff.DiffTypeCreate,
 						DesiredObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "Secret",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name":      "test-secret",
 									"namespace": namespace,
 								},
-								"stringData": map[string]interface{}{
+								"stringData": map[string]any{
 									"key": "value",
 								},
 							},
@@ -618,27 +620,27 @@ func TestApplyDiff(t *testing.T) {
 					{
 						Type: jsondiff.DiffTypeUpdate,
 						DesiredObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "ConfigMap",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name":      "test-cm",
 									"namespace": namespace,
 								},
-								"data": map[string]interface{}{
+								"data": map[string]any{
 									"key": "value",
 								},
 							},
 						},
 						ClusterObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "ConfigMap",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name":      "test-cm",
 									"namespace": namespace,
 								},
-								"data": map[string]interface{}{
+								"data": map[string]any{
 									"key": "changed",
 								},
 							},
@@ -685,14 +687,14 @@ func TestApplyDiff(t *testing.T) {
 					{
 						Type: jsondiff.DiffTypeCreate,
 						DesiredObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "Secret",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name":      "invalid-test-secret",
 									"namespace": namespace,
 								},
-								"data": map[string]interface{}{
+								"data": map[string]any{
 									// Illegal base64 encoded data.
 									"key": "secret value",
 								},
@@ -702,10 +704,10 @@ func TestApplyDiff(t *testing.T) {
 					{
 						Type: jsondiff.DiffTypeCreate,
 						DesiredObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "ConfigMap",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name":      "test-cm",
 									"namespace": namespace,
 								},
@@ -715,28 +717,28 @@ func TestApplyDiff(t *testing.T) {
 					{
 						Type: jsondiff.DiffTypeUpdate,
 						DesiredObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "Secret",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name":      "invalid-test-secret-update",
 									"namespace": namespace,
 								},
-								"data": map[string]interface{}{
+								"data": map[string]any{
 									// Illegal base64 encoded data.
 									"key": "secret value2",
 								},
 							},
 						},
 						ClusterObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "Secret",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name":      "invalid-test-secret-update",
 									"namespace": namespace,
 								},
-								"stringData": map[string]interface{}{
+								"stringData": map[string]any{
 									"key": "value",
 								},
 							},
@@ -753,27 +755,27 @@ func TestApplyDiff(t *testing.T) {
 					{
 						Type: jsondiff.DiffTypeUpdate,
 						DesiredObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "ConfigMap",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name":      "test-cm-2",
 									"namespace": namespace,
 								},
-								"data": map[string]interface{}{
+								"data": map[string]any{
 									"key": "value",
 								},
 							},
 						},
 						ClusterObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "ConfigMap",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name":      "test-cm-2",
 									"namespace": namespace,
 								},
-								"data": map[string]interface{}{
+								"data": map[string]any{
 									"key": "changed",
 								},
 							},
@@ -830,10 +832,10 @@ func TestApplyDiff(t *testing.T) {
 					{
 						Type: jsondiff.DiffTypeCreate,
 						DesiredObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "ConfigMap",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name":      "test-cm",
 									"namespace": otherNS,
 								},
@@ -843,10 +845,10 @@ func TestApplyDiff(t *testing.T) {
 					{
 						Type: jsondiff.DiffTypeCreate,
 						DesiredObject: &unstructured.Unstructured{
-							Object: map[string]interface{}{
+							Object: map[string]any{
 								"apiVersion": "v1",
 								"kind":       "Namespace",
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"name": otherNS,
 								},
 							},

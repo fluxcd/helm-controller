@@ -21,8 +21,8 @@ import (
 	"io"
 
 	"github.com/mitchellh/copystructure"
-	"helm.sh/helm/v3/pkg/chart"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -67,11 +67,15 @@ type Observation struct {
 	Version int `json:"version"`
 	// Info provides information about the release.
 	Info helmrelease.Info `json:"info"`
+	// Action is the action that resulted in this observation.
+	// It's not serialized to JSON because it's not needed for
+	// the digest. The action is only tracked for visibility.
+	Action v2.ReleaseAction `json:"-"`
 	// ChartMetadata contains the current Chartfile data of the release.
 	ChartMetadata chart.Metadata `json:"chartMetadata"`
 	// Config is the set of extra Values added to the chart.
 	// These values override the default values inside the chart.
-	Config map[string]interface{} `json:"config"`
+	Config map[string]any `json:"config"`
 	// Manifest is the string representation of the rendered template.
 	Manifest string `json:"manifest"`
 	// Hooks are all the hooks declared for this release, and the current
@@ -126,13 +130,15 @@ func ObserveRelease(rel *helmrelease.Release, filter ...DataFilter) Observation 
 
 	if rel.Chart != nil && rel.Chart.Metadata != nil {
 		if v, err := copystructure.Copy(rel.Chart.Metadata); err == nil {
-			obsRel.ChartMetadata = *v.(*chart.Metadata)
+			if vTyped, ok := v.(*chart.Metadata); ok {
+				obsRel.ChartMetadata = *vTyped
+			}
 		}
 	}
 
 	if len(rel.Config) > 0 {
 		if v, err := copystructure.Copy(rel.Config); err == nil {
-			obsRel.Config = v.(map[string]interface{})
+			obsRel.Config = v.(map[string]any)
 		}
 	}
 
@@ -157,6 +163,7 @@ func ObserveRelease(rel *helmrelease.Release, filter ...DataFilter) Observation 
 // digest.Canonical algorithm.
 func ObservedToSnapshot(rls Observation) *v2.Snapshot {
 	return &v2.Snapshot{
+		APIVersion:    v2.CurrentSnapshotAPIVersion,
 		Digest:        Digest(digest.Canonical, rls).String(),
 		Name:          rls.Name,
 		Namespace:     rls.Namespace,
@@ -165,10 +172,11 @@ func ObservedToSnapshot(rls Observation) *v2.Snapshot {
 		ChartName:     rls.ChartMetadata.Name,
 		ChartVersion:  rls.ChartMetadata.Version,
 		ConfigDigest:  chartutil.DigestValues(digest.Canonical, rls.Config).String(),
-		FirstDeployed: metav1.NewTime(rls.Info.FirstDeployed.Time),
-		LastDeployed:  metav1.NewTime(rls.Info.LastDeployed.Time),
-		Deleted:       metav1.NewTime(rls.Info.Deleted.Time),
+		FirstDeployed: metav1.NewTime(rls.Info.FirstDeployed),
+		LastDeployed:  metav1.NewTime(rls.Info.LastDeployed),
+		Deleted:       metav1.NewTime(rls.Info.Deleted),
 		Status:        rls.Info.Status.String(),
+		Action:        rls.Action,
 		OCIDigest:     rls.OCIDigest,
 	}
 }
@@ -181,8 +189,8 @@ func TestHooksFromRelease(rls *helmrelease.Release) map[string]*v2.TestHookStatu
 		var h *v2.TestHookStatus
 		if v != nil {
 			h = &v2.TestHookStatus{
-				LastStarted:   metav1.NewTime(v.LastRun.StartedAt.Time),
-				LastCompleted: metav1.NewTime(v.LastRun.CompletedAt.Time),
+				LastStarted:   metav1.NewTime(v.LastRun.StartedAt),
+				LastCompleted: metav1.NewTime(v.LastRun.CompletedAt),
 				Phase:         v.LastRun.Phase.String(),
 			}
 		}

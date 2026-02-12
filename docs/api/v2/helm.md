@@ -405,6 +405,39 @@ overridden if its key matches a common one.</p>
 of their definition.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>waitStrategy</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.WaitStrategy">
+WaitStrategy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>WaitStrategy defines Helm&rsquo;s wait strategy for waiting for applied
+resources to become ready.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>healthCheckExprs</code><br>
+<em>
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/kustomize#CustomHealthCheck">
+[]github.com/fluxcd/pkg/apis/kustomize.CustomHealthCheck
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>HealthCheckExprs is a list of healthcheck expressions for evaluating the
+health of custom resources using Common Expression Language (CEL).
+The expressions are evaluated only when the specific Helm action
+taking place has wait enabled, i.e. DisableWait is false, and the
+&lsquo;poller&rsquo; WaitStrategy is used.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -1540,6 +1573,39 @@ overridden if its key matches a common one.</p>
 of their definition.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>waitStrategy</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.WaitStrategy">
+WaitStrategy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>WaitStrategy defines Helm&rsquo;s wait strategy for waiting for applied
+resources to become ready.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>healthCheckExprs</code><br>
+<em>
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/kustomize#CustomHealthCheck">
+[]github.com/fluxcd/pkg/apis/kustomize.CustomHealthCheck
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>HealthCheckExprs is a list of healthcheck expressions for evaluating the
+health of custom resources using Common Expression Language (CEL).
+The expressions are evaluated only when the specific Helm action
+taking place has wait enabled, i.e. DisableWait is false, and the
+&lsquo;poller&rsquo; WaitStrategy is used.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -1665,6 +1731,21 @@ Snapshots
 <em>(Optional)</em>
 <p>History holds the history of Helm releases performed for this HelmRelease
 up to the last successfully completed release.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>inventory</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.ResourceInventory">
+ResourceInventory
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Inventory contains the list of Kubernetes resource object references
+that have been applied for this release.</p>
 </td>
 </tr>
 <tr>
@@ -2109,6 +2190,19 @@ HelmReleaseSpec.TargetNamespace if it does not exist yet.
 On uninstall, the namespace will not be garbage collected.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>serverSideApply</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServerSideApply enables server-side apply for resources during install.
+Defaults to true (or false when UseHelm3Defaults feature gate is enabled).</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -2314,7 +2408,8 @@ Kustomize
 (<code>string</code> alias)</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseStatus">HelmReleaseStatus</a>)
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseStatus">HelmReleaseStatus</a>, 
+<a href="#helm.toolkit.fluxcd.io/v2.Snapshot">Snapshot</a>)
 </p>
 <p>ReleaseAction is the action to perform a Helm release.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.Remediation">Remediation
@@ -2329,6 +2424,85 @@ UpgradeRemediation.</p>
 </p>
 <p>RemediationStrategy returns the strategy to use to remediate a failed install
 or upgrade.</p>
+<h3 id="helm.toolkit.fluxcd.io/v2.ResourceInventory">ResourceInventory
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseStatus">HelmReleaseStatus</a>)
+</p>
+<p>ResourceInventory contains a list of Kubernetes resource object references
+that have been applied by a HelmRelease.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>entries</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.ResourceRef">
+[]ResourceRef
+</a>
+</em>
+</td>
+<td>
+<p>Entries of Kubernetes resource object references.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2.ResourceRef">ResourceRef
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.ResourceInventory">ResourceInventory</a>)
+</p>
+<p>ResourceRef contains the information necessary to locate a resource within a cluster.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>id</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>ID is the string representation of the Kubernetes resource object&rsquo;s metadata,
+in the format &lsquo;<namespace><em><name></em><group>_<kind>&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>v</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Version is the API version of the Kubernetes resource object&rsquo;s kind.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="helm.toolkit.fluxcd.io/v2.Retry">Retry
 </h3>
 <p>Retry defines a consistent interface for retry strategies from
@@ -2414,7 +2588,14 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Recreate performs pod restarts for the resource if applicable.</p>
+<p>Recreate performs pod restarts for any managed workloads.</p>
+<p>Deprecated: This behavior was deprecated in Helm 3:
+- Deprecation: <a href="https://github.com/helm/helm/pull/6463">https://github.com/helm/helm/pull/6463</a>
+- Removal: <a href="https://github.com/helm/helm/pull/31023">https://github.com/helm/helm/pull/31023</a>
+After helm-controller was upgraded to the Helm 4 SDK,
+this field is no longer functional and will print a
+warning if set to true. It will also be removed in a
+future release.</p>
 </td>
 </tr>
 <tr>
@@ -2442,10 +2623,36 @@ bool
 rollback action when it fails.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>serverSideApply</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.ServerSideApplyMode">
+ServerSideApplyMode
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServerSideApply enables server-side apply for resources during rollback.
+Can be &ldquo;enabled&rdquo;, &ldquo;disabled&rdquo;, or &ldquo;auto&rdquo;.
+When &ldquo;auto&rdquo;, server-side apply usage will be based on the release&rsquo;s previous usage.
+Defaults to &ldquo;auto&rdquo;.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2.ServerSideApplyMode">ServerSideApplyMode
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.Rollback">Rollback</a>, 
+<a href="#helm.toolkit.fluxcd.io/v2.Upgrade">Upgrade</a>)
+</p>
+<p>ServerSideApplyMode defines the server-side apply mode for Helm upgrade and
+rollback actions.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.Snapshot">Snapshot
 </h3>
 <p>Snapshot captures a point-in-time copy of the status information for a Helm release,
@@ -2470,8 +2677,8 @@ string
 <td>
 <em>(Optional)</em>
 <p>APIVersion is the API version of the Snapshot.
-Provisional: when the calculation method of the Digest field is changed,
-this field will be used to distinguish between the old and new methods.</p>
+When the calculation method of the Digest field is changed, this
+field will be used to distinguish between the old and new methods.</p>
 </td>
 </tr>
 <tr>
@@ -2528,6 +2735,20 @@ string
 </td>
 <td>
 <p>Status is the current state of the release.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>action</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.ReleaseAction">
+ReleaseAction
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Action is the action that resulted in this snapshot being created.</p>
 </td>
 </tr>
 <tr>
@@ -3091,6 +3312,23 @@ option users can opt-in to CRD upgrade, which is not (yet) natively supported by
 <a href="https://helm.sh/docs/chart_best_practices/custom_resource_definitions">https://helm.sh/docs/chart_best_practices/custom_resource_definitions</a>.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>serverSideApply</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.ServerSideApplyMode">
+ServerSideApplyMode
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServerSideApply enables server-side apply for resources during upgrade.
+Can be &ldquo;enabled&rdquo;, &ldquo;disabled&rdquo;, or &ldquo;auto&rdquo;.
+When &ldquo;auto&rdquo;, server-side apply usage will be based on the release&rsquo;s previous usage.
+Defaults to &ldquo;auto&rdquo;.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -3219,6 +3457,53 @@ Defaults to &lsquo;5m&rsquo;.</p>
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2.WaitStrategy">WaitStrategy
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>WaitStrategy defines Helm&rsquo;s wait strategy for waiting for applied
+resources to become ready.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.WaitStrategyName">
+WaitStrategyName
+</a>
+</em>
+</td>
+<td>
+<p>Name is Helm&rsquo;s wait strategy for waiting for applied resources to
+become ready. One of &lsquo;poller&rsquo; or &lsquo;legacy&rsquo;. The &lsquo;poller&rsquo; strategy uses
+kstatus to poll resource statuses, while the &lsquo;legacy&rsquo; strategy uses
+Helm v3&rsquo;s waiting logic.
+Defaults to &lsquo;poller&rsquo;, or to &lsquo;legacy&rsquo; when UseHelm3Defaults feature
+gate is enabled.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2.WaitStrategyName">WaitStrategyName
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.WaitStrategy">WaitStrategy</a>)
+</p>
+<p>WaitStrategyName is a strategy for waiting for resources to be ready.</p>
 <div class="admonition note">
 <p class="last">This page was automatically generated with <code>gen-crd-api-reference-docs</code></p>
 </div>

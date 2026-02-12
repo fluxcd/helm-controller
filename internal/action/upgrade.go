@@ -18,12 +18,14 @@ package action
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	helmaction "helm.sh/helm/v3/pkg/action"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	helmchartutil "helm.sh/helm/v3/pkg/chartutil"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmaction "helm.sh/helm/v4/pkg/action"
+	helmchartutil "helm.sh/helm/v4/pkg/chart/common"
+	helmchart "helm.sh/helm/v4/pkg/chart/v2"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/features"
@@ -51,31 +53,70 @@ func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 	vals helmchartutil.Values, opts ...UpgradeOption) (*helmrelease.Release, error) {
 	upgrade := newUpgrade(config, obj, opts)
 
+	// Resolve "auto" server-side apply setting.
+	// We need to copy this code from Helm because we need to set ForceConflicts
+	// based on the resolved value, since we always force conflicts on server-side apply
+	// (Helm does not).
+	releaseName := release.ShortenName(obj.GetReleaseName())
+	serverSideApply := upgrade.ServerSideApply == "true"
+	if upgrade.ServerSideApply == "auto" {
+		lastRelease, err := config.Releases.Last(releaseName)
+		if err != nil {
+			if errors.Is(err, helmdriver.ErrReleaseNotFound) {
+				return nil, helmdriver.NewErrNoDeployedReleases(releaseName)
+			}
+			return nil, err
+		}
+		lastReleaseTyped, ok := lastRelease.(*helmrelease.Release)
+		if !ok {
+			return nil, fmt.Errorf("only the Chart API v2 is supported")
+		}
+		serverSideApply = lastReleaseTyped.ApplyMethod == "ssa"
+		upgrade.ServerSideApply = fmt.Sprint(serverSideApply)
+	}
+	upgrade.ForceConflicts = serverSideApply // We always force conflicts on server-side apply.
+
 	policy, err := crdPolicyOrDefault(obj.GetUpgrade().CRDs)
 	if err != nil {
 		return nil, err
 	}
-	if err := applyCRDs(config, policy, chrt, vals, setOriginVisitor(v2.GroupVersion.Group, obj.Namespace, obj.Name)); err != nil {
+
+	if err := applyCRDs(config, policy, chrt, vals, serverSideApply,
+		upgrade.WaitStrategy, upgrade.WaitOptions,
+		setOriginVisitor(v2.GroupVersion.Group, obj.Namespace, obj.Name)); err != nil {
 		return nil, fmt.Errorf("failed to apply CustomResourceDefinitions: %w", err)
 	}
 
-	return upgrade.RunWithContext(ctx, release.ShortenName(obj.GetReleaseName()), chrt, vals.AsMap())
+	rlsr, err := upgrade.RunWithContext(ctx, releaseName, chrt, vals.AsMap())
+	if err != nil {
+		return nil, err
+	}
+	rlsrTyped, ok := rlsr.(*helmrelease.Release)
+	if !ok {
+		return nil, fmt.Errorf("only the Chart API v2 is supported")
+	}
+	return rlsrTyped, err
 }
 
 func newUpgrade(config *helmaction.Configuration, obj *v2.HelmRelease, opts []UpgradeOption) *helmaction.Upgrade {
 	upgrade := helmaction.NewUpgrade(config)
+	upgrade.ServerSideApply = "auto" // This must be the upgrade default regardless of UseHelm3Defaults.
+	if ssa := obj.GetUpgrade().ServerSideApply; ssa != "" {
+		upgrade.ServerSideApply = toHelmSSAValue(ssa)
+	}
+
 	upgrade.Namespace = obj.GetReleaseNamespace()
 	upgrade.ResetValues = !obj.GetUpgrade().PreserveValues
 	upgrade.ReuseValues = obj.GetUpgrade().PreserveValues
 	upgrade.MaxHistory = obj.GetMaxHistory()
 	upgrade.Timeout = obj.GetUpgrade().GetTimeout(obj.GetTimeout()).Duration
 	upgrade.TakeOwnership = !obj.GetUpgrade().DisableTakeOwnership
-	upgrade.Wait = !obj.GetUpgrade().DisableWait
+	upgrade.WaitStrategy = getWaitStrategy(obj.GetWaitStrategy(), obj.GetUpgrade())
 	upgrade.WaitForJobs = !obj.GetUpgrade().DisableWaitForJobs
 	upgrade.DisableHooks = obj.GetUpgrade().DisableHooks
 	upgrade.DisableOpenAPIValidation = obj.GetUpgrade().DisableOpenAPIValidation
 	upgrade.SkipSchemaValidation = obj.GetUpgrade().DisableSchemaValidation
-	upgrade.Force = obj.GetUpgrade().Force
+	upgrade.ForceReplace = obj.GetUpgrade().Force
 	upgrade.CleanupOnFail = obj.GetUpgrade().CleanupOnFail
 	upgrade.Devel = true
 

@@ -184,6 +184,19 @@ type HelmReleaseSpec struct {
 	// of their definition.
 	// +optional
 	PostRenderers []PostRenderer `json:"postRenderers,omitempty"`
+
+	// WaitStrategy defines Helm's wait strategy for waiting for applied
+	// resources to become ready.
+	// +optional
+	WaitStrategy *WaitStrategy `json:"waitStrategy,omitempty"`
+
+	// HealthCheckExprs is a list of healthcheck expressions for evaluating the
+	// health of custom resources using Common Expression Language (CEL).
+	// The expressions are evaluated only when the specific Helm action
+	// taking place has wait enabled, i.e. DisableWait is false, and the
+	// 'poller' WaitStrategy is used.
+	// +optional
+	HealthCheckExprs []kustomize.CustomHealthCheck `json:"healthCheckExprs,omitempty"`
 }
 
 // +kubebuilder:object:generate=false
@@ -424,6 +437,40 @@ type HelmChartTemplateVerification struct {
 	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
+// WaitStrategyName is a strategy for waiting for resources to be ready.
+type WaitStrategyName string
+
+const (
+	// WaitStrategyPoller is the strategy for polling resource statuses via kstatus.
+	WaitStrategyPoller WaitStrategyName = "poller"
+
+	// WaitStrategyLegacy is the legacy strategy for waiting for resources to be ready
+	// used in Helm v3.
+	WaitStrategyLegacy WaitStrategyName = "legacy"
+)
+
+// WaitStrategy defines Helm's wait strategy for waiting for applied
+// resources to become ready.
+type WaitStrategy struct {
+	// Name is Helm's wait strategy for waiting for applied resources to
+	// become ready. One of 'poller' or 'legacy'. The 'poller' strategy uses
+	// kstatus to poll resource statuses, while the 'legacy' strategy uses
+	// Helm v3's waiting logic.
+	// Defaults to 'poller', or to 'legacy' when UseHelm3Defaults feature
+	// gate is enabled.
+	// +kubebuilder:validation:Enum=poller;legacy
+	// +required
+	Name WaitStrategyName `json:"name"`
+}
+
+// GetWaitStrategy returns the wait strategy for the Helm actions.
+func (in *HelmRelease) GetWaitStrategy() WaitStrategyName {
+	if in.Spec.WaitStrategy != nil {
+		return in.Spec.WaitStrategy.Name
+	}
+	return ""
+}
+
 // Remediation defines a consistent interface for InstallRemediation and
 // UpgradeRemediation.
 // +kubebuilder:object:generate=false
@@ -435,6 +482,7 @@ type Remediation interface {
 	GetFailureCount(hr *HelmRelease) int64
 	IncrementFailureCount(hr *HelmRelease)
 	RetriesExhausted(hr *HelmRelease) bool
+	IsUninstallAfterUpgrade() bool
 }
 
 // Strategy defines a consistent interface for InstallStrategy and
@@ -541,6 +589,11 @@ type Install struct {
 	// On uninstall, the namespace will not be garbage collected.
 	// +optional
 	CreateNamespace bool `json:"createNamespace,omitempty"`
+
+	// ServerSideApply enables server-side apply for resources during install.
+	// Defaults to true (or false when UseHelm3Defaults feature gate is enabled).
+	// +optional
+	ServerSideApply *bool `json:"serverSideApply,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm install action,
@@ -567,6 +620,11 @@ func (in Install) GetRetry() Retry {
 		return nil
 	}
 	return in.Strategy
+}
+
+// GetDisableWait returns whether waiting is disabled for the Helm install action.
+func (in Install) GetDisableWait() bool {
+	return in.DisableWait
 }
 
 // InstallStrategy holds the configuration for Helm install strategy.
@@ -659,6 +717,11 @@ func (in InstallRemediation) RetriesExhausted(hr *HelmRelease) bool {
 	return in.Retries >= 0 && in.GetFailureCount(hr) > int64(in.Retries)
 }
 
+// IsUninstallAfterUpgrade returns false.
+func (in InstallRemediation) IsUninstallAfterUpgrade() bool {
+	return false
+}
+
 // CRDsPolicy defines the install/upgrade approach to use for CRDs when
 // installing or upgrading a HelmRelease.
 type CRDsPolicy string
@@ -672,6 +735,21 @@ const (
 	// Create CRDs which do not already exist, Replace (update) already existing CRDs
 	// and keep (do not delete) CRDs which no longer exist in the current release.
 	CreateReplace CRDsPolicy = "CreateReplace"
+)
+
+// ServerSideApplyMode defines the server-side apply mode for Helm upgrade and
+// rollback actions.
+type ServerSideApplyMode string
+
+const (
+	// ServerSideApplyEnabled enables server-side apply for resources.
+	ServerSideApplyEnabled ServerSideApplyMode = "enabled"
+
+	// ServerSideApplyDisabled disables server-side apply for resources.
+	ServerSideApplyDisabled ServerSideApplyMode = "disabled"
+
+	// ServerSideApplyAuto uses the release's previous apply method.
+	ServerSideApplyAuto ServerSideApplyMode = "auto"
 )
 
 // Upgrade holds the configuration for Helm upgrade actions for this
@@ -758,6 +836,14 @@ type Upgrade struct {
 	// +kubebuilder:validation:Enum=Skip;Create;CreateReplace
 	// +optional
 	CRDs CRDsPolicy `json:"crds,omitempty"`
+
+	// ServerSideApply enables server-side apply for resources during upgrade.
+	// Can be "enabled", "disabled", or "auto".
+	// When "auto", server-side apply usage will be based on the release's previous usage.
+	// Defaults to "auto".
+	// +kubebuilder:validation:Enum=enabled;disabled;auto
+	// +optional
+	ServerSideApply ServerSideApplyMode `json:"serverSideApply,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm upgrade action, or the
@@ -785,6 +871,11 @@ func (in Upgrade) GetRetry() Retry {
 		return nil
 	}
 	return in.Strategy
+}
+
+// GetDisableWait returns whether waiting is disabled for the Helm upgrade action.
+func (in Upgrade) GetDisableWait() bool {
+	return in.DisableWait
 }
 
 // UpgradeStrategy holds the configuration for Helm upgrade strategy.
@@ -883,6 +974,11 @@ func (in UpgradeRemediation) IncrementFailureCount(hr *HelmRelease) {
 // RetriesExhausted returns true if there are no remaining retries.
 func (in UpgradeRemediation) RetriesExhausted(hr *HelmRelease) bool {
 	return in.Retries >= 0 && in.GetFailureCount(hr) > int64(in.Retries)
+}
+
+// IsUninstallAfterUpgrade returns true if the remediation strategy is uninstall.
+func (in UpgradeRemediation) IsUninstallAfterUpgrade() bool {
+	return in.GetStrategy() == UninstallRemediationStrategy
 }
 
 // ActionStrategyName is a valid name for an action strategy.
@@ -991,7 +1087,15 @@ type Rollback struct {
 	// +optional
 	DisableHooks bool `json:"disableHooks,omitempty"`
 
-	// Recreate performs pod restarts for the resource if applicable.
+	// Recreate performs pod restarts for any managed workloads.
+	//
+	// Deprecated: This behavior was deprecated in Helm 3:
+	//   - Deprecation: https://github.com/helm/helm/pull/6463
+	//   - Removal: https://github.com/helm/helm/pull/31023
+	// After helm-controller was upgraded to the Helm 4 SDK,
+	// this field is no longer functional and will print a
+	// warning if set to true. It will also be removed in a
+	// future release.
 	// +optional
 	Recreate bool `json:"recreate,omitempty"`
 
@@ -1003,6 +1107,14 @@ type Rollback struct {
 	// rollback action when it fails.
 	// +optional
 	CleanupOnFail bool `json:"cleanupOnFail,omitempty"`
+
+	// ServerSideApply enables server-side apply for resources during rollback.
+	// Can be "enabled", "disabled", or "auto".
+	// When "auto", server-side apply usage will be based on the release's previous usage.
+	// Defaults to "auto".
+	// +kubebuilder:validation:Enum=enabled;disabled;auto
+	// +optional
+	ServerSideApply ServerSideApplyMode `json:"serverSideApply,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm rollback action, or
@@ -1012,6 +1124,11 @@ func (in Rollback) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 		return defaultTimeout
 	}
 	return *in.Timeout
+}
+
+// GetDisableWait returns whether waiting is disabled for the Helm rollback action.
+func (in Rollback) GetDisableWait() bool {
+	return in.DisableWait
 }
 
 // Uninstall holds the configuration for Helm uninstall actions for this
@@ -1065,6 +1182,11 @@ func (in Uninstall) GetDeletionPropagation() string {
 	return *in.DeletionPropagation
 }
 
+// GetDisableWait returns whether waiting is disabled for the Helm uninstall action.
+func (in Uninstall) GetDisableWait() bool {
+	return in.DisableWait
+}
+
 // ReleaseAction is the action to perform a Helm release.
 type ReleaseAction string
 
@@ -1073,6 +1195,12 @@ const (
 	ReleaseActionInstall ReleaseAction = "install"
 	// ReleaseActionUpgrade represents a Helm upgrade action.
 	ReleaseActionUpgrade ReleaseAction = "upgrade"
+	// ReleaseActionRollback represents a Helm rollback action.
+	ReleaseActionRollback ReleaseAction = "rollback"
+	// ReleaseActionUninstall represents a Helm uninstall action.
+	ReleaseActionUninstall ReleaseAction = "uninstall"
+	// ReleaseActionUninstallRemediation represents a Helm uninstall action for remediation.
+	ReleaseActionUninstallRemediation ReleaseAction = "uninstall-remediation"
 )
 
 // HelmReleaseStatus defines the observed state of a HelmRelease.
@@ -1117,6 +1245,11 @@ type HelmReleaseStatus struct {
 	// up to the last successfully completed release.
 	// +optional
 	History Snapshots `json:"history,omitempty"`
+
+	// Inventory contains the list of Kubernetes resource object references
+	// that have been applied for this release.
+	// +optional
+	Inventory *ResourceInventory `json:"inventory,omitempty"`
 
 	// LastAttemptedReleaseAction is the last release action performed for this
 	// HelmRelease. It is used to determine the active retry or remediation
@@ -1322,10 +1455,10 @@ func (in HelmRelease) GetRequeueAfter() time.Duration {
 	return in.Spec.Interval.Duration
 }
 
-// GetValues unmarshals the raw values to a map[string]interface{} and returns
+// GetValues unmarshals the raw values to a map[string]any and returns
 // the result.
-func (in HelmRelease) GetValues() map[string]interface{} {
-	var values map[string]interface{}
+func (in HelmRelease) GetValues() map[string]any {
+	var values map[string]any
 	if in.Spec.Values != nil {
 		_ = yaml.Unmarshal(in.Spec.Values.Raw, &values)
 	}

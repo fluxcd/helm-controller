@@ -22,7 +22,7 @@ import (
 
 	. "github.com/onsi/gomega"
 	"github.com/opencontainers/go-digest"
-	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -189,7 +189,7 @@ func TestObserveRelease(t *testing.T) {
 				Version:   1,
 				Chart:     testutil.BuildChart(),
 			},
-			testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"}),
+			testutil.ReleaseWithConfig(map[string]any{"foo": "bar"}),
 		)
 		testReleaseWithLabels = testutil.BuildRelease(
 			&helmrelease.MockReleaseOptions{
@@ -298,10 +298,11 @@ func TestObservedToSnapshot(t *testing.T) {
 		Namespace: "namespace",
 		Version:   1,
 		Chart:     testutil.BuildChart(),
-	}, testutil.ReleaseWithConfig(map[string]interface{}{"foo": "bar"})))
+	}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})))
 
 	got := ObservedToSnapshot(obs)
 
+	g.Expect(got.APIVersion).To(Equal(v2.CurrentSnapshotAPIVersion))
 	g.Expect(got.Name).To(Equal(obs.Name))
 	g.Expect(got.Namespace).To(Equal(obs.Namespace))
 	g.Expect(got.Version).To(Equal(obs.Version))
@@ -309,15 +310,36 @@ func TestObservedToSnapshot(t *testing.T) {
 	g.Expect(got.ChartVersion).To(Equal(obs.ChartMetadata.Version))
 	g.Expect(got.Status).To(BeEquivalentTo(obs.Info.Status))
 
-	g.Expect(obs.Info.FirstDeployed.Time.Equal(got.FirstDeployed.Time)).To(BeTrue())
-	g.Expect(obs.Info.LastDeployed.Time.Equal(got.LastDeployed.Time)).To(BeTrue())
-	g.Expect(obs.Info.Deleted.Time.Equal(got.Deleted.Time)).To(BeTrue())
+	g.Expect(obs.Info.FirstDeployed.Equal(got.FirstDeployed.Time)).To(BeTrue())
+	g.Expect(obs.Info.LastDeployed.Equal(got.LastDeployed.Time)).To(BeTrue())
+	g.Expect(obs.Info.Deleted.Equal(got.Deleted.Time)).To(BeTrue())
+
+	g.Expect(got.Action).To(BeEmpty())
 
 	g.Expect(got.Digest).ToNot(BeEmpty())
 	g.Expect(digest.Digest(got.Digest).Validate()).To(Succeed())
 
 	g.Expect(got.ConfigDigest).ToNot(BeEmpty())
 	g.Expect(digest.Digest(got.ConfigDigest).Validate()).To(Succeed())
+}
+
+func TestObservedToSnapshot_WithAction(t *testing.T) {
+	g := NewWithT(t)
+
+	obs := ObserveRelease(testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+		Name:      "foo",
+		Namespace: "namespace",
+		Version:   1,
+		Chart:     testutil.BuildChart(),
+	}))
+	obs.Action = v2.ReleaseActionInstall
+
+	got := ObservedToSnapshot(obs)
+
+	g.Expect(got.Action).To(Equal(v2.ReleaseActionInstall))
+	g.Expect(got.Name).To(Equal(obs.Name))
+	g.Expect(got.Namespace).To(Equal(obs.Namespace))
+	g.Expect(got.Version).To(Equal(obs.Version))
 }
 
 func TestTestHooksFromRelease(t *testing.T) {
@@ -360,13 +382,13 @@ func TestTestHooksFromRelease(t *testing.T) {
 	g.Expect(TestHooksFromRelease(rls)).To(testutil.Equal(map[string]*v2.TestHookStatus{
 		hooks[0].Name: {},
 		hooks[1].Name: {
-			LastStarted:   metav1.Time{Time: hooks[1].LastRun.StartedAt.Time},
-			LastCompleted: metav1.Time{Time: hooks[1].LastRun.CompletedAt.Time},
+			LastStarted:   metav1.Time{Time: hooks[1].LastRun.StartedAt},
+			LastCompleted: metav1.Time{Time: hooks[1].LastRun.CompletedAt},
 			Phase:         hooks[1].LastRun.Phase.String(),
 		},
 		hooks[2].Name: {
-			LastStarted:   metav1.Time{Time: hooks[2].LastRun.StartedAt.Time},
-			LastCompleted: metav1.Time{Time: hooks[2].LastRun.CompletedAt.Time},
+			LastStarted:   metav1.Time{Time: hooks[2].LastRun.StartedAt},
+			LastCompleted: metav1.Time{Time: hooks[2].LastRun.CompletedAt},
 			Phase:         hooks[2].LastRun.Phase.String(),
 		},
 	}))

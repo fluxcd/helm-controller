@@ -25,10 +25,11 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
-	helmrelease "helm.sh/helm/v3/pkg/release"
-	helmreleaseutil "helm.sh/helm/v3/pkg/releaseutil"
-	helmstorage "helm.sh/helm/v3/pkg/storage"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
+	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	helmreleaseutil "helm.sh/helm/v4/pkg/release/v1/util"
+	helmstorage "helm.sh/helm/v4/pkg/storage"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
@@ -80,6 +81,9 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 		// expectUpgradeFailures is the expected UpgradeFailures count on the
 		// HelmRelease.
 		expectUpgradeFailures int64
+		// statusReader is an optional StatusReader to configure on the
+		// ConfigFactory.
+		statusReader bool
 	}{
 		{
 			name: "rollback",
@@ -89,14 +93,14 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 						Name:      mockReleaseName,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 						Namespace: namespace,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusFailed,
+						Status:    helmreleasecommon.StatusFailed,
 						Namespace: namespace,
 					}),
 				}
@@ -115,7 +119,7 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
+					observeReleaseWithAction(releases[2], v2.ReleaseActionRollback),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
@@ -129,14 +133,14 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 						Name:      mockReleaseName,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 						Namespace: namespace,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusFailed,
+						Status:    helmreleasecommon.StatusFailed,
 						Namespace: namespace,
 					}),
 				}
@@ -163,14 +167,14 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 						Name:      mockReleaseName,
 						Version:   1,
 						Chart:     testutil.BuildChart(testutil.ChartWithFailingHook()),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 						Namespace: namespace,
 					}, testutil.ReleaseWithFailingHook()),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusFailed,
+						Status:    helmreleasecommon.StatusFailed,
 						Namespace: namespace,
 					}),
 				}
@@ -185,9 +189,9 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			},
 			expectConditions: []metav1.Condition{
 				*conditions.FalseCondition(meta.ReadyCondition, v2.RollbackFailedReason,
-					"timed out waiting for the condition"),
+					"context deadline exceeded"),
 				*conditions.FalseCondition(v2.RemediatedCondition, v2.RollbackFailedReason,
-					"timed out waiting for the condition"),
+					"context deadline exceeded"),
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -212,14 +216,14 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 						Name:      mockReleaseName,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 						Namespace: namespace,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusFailed,
+						Status:    helmreleasecommon.StatusFailed,
 						Namespace: namespace,
 					}),
 				}
@@ -261,14 +265,14 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 						Name:      mockReleaseName,
 						Version:   1,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusSuperseded,
+						Status:    helmreleasecommon.StatusSuperseded,
 						Namespace: namespace,
 					}),
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
 						Name:      mockReleaseName,
 						Version:   2,
 						Chart:     testutil.BuildChart(),
-						Status:    helmrelease.StatusFailed,
+						Status:    helmreleasecommon.StatusFailed,
 						Namespace: namespace,
 					}),
 				}
@@ -295,6 +299,47 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 				}
 			},
 			expectFailures: 1,
+		},
+		{
+			name: "rollback with status reader",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Version:   1,
+						Chart:     testutil.BuildChart(),
+						Status:    helmreleasecommon.StatusSuperseded,
+						Namespace: namespace,
+					}),
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Version:   2,
+						Chart:     testutil.BuildChart(),
+						Status:    helmreleasecommon.StatusFailed,
+						Namespace: namespace,
+					}),
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+				}
+			},
+			statusReader: true,
+			expectConditions: []metav1.Condition{
+				*conditions.FalseCondition(meta.ReadyCondition, v2.RollbackSucceededReason, "succeeded"),
+				*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason, "succeeded"),
+			},
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					observeReleaseWithAction(releases[2], v2.ReleaseActionRollback),
+					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -329,9 +374,15 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			cfg, err := action.NewConfigFactory(getter,
+			cfgOpts := []action.ConfigFactoryOption{
 				action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
-			)
+			}
+			var mockSR *testutil.MockStatusReader
+			if tt.statusReader {
+				mockSR = &testutil.MockStatusReader{}
+				cfgOpts = append(cfgOpts, action.WithResourceManager(mockSR.NewResourceManagerFuncWithClient(testEnv.Client, testEnv.Manager.GetRESTMapper())))
+			}
+			cfg, err := action.NewConfigFactory(getter, cfgOpts...)
 			g.Expect(err).ToNot(HaveOccurred())
 
 			store := helmstorage.Init(cfg.Driver)
@@ -355,7 +406,7 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 
 			g.Expect(obj.Status.Conditions).To(conditions.MatchConditions(tt.expectConditions))
 
-			releases, _ = store.History(mockReleaseName)
+			releases, _ = storeHistory(store, mockReleaseName)
 			helmreleaseutil.SortByRevision(releases)
 
 			if tt.expectHistory != nil {
@@ -367,6 +418,10 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			g.Expect(obj.Status.Failures).To(Equal(tt.expectFailures))
 			g.Expect(obj.Status.InstallFailures).To(Equal(tt.expectInstallFailures))
 			g.Expect(obj.Status.UpgradeFailures).To(Equal(tt.expectUpgradeFailures))
+
+			if mockSR != nil {
+				g.Expect(mockSR.SupportsCalled()).To(BeNumerically(">", 0), "expected StatusReader.Supports to be called")
+			}
 		})
 	}
 }
@@ -431,7 +486,7 @@ func TestRollbackRemediation_failure(t *testing.T) {
 			eventRecorder: recorder,
 		}
 		req := &Request{Object: obj.DeepCopy()}
-		r.failure(req, release.ObservedToSnapshot(release.ObserveRelease(prev)), mockLogBuffer(5, 10), err)
+		r.failure(req, release.ObservedToSnapshot(release.ObserveRelease(prev)), mockLogBuffer(), err)
 
 		expectSubStr := "Last Helm logs"
 		g.Expect(conditions.IsFalse(req.Object, v2.RemediatedCondition)).To(BeTrue())
@@ -456,7 +511,7 @@ func TestRollbackRemediation_success(t *testing.T) {
 	r := &RollbackRemediation{
 		eventRecorder: recorder,
 	}
-	req := &Request{Object: &v2.HelmRelease{}, Values: map[string]interface{}{"foo": "bar"}}
+	req := &Request{Object: &v2.HelmRelease{}, Values: map[string]any{"foo": "bar"}}
 	r.success(req, release.ObservedToSnapshot(release.ObserveRelease(prev)))
 
 	expectMsg := fmt.Sprintf(fmtRollbackRemediationSuccess,
@@ -492,7 +547,7 @@ func Test_observeRollback(t *testing.T) {
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   2,
-			Status:    helmrelease.StatusPendingRollback,
+			Status:    helmreleasecommon.StatusPendingRollback,
 		})
 		observeRollback(obj)(rls)
 		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
@@ -509,7 +564,7 @@ func Test_observeRollback(t *testing.T) {
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   2,
-			Status:    helmrelease.StatusFailed.String(),
+			Status:    helmreleasecommon.StatusFailed.String(),
 		}
 		obj := &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{
@@ -522,7 +577,7 @@ func Test_observeRollback(t *testing.T) {
 			Name:      latest.Name,
 			Namespace: latest.Namespace,
 			Version:   latest.Version + 1,
-			Status:    helmrelease.StatusPendingRollback,
+			Status:    helmreleasecommon.StatusPendingRollback,
 		})
 		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
 
@@ -540,13 +595,13 @@ func Test_observeRollback(t *testing.T) {
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   2,
-			Status:    helmrelease.StatusFailed.String(),
+			Status:    helmreleasecommon.StatusFailed.String(),
 		}
 		latest := &v2.Snapshot{
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   3,
-			Status:    helmrelease.StatusDeployed.String(),
+			Status:    helmreleasecommon.StatusDeployed.String(),
 		}
 
 		obj := &v2.HelmRelease{
@@ -561,9 +616,11 @@ func Test_observeRollback(t *testing.T) {
 			Name:      previous.Name,
 			Namespace: previous.Namespace,
 			Version:   previous.Version,
-			Status:    helmrelease.StatusSuperseded,
+			Status:    helmreleasecommon.StatusSuperseded,
 		})
-		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
+		obs := release.ObserveRelease(rls)
+		obs.Action = v2.ReleaseActionRollback
+		expect := release.ObservedToSnapshot(obs)
 
 		observeRollback(obj)(rls)
 		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
@@ -579,7 +636,7 @@ func Test_observeRollback(t *testing.T) {
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   2,
-			Status:    helmrelease.StatusFailed.String(),
+			Status:    helmreleasecommon.StatusFailed.String(),
 			TestHooks: &map[string]*v2.TestHookStatus{
 				"test-hook": {
 					Phase: helmrelease.HookPhaseSucceeded.String(),
@@ -590,7 +647,7 @@ func Test_observeRollback(t *testing.T) {
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   3,
-			Status:    helmrelease.StatusDeployed.String(),
+			Status:    helmreleasecommon.StatusDeployed.String(),
 		}
 
 		obj := &v2.HelmRelease{
@@ -605,9 +662,11 @@ func Test_observeRollback(t *testing.T) {
 			Name:      previous.Name,
 			Namespace: previous.Namespace,
 			Version:   previous.Version,
-			Status:    helmrelease.StatusSuperseded,
+			Status:    helmreleasecommon.StatusSuperseded,
 		})
-		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
+		obs := release.ObserveRelease(rls)
+		obs.Action = v2.ReleaseActionRollback
+		expect := release.ObservedToSnapshot(obs)
 		expect.SetTestHooks(previous.GetTestHooks())
 
 		observeRollback(obj)(rls)
@@ -624,14 +683,14 @@ func Test_observeRollback(t *testing.T) {
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   2,
-			Status:    helmrelease.StatusFailed.String(),
+			Status:    helmreleasecommon.StatusFailed.String(),
 			OCIDigest: "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6",
 		}
 		latest := &v2.Snapshot{
 			Name:      mockReleaseName,
 			Namespace: mockReleaseNamespace,
 			Version:   3,
-			Status:    helmrelease.StatusDeployed.String(),
+			Status:    helmreleasecommon.StatusDeployed.String(),
 			OCIDigest: "sha256:aedc2b0de1576a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6",
 		}
 
@@ -647,10 +706,11 @@ func Test_observeRollback(t *testing.T) {
 			Name:      previous.Name,
 			Namespace: previous.Namespace,
 			Version:   previous.Version,
-			Status:    helmrelease.StatusSuperseded,
+			Status:    helmreleasecommon.StatusSuperseded,
 		})
 		obs := release.ObserveRelease(rls)
 		obs.OCIDigest = "sha256:fcdc2b0de1581a3633ada4afee3f918f6eaa5b5ab38c3fef03d5b48d3f85d9f6"
+		obs.Action = v2.ReleaseActionRollback
 		expect := release.ObservedToSnapshot(obs)
 
 		observeRollback(obj)(rls)

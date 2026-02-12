@@ -21,7 +21,7 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
-	helmaction "helm.sh/helm/v3/pkg/action"
+	helmaction "helm.sh/helm/v4/pkg/action"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -45,10 +45,10 @@ func Test_newRollback(t *testing.T) {
 			},
 		}
 
-		got := newRollback(&helmaction.Configuration{}, obj, nil)
+		got := newRollback(&helmaction.Configuration{}, obj, 0, nil)
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.Timeout).To(Equal(obj.Spec.Rollback.Timeout.Duration))
-		g.Expect(got.Force).To(Equal(obj.Spec.Rollback.Force))
+		g.Expect(got.ForceReplace).To(Equal(obj.Spec.Rollback.Force))
 		g.Expect(got.MaxHistory).To(Equal(obj.GetMaxHistory()))
 	})
 
@@ -63,7 +63,7 @@ func Test_newRollback(t *testing.T) {
 		}
 
 		toVersion := 3
-		got := newRollback(&helmaction.Configuration{}, obj, []RollbackOption{RollbackToVersion(toVersion)})
+		got := newRollback(&helmaction.Configuration{}, obj, toVersion, nil)
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.Version).To(Equal(toVersion))
 	})
@@ -81,7 +81,7 @@ func Test_newRollback(t *testing.T) {
 			},
 		}
 
-		got := newRollback(&helmaction.Configuration{}, obj, nil)
+		got := newRollback(&helmaction.Configuration{}, obj, 0, nil)
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.Timeout).To(Equal(obj.Spec.Timeout.Duration))
 	})
@@ -97,16 +97,69 @@ func Test_newRollback(t *testing.T) {
 			Spec: v2.HelmReleaseSpec{},
 		}
 
-		got := newRollback(&helmaction.Configuration{}, obj, []RollbackOption{
+		got := newRollback(&helmaction.Configuration{}, obj, 0, []RollbackOption{
 			func(rollback *helmaction.Rollback) {
 				rollback.CleanupOnFail = true
 			},
 			func(rollback *helmaction.Rollback) {
-				rollback.DryRun = true
+				rollback.DryRunStrategy = helmaction.DryRunClient
 			},
 		})
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.CleanupOnFail).To(BeTrue())
-		g.Expect(got.DryRun).To(BeTrue())
+		g.Expect(got.DryRunStrategy).To(Equal(helmaction.DryRunClient))
+	})
+
+	t.Run("server side apply is auto regardless of UseHelm3Defaults", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rollback",
+				Namespace: "rollback-ns",
+			},
+			Spec: v2.HelmReleaseSpec{},
+		}
+
+		// Save and restore UseHelm3Defaults
+		oldUseHelm3Defaults := UseHelm3Defaults
+		t.Cleanup(func() { UseHelm3Defaults = oldUseHelm3Defaults })
+
+		// Test with UseHelm3Defaults = false
+		UseHelm3Defaults = false
+		got := newRollback(&helmaction.Configuration{}, obj, 0, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.ServerSideApply).To(Equal("auto"))
+
+		// Test with UseHelm3Defaults = true
+		UseHelm3Defaults = true
+		got = newRollback(&helmaction.Configuration{}, obj, 0, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.ServerSideApply).To(Equal("auto"))
+	})
+
+	t.Run("server side apply user specified", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rollback",
+				Namespace: "rollback-ns",
+			},
+			Spec: v2.HelmReleaseSpec{
+				Rollback: &v2.Rollback{
+					ServerSideApply: v2.ServerSideApplyEnabled,
+				},
+			},
+		}
+
+		got := newRollback(&helmaction.Configuration{}, obj, 0, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.ServerSideApply).To(Equal("true"))
+
+		obj.Spec.Rollback.ServerSideApply = v2.ServerSideApplyDisabled
+		got = newRollback(&helmaction.Configuration{}, obj, 0, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.ServerSideApply).To(Equal("false"))
 	})
 }

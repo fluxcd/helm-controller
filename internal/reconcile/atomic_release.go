@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"helm.sh/helm/v3/pkg/kube"
+	"helm.sh/helm/v4/pkg/kube"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
@@ -314,7 +314,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 				}
 
 				remediation := req.Object.GetActiveRemediation()
-				if remediation == nil || !remediation.RetriesExhausted(req.Object) {
+				if remediation == nil || !remediation.RetriesExhausted(req.Object) || remediation.IsUninstallAfterUpgrade() {
 					conditions.MarkReconciling(req.Object, meta.ProgressingWithRetryReason, "%s", conditions.GetMessage(req.Object, meta.ReadyCondition))
 					return ErrMustRequeue
 				}

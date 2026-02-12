@@ -17,13 +17,15 @@ limitations under the License.
 package reconcile
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
-	"helm.sh/helm/v3/pkg/chart"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -31,6 +33,7 @@ import (
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
+	"github.com/fluxcd/helm-controller/internal/release"
 )
 
 const (
@@ -544,12 +547,55 @@ func Test_summarize(t *testing.T) {
 	}
 }
 
-func mockLogBuffer(size int, lines int) *action.LogBuffer {
-	log := action.NewLogBuffer(action.NewDebugLog(logr.Discard()), size)
-	for i := 0; i < lines; i++ {
-		log.Log("line %d", i+1)
+func mockLogBuffer() *action.LogBuffer {
+	ctx := log.IntoContext(context.Background(), logr.Discard())
+	buf := action.NewDebugLogBuffer(ctx)
+	for i := range 10 {
+		buf.Appendf("line %d", i+1)
 	}
-	return log
+	return buf
+}
+
+func Test_mutateAction(t *testing.T) {
+	tests := []struct {
+		name   string
+		action v2.ReleaseAction
+	}{
+		{
+			name:   "install action",
+			action: v2.ReleaseActionInstall,
+		},
+		{
+			name:   "upgrade action",
+			action: v2.ReleaseActionUpgrade,
+		},
+		{
+			name:   "rollback action",
+			action: v2.ReleaseActionRollback,
+		},
+		{
+			name:   "uninstall action",
+			action: v2.ReleaseActionUninstall,
+		},
+		{
+			name:   "uninstall-remediation action",
+			action: v2.ReleaseActionUninstallRemediation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			obs := release.Observation{
+				Name:    mockReleaseName,
+				Version: 1,
+			}
+			mutator := mutateAction(tt.action)
+			result := mutator(&v2.HelmRelease{}, obs)
+			g.Expect(result.Action).To(Equal(tt.action))
+		})
+	}
 }
 
 func Test_RecordOnObject(t *testing.T) {
@@ -725,5 +771,30 @@ func Test_RecordOnObject(t *testing.T) {
 			g.Expect(err).ToNot(HaveOccurred())
 		})
 	}
+}
 
+func Test_RecordOnObject_withAction(t *testing.T) {
+	g := NewWithT(t)
+
+	obj := &v2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+		},
+	}
+	r := observedReleases{
+		1: {
+			Name:    mockReleaseName,
+			Version: 1,
+			ChartMetadata: chart.Metadata{
+				Name:    mockReleaseName,
+				Version: "1.0.0",
+			},
+		},
+	}
+	r.recordOnObject(obj, mutateOCIDigest, mutateAction(v2.ReleaseActionInstall))
+
+	g.Expect(obj.Status.History).To(HaveLen(1))
+	g.Expect(obj.Status.History[0].Action).To(Equal(v2.ReleaseActionInstall))
+	g.Expect(obj.Status.History[0].Name).To(Equal(mockReleaseName))
 }
