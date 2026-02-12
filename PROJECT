@@ -3,12 +3,6 @@ repo: github.com/fluxcd/helm-controller
 resources:
 - group: helm
   kind: HelmRelease
-  version: v2beta1
-- group: helm
-  kind: HelmRelease
-  version: v2beta2
-- group: helm
-  kind: HelmRelease
   version: v2
 storageVersion: v2
 version: "2"

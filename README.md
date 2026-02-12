@@ -47,10 +47,9 @@ operator.
 * [Manage Helm Releases](https://fluxcd.io/flux/guides/helmreleases/)
 * [Setup Notifications](https://fluxcd.io/flux/guides/notifications/)
 
-## Specifications
+## Specification
 
-* [API](docs/spec/v2/README.md)
-* [Controller](docs/spec/README.md)
+[HelmRelease API](docs/spec/v2/helmreleases.md)
 
 [source-controller]: https://github.com/fluxcd/source-controller
 [notification-controller]: https://github.com/fluxcd/notification-controller

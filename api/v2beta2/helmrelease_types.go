@@ -1095,12 +1095,7 @@ const (
 
 // +genclient
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:shortName=hr
-// +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
-// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
-// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
-// +kubebuilder:deprecatedversion:warning="v2beta2 HelmRelease is deprecated, upgrade to v2"
+// +kubebuilder:skipversion
 
 // HelmRelease is the Schema for the helmreleases API
 type HelmRelease struct {
