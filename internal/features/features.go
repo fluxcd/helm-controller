@@ -25,13 +25,6 @@ import (
 )
 
 const (
-	// CacheSecretsAndConfigMaps configures the caching of Secrets and ConfigMaps
-	// by the controller-runtime client.
-	//
-	// When enabled, it will cache both object types, resulting in increased memory
-	// usage and cluster-wide RBAC permissions (list and watch).
-	CacheSecretsAndConfigMaps = "CacheSecretsAndConfigMaps"
-
 	// DetectDrift configures the detection of cluster state drift compared to
 	// the desired state as described in the manifest of the Helm release
 	// storage object.
@@ -72,14 +65,6 @@ const (
 	// append the digest to the chart version in Chart.yaml.
 	DisableChartDigestTracking = "DisableChartDigestTracking"
 
-	// AdditiveCELDependencyCheck controls whether the CEL dependency check
-	// should be additive, meaning that the built-in readiness check will
-	// be added to the user-defined CEL expressions.
-	AdditiveCELDependencyCheck = "AdditiveCELDependencyCheck"
-
-	// ExternalArtifact controls whether the ExternalArtifact source type is enabled.
-	ExternalArtifact = "ExternalArtifact"
-
 	// UseHelm3Defaults makes the controller use the Helm 3 default behaviors
 	// when defaults are used.
 	UseHelm3Defaults = "UseHelm3Defaults"
@@ -99,7 +84,7 @@ const (
 var features = map[string]bool{
 	// CacheSecretsAndConfigMaps
 	// opt-in from v0.28
-	CacheSecretsAndConfigMaps: false,
+	controller.FeatureGateCacheSecretsAndConfigMaps: false,
 	// DetectDrift
 	// deprecated in v0.37.0
 	DetectDrift: false,
@@ -120,13 +105,16 @@ var features = map[string]bool{
 	DisableChartDigestTracking: false,
 	// AdditiveCELDependencyCheck
 	// opt-in from v1.4.0
-	AdditiveCELDependencyCheck: false,
+	controller.FeatureGateAdditiveCELDependencyCheck: false,
 	// ExternalArtifact
 	// opt-in from v1.4.0
-	ExternalArtifact: false,
+	controller.FeatureGateExternalArtifact: false,
 	// DisableConfigWatchers
 	// opt-in from v1.4.4
 	controller.FeatureGateDisableConfigWatchers: false,
+	// DirectSourceFetch
+	// opt-in from v1.5.0
+	controller.FeatureGateDirectSourceFetch: false,
 	// UseHelm3Defaults
 	// opt-in from v1.5.0
 	UseHelm3Defaults: false,

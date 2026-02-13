@@ -3431,6 +3431,131 @@ func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
 	}
 }
 
+func TestHelmReleaseReconciler_getSourceClient(t *testing.T) {
+	g := NewWithT(t)
+
+	// Create a fake client and a separate fake API reader
+	fakeClient := fake.NewClientBuilder().WithScheme(NewTestScheme()).Build()
+	fakeAPIReader := fake.NewClientBuilder().WithScheme(NewTestScheme()).Build()
+
+	tests := []struct {
+		name              string
+		directSourceFetch bool
+		wantAPIReader     bool
+	}{
+		{
+			name:              "returns Client when DirectSourceFetch is disabled",
+			directSourceFetch: false,
+			wantAPIReader:     false,
+		},
+		{
+			name:              "returns APIReader when DirectSourceFetch is enabled",
+			directSourceFetch: true,
+			wantAPIReader:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &HelmReleaseReconciler{
+				Client:            fakeClient,
+				APIReader:         fakeAPIReader,
+				DirectSourceFetch: tt.directSourceFetch,
+			}
+
+			got := r.getSourceClient()
+			if tt.wantAPIReader {
+				g.Expect(got).To(BeIdenticalTo(fakeAPIReader))
+			} else {
+				g.Expect(got).To(BeIdenticalTo(fakeClient))
+			}
+		})
+	}
+}
+
+func TestHelmReleaseReconciler_getSourceFromOCIRef_DirectSourceFetch(t *testing.T) {
+	g := NewWithT(t)
+
+	ociRepo := &sourcev1.OCIRepository{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "test-oci-repo",
+		},
+	}
+
+	tests := []struct {
+		name              string
+		directSourceFetch bool
+		repoInClient      bool
+		repoInAPIReader   bool
+		wantErr           bool
+	}{
+		{
+			name:              "uses Client when DirectSourceFetch is disabled",
+			directSourceFetch: false,
+			repoInClient:      true,
+			repoInAPIReader:   false,
+			wantErr:           false,
+		},
+		{
+			name:              "uses APIReader when DirectSourceFetch is enabled",
+			directSourceFetch: true,
+			repoInClient:      false,
+			repoInAPIReader:   true,
+			wantErr:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clientBuilder := fake.NewClientBuilder().WithScheme(NewTestScheme())
+			if tt.repoInClient {
+				clientBuilder.WithObjects(ociRepo.DeepCopy())
+			}
+			fakeClient := clientBuilder.Build()
+
+			apiReaderBuilder := fake.NewClientBuilder().WithScheme(NewTestScheme())
+			if tt.repoInAPIReader {
+				apiReaderBuilder.WithObjects(ociRepo.DeepCopy())
+			}
+			fakeAPIReader := apiReaderBuilder.Build()
+
+			r := &HelmReleaseReconciler{
+				Client:            fakeClient,
+				APIReader:         fakeAPIReader,
+				DirectSourceFetch: tt.directSourceFetch,
+				EventRecorder:     record.NewFakeRecorder(32),
+			}
+
+			rel := &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Spec: v2.HelmReleaseSpec{
+					ChartRef: &v2.CrossNamespaceSourceReference{
+						Kind:      sourcev1.OCIRepositoryKind,
+						Name:      "test-oci-repo",
+						Namespace: "default",
+					},
+				},
+			}
+
+			got, err := r.getSource(context.TODO(), rel)
+			if tt.wantErr {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(got).To(BeNil())
+				return
+			}
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(got).ToNot(BeNil())
+			or, ok := got.(*sourcev1.OCIRepository)
+			g.Expect(ok).To(BeTrue())
+			g.Expect(or.Name).To(Equal(ociRepo.Name))
+			g.Expect(or.Namespace).To(Equal(ociRepo.Namespace))
+		})
+	}
+}
+
 func Test_waitForHistoryCacheSync(t *testing.T) {
 	tests := []struct {
 		name     string
