@@ -1,6 +1,6 @@
 module github.com/fluxcd/helm-controller
 
-go 1.25.0
+go 1.26.0
 
 replace github.com/fluxcd/helm-controller/api => ./api
 
@@ -22,11 +22,11 @@ require (
 	github.com/fluxcd/pkg/apis/event v0.24.0
 	github.com/fluxcd/pkg/apis/kustomize v1.15.0
 	github.com/fluxcd/pkg/apis/meta v1.25.0
-	github.com/fluxcd/pkg/auth v0.38.0
+	github.com/fluxcd/pkg/auth v0.38.2
 	github.com/fluxcd/pkg/cache v0.13.0
 	github.com/fluxcd/pkg/chartutil v1.22.0
 	github.com/fluxcd/pkg/runtime v0.100.0
-	github.com/fluxcd/pkg/ssa v0.67.0
+	github.com/fluxcd/pkg/ssa v0.68.0
 	github.com/fluxcd/pkg/testserver v0.13.0
 	github.com/fluxcd/source-controller/api v1.7.2
 	github.com/go-logr/logr v1.4.3
