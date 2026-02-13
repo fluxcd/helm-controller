@@ -1,5 +1,5 @@
-ARG GO_VERSION=1.25
-ARG XX_VERSION=1.6.1
+ARG GO_VERSION=1.26
+ARG XX_VERSION=1.9.0
 
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 
@@ -31,7 +31,7 @@ COPY internal/ internal/
 ENV CGO_ENABLED=0
 RUN xx-go build -trimpath -a -o helm-controller main.go
 
-FROM alpine:3.22
+FROM alpine:3.23
 
 RUN apk add --no-cache ca-certificates \
     && update-ca-certificates
