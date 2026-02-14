@@ -217,9 +217,9 @@ func main() {
 	}
 
 	var disableCacheFor []ctrlclient.Object
-	shouldCache, err := features.Enabled(features.CacheSecretsAndConfigMaps)
+	shouldCache, err := features.Enabled(helper.FeatureGateCacheSecretsAndConfigMaps)
 	if err != nil {
-		setupLog.Error(err, "unable to check feature gate CacheSecretsAndConfigMaps")
+		setupLog.Error(err, "unable to check feature gate "+helper.FeatureGateCacheSecretsAndConfigMaps)
 		os.Exit(1)
 	}
 	if !shouldCache {
@@ -237,9 +237,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	additiveCELDependencyCheck, err := features.Enabled(features.AdditiveCELDependencyCheck)
+	additiveCELDependencyCheck, err := features.Enabled(helper.FeatureGateAdditiveCELDependencyCheck)
 	if err != nil {
-		setupLog.Error(err, "unable to check feature gate "+features.AdditiveCELDependencyCheck)
+		setupLog.Error(err, "unable to check feature gate "+helper.FeatureGateAdditiveCELDependencyCheck)
 		os.Exit(1)
 	}
 
@@ -348,10 +348,19 @@ func main() {
 		}
 	}
 
-	allowExternalArtifact, err := features.Enabled(features.ExternalArtifact)
+	allowExternalArtifact, err := features.Enabled(helper.FeatureGateExternalArtifact)
 	if err != nil {
-		setupLog.Error(err, "unable to check feature gate "+features.ExternalArtifact)
+		setupLog.Error(err, "unable to check feature gate "+helper.FeatureGateExternalArtifact)
 		os.Exit(1)
+	}
+
+	directSourceFetch, err := features.Enabled(helper.FeatureGateDirectSourceFetch)
+	if err != nil {
+		setupLog.Error(err, "unable to check feature gate "+helper.FeatureGateDirectSourceFetch)
+		os.Exit(1)
+	}
+	if directSourceFetch {
+		setupLog.Info("DirectSourceFetch feature gate is enabled, source objects will be fetched directly from the API server")
 	}
 
 	disableConfigWatchers, err := features.Enabled(helper.FeatureGateDisableConfigWatchers)
@@ -372,6 +381,7 @@ func main() {
 		FieldManager:               controllerName,
 		DisableChartDigestTracking: disableChartDigestTracking,
 		AdditiveCELDependencyCheck: additiveCELDependencyCheck,
+		DirectSourceFetch:          directSourceFetch,
 		TokenCache:                 tokenCache,
 		DependencyRequeueInterval:  requeueDependency,
 		ArtifactFetchRetries:       httpRetry,

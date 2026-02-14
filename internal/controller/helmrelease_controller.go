@@ -69,7 +69,6 @@ import (
 	"github.com/fluxcd/helm-controller/internal/action"
 	"github.com/fluxcd/helm-controller/internal/digest"
 	interrors "github.com/fluxcd/helm-controller/internal/errors"
-	"github.com/fluxcd/helm-controller/internal/features"
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/loader"
 	intreconcile "github.com/fluxcd/helm-controller/internal/reconcile"
@@ -110,6 +109,7 @@ type HelmReleaseReconciler struct {
 
 	AdditiveCELDependencyCheck bool
 	AllowExternalArtifact      bool
+	DirectSourceFetch          bool
 	DisableChartDigestTracking bool
 }
 
@@ -746,6 +746,16 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *
 	return kube.NewMemoryRESTClientGetter(restConfig, opts...), nil
 }
 
+// getSourceClient returns the client.Reader to use for fetching source objects.
+// When DirectSourceFetch is enabled, it returns the APIReader to fetch directly
+// from the API server, otherwise it returns the cached Client.
+func (r *HelmReleaseReconciler) getSourceClient() client.Reader {
+	if r.DirectSourceFetch {
+		return r.APIReader
+	}
+	return r.Client
+}
+
 // getSource returns the source object containing the HelmChart, either by
 // using the chartRef in the spec, or by looking up the HelmChart
 // referenced in the status object.
@@ -774,7 +784,7 @@ func (r *HelmReleaseReconciler) getSource(ctx context.Context, obj *v2.HelmRelea
 	}
 
 	hc := sourcev1.HelmChart{}
-	if err := r.Client.Get(ctx, chartRef, &hc); err != nil {
+	if err := r.getSourceClient().Get(ctx, chartRef, &hc); err != nil {
 		return nil, err
 	}
 	return &hc, nil
@@ -792,7 +802,7 @@ func (r *HelmReleaseReconciler) getSourceFromOCIRef(ctx context.Context, obj *v2
 	}
 
 	or := sourcev1.OCIRepository{}
-	if err := r.Client.Get(ctx, ociRepoRef, &or); err != nil {
+	if err := r.getSourceClient().Get(ctx, ociRepoRef, &or); err != nil {
 		return nil, err
 	}
 	return &or, nil
@@ -813,11 +823,11 @@ func (r *HelmReleaseReconciler) getSourceFromExternalArtifact(ctx context.Contex
 	if obj.Spec.ChartRef.Kind == sourcev1.ExternalArtifactKind && !r.AllowExternalArtifact {
 		return nil, acl.AccessDeniedError(
 			fmt.Sprintf("can't access '%s/%s/%s', %s feature gate is disabled",
-				obj.Spec.ChartRef.Kind, namespace, name, features.ExternalArtifact))
+				obj.Spec.ChartRef.Kind, namespace, name, helper.FeatureGateExternalArtifact))
 	}
 
 	or := sourcev1.ExternalArtifact{}
-	if err := r.Client.Get(ctx, sourceRef, &or); err != nil {
+	if err := r.getSourceClient().Get(ctx, sourceRef, &or); err != nil {
 		return nil, err
 	}
 	return &or, nil
