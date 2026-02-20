@@ -34,7 +34,7 @@ using the following fields:
 Note that Helm persists the apply method in the release storage, hence
 why the `auto` value is an option for upgrade and rollback actions. When
 set to `auto`, the controller will reuse the apply method used in the last
-successful release revision, as recorded in the Helm storage, defaulting
+successful release revision as recorded in the Helm storage, defaulting
 to client-side apply. This means that existing HelmReleases will continue
 to use client-side apply until their `.spec` is updated with
 `.spec.{upgrade|rollback}.serverSideApply: enabled`.
@@ -47,8 +47,9 @@ The controller now can be configured to cancel in-progress health checks when a 
 reconciliation request is received, reducing the mean time to recovery (MTTR) in case
 of failed deployments. This feature is enabled by the `CancelHealthCheckOnNewRevision`
 feature gate. Note that enabling this feature gate will not cancel apply operations,
-and will only cancel health checks for managed resources: waiting for Helm hooks and
-tests will not be cancelled.
+and will only cancel health checks for managed resources. Waiting for Helm hooks and
+tests will not be cancelled. Note also that this feature is only available with the
+`poller` health check strategy.
 
 Still on the health check subject, custom health checks via CEL expressions
 are now supported for HelmRelease via the `.spec.healthCheckExprs` field,
