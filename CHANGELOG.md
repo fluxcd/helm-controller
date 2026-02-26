@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.5.1
+
+**Release date:** 2026-02-27
+
+This patch release fixes health check logic for StatefulSets during
+rolling updates when the Pods are Pending/Unschedulable.
+
+Fixes:
+- Fix health check logic for StatefulSets during rolling updates
+  [#1424](https://github.com/fluxcd/helm-controller/pull/1424)
+
+Improvements:
+- Add note about MTTR only for kstatus
+  [#1416](https://github.com/fluxcd/helm-controller/pull/1416)
+- Remove no longer needed workaround for Flux 2.8
+  [#1420](https://github.com/fluxcd/helm-controller/pull/1420)
+
 ## 1.5.0
 
 **Release date:** 2026-02-20
