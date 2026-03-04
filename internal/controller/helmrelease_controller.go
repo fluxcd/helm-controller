@@ -109,6 +109,7 @@ type HelmReleaseReconciler struct {
 
 	AdditiveCELDependencyCheck bool
 	AllowExternalArtifact      bool
+	DefaultToRetryOnFailure    bool
 	DirectSourceFetch          bool
 	DisableChartDigestTracking bool
 }
@@ -415,7 +416,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	}
 
 	// Off we go!
-	if err = intreconcile.NewAtomicRelease(patchHelper, cfg, r.EventRecorder, r.FieldManager, r.DisallowedFieldManagers).Reconcile(ctx, &intreconcile.Request{
+	if err = intreconcile.NewAtomicRelease(patchHelper, cfg, r.EventRecorder, r.FieldManager, r.DisallowedFieldManagers, r.DefaultToRetryOnFailure).Reconcile(ctx, &intreconcile.Request{
 		Object: obj,
 		Chart:  loadedChart,
 		Values: values,
@@ -433,7 +434,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		}
 		switch {
 		case errors.Is(err, intreconcile.ErrRetryAfterInterval):
-			return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetActiveRetry().GetRetryInterval()}), nil
+			return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetActiveRetry(r.DefaultToRetryOnFailure).GetRetryInterval()}), nil
 		case errors.Is(err, intreconcile.ErrMustRequeue):
 			return ctrl.Result{Requeue: true}, nil
 		case interrors.IsOneOf(err, intreconcile.ErrExceededMaxRetries, intreconcile.ErrMissingRollbackTarget):

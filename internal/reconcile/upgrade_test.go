@@ -498,7 +498,7 @@ func TestUpgrade_Reconcile(t *testing.T) {
 			}
 
 			recorder := new(record.FakeRecorder)
-			got := NewUpgrade(cfg, recorder).Reconcile(context.TODO(), &Request{
+			got := NewUpgrade(cfg, recorder, false).Reconcile(context.TODO(), &Request{
 				Object: obj,
 				Chart:  tt.chart,
 				Values: tt.values,
@@ -654,7 +654,7 @@ func TestUpgrade_Reconcile_withSubchartWithCRDs(t *testing.T) {
 
 			chart := testutil.BuildChartWithSubchartWithCRD()
 			recorder := new(record.FakeRecorder)
-			got := NewUpgrade(cfg, recorder).Reconcile(context.TODO(), &Request{
+			got := NewUpgrade(cfg, recorder, false).Reconcile(context.TODO(), &Request{
 				Object: obj,
 				Chart:  chart,
 				Values: getValues(tt.subchartValues),

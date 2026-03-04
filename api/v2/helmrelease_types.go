@@ -489,7 +489,7 @@ type Remediation interface {
 // UpgradeStrategy.
 // +kubebuilder:object:generate=false
 type Strategy interface {
-	GetRetry() Retry
+	GetRetry(defaultToRetryOnFailure bool) Retry
 }
 
 // Retry defines a consistent interface for retry strategies from
@@ -511,7 +511,8 @@ type Install struct {
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
 	// Strategy defines the install strategy to use for this HelmRelease.
-	// Defaults to 'RemediateOnFailure'.
+	// Defaults to 'RemediateOnFailure', or 'RetryOnFailure' when the
+	// DefaultToRetryOnFailure feature gate is enabled.
 	// +optional
 	Strategy *InstallStrategy `json:"strategy,omitempty"`
 
@@ -615,8 +616,14 @@ func (in Install) GetRemediation() Remediation {
 
 // GetRetry returns the configured retry strategy for the Helm install
 // action.
-func (in Install) GetRetry() Retry {
-	if in.Strategy == nil || in.Strategy.Name != string(ActionStrategyRetryOnFailure) {
+func (in Install) GetRetry(defaultToRetryOnFailure bool) Retry {
+	if in.Strategy == nil {
+		if defaultToRetryOnFailure {
+			return &InstallStrategy{Name: string(ActionStrategyRetryOnFailure)}
+		}
+		return nil
+	}
+	if in.Strategy.Name != string(ActionStrategyRetryOnFailure) {
 		return nil
 	}
 	return in.Strategy
@@ -764,7 +771,8 @@ type Upgrade struct {
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
 	// Strategy defines the upgrade strategy to use for this HelmRelease.
-	// Defaults to 'RemediateOnFailure'.
+	// Defaults to 'RemediateOnFailure', or 'RetryOnFailure' when the
+	// DefaultToRetryOnFailure feature gate is enabled.
 	// +optional
 	Strategy *UpgradeStrategy `json:"strategy,omitempty"`
 
@@ -866,8 +874,14 @@ func (in Upgrade) GetRemediation() Remediation {
 
 // GetRetry returns the configured retry strategy for the Helm upgrade
 // action.
-func (in Upgrade) GetRetry() Retry {
-	if in.Strategy == nil || in.Strategy.Name != string(ActionStrategyRetryOnFailure) {
+func (in Upgrade) GetRetry(defaultToRetryOnFailure bool) Retry {
+	if in.Strategy == nil {
+		if defaultToRetryOnFailure {
+			return &UpgradeStrategy{Name: string(ActionStrategyRetryOnFailure)}
+		}
+		return nil
+	}
+	if in.Strategy.Name != string(ActionStrategyRetryOnFailure) {
 		return nil
 	}
 	return in.Strategy
@@ -1437,13 +1451,14 @@ func (in HelmRelease) GetActiveRemediation() Remediation {
 }
 
 // GetActiveRetry returns the active retry configuration for the
-// HelmRelease.
-func (in HelmRelease) GetActiveRetry() Retry {
+// HelmRelease. When defaultToRetryOnFailure is true and no strategy
+// is explicitly configured, it defaults to RetryOnFailure.
+func (in HelmRelease) GetActiveRetry(defaultToRetryOnFailure bool) Retry {
 	switch in.Status.LastAttemptedReleaseAction {
 	case ReleaseActionInstall:
-		return in.GetInstall().GetRetry()
+		return in.GetInstall().GetRetry(defaultToRetryOnFailure)
 	case ReleaseActionUpgrade:
-		return in.GetUpgrade().GetRetry()
+		return in.GetUpgrade().GetRetry(defaultToRetryOnFailure)
 	default:
 		return nil
 	}
