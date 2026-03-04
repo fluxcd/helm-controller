@@ -293,7 +293,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
-	// Check if the source is ready.
+	// Check if the source has an artifact.
 	if ready, msg := isSourceReady(source); !ready {
 		log.Info(msg)
 		conditions.MarkFalse(obj, meta.ReadyCondition, "SourceNotReady", "%s", msg)
@@ -852,45 +852,38 @@ func (r *HelmReleaseReconciler) waitForHistoryCacheSync(obj *v2.HelmRelease) wai
 }
 
 func isSourceReady(obj sourcev1.Source) (bool, string) {
-	if o, ok := obj.(*sourcev1.ExternalArtifact); ok {
-		if obj.GetArtifact() == nil {
-			return false, fmt.Sprintf("ExternalArtifact '%s/%s' is not ready: does not have an artifact",
-				o.GetNamespace(), o.GetName())
-		}
-		return true, ""
-	}
-	if o, ok := obj.(conditions.Getter); ok {
-		return isReady(o, obj.GetArtifact())
-	}
-	return false, fmt.Sprintf("unknown sourcev1 type: %T", obj)
-}
-
-func isReady(obj conditions.Getter, artifact *meta.Artifact) (bool, string) {
-	observedGen, err := object.GetStatusObservedGeneration(obj)
-	if err != nil {
-		return false, err.Error()
-	}
-
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
-
-	switch {
-	case obj.GetGeneration() != observedGen:
-		msg := "latest generation of object has not been reconciled"
-
-		if conditions.IsFalse(obj, meta.ReadyCondition) {
-			msg = conditions.GetMessage(obj, meta.ReadyCondition)
+	if kind == "" {
+		switch obj.(type) {
+		case *sourcev1.HelmChart:
+			kind = sourcev1.HelmChartKind
+		case *sourcev1.OCIRepository:
+			kind = sourcev1.OCIRepositoryKind
+		case *sourcev1.ExternalArtifact:
+			kind = sourcev1.ExternalArtifactKind
+		default:
+			kind = fmt.Sprintf("%T", obj)
 		}
-		return false, fmt.Sprintf("%s '%s/%s' is not ready: %s",
-			kind, obj.GetNamespace(), obj.GetName(), msg)
-	case conditions.IsStalled(obj):
-		return false, fmt.Sprintf("%s '%s/%s' is not ready: %s",
-			kind, obj.GetNamespace(), obj.GetName(), conditions.GetMessage(obj, meta.StalledCondition))
-	case artifact == nil:
-		return false, fmt.Sprintf("%s '%s/%s' is not ready: %s",
-			kind, obj.GetNamespace(), obj.GetName(), "does not have an artifact")
-	default:
+	}
+
+	name := kind
+	if co, ok := obj.(client.Object); ok {
+		name = fmt.Sprintf("%s '%s/%s'", kind, co.GetNamespace(), co.GetName())
+	}
+
+	// Check if the source has reconciled its latest generation to avoid
+	// using a stale artifact (e.g. old chart version with new values).
+	if co, ok := obj.(client.Object); ok {
+		observedGen, err := object.GetStatusObservedGeneration(obj)
+		if err == nil && co.GetGeneration() != observedGen {
+			return false, fmt.Sprintf("%s is not ready: latest generation of object has not been reconciled", name)
+		}
+	}
+
+	if obj.GetArtifact() != nil {
 		return true, ""
 	}
+	return false, fmt.Sprintf("%s does not have an artifact", name)
 }
 
 func isValidChartRef(obj *v2.HelmRelease) bool {
