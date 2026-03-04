@@ -117,11 +117,12 @@ type AtomicRelease struct {
 	strategy                releaseStrategy
 	fieldManager            string
 	disallowedFieldManagers []string
+	defaultToRetryOnFailure bool
 }
 
 // NewAtomicRelease returns a new AtomicRelease reconciler configured with the
 // provided values.
-func NewAtomicRelease(patchHelper *patch.SerialPatcher, cfg *action.ConfigFactory, recorder record.EventRecorder, fieldManager string, disallowedFieldManagers []string) *AtomicRelease {
+func NewAtomicRelease(patchHelper *patch.SerialPatcher, cfg *action.ConfigFactory, recorder record.EventRecorder, fieldManager string, disallowedFieldManagers []string, defaultToRetryOnFailure bool) *AtomicRelease {
 	return &AtomicRelease{
 		patchHelper:             patchHelper,
 		eventRecorder:           recorder,
@@ -129,6 +130,7 @@ func NewAtomicRelease(patchHelper *patch.SerialPatcher, cfg *action.ConfigFactor
 		strategy:                &cleanReleaseStrategy{},
 		fieldManager:            fieldManager,
 		disallowedFieldManagers: disallowedFieldManagers,
+		defaultToRetryOnFailure: defaultToRetryOnFailure,
 	}
 }
 
@@ -230,7 +232,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 					fmt.Sprintf("instructed to stop before running %s action reconciler %s", next.Type(), next.Name()),
 				)
 
-				if retry := req.Object.GetActiveRetry(); retry != nil {
+				if retry := req.Object.GetActiveRetry(r.defaultToRetryOnFailure); retry != nil {
 					conditions.MarkReconciling(req.Object, meta.ProgressingWithRetryReason, "retrying after %s", retry.GetRetryInterval().String())
 					return ErrRetryAfterInterval
 				}
@@ -270,7 +272,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 					fmt.Sprintf("action reconciler %s of type %s returned error: %s", next.Name(), next.Type(), err),
 				)
 
-				if retry := req.Object.GetActiveRetry(); retry != nil {
+				if retry := req.Object.GetActiveRetry(r.defaultToRetryOnFailure); retry != nil {
 					log.Error(err, fmt.Sprintf("failed to run '%s' action", next.Name()))
 					conditions.MarkReconciling(req.Object, meta.ProgressingWithRetryReason, "retrying after %s", retry.GetRetryInterval().String())
 					return ErrRetryAfterInterval
@@ -288,7 +290,7 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 					"instructed to stop after running %s action reconciler %s", next.Type(), next.Name()),
 				)
 
-				if retry := req.Object.GetActiveRetry(); retry != nil {
+				if retry := req.Object.GetActiveRetry(r.defaultToRetryOnFailure); retry != nil {
 					conditions.MarkReconciling(req.Object, meta.ProgressingWithRetryReason, "retrying after %s", retry.GetRetryInterval().String())
 					return ErrRetryAfterInterval
 				}
@@ -331,7 +333,7 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 	case ReleaseStatusInSync:
 		log.Info("release in-sync with desired state")
 
-		if retry := req.Object.GetActiveRetry(); retry != nil {
+		if retry := req.Object.GetActiveRetry(r.defaultToRetryOnFailure); retry != nil {
 			req.Object.Status.History.TruncateIgnoringPreviousSnapshots()
 		} else {
 			// Remove all history up to the previous release action.
@@ -347,7 +349,7 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 
 		if forceRequested {
 			log.Info(msgWithReason("forcing upgrade for in-sync release", "force requested through annotation"))
-			return NewUpgrade(r.configFactory, r.eventRecorder), nil
+			return NewUpgrade(r.configFactory, r.eventRecorder, r.defaultToRetryOnFailure), nil
 		}
 
 		// Since the release is in-sync, remove any remediated condition if
@@ -389,33 +391,33 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		if req.Object.GetInstall().GetRemediation().RetriesExhausted(req.Object) {
 			if forceRequested {
 				log.Info(msgWithReason("forcing install while out of retries", "force requested through annotation"))
-				return NewInstall(r.configFactory, r.eventRecorder), nil
+				return NewInstall(r.configFactory, r.eventRecorder, r.defaultToRetryOnFailure), nil
 			}
 
 			return nil, fmt.Errorf("%w: cannot install release", ErrExceededMaxRetries)
 		}
 
-		return NewInstall(r.configFactory, r.eventRecorder), nil
+		return NewInstall(r.configFactory, r.eventRecorder, r.defaultToRetryOnFailure), nil
 	case ReleaseStatusUnmanaged:
 		log.Info(msgWithReason("release not managed by controller", state.Reason))
 
 		// Clear the history as we can no longer rely on it.
 		req.Object.Status.ClearHistory()
 
-		return NewUpgrade(r.configFactory, r.eventRecorder), nil
+		return NewUpgrade(r.configFactory, r.eventRecorder, r.defaultToRetryOnFailure), nil
 	case ReleaseStatusOutOfSync:
 		log.Info(msgWithReason("release out-of-sync with desired state", state.Reason))
 
 		if req.Object.GetUpgrade().GetRemediation().RetriesExhausted(req.Object) {
 			if forceRequested {
 				log.Info(msgWithReason("forcing upgrade while out of retries", "force requested through annotation"))
-				return NewUpgrade(r.configFactory, r.eventRecorder), nil
+				return NewUpgrade(r.configFactory, r.eventRecorder, r.defaultToRetryOnFailure), nil
 			}
 
 			return nil, fmt.Errorf("%w: cannot upgrade release", ErrExceededMaxRetries)
 		}
 
-		return NewUpgrade(r.configFactory, r.eventRecorder), nil
+		return NewUpgrade(r.configFactory, r.eventRecorder, r.defaultToRetryOnFailure), nil
 	case ReleaseStatusDrifted:
 		log.Info(msgWithReason("detected changes in cluster state", diff.SummarizeDiffSetBrief(state.Diff)))
 		for _, change := range state.Diff {
@@ -467,11 +469,11 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 
 		// If the action strategy is to retry (and not remediate), we behave just like
 		// "flux reconcile hr --force" and .spec.<action>.remediation.retries set to 0.
-		if req.Object.GetActiveRetry() != nil {
+		if req.Object.GetActiveRetry(r.defaultToRetryOnFailure) != nil {
 			req.Object.Status.History.TruncateIgnoringPreviousSnapshots()
 
 			log.V(logger.DebugLevel).Info("retrying upgrade for failed release")
-			return NewUpgrade(r.configFactory, r.eventRecorder), nil
+			return NewUpgrade(r.configFactory, r.eventRecorder, r.defaultToRetryOnFailure), nil
 		}
 
 		remediation := req.Object.GetActiveRemediation()
@@ -480,7 +482,7 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		// upgrade the release to see if that fixes the problem.
 		if remediation == nil {
 			log.V(logger.DebugLevel).Info("no active remediation strategy")
-			return NewUpgrade(r.configFactory, r.eventRecorder), nil
+			return NewUpgrade(r.configFactory, r.eventRecorder, r.defaultToRetryOnFailure), nil
 		}
 
 		// If there is no failure count, the conditions under which the failure
@@ -490,14 +492,14 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 		// attempted again.
 		if remediation.GetFailureCount(req.Object) <= 0 {
 			log.Info("release conditions have changed since last failure")
-			return NewUpgrade(r.configFactory, r.eventRecorder), nil
+			return NewUpgrade(r.configFactory, r.eventRecorder, r.defaultToRetryOnFailure), nil
 		}
 
 		// If the force annotation is set, we can attempt to upgrade the release
 		// without any further checks.
 		if forceRequested {
 			log.Info(msgWithReason("forcing upgrade for failed release", "force requested through annotation"))
-			return NewUpgrade(r.configFactory, r.eventRecorder), nil
+			return NewUpgrade(r.configFactory, r.eventRecorder, r.defaultToRetryOnFailure), nil
 		}
 
 		// We have exhausted the number of retries for the remediation
@@ -526,7 +528,7 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 					// If the rollback target is in any way corrupt,
 					// the most correct remediation is to reattempt the upgrade.
 					log.Info(msgWithReason("unable to verify previous release in storage to roll back to", err.Error()))
-					return NewUpgrade(r.configFactory, r.eventRecorder), nil
+					return NewUpgrade(r.configFactory, r.eventRecorder, r.defaultToRetryOnFailure), nil
 				}
 
 				// This may be a temporary error, return it to retry.
