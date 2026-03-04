@@ -17,7 +17,6 @@ limitations under the License.
 package predicates
 
 import (
-	"github.com/fluxcd/pkg/runtime/conditions"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -51,20 +50,6 @@ func (SourceRevisionChangePredicate) Update(e event.UpdateEvent) bool {
 
 	if oldSource.GetArtifact() != nil && newSource.GetArtifact() != nil &&
 		!oldSource.GetArtifact().HasRevision(newSource.GetArtifact().Revision) {
-		return true
-	}
-
-	oldConditions, ok := e.ObjectOld.(conditions.Getter)
-	if !ok {
-		return false
-	}
-
-	newConditions, ok := e.ObjectNew.(conditions.Getter)
-	if !ok {
-		return false
-	}
-
-	if !conditions.IsReady(oldConditions) && conditions.IsReady(newConditions) {
 		return true
 	}
 
