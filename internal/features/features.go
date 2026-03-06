@@ -79,6 +79,14 @@ const (
 	// to allow immediate processing of the new reconciliation request. This can
 	// help avoid getting stuck on failing deployments when fixes are available.
 	CancelHealthCheckOnNewRevision = "CancelHealthCheckOnNewRevision"
+
+	// DefaultToRetryOnFailure changes the default install/upgrade strategy
+	// from RemediateOnFailure to RetryOnFailure when the user has not
+	// explicitly configured a strategy. Unlike RemediateOnFailure, which
+	// has a retry budget, RetryOnFailure retries indefinitely and
+	// auto-clears failures on success, providing better UX especially
+	// when CancelHealthCheckOnNewRevision is enabled.
+	DefaultToRetryOnFailure = "DefaultToRetryOnFailure"
 )
 
 var features = map[string]bool{
@@ -121,6 +129,9 @@ var features = map[string]bool{
 	// CancelHealthCheckOnNewRevision
 	// opt-in from v1.5.0
 	CancelHealthCheckOnNewRevision: false,
+	// DefaultToRetryOnFailure
+	// opt-in from v1.5.2
+	DefaultToRetryOnFailure: false,
 }
 
 func init() {

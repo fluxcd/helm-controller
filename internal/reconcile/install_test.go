@@ -346,7 +346,7 @@ func TestInstall_Reconcile(t *testing.T) {
 			}
 
 			recorder := new(record.FakeRecorder)
-			got := (NewInstall(cfg, recorder)).Reconcile(context.TODO(), &Request{
+			got := (NewInstall(cfg, recorder, false)).Reconcile(context.TODO(), &Request{
 				Object: obj,
 				Chart:  tt.chart,
 				Values: tt.values,
@@ -468,7 +468,7 @@ func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
 
 			chart := testutil.BuildChartWithSubchartWithCRD()
 			recorder := new(record.FakeRecorder)
-			got := (NewInstall(cfg, recorder)).Reconcile(context.TODO(), &Request{
+			got := (NewInstall(cfg, recorder, false)).Reconcile(context.TODO(), &Request{
 				Object: obj,
 				Chart:  chart,
 				Values: getValues(tt.subchartValues),

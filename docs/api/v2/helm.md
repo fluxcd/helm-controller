@@ -2029,7 +2029,8 @@ InstallStrategy
 <td>
 <em>(Optional)</em>
 <p>Strategy defines the install strategy to use for this HelmRelease.
-Defaults to &lsquo;RemediateOnFailure&rsquo;.</p>
+Defaults to &lsquo;RemediateOnFailure&rsquo;, or &lsquo;RetryOnFailure&rsquo; when the
+DefaultToRetryOnFailure feature gate is enabled.</p>
 </td>
 </tr>
 <tr>
@@ -3154,7 +3155,8 @@ UpgradeStrategy
 <td>
 <em>(Optional)</em>
 <p>Strategy defines the upgrade strategy to use for this HelmRelease.
-Defaults to &lsquo;RemediateOnFailure&rsquo;.</p>
+Defaults to &lsquo;RemediateOnFailure&rsquo;, or &lsquo;RetryOnFailure&rsquo; when the
+DefaultToRetryOnFailure feature gate is enabled.</p>
 </td>
 </tr>
 <tr>
