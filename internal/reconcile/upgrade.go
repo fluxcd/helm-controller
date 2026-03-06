@@ -53,14 +53,15 @@ import (
 // The caller is assumed to have verified the integrity of Request.Object using
 // e.g. action.VerifySnapshot before calling Reconcile.
 type Upgrade struct {
-	configFactory *action.ConfigFactory
-	eventRecorder record.EventRecorder
+	configFactory           *action.ConfigFactory
+	eventRecorder           record.EventRecorder
+	defaultToRetryOnFailure bool
 }
 
 // NewUpgrade returns a new Upgrade reconciler configured with the provided
 // values.
-func NewUpgrade(cfg *action.ConfigFactory, recorder record.EventRecorder) *Upgrade {
-	return &Upgrade{configFactory: cfg, eventRecorder: recorder}
+func NewUpgrade(cfg *action.ConfigFactory, recorder record.EventRecorder, defaultToRetryOnFailure bool) *Upgrade {
+	return &Upgrade{configFactory: cfg, eventRecorder: recorder, defaultToRetryOnFailure: defaultToRetryOnFailure}
 }
 
 func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
@@ -177,7 +178,7 @@ func (r *Upgrade) success(req *Request) {
 
 	// Failures are only relevant while the release is failed
 	// when a retry strategy is configured.
-	if req.Object.GetUpgrade().GetRetry() != nil {
+	if req.Object.GetUpgrade().GetRetry(r.defaultToRetryOnFailure) != nil {
 		req.Object.Status.ClearFailures()
 	}
 

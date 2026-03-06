@@ -576,7 +576,8 @@ The field offers the following subfields:
   `RemediateOnFailure` or `RetryOnFailure`.
   If the `.spec.install.strategy` field is not specified, the HelmRelease
   reconciliation behaves as if `.spec.install.strategy.name` was set to
-  `RemediateOnFailure`.
+  `RemediateOnFailure`, or `RetryOnFailure` when the
+  `DefaultToRetryOnFailure` feature gate is enabled.
 - `.retryInterval` (Optional): The time to wait between retries of failed
   releases when the install strategy is set to `RetryOnFailure`. Defaults
   to `5m`. Cannot be used with `RemediateOnFailure`.
@@ -654,7 +655,9 @@ The field offers the following subfields:
 - `.name` (Required): The name of the upgrade strategy to use. One of
   `RemediateOnFailure` or `RetryOnFailure`. If the `.spec.upgrade.strategy`
   field is not specified, the HelmRelease reconciliation behaves as if
-  `.spec.upgrade.strategy.name` was set to `RemediateOnFailure`.
+  `.spec.upgrade.strategy.name` was set to `RemediateOnFailure`, or
+  `RetryOnFailure` when the `DefaultToRetryOnFailure` feature gate is
+  enabled.
 - `.retryInterval` (Optional): The time to wait between retries of failed
   releases when the upgrade strategy is set to `RetryOnFailure`. Defaults
   to `5m`. Cannot be used with `RemediateOnFailure`.

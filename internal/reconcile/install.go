@@ -57,14 +57,15 @@ import (
 // The caller is assumed to have verified the integrity of Request.Object using
 // e.g. action.VerifySnapshot before calling Reconcile.
 type Install struct {
-	configFactory *action.ConfigFactory
-	eventRecorder record.EventRecorder
+	configFactory           *action.ConfigFactory
+	eventRecorder           record.EventRecorder
+	defaultToRetryOnFailure bool
 }
 
 // NewInstall returns a new Install reconciler configured with the provided
 // values.
-func NewInstall(cfg *action.ConfigFactory, recorder record.EventRecorder) *Install {
-	return &Install{configFactory: cfg, eventRecorder: recorder}
+func NewInstall(cfg *action.ConfigFactory, recorder record.EventRecorder, defaultToRetryOnFailure bool) *Install {
+	return &Install{configFactory: cfg, eventRecorder: recorder, defaultToRetryOnFailure: defaultToRetryOnFailure}
 }
 
 func (r *Install) Reconcile(ctx context.Context, req *Request) error {
@@ -187,7 +188,7 @@ func (r *Install) success(req *Request) {
 
 	// Failures are only relevant while the release is failed
 	// when a retry strategy is configured.
-	if req.Object.GetInstall().GetRetry() != nil {
+	if req.Object.GetInstall().GetRetry(r.defaultToRetryOnFailure) != nil {
 		req.Object.Status.ClearFailures()
 	}
 

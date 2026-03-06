@@ -179,6 +179,12 @@ func main() {
 		action.UseHelm3Defaults = enabled
 	}
 
+	defaultToRetryOnFailure, err := features.Enabled(features.DefaultToRetryOnFailure)
+	if err != nil {
+		setupLog.Error(err, "unable to check feature gate "+features.DefaultToRetryOnFailure)
+		os.Exit(1)
+	}
+
 	cancelHealthCheckOnNewRevision, err := features.Enabled(features.CancelHealthCheckOnNewRevision)
 	if err != nil {
 		setupLog.Error(err, "unable to check feature gate "+features.CancelHealthCheckOnNewRevision)
@@ -379,6 +385,7 @@ func main() {
 		ClientOpts:                 clientOptions,
 		KubeConfigOpts:             kubeConfigOpts,
 		FieldManager:               controllerName,
+		DefaultToRetryOnFailure:    defaultToRetryOnFailure,
 		DisableChartDigestTracking: disableChartDigestTracking,
 		AdditiveCELDependencyCheck: additiveCELDependencyCheck,
 		DirectSourceFetch:          directSourceFetch,
