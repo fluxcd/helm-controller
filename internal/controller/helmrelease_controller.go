@@ -224,6 +224,9 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 
 	log := ctrl.LoggerFrom(ctx)
 
+	// Snapshot the object's readiness state to detect failure recovery.
+	wasNotReady := !conditions.IsReady(obj)
+
 	// Check deprecated fields.
 	if obj.GetRollback().Recreate {
 		log.Info("warning: the .spec.rollback.recreate field is deprecated and has no effect. " +
@@ -442,6 +445,13 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		}
 		return ctrl.Result{}, err
 	}
+
+	// Emit recovery event if the release was not ready before and is now ready.
+	if wasNotReady && conditions.IsReady(obj) {
+		r.Eventf(obj, corev1.EventTypeNormal, meta.SucceededReason,
+			"Release reconciliation recovered from previous failure")
+	}
+
 	return jitter.JitteredRequeueInterval(ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}), nil
 }
 
