@@ -238,7 +238,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
-			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "'mock/chart' is not ready"),
+			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "HelmChart 'mock/chart' does not have an artifact"),
 		}))
 	})
 
@@ -287,7 +287,6 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				WithObjects(chart, obj).
 				Build(),
 		}
-		r.APIReader = r.Client
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
 		g.Expect(err).To(Equal(errWaitForChart))
@@ -295,7 +294,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
-			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "'mock/chart' is not ready"),
+			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady",
+				"HelmChart 'mock/chart' is not ready: latest generation of object has not been reconciled"),
 		}))
 	})
 
@@ -1013,7 +1013,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
-			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "'mock/chart' is not ready"),
+			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "HelmChart 'mock/chart' does not have an artifact"),
 		}))
 	})
 
@@ -1480,7 +1480,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
-			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "'mock/ocirepo' is not ready"),
+			*conditions.FalseCondition(meta.ReadyCondition, "SourceNotReady", "OCIRepository 'mock/ocirepo' does not have an artifact"),
 		}))
 	})
 
@@ -3833,181 +3833,109 @@ func TestValuesReferenceValidation(t *testing.T) {
 	}
 }
 
-func Test_isHelmChartReady(t *testing.T) {
-	mock := &sourcev1.HelmChart{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "HelmChart",
-			APIVersion: sourcev1.GroupVersion.String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "mock",
-			Namespace:  "default",
-			Generation: 2,
-		},
-		Status: sourcev1.HelmChartStatus{
-			ObservedGeneration: 2,
-			Conditions: []metav1.Condition{
-				{
-					Type:   meta.ReadyCondition,
-					Status: metav1.ConditionTrue,
-				},
-			},
-			Artifact: &meta.Artifact{},
-		},
-	}
-
+func Test_isSourceReady(t *testing.T) {
 	tests := []struct {
 		name       string
-		obj        *sourcev1.HelmChart
+		obj        sourcev1.Source
 		want       bool
 		wantReason string
 	}{
 		{
-			name: "chart is ready",
-			obj:  mock.DeepCopy(),
+			name: "HelmChart with artifact is ready",
+			obj: &sourcev1.HelmChart{
+				TypeMeta: metav1.TypeMeta{Kind: "HelmChart"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "mock", Namespace: "default",
+				},
+				Status: sourcev1.HelmChartStatus{
+					Artifact: &meta.Artifact{},
+				},
+			},
 			want: true,
 		},
 		{
-			name: "chart generation differs from observed generation while Ready=True",
-			obj: func() *sourcev1.HelmChart {
-				m := mock.DeepCopy()
-				m.Generation = 3
-				return m
-			}(),
+			name: "HelmChart without artifact is not ready",
+			obj: &sourcev1.HelmChart{
+				TypeMeta: metav1.TypeMeta{Kind: "HelmChart"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "mock", Namespace: "default",
+				},
+			},
+			want:       false,
+			wantReason: "HelmChart 'default/mock' does not have an artifact",
+		},
+		{
+			name: "OCIRepository with artifact is ready",
+			obj: &sourcev1.OCIRepository{
+				TypeMeta: metav1.TypeMeta{Kind: sourcev1.OCIRepositoryKind},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "mock", Namespace: "default",
+				},
+				Status: sourcev1.OCIRepositoryStatus{
+					Artifact: &meta.Artifact{},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "OCIRepository without artifact is not ready",
+			obj: &sourcev1.OCIRepository{
+				TypeMeta: metav1.TypeMeta{Kind: sourcev1.OCIRepositoryKind},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "mock", Namespace: "default",
+				},
+			},
+			want:       false,
+			wantReason: "OCIRepository 'default/mock' does not have an artifact",
+		},
+		{
+			name: "ExternalArtifact with artifact is ready",
+			obj: &sourcev1.ExternalArtifact{
+				TypeMeta: metav1.TypeMeta{Kind: sourcev1.ExternalArtifactKind},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "mock", Namespace: "default",
+				},
+				Status: sourcev1.ExternalArtifactStatus{
+					Artifact: &meta.Artifact{},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "ExternalArtifact without artifact is not ready",
+			obj: &sourcev1.ExternalArtifact{
+				TypeMeta: metav1.TypeMeta{Kind: sourcev1.ExternalArtifactKind},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "mock", Namespace: "default",
+				},
+			},
+			want:       false,
+			wantReason: "ExternalArtifact 'default/mock' does not have an artifact",
+		},
+		{
+			name: "HelmChart with artifact but stale ObservedGeneration is not ready",
+			obj: &sourcev1.HelmChart{
+				TypeMeta: metav1.TypeMeta{Kind: "HelmChart"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "mock", Namespace: "default", Generation: 2,
+				},
+				Status: sourcev1.HelmChartStatus{
+					ObservedGeneration: 1,
+					Artifact:           &meta.Artifact{},
+				},
+			},
 			want:       false,
 			wantReason: "HelmChart 'default/mock' is not ready: latest generation of object has not been reconciled",
 		},
-		{
-			name: "chart generation differs from observed generation while Ready=False",
-			obj: func() *sourcev1.HelmChart {
-				m := mock.DeepCopy()
-				m.Generation = 3
-				conditions.MarkFalse(m, meta.ReadyCondition, "Reason", "some reason")
-				return m
-			}(),
-			want:       false,
-			wantReason: "HelmChart 'default/mock' is not ready: some reason",
-		},
-		{
-			name: "chart has Stalled=True",
-			obj: func() *sourcev1.HelmChart {
-				m := mock.DeepCopy()
-				conditions.MarkFalse(m, meta.ReadyCondition, "Reason", "some reason")
-				conditions.MarkStalled(m, "Reason", "some stalled reason")
-				return m
-			}(),
-			want:       false,
-			wantReason: "HelmChart 'default/mock' is not ready: some stalled reason",
-		},
-		{
-			name: "chart does not have an Artifact",
-			obj: func() *sourcev1.HelmChart {
-				m := mock.DeepCopy()
-				m.Status.Artifact = nil
-				return m
-			}(),
-			want:       false,
-			wantReason: "HelmChart 'default/mock' is not ready: does not have an artifact",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, gotReason := isReady(tt.obj, tt.obj.GetArtifact())
+			got, gotReason := isSourceReady(tt.obj)
 			if got != tt.want {
-				t.Errorf("isHelmChartReady() got = %v, want %v", got, tt.want)
+				t.Errorf("isSourceReady() got = %v, want %v", got, tt.want)
 			}
 			if gotReason != tt.wantReason {
-				t.Errorf("isHelmChartReady() reason = %v, want %v", gotReason, tt.wantReason)
-			}
-		})
-	}
-}
-
-func Test_isOCIRepositoryReady(t *testing.T) {
-	mock := &sourcev1.OCIRepository{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       sourcev1.OCIRepositoryKind,
-			APIVersion: sourcev1.GroupVersion.String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "mock",
-			Namespace:  "default",
-			Generation: 2,
-		},
-		Status: sourcev1.OCIRepositoryStatus{
-			ObservedGeneration: 2,
-			Conditions: []metav1.Condition{
-				{
-					Type:   meta.ReadyCondition,
-					Status: metav1.ConditionTrue,
-				},
-			},
-			Artifact: &meta.Artifact{},
-		},
-	}
-
-	tests := []struct {
-		name       string
-		obj        *sourcev1.OCIRepository
-		want       bool
-		wantReason string
-	}{
-		{
-			name: "OCIRepository is ready",
-			obj:  mock.DeepCopy(),
-			want: true,
-		},
-		{
-			name: "OCIRepository generation differs from observed generation while Ready=True",
-			obj: func() *sourcev1.OCIRepository {
-				m := mock.DeepCopy()
-				m.Generation = 3
-				return m
-			}(),
-			want:       false,
-			wantReason: "OCIRepository 'default/mock' is not ready: latest generation of object has not been reconciled",
-		},
-		{
-			name: "OCIRepository generation differs from observed generation while Ready=False",
-			obj: func() *sourcev1.OCIRepository {
-				m := mock.DeepCopy()
-				m.Generation = 3
-				conditions.MarkFalse(m, meta.ReadyCondition, "Reason", "some reason")
-				return m
-			}(),
-			want:       false,
-			wantReason: "OCIRepository 'default/mock' is not ready: some reason",
-		},
-		{
-			name: "OCIRepository has Stalled=True",
-			obj: func() *sourcev1.OCIRepository {
-				m := mock.DeepCopy()
-				conditions.MarkFalse(m, meta.ReadyCondition, "Reason", "some reason")
-				conditions.MarkStalled(m, "Reason", "some stalled reason")
-				return m
-			}(),
-			want:       false,
-			wantReason: "OCIRepository 'default/mock' is not ready: some stalled reason",
-		},
-		{
-			name: "OCIRepository does not have an Artifact",
-			obj: func() *sourcev1.OCIRepository {
-				m := mock.DeepCopy()
-				m.Status.Artifact = nil
-				return m
-			}(),
-			want:       false,
-			wantReason: "OCIRepository 'default/mock' is not ready: does not have an artifact",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, gotReason := isReady(tt.obj, tt.obj.GetArtifact())
-			if got != tt.want {
-				t.Errorf("isOCIRepositoryReady() got = %v, want %v", got, tt.want)
-			}
-			if gotReason != tt.wantReason {
-				t.Errorf("isOCIRepositoryReady() reason = %v, want %v", gotReason, tt.wantReason)
+				t.Errorf("isSourceReady() reason = %v, want %v", gotReason, tt.wantReason)
 			}
 		})
 	}
