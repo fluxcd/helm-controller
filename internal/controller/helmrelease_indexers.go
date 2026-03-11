@@ -30,6 +30,10 @@ import (
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
 
+func isReadyOrReconciling(from conditions.Getter) bool {
+	return conditions.IsReady(from) || conditions.IsReconciling(from)
+}
+
 // requestsForHelmChartChange enqueues requests for watched HelmCharts
 // according to the specified index.
 func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, o client.Object) []reconcile.Request {
@@ -54,9 +58,9 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, 
 
 	var reqs []reconcile.Request
 	for i, hr := range list.Items {
-		// If the HelmRelease is ready and the revision of the artifact equals to the
+		// If the HelmRelease is ready or reconciling and the revision of the artifact equals to the
 		// last attempted revision, we should not make a request for this HelmRelease
-		if conditions.IsReady(&list.Items[i]) && hc.GetArtifact().HasRevision(hr.Status.GetLastAttemptedRevision()) {
+		if isReadyOrReconciling(&list.Items[i]) && hc.GetArtifact().HasRevision(hr.Status.GetLastAttemptedRevision()) {
 			continue
 		}
 		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
@@ -88,7 +92,7 @@ func (r *HelmReleaseReconciler) requestsForOCIRepositoryChange(ctx context.Conte
 
 	var reqs []reconcile.Request
 	for i, hr := range list.Items {
-		// If the HelmRelease is ready and the digest of the artifact equals to the
+		// If the HelmRelease is ready or reconciling and the digest of the artifact equals to the
 		// last attempted revision digest, we should not make a request for this HelmRelease,
 		// likewise if we cannot retrieve the artifact digest.
 		digest := extractDigest(or.GetArtifact().Revision)
@@ -97,8 +101,8 @@ func (r *HelmReleaseReconciler) requestsForOCIRepositoryChange(ctx context.Conte
 			continue
 		}
 
-		// Skip if the HelmRelease is ready and the digest matches the last attempted revision digest.
-		if conditions.IsReady(&list.Items[i]) && digest == hr.Status.LastAttemptedRevisionDigest {
+		// Skip if the HelmRelease is ready or reconciling and the digest matches the last attempted revision digest.
+		if isReadyOrReconciling(&list.Items[i]) && digest == hr.Status.LastAttemptedRevisionDigest {
 			continue
 		}
 
@@ -136,12 +140,12 @@ func (r *HelmReleaseReconciler) requestsForExternalArtifactChange(ctx context.Co
 		// Handle both revision formats: digest or semantic version.
 		if strings.Contains(revision, ":") {
 			// Skip if the HelmRelease is ready and the digest matches the last attempted revision digest.
-			if conditions.IsReady(&list.Items[i]) && extractDigest(revision) == hr.Status.LastAttemptedRevisionDigest {
+			if isReadyOrReconciling(&list.Items[i]) && extractDigest(revision) == hr.Status.LastAttemptedRevisionDigest {
 				continue
 			}
 		} else {
 			// Skip if the HelmRelease is ready and the revision matches the last attempted revision.
-			if conditions.IsReady(&list.Items[i]) && revision == hr.Status.LastAttemptedRevision {
+			if isReadyOrReconciling(&list.Items[i]) && revision == hr.Status.LastAttemptedRevision {
 				continue
 			}
 		}
