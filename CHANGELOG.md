@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.5.2
+
+**Release date:** 2026-03-12
+
+This patch release fixes reconciliation queue behavior for source watch events
+while a HelmRelease is already reconciling the watched revision. It also comes
+with Helm 4.1.3, which fixes a Go templates bug where the YAML document separator
+`---` could be concatenated to `apiVersion` as `---apiVersion`, and introduces
+the `DefaultToRetryOnFailure` feature gate to improve the experience when
+`CancelHealthCheckOnNewRevision` is enabled by ensuring canceled HelmReleases
+do not get stuck when no retry strategy is configured.
+
+Fixes:
+- Fix enqueing the same revision while reconciling
+  [#1430](https://github.com/fluxcd/helm-controller/pull/1430)
+
+Improvements:
+- Introduce `DefaultToRetryOnFailure` feature gate
+  [#1431](https://github.com/fluxcd/helm-controller/pull/1431)
+- Update fluxcd/pkg dependencies
+  [#1436](https://github.com/fluxcd/helm-controller/pull/1436)
+
 ## 1.5.1
 
 **Release date:** 2026-02-27
