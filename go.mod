@@ -4,6 +4,12 @@ go 1.26.0
 
 replace github.com/fluxcd/helm-controller/api => ./api
 
+// TODO: Remove this after Helm 4.1.4 comes out.
+// This fixes the following bugs:
+//   - https://github.com/helm/helm/issues/31867
+//   - https://github.com/helm/helm/issues/31935
+replace helm.sh/helm/v4 => github.com/fluxcd/helm/v4 v4.1.4-flux.1
+
 // Replace digest lib to master to gather access to BLAKE3.
 // xref: https://github.com/opencontainers/go-digest/pull/66
 replace github.com/opencontainers/go-digest => github.com/opencontainers/go-digest v1.0.1-0.20231025023718-d50d2fec9c98
