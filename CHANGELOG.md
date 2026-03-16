@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.3
+
+**Release date:** 2026-03-16
+
+This patch release fixes templating errors for charts that include
+`---` in the content, e.g. YAML separators, embedded scripts, CAs
+inside ConfigMaps, etc. Some of the errors that could be encountered
+due to this issue are:
+
+- `invalid document separator: ---apiVersion: v1`
+- `wrong node kind`
+
+Fixes:
+- Fix multi-doc parser of `---` for post renderers
+  [#1442](https://github.com/fluxcd/helm-controller/pull/1442)
+
 ## 1.5.2
 
 **Release date:** 2026-03-12
