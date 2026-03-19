@@ -486,6 +486,109 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g.Expect(obj.Status.StorageNamespace).To(BeEmpty())
 	})
 
+	t.Run("Upgrades HelmRelease if chart name changed with feature gate set", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Create HelmChart mock.
+		chartMock := testutil.BuildChart()
+		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		ns, err := testEnv.CreateNamespace(context.TODO(), "mock")
+		g.Expect(err).ToNot(HaveOccurred())
+		t.Cleanup(func() {
+			_ = testEnv.Delete(context.TODO(), ns)
+		})
+
+		hc := &sourcev1.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       chartMock.Name(),
+				Namespace:  ns.Name,
+				Generation: 1,
+			},
+			Spec: sourcev1.HelmChartSpec{
+				Chart:   chartMock.Name(),
+				Version: chartMock.Metadata.Version,
+			},
+			Status: sourcev1.HelmChartStatus{
+				ObservedGeneration: 1,
+				Artifact:           chartArtifact,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		// Create a test Helm release storage mock.
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      "release",
+			Namespace: ns.Name,
+			Version:   1,
+			Chart:     chartMock,
+			Status:    helmreleasecommon.StatusDeployed,
+		})
+
+		snapshot := release.ObservedToSnapshot(release.ObserveRelease(rls))
+		snapshot.ChartName = "oldChartName"
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: ns.Name,
+			},
+			Spec: v2.HelmReleaseSpec{
+				ChartRef: &v2.CrossNamespaceSourceReference{
+					Kind: sourcev1.HelmChartKind,
+					Name: hc.Name,
+				},
+			},
+			Status: v2.HelmReleaseStatus{
+				StorageNamespace: ns.Name,
+				History: v2.Snapshots{
+					snapshot,
+				},
+				HelmChart: hc.Namespace + "/" + hc.Name,
+			},
+		}
+
+		c := fake.NewClientBuilder().
+			WithScheme(NewTestScheme()).
+			WithStatusSubresource(&v2.HelmRelease{}).
+			WithObjects(hc, obj).
+			Build()
+
+		r := &HelmReleaseReconciler{
+			Client:                     c,
+			GetClusterConfig:           GetTestClusterConfig,
+			EventRecorder:              record.NewFakeRecorder(32),
+			UninstallOnChartNameChange: false,
+		}
+
+		//Store the Helm release mock in the test namespace.
+		getter, err := r.buildRESTClientGetter(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		cfg, err := action.NewConfigFactory(getter, action.WithStorage(helmdriver.SecretsDriverName, obj.Status.StorageNamespace))
+		g.Expect(err).ToNot(HaveOccurred())
+
+		store := helmstorage.Init(cfg.Driver)
+		g.Expect(store.Create(rls)).To(Succeed())
+
+		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded for release %s with chart %s",
+				fmt.Sprintf("%s/%s.v%d", rls.Namespace, rls.Name, rls.Version+1), fmt.Sprintf("%s@%s", chartMock.Name(),
+					chartMock.Metadata.Version)),
+			*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "Helm upgrade succeeded for release %s with chart %s",
+				fmt.Sprintf("%s/%s.v%d", rls.Namespace, rls.Name, rls.Version+1), fmt.Sprintf("%s@%s", chartMock.Name(),
+					chartMock.Metadata.Version)),
+		}))
+	})
+
 	t.Run("resets failure counts on configuration change", func(t *testing.T) {
 		g := NewWithT(t)
 

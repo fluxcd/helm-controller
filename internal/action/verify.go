@@ -46,7 +46,7 @@ const (
 	targetStorageNamespace = "storage namespace"
 	targetReleaseNamespace = "release namespace"
 	targetReleaseName      = "release name"
-	targetChartName        = "chart name"
+	TargetChartName        = "chart name"
 )
 
 // ReleaseTargetChanged returns a reason and true if the given release and/or
@@ -68,7 +68,7 @@ func ReleaseTargetChanged(obj *v2.HelmRelease, chartName string) (string, bool) 
 	case release.ShortenName(obj.GetReleaseName()) != cur.Name:
 		return targetReleaseName, true
 	case chartName != cur.ChartName:
-		return targetChartName, true
+		return TargetChartName, true
 	default:
 		return "", false
 	}

@@ -167,7 +167,7 @@ func TestReleaseTargetChanged(t *testing.T) {
 				},
 				StorageNamespace: defaultNamespace,
 			},
-			wantReason: targetChartName,
+			wantReason: TargetChartName,
 			want:       true,
 		},
 		{
