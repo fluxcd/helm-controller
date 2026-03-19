@@ -113,6 +113,7 @@ type HelmReleaseReconciler struct {
 	DefaultToRetryOnFailure    bool
 	DirectSourceFetch          bool
 	DisableChartDigestTracking bool
+	UninstallOnChartNameChange bool
 }
 
 const terminalErrorMessage = "Reconciliation failed terminally due to configuration error"
@@ -372,7 +373,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	// If the release target configuration has changed, we need to uninstall the
 	// previous release target first. If we did not do this, the installation would
 	// fail due to resources already existing.
-	if reason, changed := action.ReleaseTargetChanged(obj, loadedChart.Name()); changed {
+	if reason, changed := action.ReleaseTargetChanged(obj, loadedChart.Name()); changed && (reason != action.TargetChartName || r.UninstallOnChartNameChange) {
 		log.Info(fmt.Sprintf("release target configuration changed (%s): running uninstall for current release", reason))
 		if err = r.reconcileUninstall(ctx, getter, obj); err != nil && !errors.Is(err, intreconcile.ErrNoLatest) {
 			return ctrl.Result{}, err
