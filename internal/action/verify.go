@@ -67,8 +67,6 @@ func ReleaseTargetChanged(obj *v2.HelmRelease, chartName string) (string, bool) 
 		return targetReleaseNamespace, true
 	case release.ShortenName(obj.GetReleaseName()) != cur.Name:
 		return targetReleaseName, true
-	case chartName != cur.ChartName:
-		return targetChartName, true
 	default:
 		return "", false
 	}
