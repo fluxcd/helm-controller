@@ -49,7 +49,9 @@ func Test_newUpgrade(t *testing.T) {
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.Namespace).To(Equal(obj.Namespace))
 		g.Expect(got.Timeout).To(Equal(obj.Spec.Upgrade.Timeout.Duration))
-		g.Expect(got.ForceReplace).To(Equal(obj.Spec.Upgrade.Force))
+		// ForceReplace is not set in the constructor; it is set after SSA resolution
+		// in Upgrade() to avoid the Helm SDK mutual exclusivity error.
+		g.Expect(got.ForceReplace).To(BeFalse())
 	})
 
 	t.Run("timeout fallback", func(t *testing.T) {
