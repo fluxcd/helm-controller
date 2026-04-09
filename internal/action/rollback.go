@@ -91,6 +91,7 @@ func Rollback(config *helmaction.Configuration, obj *v2.HelmRelease,
 		rollback.ServerSideApply = fmt.Sprint(serverSideApply)
 	}
 	rollback.ForceConflicts = serverSideApply // We always force conflicts on server-side apply.
+	rollback.ForceReplace = obj.GetRollback().Force && !serverSideApply
 
 	return rollback.Run(releaseName)
 }
@@ -109,7 +110,6 @@ func newRollback(config *helmaction.Configuration, obj *v2.HelmRelease,
 	rollback.WaitStrategy = getWaitStrategy(obj.GetWaitStrategy(), obj.GetRollback())
 	rollback.WaitForJobs = !obj.GetRollback().DisableWaitForJobs
 	rollback.DisableHooks = obj.GetRollback().DisableHooks
-	rollback.ForceReplace = obj.GetRollback().Force
 	rollback.CleanupOnFail = obj.GetRollback().CleanupOnFail
 	rollback.MaxHistory = obj.GetMaxHistory()
 

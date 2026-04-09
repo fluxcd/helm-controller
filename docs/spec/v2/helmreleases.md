@@ -636,7 +636,10 @@ The field offers the following subfields:
   upgrading the release. Defaults to `false`.
 - `.disableWaitForJobs` (Optional): Disables waiting for any Jobs to complete
   after upgrading the release. Defaults to `false`.
-- `.force` (Optional): Forces resource updates through a replacement strategy.
+- `.force` (Optional): Forces resource updates through a replacement strategy
+  that avoids 3-way merge conflicts on client-side apply.
+  This field is ignored for server-side apply (which always forces conflicts
+  with other field managers).
   Defaults to `false`.
 - `.preserveValues` (Optional): Instructs Helm to re-use the values from the
   last release while merging in overrides from [values](#values). Setting
@@ -755,7 +758,10 @@ The field offers the following subfields:
   rolling back the release. Defaults to `false`.
 - `.disableWaitForJobs` (Optional): Disables waiting for any Jobs to complete
   after rolling back the release. Defaults to `false`.
-- `.force` (Optional): Forces resource updates through a replacement strategy.
+- `.force` (Optional): Forces resource updates through a replacement strategy
+  that avoids 3-way merge conflicts on client-side apply.
+  This field is ignored for server-side apply (which always forces conflicts
+  with other field managers).
   Defaults to `false`.
 - `.recreate` (Optional): Performs Pod restarts if applicable. Defaults to
   `false`. **Warning**: As of Flux v2.8, this option is deprecated and no
