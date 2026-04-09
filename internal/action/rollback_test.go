@@ -48,7 +48,9 @@ func Test_newRollback(t *testing.T) {
 		got := newRollback(&helmaction.Configuration{}, obj, 0, nil)
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.Timeout).To(Equal(obj.Spec.Rollback.Timeout.Duration))
-		g.Expect(got.ForceReplace).To(Equal(obj.Spec.Rollback.Force))
+		// ForceReplace is not set in the constructor; it is set after SSA resolution
+		// in Rollback() to avoid the Helm SDK mutual exclusivity error.
+		g.Expect(got.ForceReplace).To(BeFalse())
 		g.Expect(got.MaxHistory).To(Equal(obj.GetMaxHistory()))
 	})
 

@@ -2608,7 +2608,10 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Force forces resource updates through a replacement strategy.</p>
+<p>Force forces resource updates through a replacement strategy
+that avoids 3-way merge conflicts on client-side apply.
+This field is ignored for server-side apply (which always
+forces conflicts with other field managers).</p>
 </td>
 </tr>
 <tr>
@@ -3260,7 +3263,10 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Force forces resource updates through a replacement strategy.</p>
+<p>Force forces resource updates through a replacement strategy
+that avoids 3-way merge conflicts on client-side apply.
+This field is ignored for server-side apply (which always
+forces conflicts with other field managers).</p>
 </td>
 </tr>
 <tr>

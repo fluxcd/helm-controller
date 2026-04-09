@@ -75,6 +75,7 @@ func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 		upgrade.ServerSideApply = fmt.Sprint(serverSideApply)
 	}
 	upgrade.ForceConflicts = serverSideApply // We always force conflicts on server-side apply.
+	upgrade.ForceReplace = obj.GetUpgrade().Force && !serverSideApply
 
 	policy, err := crdPolicyOrDefault(obj.GetUpgrade().CRDs)
 	if err != nil {
@@ -116,7 +117,6 @@ func newUpgrade(config *helmaction.Configuration, obj *v2.HelmRelease, opts []Up
 	upgrade.DisableHooks = obj.GetUpgrade().DisableHooks
 	upgrade.DisableOpenAPIValidation = obj.GetUpgrade().DisableOpenAPIValidation
 	upgrade.SkipSchemaValidation = obj.GetUpgrade().DisableSchemaValidation
-	upgrade.ForceReplace = obj.GetUpgrade().Force
 	upgrade.CleanupOnFail = obj.GetUpgrade().CleanupOnFail
 	upgrade.Devel = true
 
