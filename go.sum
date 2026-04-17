@@ -146,8 +146,8 @@ github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fluxcd/cli-utils v0.37.2-flux.1 h1:tQ588ghtRN+E+kHq415FddfqA9v4brn/1WWgrP6rQR0=
 github.com/fluxcd/cli-utils v0.37.2-flux.1/go.mod h1:LcWSu1NYET8d8U7O326RhEm5JkQXCMK6ITu4G1CT02c=
-github.com/fluxcd/helm/v4 v4.1.4-flux.1 h1:ntm0bY/1VrqfsJbxlmAVxryGJoFcM5AySHiow/K2268=
-github.com/fluxcd/helm/v4 v4.1.4-flux.1/go.mod h1:5dSo8rRgn3OTkDAc/k0Ipw5/Q+BlqKIKZwa0XwSiINI=
+github.com/fluxcd/helm/v4 v4.1.4-flux.3 h1:KAKl2gfut/3PVmpRVpD+eIAwh6wx/BklULfRl3VDjf0=
+github.com/fluxcd/helm/v4 v4.1.4-flux.3/go.mod h1:5dSo8rRgn3OTkDAc/k0Ipw5/Q+BlqKIKZwa0XwSiINI=
 github.com/fluxcd/pkg/apis/acl v0.9.0 h1:wBpgsKT+jcyZEcM//OmZr9RiF8klL3ebrDp2u2ThsnA=
 github.com/fluxcd/pkg/apis/acl v0.9.0/go.mod h1:TttNS+gocsGLwnvmgVi3/Yscwqrjc17+vhgYfqkfrV4=
 github.com/fluxcd/pkg/apis/event v0.24.1 h1:TClVdn02aiq3sAl9BuzLjjTIxm3JJ83fJ9nchtBa4qg=

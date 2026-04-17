@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"helm.sh/helm/v4/pkg/action"
 	helmaction "helm.sh/helm/v4/pkg/action"
 	helmchartutil "helm.sh/helm/v4/pkg/chart/common"
 	helmchart "helm.sh/helm/v4/pkg/chart/v2"
@@ -108,6 +109,7 @@ func newInstall(config *helmaction.Configuration, obj *v2.HelmRelease, opts []In
 	}
 
 	install.PostRenderer = postrender.BuildPostRenderers(obj)
+	install.PostRenderStrategy = action.PostRenderStrategyNoHooks
 
 	for _, opt := range opts {
 		opt(install)
