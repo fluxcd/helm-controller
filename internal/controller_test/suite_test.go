@@ -184,6 +184,7 @@ func StartController() error {
 		FieldManager:               controllerName,
 		DependencyRequeueInterval:  5 * time.Second,
 		ArtifactFetchRetries:       1,
+		ArtifactFetchTimeout:       30 * time.Second,
 		DefaultServiceAccount:      "",
 		DisableChartDigestTracking: false,
 		AdditiveCELDependencyCheck: false,
