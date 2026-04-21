@@ -384,7 +384,6 @@ spec:
                   required:
                   - apiVersion
                   - current
-                  - kind
                   type: object
                 type: array
               install:

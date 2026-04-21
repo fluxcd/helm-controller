@@ -982,8 +982,12 @@ wait strategy is used (i.e. `.spec.waitStrategy.name` is `poller`).
 
 The `.spec.healthCheckExprs` field accepts a list of objects with the following fields:
 
-- `apiVersion`: The API version of the custom resource. Required.
-- `kind`: The kind of the custom resource. Required.
+- `apiVersion`: The API version of the custom resource. Required. Only the
+  group portion is used for matching; the version is ignored, so the same
+  entry applies to every served version of the resource.
+- `kind`: The kind of the custom resource. Optional. When omitted, the entry
+  applies to all kinds under the given `apiVersion`'s group. An entry with a
+  specific `kind` takes precedence over a group-only entry for that same kind.
 - `current`: A required CEL expression that returns `true` if the resource is ready.
 - `inProgress`: An optional CEL expression that returns `true` if the resource
   is still being reconciled.
