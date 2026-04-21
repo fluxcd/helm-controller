@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.5.4
+
+**Release date:** 2026-04-21
+
+This patch release fixes a post-renderer conflict between overlapping hooks
+and templates, and preserves line endings in `SplitManifests` for downstream
+YAML parsers. It also ensures force-replace is ignored when server-side apply
+is enabled.
+
+Fixes:
+- Ignore force replace when server-side apply is enabled
+  [#1456](https://github.com/fluxcd/helm-controller/pull/1456)
+- Fix post-renderer conflict of overlapping hooks and templates
+  [#1461](https://github.com/fluxcd/helm-controller/pull/1461)
+
 ## 1.5.3
 
 **Release date:** 2026-03-16
