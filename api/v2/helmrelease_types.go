@@ -185,6 +185,15 @@ type HelmReleaseSpec struct {
 	// +optional
 	PostRenderers []PostRenderer `json:"postRenderers,omitempty"`
 
+	// PostRenderStrategy defines the strategy for sending hooks to post-renderers.
+	// Valid values are 'nohooks' (hooks not sent to post-renderers, Helm 3 behavior),
+	// 'combined' (hooks and templates sent together, Helm 4 default), and 'separate'
+	// (hooks and templates sent in separate streams, Helm 4.2 opt-in).
+	// Defaults to 'combined', or 'nohooks' when the UseHelm3Defaults feature gate is enabled.
+	// +kubebuilder:validation:Enum=nohooks;combined;separate
+	// +optional
+	PostRenderStrategy PostRenderStrategy `json:"postRenderStrategy,omitempty"`
+
 	// WaitStrategy defines Helm's wait strategy for waiting for applied
 	// resources to become ready.
 	// +optional
@@ -234,6 +243,23 @@ type PostRenderer struct {
 	// +optional
 	Kustomize *Kustomize `json:"kustomize,omitempty"`
 }
+
+// PostRenderStrategy represents the strategy for sending hooks to post-renderers.
+type PostRenderStrategy string
+
+const (
+	// PostRenderStrategyNoHooks is the Helm 3 behavior where hooks are not sent
+	// to post-renderers.
+	PostRenderStrategyNoHooks PostRenderStrategy = "nohooks"
+
+	// PostRenderStrategyCombined is the Helm 4 default behavior where both hooks
+	// and templates are sent to post-renderers in the same stream.
+	PostRenderStrategyCombined PostRenderStrategy = "combined"
+
+	// PostRenderStrategySeparate is the Helm 4.2 opt-in behavior where hooks and
+	// templates are sent to post-renderers in separate streams.
+	PostRenderStrategySeparate PostRenderStrategy = "separate"
+)
 
 // DriftDetectionMode represents the modes in which a controller can detect and
 // handle differences between the manifest in the Helm storage and the resources
@@ -469,6 +495,11 @@ func (in *HelmRelease) GetWaitStrategy() WaitStrategyName {
 		return in.Spec.WaitStrategy.Name
 	}
 	return ""
+}
+
+// GetPostRenderStrategy returns the post-render strategy for the Helm actions.
+func (in *HelmRelease) GetPostRenderStrategy() PostRenderStrategy {
+	return in.Spec.PostRenderStrategy
 }
 
 // Remediation defines a consistent interface for InstallRemediation and

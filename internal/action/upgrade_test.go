@@ -21,6 +21,7 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
+	"helm.sh/helm/v4/pkg/action"
 	helmaction "helm.sh/helm/v4/pkg/action"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -168,5 +169,101 @@ func Test_newUpgrade(t *testing.T) {
 		got = newUpgrade(&helmaction.Configuration{}, obj, nil)
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.ServerSideApply).To(Equal("false"))
+	})
+
+	t.Run("post render strategy defaults to combined with Helm4 defaults", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Save and restore UseHelm3Defaults
+		oldUseHelm3Defaults := UseHelm3Defaults
+		t.Cleanup(func() { UseHelm3Defaults = oldUseHelm3Defaults })
+		UseHelm3Defaults = false
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "upgrade",
+				Namespace: "upgrade-ns",
+			},
+			Spec: v2.HelmReleaseSpec{},
+		}
+
+		got := newUpgrade(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.PostRenderStrategy).To(Equal(action.PostRenderStrategyCombined))
+	})
+
+	t.Run("post render strategy defaults to nohooks with UseHelm3Defaults", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Save and restore UseHelm3Defaults
+		oldUseHelm3Defaults := UseHelm3Defaults
+		t.Cleanup(func() { UseHelm3Defaults = oldUseHelm3Defaults })
+		UseHelm3Defaults = true
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "upgrade",
+				Namespace: "upgrade-ns",
+			},
+			Spec: v2.HelmReleaseSpec{},
+		}
+
+		got := newUpgrade(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.PostRenderStrategy).To(Equal(action.PostRenderStrategyNoHooks))
+	})
+
+	t.Run("post render strategy combined", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "upgrade",
+				Namespace: "upgrade-ns",
+			},
+			Spec: v2.HelmReleaseSpec{
+				PostRenderStrategy: v2.PostRenderStrategyCombined,
+			},
+		}
+
+		got := newUpgrade(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.PostRenderStrategy).To(Equal(action.PostRenderStrategyCombined))
+	})
+
+	t.Run("post render strategy separate", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "upgrade",
+				Namespace: "upgrade-ns",
+			},
+			Spec: v2.HelmReleaseSpec{
+				PostRenderStrategy: v2.PostRenderStrategySeparate,
+			},
+		}
+
+		got := newUpgrade(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.PostRenderStrategy).To(Equal(action.PostRenderStrategySeparate))
+	})
+
+	t.Run("post render strategy nohooks", func(t *testing.T) {
+		g := NewWithT(t)
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "upgrade",
+				Namespace: "upgrade-ns",
+			},
+			Spec: v2.HelmReleaseSpec{
+				PostRenderStrategy: v2.PostRenderStrategyNoHooks,
+			},
+		}
+
+		got := newUpgrade(&helmaction.Configuration{}, obj, nil)
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.PostRenderStrategy).To(Equal(action.PostRenderStrategyNoHooks))
 	})
 }
