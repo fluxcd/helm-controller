@@ -526,6 +526,22 @@ spec:
     replicaCount: 2
 ```
 
+### Post-render strategy
+
+`.spec.postRenderStrategy` is an optional field to configure the strategy for sending
+hooks to post-renderers. Valid values are:
+
+- `nohooks`: Hooks are not sent to post-renderers (Helm 3 behavior).
+- `combined`: Hooks and templates are sent together to post-renderers in the same stream (Helm 4 default).
+- `separate`: Hooks and templates are sent to post-renderers in separate streams (Helm 4.2 opt-in).
+
+Defaults to `combined`, or `nohooks` when the `UseHelm3Defaults` feature gate is enabled.
+
+```yaml
+spec:
+  postRenderStrategy: combined
+```
+
 ### Install configuration
 
 `.spec.install` is an optional field to specify the configuration for the

@@ -407,6 +407,24 @@ of their definition.</p>
 </tr>
 <tr>
 <td>
+<code>postRenderStrategy</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.PostRenderStrategy">
+PostRenderStrategy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PostRenderStrategy defines the strategy for sending hooks to post-renderers.
+Valid values are &lsquo;nohooks&rsquo; (hooks not sent to post-renderers, Helm 3 behavior),
+&lsquo;combined&rsquo; (hooks and templates sent together, Helm 4 default), and &lsquo;separate&rsquo;
+(hooks and templates sent in separate streams, Helm 4.2 opt-in).
+Defaults to &lsquo;combined&rsquo;, or &lsquo;nohooks&rsquo; when the UseHelm3Defaults feature gate is enabled.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>waitStrategy</code><br>
 <em>
 <a href="#helm.toolkit.fluxcd.io/v2.WaitStrategy">
@@ -1575,6 +1593,24 @@ of their definition.</p>
 </tr>
 <tr>
 <td>
+<code>postRenderStrategy</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.PostRenderStrategy">
+PostRenderStrategy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PostRenderStrategy defines the strategy for sending hooks to post-renderers.
+Valid values are &lsquo;nohooks&rsquo; (hooks not sent to post-renderers, Helm 3 behavior),
+&lsquo;combined&rsquo; (hooks and templates sent together, Helm 4 default), and &lsquo;separate&rsquo;
+(hooks and templates sent in separate streams, Helm 4.2 opt-in).
+Defaults to &lsquo;combined&rsquo;, or &lsquo;nohooks&rsquo; when the UseHelm3Defaults feature gate is enabled.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>waitStrategy</code><br>
 <em>
 <a href="#helm.toolkit.fluxcd.io/v2.WaitStrategy">
@@ -2370,6 +2406,13 @@ patch, but this operator is simpler to specify.</p>
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2.PostRenderStrategy">PostRenderStrategy
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>PostRenderStrategy represents the strategy for sending hooks to post-renderers.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.PostRenderer">PostRenderer
 </h3>
 <p>

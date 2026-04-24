@@ -621,6 +621,18 @@ spec:
 
                   If not set, it defaults to true.
                 type: boolean
+              postRenderStrategy:
+                description: |-
+                  PostRenderStrategy defines the strategy for sending hooks to post-renderers.
+                  Valid values are 'nohooks' (hooks not sent to post-renderers, Helm 3 behavior),
+                  'combined' (hooks and templates sent together, Helm 4 default), and 'separate'
+                  (hooks and templates sent in separate streams, Helm 4.2 opt-in).
+                  Defaults to 'combined', or 'nohooks' when the UseHelm3Defaults feature gate is enabled.
+                enum:
+                - nohooks
+                - combined
+                - separate
+                type: string
               postRenderers:
                 description: |-
                   PostRenderers holds an array of Helm PostRenderers, which will be applied in order
