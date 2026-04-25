@@ -257,12 +257,6 @@ func main() {
 			"adoption of HelmRelease resources in legacy API versions is no longer supported")
 	}
 
-	uninstallOnChartNameChange, err := features.Enabled((features.UninstallOnChartNameChange))
-	if err != nil {
-		setupLog.Error(err, "unable to check feature gate "+features.UninstallOnChartNameChange)
-		os.Exit(1)
-	}
-
 	// Set the managedFields owner for resources reconciled from Helm charts.
 	kube.ManagedFieldsManager = controllerName
 
@@ -404,7 +398,6 @@ func main() {
 		ArtifactFetchTimeout:       httpTimeout,
 		AllowExternalArtifact:      allowExternalArtifact,
 		DisallowedFieldManagers:    disallowedFieldManagers,
-		UninstallOnChartNameChange: uninstallOnChartNameChange,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		RateLimiter:                helper.GetRateLimiter(rateLimiterOptions),
 		WatchConfigs:               watchConfigs,

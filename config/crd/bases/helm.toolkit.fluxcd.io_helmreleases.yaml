@@ -918,6 +918,15 @@ spec:
                 description: Upgrade holds the configuration for Helm upgrade actions
                   for this HelmRelease.
                 properties:
+                  chartNameChangeStrategy:
+                    description: |-
+                      ChartNameChangeStrategy defines the strategy to use when a Helm chart name changes.
+                      Valid values are 'Reinstall' or 'InPlaceUpdate'. Defaults to 'Reinstall' if omitted.
+
+                      Reinstall: Reinstall the Helm release, uninstalling the existing Helm release.
+
+                      InPlaceUpdate: Update the Helm release in place.
+                    type: string
                   cleanupOnFail:
                     description: |-
                       CleanupOnFail allows deletion of new resources created during the Helm
