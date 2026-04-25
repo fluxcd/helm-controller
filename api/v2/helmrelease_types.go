@@ -790,6 +790,16 @@ const (
 	ServerSideApplyAuto ServerSideApplyMode = "auto"
 )
 
+// ChartNameChangeStrategy defines the strategy to use when a Helm chart name changes
+type ChartNameChangeStrategy string
+
+const (
+	// Update the Helm release in place.
+	InPlaceUpdate ChartNameChangeStrategy = "InPlaceUpdate"
+	// Reinstall the Helm release, uninstalling the existing Helm release
+	Reinstall ChartNameChangeStrategy = "Reinstall"
+)
+
 // Upgrade holds the configuration for Helm upgrade actions for this
 // HelmRelease.
 type Upgrade struct {
@@ -886,6 +896,16 @@ type Upgrade struct {
 	// +kubebuilder:validation:Enum=enabled;disabled;auto
 	// +optional
 	ServerSideApply ServerSideApplyMode `json:"serverSideApply,omitempty"`
+
+	// ChartNameChangeStrategy defines the strategy to use when a Helm chart name changes.
+	// Valid values are 'Reinstall' or 'InPlaceUpdate'. Defaults to 'Reinstall' if omitted.
+	//
+	// Reinstall: Reinstall the Helm release, uninstalling the existing Helm release.
+	//
+	// InPlaceUpdate: Update the Helm release in place.
+	//
+	// +optional
+	ChartNameChangeStrategy ChartNameChangeStrategy `json:"chartNameChangeStrategy,omitempty"`
 }
 
 // GetTimeout returns the configured timeout for the Helm upgrade action, or the

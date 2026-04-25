@@ -486,7 +486,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g.Expect(obj.Status.StorageNamespace).To(BeEmpty())
 	})
 
-	t.Run("Upgrades HelmRelease if chart name changed with feature gate set", func(t *testing.T) {
+	t.Run("Upgrades HelmRelease if chart name changed with ChartNameChangeStrategy set to InPlaceUpdate", func(t *testing.T) {
 		g := NewWithT(t)
 
 		// Create HelmChart mock.
@@ -543,6 +543,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 					Kind: sourcev1.HelmChartKind,
 					Name: hc.Name,
 				},
+				Upgrade: &v2.Upgrade{
+					ChartNameChangeStrategy: "InPlaceUpdate",
+				},
 			},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: ns.Name,
@@ -560,10 +563,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Build()
 
 		r := &HelmReleaseReconciler{
-			Client:                     c,
-			GetClusterConfig:           GetTestClusterConfig,
-			EventRecorder:              record.NewFakeRecorder(32),
-			UninstallOnChartNameChange: false,
+			Client:           c,
+			GetClusterConfig: GetTestClusterConfig,
+			EventRecorder:    record.NewFakeRecorder(32),
 		}
 
 		//Store the Helm release mock in the test namespace.

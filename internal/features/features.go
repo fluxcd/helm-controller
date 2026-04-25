@@ -87,11 +87,6 @@ const (
 	// auto-clears failures on success, providing better UX especially
 	// when CancelHealthCheckOnNewRevision is enabled.
 	DefaultToRetryOnFailure = "DefaultToRetryOnFailure"
-
-	// UninstallOnChartNameChange controls if a release is uninstalled when the chart
-	// name changes resulting in a new install of the release. This is enabled by
-	// default. When disabled, an upgrade will be attempted
-	UninstallOnChartNameChange = "UninstallOnChartNameChange"
 )
 
 var features = map[string]bool{
@@ -137,9 +132,6 @@ var features = map[string]bool{
 	// DefaultToRetryOnFailure
 	// opt-in from v1.5.2
 	DefaultToRetryOnFailure: false,
-	// UninstallOnChartNameChange
-	// opt-in from v1.5.4
-	UninstallOnChartNameChange: true,
 }
 
 func init() {
