@@ -112,7 +112,7 @@ func TestReleaseTargetChanged(t *testing.T) {
 				},
 				StorageNamespace: defaultNamespace,
 			},
-			wantReason: targetStorageNamespace,
+			wantReason: TargetStorageNamespace,
 			want:       true,
 		},
 		{
@@ -131,7 +131,7 @@ func TestReleaseTargetChanged(t *testing.T) {
 				},
 				StorageNamespace: defaultNamespace,
 			},
-			wantReason: targetReleaseNamespace,
+			wantReason: TargetReleaseNamespace,
 			want:       true,
 		},
 		{
@@ -150,7 +150,7 @@ func TestReleaseTargetChanged(t *testing.T) {
 				},
 				StorageNamespace: defaultNamespace,
 			},
-			wantReason: targetReleaseName,
+			wantReason: TargetReleaseName,
 			want:       true,
 		},
 		{
@@ -204,7 +204,7 @@ func TestReleaseTargetChanged(t *testing.T) {
 				},
 				StorageNamespace: defaultNamespace,
 			},
-			wantReason: targetReleaseName,
+			wantReason: TargetReleaseName,
 			want:       true,
 		},
 	}
