@@ -795,9 +795,9 @@ type ChartNameChangeStrategy string
 
 const (
 	// Update the Helm release in place.
-	InPlaceUpdate ChartNameChangeStrategy = "InPlaceUpdate"
+	ChartNameChangeStrategyInPlaceUpdate ChartNameChangeStrategy = "InPlaceUpdate"
 	// Reinstall the Helm release, uninstalling the existing Helm release
-	Reinstall ChartNameChangeStrategy = "Reinstall"
+	ChartNameChangeStrategyReinstall ChartNameChangeStrategy = "Reinstall"
 )
 
 // Upgrade holds the configuration for Helm upgrade actions for this
@@ -904,6 +904,7 @@ type Upgrade struct {
 	//
 	// InPlaceUpdate: Update the Helm release in place.
 	//
+	// +kubebuilder:validation:Enum=InPlaceUpdate;Reinstall
 	// +optional
 	ChartNameChangeStrategy ChartNameChangeStrategy `json:"chartNameChangeStrategy,omitempty"`
 }
