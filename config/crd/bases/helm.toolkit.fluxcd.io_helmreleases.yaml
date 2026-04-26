@@ -926,6 +926,9 @@ spec:
                       Reinstall: Reinstall the Helm release, uninstalling the existing Helm release.
 
                       InPlaceUpdate: Update the Helm release in place.
+                    enum:
+                    - InPlaceUpdate
+                    - Reinstall
                     type: string
                   cleanupOnFail:
                     description: |-
