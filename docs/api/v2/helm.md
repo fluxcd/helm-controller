@@ -487,6 +487,13 @@ HelmReleaseStatus
 </p>
 <p>CRDsPolicy defines the install/upgrade approach to use for CRDs when
 installing or upgrading a HelmRelease.</p>
+<h3 id="helm.toolkit.fluxcd.io/v2.ChartNameChangeStrategy">ChartNameChangeStrategy
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.Upgrade">Upgrade</a>)
+</p>
+<p>ChartNameChangeStrategy defines the strategy to use when a Helm chart name changes</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.CommonMetadata">CommonMetadata
 </h3>
 <p>
@@ -3378,6 +3385,23 @@ ServerSideApplyMode
 Can be &ldquo;enabled&rdquo;, &ldquo;disabled&rdquo;, or &ldquo;auto&rdquo;.
 When &ldquo;auto&rdquo;, server-side apply usage will be based on the release&rsquo;s previous usage.
 Defaults to &ldquo;auto&rdquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>chartNameChangeStrategy</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.ChartNameChangeStrategy">
+ChartNameChangeStrategy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ChartNameChangeStrategy defines the strategy to use when a Helm chart name changes.
+Valid values are &lsquo;Reinstall&rsquo; or &lsquo;InPlaceUpdate&rsquo;. Defaults to &lsquo;Reinstall&rsquo; if omitted.</p>
+<p>Reinstall: Reinstall the Helm release, uninstalling the existing Helm release.</p>
+<p>InPlaceUpdate: Update the Helm release in place.</p>
 </td>
 </tr>
 </tbody>
