@@ -238,6 +238,34 @@ spec:
                     description: Labels to be added to the object's metadata.
                     type: object
                 type: object
+              decryption:
+                description: |-
+                  Decryption holds decryption provider configuration for values.
+                  When set, the controller will attempt to decrypt composed values prior
+                  to performing Helm actions. The most common provider is SOPS.
+                properties:
+                  provider:
+                    description: 'Provider specifies the decryption provider (for
+                      example: "sops").'
+                    type: string
+                  secretRef:
+                    description: |-
+                      SecretRef refers to a Kubernetes Secret containing provider credentials
+                      when applicable (for example a GCP service account JSON for SOPS KMS).
+                    properties:
+                      name:
+                        description: Name of the referent.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  serviceAccountName:
+                    description: |-
+                      ServiceAccountName may be used to indicate a ServiceAccount whose
+                      credentials should be used for provider access. Controller support
+                      for this field depends on implementation.
+                    type: string
+                type: object
               dependsOn:
                 description: |-
                   DependsOn may contain a DependencyReference slice with

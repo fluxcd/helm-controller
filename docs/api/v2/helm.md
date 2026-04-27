@@ -362,6 +362,22 @@ and information about how they should be merged.</p>
 </tr>
 <tr>
 <td>
+<code>decryption</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.Decryption">
+Decryption
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Decryption holds decryption provider configuration for values.
+When set, the controller will attempt to decrypt composed values prior
+to performing Helm actions. The most common provider is SOPS.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>values</code><br>
 <em>
 <a href="https://pkg.go.dev/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1?tab=doc#JSON">
@@ -663,6 +679,70 @@ string
 <em>(Optional)</em>
 <p>Namespace of the referent, defaults to the namespace of the Kubernetes
 resource object that contains the reference.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2.Decryption">Decryption
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>Decryption describes how to decrypt values referenced by the HelmRelease.
+The controller will use this configuration to attempt decryption of composed
+values prior to performing Helm actions.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>provider</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Provider specifies the decryption provider (for example: &ldquo;sops&rdquo;).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>secretRef</code><br>
+<em>
+<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#LocalObjectReference">
+github.com/fluxcd/pkg/apis/meta.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SecretRef refers to a Kubernetes Secret containing provider credentials
+when applicable (for example a GCP service account JSON for SOPS KMS).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceAccountName</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServiceAccountName may be used to indicate a ServiceAccount whose
+credentials should be used for provider access. Controller support
+for this field depends on implementation.</p>
 </td>
 </tr>
 </tbody>
@@ -1544,6 +1624,22 @@ Uninstall
 <td>
 <p>ValuesFrom holds references to resources containing Helm values for this HelmRelease,
 and information about how they should be merged.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>decryption</code><br>
+<em>
+<a href="#helm.toolkit.fluxcd.io/v2.Decryption">
+Decryption
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Decryption holds decryption provider configuration for values.
+When set, the controller will attempt to decrypt composed values prior
+to performing Helm actions. The most common provider is SOPS.</p>
 </td>
 </tr>
 <tr>
