@@ -174,6 +174,15 @@ type HelmReleaseSpec struct {
 	// +optional
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
 
+	// Decryption defines how SOPS-encrypted spec.values are decrypted.
+	// Requires the AllowSOPSValues feature gate to be enabled.
+	// When set, spec.values is expected to contain a SOPS-encrypted YAML/JSON
+	// blob with embedded .sops metadata. The controller decrypts the values
+	// before passing them to Helm, and the .sops metadata is never forwarded
+	// to Helm or stored in release secrets.
+	// +optional
+	Decryption *HelmReleaseDecryption `json:"decryption,omitempty"`
+
 	// CommonMetadata specifies the common labels and annotations that are
 	// applied to all resources. Any existing label or annotation will be
 	// overridden if its key matches a common one.
@@ -211,6 +220,25 @@ type HelmReleaseSpec struct {
 // +kubebuilder:object:generate=false
 
 type ValuesReference = meta.ValuesReference
+
+// HelmReleaseDecryption defines how SOPS-encrypted spec.values are decrypted.
+type HelmReleaseDecryption struct {
+	// Provider is the name of the decryption engine.
+	// +kubebuilder:validation:Enum=sops
+	// +required
+	Provider string `json:"provider"`
+
+	// SecretRef references a Kubernetes Secret containing the decryption
+	// key material for the selected provider:
+	//   - For "sops": keys with suffix ".agekey" are treated as Age identity
+	//     files; keys with suffix ".asc" are imported as armored OpenPGP
+	//     private keys into a temporary GnuPG home.
+	// +optional
+	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
+}
+
+// DecryptionProviderSOPS is the SOPS decryption provider name.
+const DecryptionProviderSOPS = "sops"
 
 // Kustomize Helm PostRenderer specification.
 type Kustomize struct {

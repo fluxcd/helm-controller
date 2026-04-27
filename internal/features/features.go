@@ -87,6 +87,15 @@ const (
 	// auto-clears failures on success, providing better UX especially
 	// when CancelHealthCheckOnNewRevision is enabled.
 	DefaultToRetryOnFailure = "DefaultToRetryOnFailure"
+
+	// AllowSOPSValues enables SOPS decryption of inline spec.values.
+	// When enabled, if spec.decryption is configured on a HelmRelease
+	// and spec.values contains a SOPS-encrypted blob (detected by the
+	// presence of a top-level "sops" key), the controller decrypts the
+	// values before passing them to Helm. The SOPS metadata is never
+	// forwarded to Kubernetes API objects or Helm release secrets.
+	// This feature is disabled by default and must be explicitly enabled.
+	AllowSOPSValues = "AllowSOPSValues"
 )
 
 var features = map[string]bool{
@@ -132,6 +141,9 @@ var features = map[string]bool{
 	// DefaultToRetryOnFailure
 	// opt-in from v1.5.2
 	DefaultToRetryOnFailure: false,
+	// AllowSOPSValues
+	// opt-in from v1.6.0
+	AllowSOPSValues: false,
 }
 
 func init() {
