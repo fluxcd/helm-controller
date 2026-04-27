@@ -325,6 +325,21 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		conditions.MarkUnknown(obj, meta.ReadyCondition, meta.ProgressingReason, "reconciliation in progress")
 	}
 
+	// If decryption configured, decrypt composed values before loading chart.
+	if obj.Spec.Decryption != nil {
+		if obj.Spec.Decryption.Provider == "sops" || obj.Spec.Decryption.Provider == "" {
+			values, err = r.decryptValues(ctx, obj, values)
+			if err != nil {
+				conditions.MarkFalse(obj, meta.ReadyCondition, "DecryptionFailed", "%s", err)
+				r.Eventf(obj, corev1.EventTypeWarning, "DecryptionFailed", err.Error())
+				return ctrl.Result{}, err
+			}
+		} else {
+			conditions.MarkFalse(obj, meta.ReadyCondition, "DecryptionError", "unsupported provider %s", obj.Spec.Decryption.Provider)
+			return ctrl.Result{}, fmt.Errorf("unsupported decryption provider %q", obj.Spec.Decryption.Provider)
+		}
+	}
+
 	// Load chart from artifact.
 	loadedChart, err := loader.SecureLoadChartFromURL(loader.NewRetryableHTTPClient(ctx, r.ArtifactFetchRetries, r.ArtifactFetchTimeout), source.GetArtifact().URL, source.GetArtifact().Digest)
 	if err != nil {

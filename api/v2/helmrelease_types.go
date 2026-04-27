@@ -170,6 +170,12 @@ type HelmReleaseSpec struct {
 	// and information about how they should be merged.
 	ValuesFrom []ValuesReference `json:"valuesFrom,omitempty"`
 
+	// Decryption holds decryption provider configuration for values.
+	// When set, the controller will attempt to decrypt composed values prior
+	// to performing Helm actions. The most common provider is SOPS.
+	// +optional
+	Decryption *Decryption `json:"decryption,omitempty"`
+
 	// Values holds the values for this Helm release.
 	// +optional
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
@@ -224,6 +230,26 @@ type Kustomize struct {
 	// patch, but this operator is simpler to specify.
 	// +optional
 	Images []kustomize.Image `json:"images,omitempty"`
+}
+
+// Decryption describes how to decrypt values referenced by the HelmRelease.
+// The controller will use this configuration to attempt decryption of composed
+// values prior to performing Helm actions.
+type Decryption struct {
+	// Provider specifies the decryption provider (for example: "sops").
+	// +optional
+	Provider string `json:"provider,omitempty"`
+
+	// SecretRef refers to a Kubernetes Secret containing provider credentials
+	// when applicable (for example a GCP service account JSON for SOPS KMS).
+	// +optional
+	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
+
+	// ServiceAccountName may be used to indicate a ServiceAccount whose
+	// credentials should be used for provider access. Controller support
+	// for this field depends on implementation.
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
 // CommonMetadata defines the common labels and annotations.
