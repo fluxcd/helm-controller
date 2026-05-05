@@ -17,12 +17,16 @@ limitations under the License.
 package main
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"time"
 
+	_ "github.com/lib/pq"
 	flag "github.com/spf13/pflag"
 	"helm.sh/helm/v4/pkg/kube"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -63,7 +67,13 @@ import (
 	"github.com/fluxcd/helm-controller/internal/oomwatch"
 )
 
-const controllerName = "helm-controller"
+const (
+	controllerName = "helm-controller"
+
+	// helmDriverSQLConnectionStringEnv names the environment variable from which
+	// the connection string for the Helm SQL storage driver is read.
+	helmDriverSQLConnectionStringEnv = "HELM_DRIVER_SQL_CONNECTION_STRING"
+)
 
 var (
 	scheme   = runtime.NewScheme()
@@ -109,6 +119,7 @@ func main() {
 		disallowedFieldManagers         []string
 		tokenCacheOptions               cache.TokenFlags
 		defaultKubeConfigServiceAccount string
+		helmStorageDriver               string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080",
@@ -143,6 +154,11 @@ func main() {
 		"The algorithm to use to calculate the digest of Helm release storage snapshots.")
 	flag.StringArrayVar(&disallowedFieldManagers, "override-manager", []string{},
 		"List of field managers to override during drift detection.")
+	flag.StringVar(&helmStorageDriver, "helm-storage-driver", "",
+		"The Helm storage driver used to store release information. One of: secret, configmap, memory, sql "+
+			"(case-insensitive). If unset, the HELM_DRIVER environment variable is consulted, and if also unset "+
+			"the controller defaults to secret. The 'memory' driver is not persistent across reconciles and is "+
+			"intended for tests only. The 'sql' driver requires HELM_DRIVER_SQL_CONNECTION_STRING.")
 
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
@@ -212,6 +228,58 @@ func main() {
 	if !watchOptions.AllNamespaces {
 		watchNamespace = os.Getenv("RUNTIME_NAMESPACE")
 	}
+
+	// Resolve --helm-storage-driver, falling back to HELM_DRIVER and finally the
+	// built-in default. Validation is intentionally up-front so an invalid value
+	// fails the controller process rather than every HelmRelease reconcile.
+	if helmStorageDriver == "" {
+		if driverEnv, ok := os.LookupEnv("HELM_DRIVER"); ok && driverEnv != "" {
+			helmStorageDriver = driverEnv
+		} else {
+			helmStorageDriver = action.DefaultStorageDriver
+		}
+	}
+	canonicalDriver, ok := action.NormalizeStorageDriverName(helmStorageDriver)
+	if !ok {
+		setupLog.Error(fmt.Errorf("unsupported Helm storage driver %q", helmStorageDriver),
+			"valid values are secret, secrets, configmap, configmaps, memory, sql")
+		os.Exit(1)
+	}
+	helmStorageDriver = canonicalDriver
+
+	var helmStorageSQLPool *action.SQLDriverPool
+	if helmStorageDriver == helmdriver.SQLDriverName {
+		connectionString := os.Getenv(helmDriverSQLConnectionStringEnv)
+		if connectionString == "" {
+			setupLog.Error(fmt.Errorf("%s must be set when --helm-storage-driver=sql", helmDriverSQLConnectionStringEnv),
+				"missing Helm SQL connection string")
+			os.Exit(1)
+		}
+		// Eagerly verify the DSN and database reachability at startup, rather
+		// than letting every HelmRelease reconcile fail. Use database/sql
+		// directly so we can Close() the probe connection — Helm v4 does not
+		// expose Close on storage.Driver, so going through the pool would leak
+		// a permanent connection.
+		probe, err := sql.Open("postgres", connectionString)
+		if err != nil {
+			setupLog.Error(fmt.Errorf("invalid Helm SQL connection string"),
+				"check HELM_DRIVER_SQL_CONNECTION_STRING")
+			os.Exit(1)
+		}
+		probeCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if pingErr := probe.PingContext(probeCtx); pingErr != nil {
+			cancel()
+			_ = probe.Close()
+			setupLog.Error(fmt.Errorf("failed to reach Helm SQL storage backend"),
+				"check HELM_DRIVER_SQL_CONNECTION_STRING and database availability")
+			os.Exit(1)
+		}
+		cancel()
+		_ = probe.Close()
+
+		helmStorageSQLPool = action.NewSQLDriverPool(connectionString)
+	}
+	setupLog.Info("Helm storage driver configured", "driver", helmStorageDriver)
 
 	watchSelector, err := helper.GetWatchSelector(watchOptions)
 	if err != nil {
@@ -398,6 +466,8 @@ func main() {
 		ArtifactFetchTimeout:       httpTimeout,
 		AllowExternalArtifact:      allowExternalArtifact,
 		DisallowedFieldManagers:    disallowedFieldManagers,
+		HelmStorageDriver:          helmStorageDriver,
+		HelmStorageSQLPool:         helmStorageSQLPool,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		RateLimiter:                helper.GetRateLimiter(rateLimiterOptions),
 		WatchConfigs:               watchConfigs,

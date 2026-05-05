@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
+	"sync"
 
 	helmaction "helm.sh/helm/v4/pkg/action"
 	helmstorage "helm.sh/helm/v4/pkg/storage"
@@ -31,10 +33,88 @@ import (
 	"github.com/fluxcd/helm-controller/internal/storage"
 )
 
-const (
-	// DefaultStorageDriver is the default Helm storage driver.
-	DefaultStorageDriver = helmdriver.SecretsDriverName
-)
+// DefaultStorageDriver is the default Helm storage driver.
+const DefaultStorageDriver = helmdriver.SecretsDriverName
+
+// NormalizeStorageDriverName maps a user-supplied storage driver name to its
+// canonical Helm constant. The accepted forms mirror the Helm CLI / SDK
+// behaviour (see helm.sh/helm/v4/pkg/action.(*Configuration).Init), allowing
+// both "secret"/"secrets" and "configmap"/"configmaps" interchangeably and
+// matching case-insensitively. An empty name maps to DefaultStorageDriver.
+// The boolean return is false when name is not a recognised driver.
+func NormalizeStorageDriverName(name string) (string, bool) {
+	switch strings.ToLower(name) {
+	case "":
+		return DefaultStorageDriver, true
+	case strings.ToLower(helmdriver.SecretsDriverName), "secrets":
+		return helmdriver.SecretsDriverName, true
+	case strings.ToLower(helmdriver.ConfigMapsDriverName), "configmaps":
+		return helmdriver.ConfigMapsDriverName, true
+	case strings.ToLower(helmdriver.MemoryDriverName):
+		return helmdriver.MemoryDriverName, true
+	case strings.ToLower(helmdriver.SQLDriverName):
+		return helmdriver.SQLDriverName, true
+	}
+	return "", false
+}
+
+// IsSupportedStorageDriver reports whether name is a recognised storage driver
+// name. The accepted forms match those of the Helm CLI's HELM_DRIVER variable,
+// matched case-insensitively. An empty name is treated as the default driver.
+func IsSupportedStorageDriver(name string) bool {
+	_, ok := NormalizeStorageDriverName(name)
+	return ok
+}
+
+// SQLDriverPool returns Helm SQL storage drivers keyed by storage namespace,
+// reusing the underlying database handle across reconciliations to avoid
+// opening a fresh connection pool on every action.
+//
+// Helm v4 does not expose a Close method on storage.Driver, so the connection
+// pools opened by helmdriver.NewSQL are released only when the controller
+// process exits. The pool therefore caches drivers per storage namespace,
+// bounding the resource usage to the set of namespaces actually in use.
+type SQLDriverPool struct {
+	connectionString string
+	factory          func(connection, namespace string) (helmdriver.Driver, error)
+
+	mu      sync.Mutex
+	drivers map[string]helmdriver.Driver
+}
+
+// NewSQLDriverPool returns an SQLDriverPool that lazily opens a Helm SQL driver
+// per namespace using the given connection string.
+func NewSQLDriverPool(connectionString string) *SQLDriverPool {
+	return &SQLDriverPool{
+		connectionString: connectionString,
+		factory: func(connection, namespace string) (helmdriver.Driver, error) {
+			return helmdriver.NewSQL(connection, namespace)
+		},
+		drivers: make(map[string]helmdriver.Driver),
+	}
+}
+
+// SetFactory replaces the driver constructor; intended for tests. It is not
+// safe to call concurrently with DriverFor.
+func (p *SQLDriverPool) SetFactory(f func(connection, namespace string) (helmdriver.Driver, error)) {
+	p.factory = f
+}
+
+// DriverFor returns the cached SQL driver for the given storage namespace,
+// constructing a new one on first use.
+func (p *SQLDriverPool) DriverFor(namespace string) (helmdriver.Driver, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if d, ok := p.drivers[namespace]; ok {
+		return d, nil
+	}
+	d, err := p.factory(p.connectionString, namespace)
+	if err != nil {
+		return nil, err
+	}
+	p.drivers[namespace] = d
+	return d, nil
+}
 
 // ConfigFactory is a factory for the Helm action configuration of a (series
 // of) Helm action(s). It allows for sharing Kubernetes client(s) and the
@@ -51,6 +131,9 @@ type ConfigFactory struct {
 	KubeClient *Client
 	// Driver to use for the Helm action.
 	Driver helmdriver.Driver
+	// SQLDriverPool, when set, supplies SQL storage drivers per namespace and
+	// is consulted by WithStorage when the SQL driver is requested.
+	SQLDriverPool *SQLDriverPool
 	// StorageLog is the logger to use for the Helm storage driver.
 	StorageLog slog.Handler
 	// NewResourceManager is the resource manager used to evaluate custom health checks.
@@ -84,38 +167,56 @@ func NewConfigFactory(getter genericclioptions.RESTClientGetter, opts ...ConfigF
 
 // WithStorage configures the ConfigFactory.Driver by constructing a new Helm
 // driver.Driver using the provided driver name and namespace.
-// It supports driver.ConfigMapsDriverName, driver.SecretsDriverName and
-// driver.MemoryDriverName.
-// It returns an error when the driver name is not supported, or the client
-// configuration for the storage fails.
+//
+// Driver names are matched case-insensitively and accept the same aliases as
+// the Helm CLI: "secret"/"secrets", "configmap"/"configmaps", "memory", "sql".
+// An empty driver falls back to DefaultStorageDriver.
+//
+// The SQL driver requires a SQLDriverPool to have been set on the
+// ConfigFactory via WithSQLDriverPool. The Memory driver creates a fresh
+// store on every call and is therefore only suitable for tests or
+// short-lived processes.
+//
+// It returns an error when the driver name is not supported, the namespace
+// is empty, or the underlying client/storage configuration fails.
 func WithStorage(driver, namespace string) ConfigFactoryOption {
-	if driver == "" {
-		driver = DefaultStorageDriver
-	}
+	canonical, ok := NormalizeStorageDriverName(driver)
 
 	return func(f *ConfigFactory) error {
+		if !ok {
+			return fmt.Errorf("unsupported Helm storage driver '%s'", driver)
+		}
 		if namespace == "" {
-			return fmt.Errorf("no namespace provided for '%s' storage driver", driver)
+			return fmt.Errorf("no namespace provided for Helm storage driver '%s'", canonical)
 		}
 
-		switch driver {
-		case helmdriver.SecretsDriverName, helmdriver.ConfigMapsDriverName, "":
+		switch canonical {
+		case helmdriver.SecretsDriverName, helmdriver.ConfigMapsDriverName:
 			clientSet, err := f.KubeClient.Factory.KubernetesClientSet()
 			if err != nil {
-				return fmt.Errorf("could not get client set for '%s' storage driver: %w", driver, err)
+				return fmt.Errorf("could not get client set for '%s' storage driver: %w", canonical, err)
 			}
-			if driver == helmdriver.ConfigMapsDriverName {
+			if canonical == helmdriver.ConfigMapsDriverName {
 				f.Driver = helmdriver.NewConfigMaps(clientSet.CoreV1().ConfigMaps(namespace))
-			}
-			if driver == helmdriver.SecretsDriverName {
+			} else {
 				f.Driver = helmdriver.NewSecrets(clientSet.CoreV1().Secrets(namespace))
 			}
 		case helmdriver.MemoryDriverName:
-			driver := helmdriver.NewMemory()
-			driver.SetNamespace(namespace)
-			f.Driver = driver
-		default:
-			return fmt.Errorf("unsupported Helm storage driver '%s'", driver)
+			d := helmdriver.NewMemory()
+			d.SetNamespace(namespace)
+			f.Driver = d
+		case helmdriver.SQLDriverName:
+			if f.SQLDriverPool == nil {
+				return fmt.Errorf("Helm storage driver '%s' requires a SQL driver pool", canonical)
+			}
+			sqlDriver, err := f.SQLDriverPool.DriverFor(namespace)
+			if err != nil {
+				// Underlying errors from helmdriver.NewSQL / sqlx.Connect can
+				// echo the connection string; surface a generic message and
+				// keep the detail off the HelmRelease status condition.
+				return fmt.Errorf("could not initialize Helm SQL storage driver: connection failed")
+			}
+			f.Driver = sqlDriver
 		}
 		return nil
 	}
@@ -125,6 +226,15 @@ func WithStorage(driver, namespace string) ConfigFactoryOption {
 func WithDriver(driver helmdriver.Driver) ConfigFactoryOption {
 	return func(f *ConfigFactory) error {
 		f.Driver = driver
+		return nil
+	}
+}
+
+// WithSQLDriverPool sets the ConfigFactory.SQLDriverPool. The pool is consulted
+// by WithStorage when the SQL driver is requested.
+func WithSQLDriverPool(pool *SQLDriverPool) ConfigFactoryOption {
+	return func(f *ConfigFactory) error {
+		f.SQLDriverPool = pool
 		return nil
 	}
 }
