@@ -101,7 +101,7 @@ type HelmReleaseSpec struct {
 	StorageNamespace string `json:"storageNamespace,omitempty"`
 
 	// DependsOn may contain a DependencyReference slice with
-	// references to HelmRelease resources that must be ready before this HelmRelease
+	// references to Kubernetes resources that must be ready before this HelmRelease
 	// can be reconciled.
 	// +optional
 	DependsOn []DependencyReference `json:"dependsOn,omitempty"`

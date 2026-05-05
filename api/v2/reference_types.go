@@ -69,16 +69,31 @@ type CrossNamespaceSourceReference struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
-// DependencyReference defines a HelmRelease dependency on another HelmRelease resource.
+// DependencyReference defines a HelmRelease dependency on a Kubernetes resource.
+// When the dependency is a HelmRelease, defaults are applied during reconciliation.
 type DependencyReference struct {
-	// Name of the referent.
+	// APIVersion of the resource to depend on, defaults to the HelmRelease API
+	// group version when the dependency is a HelmRelease.
+	// +optional
+	APIVersion string `json:"apiVersion,omitempty"`
+
+	// Kind of the resource to depend on, defaults to HelmRelease.
+	// +optional
+	Kind string `json:"kind,omitempty"`
+
+	// Name of the resource to depend on.
 	// +required
 	Name string `json:"name"`
 
-	// Namespace of the referent, defaults to the namespace of the HelmRelease
-	// resource object that contains the reference.
+	// Namespace of the resource to depend on, defaults to the namespace of the
+	// HelmRelease resource object that contains the reference.
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
+
+	// Ready checks if the resource Ready status condition is true, defaults to
+	// true when the dependency is a HelmRelease.
+	// +optional
+	Ready *bool `json:"ready,omitempty"`
 
 	// ReadyExpr is a CEL expression that can be used to assess the readiness
 	// of a dependency. When specified, the built-in readiness check
