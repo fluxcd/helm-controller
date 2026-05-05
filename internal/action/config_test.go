@@ -19,6 +19,7 @@ package action
 import (
 	"errors"
 	"log/slog"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -32,6 +33,26 @@ import (
 	"github.com/fluxcd/helm-controller/internal/storage"
 	"github.com/fluxcd/helm-controller/internal/testutil"
 )
+
+// fakeSQLDriverPool returns a pool whose factory yields a memory-backed
+// driver that reports its Name as SQL.
+func fakeSQLDriverPool() *SQLDriverPool {
+	pool := NewSQLDriverPool("postgres://user@example.com:5432/helm?sslmode=disable")
+	pool.SetFactory(func(_ string, namespace string) (helmdriver.Driver, error) {
+		d := helmdriver.NewMemory()
+		d.SetNamespace(namespace)
+		return fakeSQLDriver{Driver: d}, nil
+	})
+	return pool
+}
+
+type fakeSQLDriver struct {
+	helmdriver.Driver
+}
+
+func (f fakeSQLDriver) Name() string {
+	return helmdriver.SQLDriverName
+}
 
 func TestNewConfigFactory(t *testing.T) {
 	tests := []struct {
@@ -80,6 +101,68 @@ func TestNewConfigFactory(t *testing.T) {
 	}
 }
 
+func TestIsSupportedStorageDriver(t *testing.T) {
+	g := NewWithT(t)
+
+	g.Expect(IsSupportedStorageDriver("")).To(BeTrue())
+	g.Expect(IsSupportedStorageDriver("secret")).To(BeTrue())
+	g.Expect(IsSupportedStorageDriver("Secret")).To(BeTrue())
+	g.Expect(IsSupportedStorageDriver("SECRET")).To(BeTrue())
+	// Plural aliases match Helm CLI's HELM_DRIVER behaviour.
+	g.Expect(IsSupportedStorageDriver("secrets")).To(BeTrue())
+	g.Expect(IsSupportedStorageDriver("Secrets")).To(BeTrue())
+	g.Expect(IsSupportedStorageDriver("configmap")).To(BeTrue())
+	g.Expect(IsSupportedStorageDriver("ConfigMap")).To(BeTrue())
+	g.Expect(IsSupportedStorageDriver("configmaps")).To(BeTrue())
+	g.Expect(IsSupportedStorageDriver("memory")).To(BeTrue())
+	g.Expect(IsSupportedStorageDriver("Memory")).To(BeTrue())
+	g.Expect(IsSupportedStorageDriver("sql")).To(BeTrue())
+	g.Expect(IsSupportedStorageDriver("SQL")).To(BeTrue())
+
+	g.Expect(IsSupportedStorageDriver("postgres")).To(BeFalse())
+	g.Expect(IsSupportedStorageDriver(" secret ")).To(BeFalse())
+}
+
+func TestSQLDriverPool(t *testing.T) {
+	t.Run("caches one driver per namespace", func(t *testing.T) {
+		g := NewWithT(t)
+
+		var calls int
+		pool := NewSQLDriverPool("ignored")
+		pool.SetFactory(func(_ string, ns string) (helmdriver.Driver, error) {
+			calls++
+			d := helmdriver.NewMemory()
+			d.SetNamespace(ns)
+			return fakeSQLDriver{Driver: d}, nil
+		})
+
+		first, err := pool.DriverFor("foo")
+		g.Expect(err).ToNot(HaveOccurred())
+		again, err := pool.DriverFor("foo")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(again).To(BeIdenticalTo(first))
+		g.Expect(calls).To(Equal(1))
+
+		other, err := pool.DriverFor("bar")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(other).ToNot(BeIdenticalTo(first))
+		g.Expect(calls).To(Equal(2))
+	})
+
+	t.Run("propagates factory errors", func(t *testing.T) {
+		g := NewWithT(t)
+
+		pool := NewSQLDriverPool("ignored")
+		pool.SetFactory(func(_ string, _ string) (helmdriver.Driver, error) {
+			return nil, errors.New("boom")
+		})
+
+		d, err := pool.DriverFor("foo")
+		g.Expect(err).To(MatchError("boom"))
+		g.Expect(d).To(BeNil())
+	})
+}
+
 func TestWithStorage(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -107,8 +190,44 @@ func TestWithStorage(t *testing.T) {
 			wantDriver: helmdriver.SecretsDriverName,
 		},
 		{
+			name:       "lowercase secret",
+			driverName: strings.ToLower(helmdriver.SecretsDriverName),
+			namespace:  "default",
+			factory: ConfigFactory{
+				KubeClient: &Client{Client: helmkube.New(cmdtest.NewTestFactory())},
+			},
+			wantDriver: helmdriver.SecretsDriverName,
+		},
+		{
+			name:       "secrets alias",
+			driverName: "secrets",
+			namespace:  "default",
+			factory: ConfigFactory{
+				KubeClient: &Client{Client: helmkube.New(cmdtest.NewTestFactory())},
+			},
+			wantDriver: helmdriver.SecretsDriverName,
+		},
+		{
 			name:       helmdriver.ConfigMapsDriverName,
 			driverName: helmdriver.ConfigMapsDriverName,
+			namespace:  "default",
+			factory: ConfigFactory{
+				KubeClient: &Client{Client: helmkube.New(cmdtest.NewTestFactory())},
+			},
+			wantDriver: helmdriver.ConfigMapsDriverName,
+		},
+		{
+			name:       "lowercase configmap",
+			driverName: strings.ToLower(helmdriver.ConfigMapsDriverName),
+			namespace:  "default",
+			factory: ConfigFactory{
+				KubeClient: &Client{Client: helmkube.New(cmdtest.NewTestFactory())},
+			},
+			wantDriver: helmdriver.ConfigMapsDriverName,
+		},
+		{
+			name:       "configmaps alias",
+			driverName: "configmaps",
 			namespace:  "default",
 			factory: ConfigFactory{
 				KubeClient: &Client{Client: helmkube.New(cmdtest.NewTestFactory())},
@@ -123,11 +242,46 @@ func TestWithStorage(t *testing.T) {
 			wantDriver: helmdriver.MemoryDriverName,
 		},
 		{
+			name:       "uppercase sql",
+			driverName: helmdriver.SQLDriverName,
+			namespace:  "default",
+			factory: ConfigFactory{
+				SQLDriverPool: fakeSQLDriverPool(),
+			},
+			wantDriver: helmdriver.SQLDriverName,
+		},
+		{
+			name:       "lowercase sql",
+			driverName: strings.ToLower(helmdriver.SQLDriverName),
+			namespace:  "default",
+			factory: ConfigFactory{
+				SQLDriverPool: fakeSQLDriverPool(),
+			},
+			wantDriver: helmdriver.SQLDriverName,
+		},
+		{
 			name:       "invalid namespace",
 			driverName: helmdriver.SecretsDriverName,
 			namespace:  "",
 			factory:    ConfigFactory{},
-			wantErr:    errors.New("no namespace provided for Helm storage driver 'secrets'"),
+			wantErr:    errors.New("no namespace provided for Helm storage driver '" + helmdriver.SecretsDriverName + "'"),
+		},
+		{
+			name:       "invalid namespace via alias",
+			driverName: "secrets",
+			namespace:  "",
+			factory:    ConfigFactory{},
+			// Error message is normalised to the canonical Helm constant.
+			wantErr: errors.New("no namespace provided for Helm storage driver '" + helmdriver.SecretsDriverName + "'"),
+		},
+		{
+			name:       "sql with empty namespace",
+			driverName: helmdriver.SQLDriverName,
+			namespace:  "",
+			factory: ConfigFactory{
+				SQLDriverPool: fakeSQLDriverPool(),
+			},
+			wantErr: errors.New("no namespace provided for Helm storage driver 'SQL'"),
 		},
 		{
 			name:       "invalid driver",
@@ -135,6 +289,29 @@ func TestWithStorage(t *testing.T) {
 			namespace:  "default",
 			factory:    ConfigFactory{},
 			wantErr:    errors.New("unsupported Helm storage driver 'invalid'"),
+		},
+		{
+			name:       "sql without pool",
+			driverName: helmdriver.SQLDriverName,
+			namespace:  "default",
+			factory:    ConfigFactory{},
+			wantErr:    errors.New("Helm storage driver 'SQL' requires a SQL driver pool"),
+		},
+		{
+			name:       "sql with failing pool",
+			driverName: helmdriver.SQLDriverName,
+			namespace:  "default",
+			factory: ConfigFactory{
+				SQLDriverPool: func() *SQLDriverPool {
+					p := NewSQLDriverPool("postgres://user:secret@host:5432/db")
+					p.SetFactory(func(_ string, _ string) (helmdriver.Driver, error) {
+						return nil, errors.New("dial error: postgres://user:secret@host:5432/db: refused")
+					})
+					return p
+				}(),
+			},
+			// Underlying error must NOT be surfaced (it can echo the DSN).
+			wantErr: errors.New("could not initialize Helm SQL storage driver: connection failed"),
 		},
 	}
 	for _, tt := range tests {
@@ -144,7 +321,7 @@ func TestWithStorage(t *testing.T) {
 			factory := tt.factory
 			err := WithStorage(tt.driverName, tt.namespace)(&factory)
 			if tt.wantErr != nil {
-				g.Expect(err).To(HaveOccurred())
+				g.Expect(err).To(MatchError(tt.wantErr.Error()))
 				g.Expect(factory.Driver).To(BeNil())
 				return
 			}
@@ -163,6 +340,15 @@ func TestWithDriver(t *testing.T) {
 	driver := helmdriver.NewMemory()
 	g.Expect(WithDriver(driver)(factory)).NotTo(HaveOccurred())
 	g.Expect(factory.Driver).To(Equal(driver))
+}
+
+func TestWithSQLDriverPool(t *testing.T) {
+	g := NewWithT(t)
+
+	factory := &ConfigFactory{}
+	pool := NewSQLDriverPool("ignored")
+	g.Expect(WithSQLDriverPool(pool)(factory)).NotTo(HaveOccurred())
+	g.Expect(factory.SQLDriverPool).To(BeIdenticalTo(pool))
 }
 
 func TestStorageLog(t *testing.T) {

@@ -100,6 +100,11 @@ type HelmReleaseReconciler struct {
 	APIReader               client.Reader
 	TokenCache              *cache.TokenCache
 
+	// Helm storage configuration
+
+	HelmStorageDriver  string
+	HelmStorageSQLPool *action.SQLDriverPool
+
 	// Retry and requeue configuration
 
 	DependencyRequeueInterval time.Duration
@@ -402,7 +407,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 
 	// Construct config factory for any further Helm actions.
 	cfg, err := action.NewConfigFactory(getter,
-		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
+		action.WithSQLDriverPool(r.HelmStorageSQLPool),
+		action.WithStorage(r.HelmStorageDriver, obj.Status.StorageNamespace),
 		action.WithStorageLog(action.NewTraceLogger(ctx)),
 		action.WithResourceManager(resourceManager),
 		action.WithWaitContext(ctx),
@@ -581,7 +587,8 @@ func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter g
 	// Construct config factory for current release first to validate
 	// storage configuration before building the resource manager.
 	cfg, err := action.NewConfigFactory(getter,
-		action.WithStorage(action.DefaultStorageDriver, obj.Status.StorageNamespace),
+		action.WithSQLDriverPool(r.HelmStorageSQLPool),
+		action.WithStorage(r.HelmStorageDriver, obj.Status.StorageNamespace),
 		action.WithStorageLog(action.NewTraceLogger(ctx)),
 		action.WithWaitContext(ctx),
 	)
