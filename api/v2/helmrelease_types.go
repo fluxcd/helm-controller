@@ -918,6 +918,13 @@ func (in Upgrade) GetTimeout(defaultTimeout metav1.Duration) metav1.Duration {
 	return *in.Timeout
 }
 
+func (in Upgrade) GetChartNameChangeStrategy() ChartNameChangeStrategy {
+	if in.ChartNameChangeStrategy == "" {
+		return ChartNameChangeStrategyReinstall
+	}
+	return in.ChartNameChangeStrategy
+}
+
 // GetRemediation returns the configured Remediation for the Helm upgrade
 // action.
 func (in Upgrade) GetRemediation() Remediation {
