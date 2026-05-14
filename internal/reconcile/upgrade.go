@@ -155,7 +155,7 @@ func (r *Upgrade) failure(req *Request, buffer *action.LogBuffer, err error) {
 			addAppVersion(req.Chart.AppVersion()), addOCIDigest(req.Object.Status.LastAttemptedRevisionDigest)),
 		corev1.EventTypeWarning,
 		v2.UpgradeFailedReason,
-		eventMessageWithLog(msg, buffer),
+		"%s", eventMessageWithLog(msg, buffer),
 	)
 }
 
@@ -188,6 +188,6 @@ func (r *Upgrade) success(req *Request) {
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.UpgradeSucceededReason,
-		msg,
+		"%s", msg,
 	)
 }
