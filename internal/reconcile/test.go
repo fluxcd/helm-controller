@@ -147,7 +147,7 @@ func (r *Test) failure(req *Request, err error) {
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeWarning,
 		v2.TestFailedReason,
-		msg,
+		"%s", msg,
 	)
 
 	if req.Object.Status.History.Latest().HasBeenTested() {
@@ -183,7 +183,7 @@ func (r *Test) success(req *Request) {
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.TestSucceededReason,
-		msg,
+		"%s", msg,
 	)
 }
 

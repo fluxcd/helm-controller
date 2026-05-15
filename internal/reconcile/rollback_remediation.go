@@ -146,7 +146,7 @@ func (r *RollbackRemediation) failure(req *Request, prev *v2.Snapshot, buffer *a
 			addAppVersion(prev.AppVersion), addOCIDigest(prev.OCIDigest)),
 		corev1.EventTypeWarning,
 		v2.RollbackFailedReason,
-		eventMessageWithLog(msg, buffer),
+		"%s", eventMessageWithLog(msg, buffer),
 	)
 }
 
@@ -166,7 +166,7 @@ func (r *RollbackRemediation) success(req *Request, prev *v2.Snapshot) {
 			addAppVersion(prev.AppVersion), addOCIDigest(prev.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.RollbackSucceededReason,
-		msg,
+		"%s", msg,
 	)
 }
 

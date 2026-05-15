@@ -185,7 +185,7 @@ func (r *Uninstall) failure(req *Request, buffer *action.LogBuffer, err error) {
 		req.Object,
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeWarning, v2.UninstallFailedReason,
-		eventMessageWithLog(msg, buffer),
+		"%s", eventMessageWithLog(msg, buffer),
 	)
 }
 
@@ -210,7 +210,7 @@ func (r *Uninstall) success(req *Request) {
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.UninstallSucceededReason,
-		msg,
+		"%s", msg,
 	)
 }
 
