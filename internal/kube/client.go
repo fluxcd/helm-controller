@@ -112,6 +112,11 @@ func NewMemoryRESTClientGetter(cfg *rest.Config, opts ...Option) *MemoryRESTClie
 		opts(g)
 	}
 	g.setDefaults()
+	// Add retries to fix temporary "etcdserver: leader changed" errors from kube-apiserver.
+	// Done here once rather than in ToRESTConfig to avoid stacking wrappers on repeated calls.
+	g.cfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
+		return &retryingRoundTripper{wrapped: rt}
+	})
 	return g
 }
 
@@ -131,10 +136,6 @@ func (c *MemoryRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
 	if c.cfg == nil {
 		return nil, fmt.Errorf("MemoryRESTClientGetter has no REST config")
 	}
-	// add retries to fix temporary "etcdserver: leader changed" errors from kube-apiserver
-	c.cfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
-		return &retryingRoundTripper{wrapped: rt}
-	})
 	return c.cfg, nil
 }
 

@@ -184,6 +184,30 @@ func TestMemoryRESTClientGetter_ToRESTConfig(t *testing.T) {
 		g.Expect(cfg).To(BeIdenticalTo(c.cfg))
 	})
 
+	t.Run("wraps transport only once across multiple calls", func(t *testing.T) {
+		g := NewWithT(t)
+
+		c := NewMemoryRESTClientGetter(&rest.Config{
+			Host: "https://example.com",
+		})
+
+		// Call ToRESTConfig multiple times.
+		for i := 0; i < 10; i++ {
+			_, err := c.ToRESTConfig()
+			g.Expect(err).ToNot(HaveOccurred())
+		}
+
+		// Verify that only one retryingRoundTripper layer exists by
+		// walking the WrapTransport chain.
+		rt := c.cfg.WrapTransport(nil)
+		_, ok := rt.(*retryingRoundTripper)
+		g.Expect(ok).To(BeTrue(), "expected retryingRoundTripper")
+
+		inner := rt.(*retryingRoundTripper).wrapped
+		_, nested := inner.(*retryingRoundTripper)
+		g.Expect(nested).To(BeFalse(), "transport should not be wrapped more than once")
+	})
+
 	t.Run("error on nil REST config", func(t *testing.T) {
 		g := NewWithT(t)
 
