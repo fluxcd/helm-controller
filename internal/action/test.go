@@ -24,6 +24,7 @@ import (
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
+	"github.com/fluxcd/helm-controller/internal/release"
 )
 
 // TestOption can be used to modify Helm's action.ReleaseTesting after the
@@ -41,7 +42,7 @@ type TestOption func(action *helmaction.ReleaseTesting)
 // storage.ObserveFunc, which provides superior access to Helm storage writes.
 func Test(_ context.Context, config *helmaction.Configuration, obj *v2.HelmRelease, opts ...TestOption) (*helmrelease.Release, error) {
 	test := newTest(config, obj, opts)
-	rlsr, shutdownFunc, err := test.Run(obj.GetReleaseName())
+	rlsr, shutdownFunc, err := test.Run(release.ShortenName(obj.GetReleaseName()))
 	defer shutdownFunc() // A non-nil shutdownFunc is always returned.
 	if err != nil {
 		return nil, err
