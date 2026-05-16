@@ -35,6 +35,7 @@ import (
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/resource"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 )
@@ -67,7 +68,7 @@ func (*rootScoped) Name() apimeta.RESTScopeName {
 	return apimeta.RESTScopeNameRoot
 }
 
-func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmchart.Chart,
+func applyCRDs(ctx context.Context, cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmchart.Chart,
 	vals helmchartcommon.Values, serverSideApply bool, waitStrategy helmkube.WaitStrategy,
 	waitOptions []helmkube.WaitOption, visitorFunc ...resource.VisitorFunc) error {
 
@@ -100,6 +101,37 @@ func applyCRDs(cfg *helmaction.Configuration, policy v2.CRDsPolicy, chrt *helmch
 			return err
 		}
 		allCRDs = append(allCRDs, res...)
+	}
+
+	// Filter out any non-CRD resources placed in the chart's crds/ directory.
+	// The Helm crds/ directory contract is for CustomResourceDefinition objects
+	// only; mixing other kinds in here breaks invariants downstream (the
+	// CreateReplace path is structurally CRD-only, and even on Create the user
+	// likely expects /templates semantics — release tracking, uninstall hooks,
+	// drift detection — which crds/ does not provide). Drop them in one place
+	// for both policies and warn loudly so the chart author can fix the
+	// placement upstream.
+	var nonCRDs []string
+	filteredCRDs := allCRDs[:0]
+	for _, info := range allCRDs {
+		gvk := info.Mapping.GroupVersionKind
+		if gvk.Group == "apiextensions.k8s.io" && gvk.Kind == "CustomResourceDefinition" {
+			filteredCRDs = append(filteredCRDs, info)
+			continue
+		}
+		ref := fmt.Sprintf("%s/%s/%s", gvk.Group, gvk.Kind, info.Name)
+		if info.Namespace != "" {
+			ref = fmt.Sprintf("%s/%s/%s/%s", gvk.Group, gvk.Kind, info.Namespace, info.Name)
+		}
+		nonCRDs = append(nonCRDs, ref)
+	}
+	allCRDs = filteredCRDs
+	if len(nonCRDs) > 0 {
+		ctrl.LoggerFrom(ctx).Info("warning: ignoring non-CRD resources found in the chart's crds/ directory; "+
+			"the crds/ directory is reserved for CustomResourceDefinition objects only, "+
+			"please move these resources to templates/ in the chart. if the chart is "+
+			"public, please open an issue in the upstream repository to have this fixed",
+			"nonCRDs", nonCRDs)
 	}
 
 	// Visit CRDs with any provided visitor functions.
