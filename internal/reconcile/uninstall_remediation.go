@@ -84,6 +84,8 @@ func (r *UninstallRemediation) Reconcile(ctx context.Context, req *Request) erro
 		cfg    = r.configFactory.Build(logBuf, observeUninstall(req.Object, v2.ReleaseActionUninstallRemediation))
 	)
 
+	defer summarize(req)
+
 	// Require current to run uninstall.
 	if cur == nil {
 		return fmt.Errorf("%w: required to uninstall", ErrNoLatest)
