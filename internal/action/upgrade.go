@@ -83,7 +83,7 @@ func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 		return nil, err
 	}
 
-	if err := applyCRDs(config, policy, chrt, vals, serverSideApply,
+	if err := applyCRDs(ctx, config, policy, chrt, vals, serverSideApply,
 		upgrade.WaitStrategy, upgrade.WaitOptions,
 		setOriginVisitor(v2.GroupVersion.Group, obj.Namespace, obj.Name)); err != nil {
 		return nil, fmt.Errorf("failed to apply CustomResourceDefinitions: %w", err)

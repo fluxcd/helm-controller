@@ -57,7 +57,7 @@ func Install(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 	if err != nil {
 		return nil, err
 	}
-	if err := applyCRDs(config, policy, chrt, vals, install.ServerSideApply,
+	if err := applyCRDs(ctx, config, policy, chrt, vals, install.ServerSideApply,
 		install.WaitStrategy, install.WaitOptions,
 		setOriginVisitor(v2.GroupVersion.Group, obj.Namespace, obj.Name)); err != nil {
 		return nil, fmt.Errorf("failed to apply CustomResourceDefinitions: %w", err)
