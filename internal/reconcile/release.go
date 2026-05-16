@@ -103,7 +103,7 @@ func (r observedReleases) recordOnObject(obj *v2.HelmRelease, mutators ...mutate
 					newSnap := release.ObservedToSnapshot(obs)
 					newSnap.SetTestHooks(snap.GetTestHooks())
 					obj.Status.History[i] = newSnap
-					return
+					break
 				}
 			}
 		}
