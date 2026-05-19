@@ -91,6 +91,7 @@ func main() {
 		requeueDependency               time.Duration
 		gracefulShutdownTimeout         time.Duration
 		httpRetry                       int
+		httpTimeout                     time.Duration
 		clientOptions                   client.Options
 		kubeConfigOpts                  client.KubeConfigOptions
 		featureGates                    feathelper.FeatureGates
@@ -124,6 +125,8 @@ func main() {
 		"The duration given to the reconciler to finish before forcibly stopping.")
 	flag.IntVar(&httpRetry, "http-retry", 9,
 		"The maximum number of retries when failing to fetch artifacts over HTTP.")
+	flag.DurationVar(&httpTimeout, "http-timeout", 30*time.Second,
+		"The timeout for HTTP requests when fetching artifacts.")
 	flag.StringVar(&intkube.DefaultServiceAccountName, auth.ControllerFlagDefaultServiceAccount, "",
 		"Default service account used for impersonation.")
 	flag.StringVar(&defaultKubeConfigServiceAccount, auth.ControllerFlagDefaultKubeConfigServiceAccount, "",
@@ -392,6 +395,7 @@ func main() {
 		TokenCache:                 tokenCache,
 		DependencyRequeueInterval:  requeueDependency,
 		ArtifactFetchRetries:       httpRetry,
+		ArtifactFetchTimeout:       httpTimeout,
 		AllowExternalArtifact:      allowExternalArtifact,
 		DisallowedFieldManagers:    disallowedFieldManagers,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
