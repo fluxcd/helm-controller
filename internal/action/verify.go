@@ -43,10 +43,10 @@ var (
 )
 
 const (
-	TargetStorageNamespace = "storageNamespace"
-	TargetReleaseNamespace = "releaseNamespace"
-	TargetReleaseName      = "releaseName"
-	TargetChartName        = "chartName"
+	TargetStorageNamespace = "storage namespace"
+	TargetReleaseNamespace = "release namespace"
+	TargetReleaseName      = "release name"
+	TargetChartName        = "chart name"
 )
 
 // ReleaseTargetChanged returns a reason and true if the given release and/or

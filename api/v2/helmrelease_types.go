@@ -794,9 +794,9 @@ const (
 type ChartNameChangeStrategy string
 
 const (
-	// Update the Helm release in place.
+	// ChartNameChangeStrategyInPlaceUpdate updates the Helm release in place.
 	ChartNameChangeStrategyInPlaceUpdate ChartNameChangeStrategy = "InPlaceUpdate"
-	// Reinstall the Helm release, uninstalling the existing Helm release
+	// ChartNameChangeStrategyReinstall reinstalls the Helm release, uninstalling the existing Helm release.
 	ChartNameChangeStrategyReinstall ChartNameChangeStrategy = "Reinstall"
 )
 
