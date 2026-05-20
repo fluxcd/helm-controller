@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.5.5
+
+**Release date:** 2026-05-20
+
+This patch release fixes several reliability issues. HTTP artifact fetches
+could block indefinitely and stall reconciliations, the Kubernetes client
+transport accumulated a new retry wrapper on every reconcile causing
+unbounded memory growth, non-CRD objects placed under a chart's `crds/`
+directory were force-applied, and the Helm test action failed to find
+releases with names longer than 53 characters. It also moves Helm back to
+upstream v4.2.0 (off the Flux fork) and updates Kubernetes and fluxcd/pkg
+dependencies.
+
+Fixes:
+- Add configurable HTTP timeout for artifact fetching
+  [#1497](https://github.com/fluxcd/helm-controller/pull/1497)
+- Move retryingRoundTripper wrapping to constructor
+  [#1487](https://github.com/fluxcd/helm-controller/pull/1487)
+- Ignore non-CRD objects under crds/
+  [#1496](https://github.com/fluxcd/helm-controller/pull/1496)
+- Use ShortenName for release name in Test action
+  [#1498](https://github.com/fluxcd/helm-controller/pull/1498)
+
+Improvements:
+- Update Helm to v4.2.0
+  [#1482](https://github.com/fluxcd/helm-controller/pull/1482)
+- Upgrade k8s to 1.36.1, c-r to 0.24.1, cli-utils to 1.2.1
+  [#1495](https://github.com/fluxcd/helm-controller/pull/1495)
+- Update fluxcd/pkg dependencies
+  [#1483](https://github.com/fluxcd/helm-controller/pull/1483)
+
 ## 1.5.4
 
 **Release date:** 2026-04-21
