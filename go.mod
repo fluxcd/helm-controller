@@ -17,7 +17,7 @@ replace (
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/fluxcd/cli-utils v1.2.1
-	github.com/fluxcd/helm-controller/api v1.5.4
+	github.com/fluxcd/helm-controller/api v1.5.5
 	github.com/fluxcd/pkg/apis/acl v0.9.0
 	github.com/fluxcd/pkg/apis/event v0.24.1
 	github.com/fluxcd/pkg/apis/kustomize v1.15.1
