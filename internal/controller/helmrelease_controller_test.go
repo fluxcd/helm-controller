@@ -117,7 +117,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 
 		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
-			*conditions.FalseCondition(meta.ReadyCondition, meta.DependencyNotReadyReason, "dependency 'mock/dependency' is not ready"),
+			*conditions.FalseCondition(meta.ReadyCondition, meta.DependencyNotReadyReason, "dependency 'helm.toolkit.fluxcd.io/v2/HelmRelease/mock/dependency' is not ready"),
 		}))
 	})
 
@@ -2817,6 +2817,20 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 							Name:      "dependency-2",
 							Namespace: "some-other-namespace",
 						},
+						{
+							APIVersion: corev1.SchemeGroupVersion.String(),
+							Kind:       "Pod",
+							Name:       "dependency-3",
+							Namespace:  "some-namespace",
+							Ready:      new(true),
+						},
+						{
+							APIVersion: corev1.SchemeGroupVersion.String(),
+							Kind:       "Secret",
+							Name:       "dependency-4",
+							Namespace:  "some-other-namespace",
+							Ready:      new(true),
+						},
 					},
 				},
 			},
@@ -2855,6 +2869,35 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 						},
 					},
 				},
+				&corev1.Pod{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: corev1.SchemeGroupVersion.String(),
+						Kind:       "Pod",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 1,
+						Name:       "dependency-3",
+						Namespace:  "some-namespace",
+					},
+					Status: corev1.PodStatus{
+						ObservedGeneration: 1,
+						Conditions: []corev1.PodCondition{
+							{Type: corev1.PodReady, Status: corev1.ConditionTrue},
+						},
+						Phase: corev1.PodRunning,
+					},
+				},
+				&corev1.Secret{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: corev1.SchemeGroupVersion.String(),
+						Kind:       "Secret",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 1,
+						Name:       "dependency-4",
+						Namespace:  "some-other-namespace",
+					},
+				},
 			},
 			expect: func(g *WithT, err error) {
 				g.Expect(err).ToNot(HaveOccurred())
@@ -2890,6 +2933,14 @@ dep.metadata.labels['app/version'] == self.metadata.labels['app/version'] &&
 dep.status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True') &&
 dep.metadata.generation == dep.status.observedGeneration
 `,
+						},
+						{
+							APIVersion: corev1.SchemeGroupVersion.String(),
+							Kind:       "Secret",
+							Name:       "dependency-3",
+							Namespace:  "some-other-namespace",
+							Ready:      new(true),
+							ReadyExpr:  "dep.metadata.generation == 2 && !has(dep.data)",
 						},
 					},
 				},
@@ -2928,6 +2979,17 @@ dep.metadata.generation == dep.status.observedGeneration
 						Conditions: []metav1.Condition{
 							{Type: meta.ReadyCondition, Status: metav1.ConditionTrue},
 						},
+					},
+				},
+				&corev1.Secret{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: corev1.SchemeGroupVersion.String(),
+						Kind:       "Secret",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 2,
+						Name:       "dependency-3",
+						Namespace:  "some-other-namespace",
 					},
 				},
 			},
@@ -2970,6 +3032,54 @@ dep.metadata.generation == dep.status.observedGeneration
 						Conditions: []metav1.Condition{
 							{Type: meta.ReadyCondition, Status: metav1.ConditionTrue},
 						},
+					},
+				},
+			},
+			expect: func(g *WithT, err error) {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(err.Error()).To(ContainSubstring("is not ready"))
+			},
+		},
+		{
+			name: "error on other dependency with ObservedGeneration < Generation",
+			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dependant",
+					Namespace: "some-namespace",
+				},
+				Spec: v2.HelmReleaseSpec{
+					DependsOn: []v2.DependencyReference{
+						{
+							APIVersion: corev1.SchemeGroupVersion.String(),
+							Kind:       "Pod",
+							Name:       "dependency-1",
+							Namespace:  "some-namespace",
+							Ready:      new(true),
+						},
+					},
+				},
+			},
+			objects: []client.Object{
+				&corev1.Pod{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: corev1.SchemeGroupVersion.String(),
+						Kind:       "Pod",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 2,
+						Name:       "dependency-1",
+						Namespace:  "some-namespace",
+					},
+					Status: corev1.PodStatus{
+						ObservedGeneration: 1,
+						Conditions: []corev1.PodCondition{
+							{Type: corev1.PodReady, Status: corev1.ConditionTrue},
+						},
+						Phase: corev1.PodRunning,
 					},
 				},
 			},
@@ -3022,6 +3132,54 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 		},
 		{
+			name: "error on other dependency with ObservedGeneration = Generation and ReadyCondition = False",
+			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dependant",
+					Namespace: "some-namespace",
+				},
+				Spec: v2.HelmReleaseSpec{
+					DependsOn: []v2.DependencyReference{
+						{
+							APIVersion: corev1.SchemeGroupVersion.String(),
+							Kind:       "Pod",
+							Name:       "dependency-1",
+							Namespace:  "some-namespace",
+							Ready:      new(true),
+						},
+					},
+				},
+			},
+			objects: []client.Object{
+				&corev1.Pod{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: corev1.SchemeGroupVersion.String(),
+						Kind:       "Pod",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 1,
+						Name:       "dependency-1",
+						Namespace:  "some-namespace",
+					},
+					Status: corev1.PodStatus{
+						ObservedGeneration: 1,
+						Conditions: []corev1.PodCondition{
+							{Type: corev1.PodReady, Status: corev1.ConditionFalse},
+						},
+						Phase: corev1.PodRunning,
+					},
+				},
+			},
+			expect: func(g *WithT, err error) {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(err.Error()).To(ContainSubstring("is not ready"))
+			},
+		},
+		{
 			name: "error on dependency without conditions",
 			obj: &v2.HelmRelease{
 				TypeMeta: metav1.TypeMeta{
@@ -3062,6 +3220,44 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 		},
 		{
+			name: "error on other dependency without conditions",
+			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dependant",
+					Namespace: "some-namespace",
+				},
+				Spec: v2.HelmReleaseSpec{
+					DependsOn: []v2.DependencyReference{
+						{
+							APIVersion: apiextensionsv1.SchemeGroupVersion.String(),
+							Kind:       "CustomResourceDefinition",
+							Name:       "helmreleases.helm.toolkit.fluxcd.io",
+							Ready:      new(true),
+						},
+					},
+				},
+			},
+			objects: []client.Object{
+				&apiextensionsv1.CustomResourceDefinition{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: apiextensionsv1.SchemeGroupVersion.String(),
+						Kind:       "CustomResourceDefinition",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "helmreleases.helm.toolkit.fluxcd.io",
+					},
+				},
+			},
+			expect: func(g *WithT, err error) {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(err.Error()).To(ContainSubstring("is not ready"))
+			},
+		},
+		{
 			name: "error on missing dependency",
 			obj: &v2.HelmRelease{
 				TypeMeta: metav1.TypeMeta{
@@ -3076,6 +3272,65 @@ dep.metadata.generation == dep.status.observedGeneration
 					DependsOn: []v2.DependencyReference{
 						{
 							Name: "dependency-1",
+						},
+					},
+				},
+			},
+			expect: func(g *WithT, err error) {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			},
+		},
+		{
+			name: "error on other missing dependency",
+			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dependant",
+					Namespace: "some-namespace",
+				},
+				Spec: v2.HelmReleaseSpec{
+					DependsOn: []v2.DependencyReference{
+						{
+							APIVersion: corev1.SchemeGroupVersion.String(),
+							Kind:       "Secret",
+							Name:       "dependency-1",
+							Namespace:  "some-namespace",
+						},
+					},
+				},
+			},
+			expect: func(g *WithT, err error) {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			},
+		},
+		{
+			name: "error on multiple missing dependencies",
+			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dependant",
+					Namespace: "some-namespace",
+				},
+				Spec: v2.HelmReleaseSpec{
+					DependsOn: []v2.DependencyReference{
+						{
+							APIVersion: apiextensionsv1.SchemeGroupVersion.String(),
+							Kind:       "CustomResourceDefinition",
+							Name:       "kustomizations.kustomize.toolkit.fluxcd.io",
+						},
+						{
+							APIVersion: corev1.SchemeGroupVersion.String(),
+							Kind:       "Secret",
+							Name:       "dependency-1",
+							Namespace:  "some-namespace",
 						},
 					},
 				},
@@ -3118,6 +3373,48 @@ dep.metadata.generation == dep.status.observedGeneration
 					},
 					Status: v2.HelmReleaseStatus{
 						ObservedGeneration: 1,
+					},
+				},
+			},
+			expect: func(g *WithT, err error) {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(err.Error()).To(ContainSubstring("is not ready according to readyExpr eval"))
+			},
+		},
+		{
+			name: "error on other dependency with readyExpr",
+			obj: &v2.HelmRelease{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dependant",
+					Namespace: "some-namespace",
+				},
+				Spec: v2.HelmReleaseSpec{
+					DependsOn: []v2.DependencyReference{
+						{
+							APIVersion: corev1.SchemeGroupVersion.String(),
+							Kind:       "Secret",
+							Name:       "dependency-1",
+							Namespace:  "some-namespace",
+							Ready:      new(true),
+							ReadyExpr:  "self.metadata.name == dep.metadata.name",
+						},
+					},
+				},
+			},
+			objects: []client.Object{
+				&corev1.Secret{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: corev1.SchemeGroupVersion.String(),
+						Kind:       "Secret",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 1,
+						Name:       "dependency-1",
+						Namespace:  "some-namespace",
 					},
 				},
 			},

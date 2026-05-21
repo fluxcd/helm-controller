@@ -27,13 +27,16 @@ import (
 	"github.com/fluxcd/cli-utils/pkg/kstatus/polling"
 	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/clusterreader"
 	"github.com/fluxcd/cli-utils/pkg/kstatus/polling/engine"
+	"github.com/fluxcd/cli-utils/pkg/kstatus/status"
 	celtypes "github.com/google/cel-go/common/types"
 	chart "helm.sh/helm/v4/pkg/chart/v2"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -45,6 +48,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	objectutils "github.com/fluxcd/cli-utils/pkg/object"
 	aclv1 "github.com/fluxcd/pkg/apis/acl"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/auth"
@@ -61,6 +65,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/object"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/ssa"
+	ssautil "github.com/fluxcd/pkg/ssa/utils"
 
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
@@ -617,29 +622,62 @@ func (r *HelmReleaseReconciler) checkDependencies(ctx context.Context, obj *v2.H
 	}
 
 	for _, depRef := range obj.Spec.DependsOn {
-		depName := types.NamespacedName{
-			Namespace: depRef.Namespace,
-			Name:      depRef.Name,
+		// Default the dependency Kind to HelmRelease if unset.
+		if depRef.Kind == "" {
+			depRef.Kind = v2.HelmReleaseKind
 		}
-		if depName.Namespace == "" {
-			depName.Namespace = obj.GetNamespace()
+
+		// Apply HelmRelease defaults if the dependency is a HelmRelease.
+		if depRef.Kind == v2.HelmReleaseKind {
+			// Default APIVersion to HelmRelease if unset.
+			if depRef.APIVersion == "" {
+				depRef.APIVersion = v2.GroupVersion.String()
+			}
+			// Default namespace to the dependent's namespace if unset.
+			if depRef.Namespace == "" {
+				depRef.Namespace = obj.GetNamespace()
+			}
+			// Default readiness check to true if unset.
+			if depRef.Ready == nil {
+				depRef.Ready = new(true)
+			}
+		}
+
+		depMd := objectutils.ObjMetadata{
+			GroupKind: schema.GroupKind{Kind: depRef.Kind},
+			Name:      depRef.Name,
+			Namespace: depRef.Namespace,
+		}
+		depObj := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": depRef.APIVersion,
+				"kind":       depRef.Kind,
+				"metadata": map[string]any{
+					"name":      depRef.Name,
+					"namespace": depRef.Namespace,
+				},
+			},
 		}
 
 		// Check if the dependency exists by querying
 		// the API server bypassing the cache.
-		dep := &v2.HelmRelease{}
-		if err := r.APIReader.Get(ctx, depName, dep); err != nil {
-			return fmt.Errorf("unable to get '%s' dependency: %w", depName, err)
+		if err := r.APIReader.Get(ctx, client.ObjectKeyFromObject(depObj), depObj); err != nil {
+			return fmt.Errorf("unable to get '%s/%s' dependency: %w", depRef.APIVersion, ssautil.FmtObjMetadata(depMd), err)
+		}
+
+		// Skip all readiness checks if unset or set to false.
+		if depRef.Ready == nil || !*depRef.Ready {
+			continue
 		}
 
 		// Evaluate the CEL expression (if specified) to determine if the dependency is ready.
 		if depRef.ReadyExpr != "" {
-			ready, err := r.evalReadyExpr(ctx, depRef.ReadyExpr, objMap, dep)
+			ready, err := r.evalReadyExpr(ctx, depRef.ReadyExpr, objMap, depObj)
 			if err != nil {
 				return err
 			}
 			if !ready {
-				return fmt.Errorf("dependency '%s' is not ready according to readyExpr eval", depName)
+				return fmt.Errorf("dependency '%s/%s' is not ready according to readyExpr eval", depRef.APIVersion, ssautil.FmtObjMetadata(depMd))
 			}
 		}
 
@@ -651,10 +689,30 @@ func (r *HelmReleaseReconciler) checkDependencies(ctx context.Context, obj *v2.H
 
 		// Check if the dependency observed generation is up to date
 		// and if the dependency is in a ready state.
-		if dep.Generation != dep.Status.ObservedGeneration || !conditions.IsTrue(dep, meta.ReadyCondition) {
-			return fmt.Errorf("dependency '%s' is not ready", depName)
+		stat, err := status.Compute(depObj)
+		if err != nil {
+			return fmt.Errorf("dependency '%s/%s' is not ready: %w", depRef.APIVersion, ssautil.FmtObjMetadata(depMd), err)
+		}
+		if stat.Status != status.CurrentStatus {
+			return fmt.Errorf("dependency '%s/%s' is not ready: status %s", depRef.APIVersion, ssautil.FmtObjMetadata(depMd), stat.Status)
+		}
+
+		// This check only applies to HelmRelease dependencies.
+		// Additionally check HelmRelease dependencies for readiness.
+		// kstatus.Compute() tolerates missing conditions, but HelmReleases are expected to have a Ready condition.
+		if depRef.Kind != v2.HelmReleaseKind {
+			continue
+		}
+
+		var dep v2.HelmRelease
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(depObj.Object, &dep); err != nil {
+			return fmt.Errorf("failed to convert unstructured to HelmRelease: %w", err)
+		}
+		if !apimeta.IsStatusConditionTrue(dep.Status.Conditions, meta.ReadyCondition) {
+			return fmt.Errorf("dependency '%s/%s' is not ready", depRef.APIVersion, ssautil.FmtObjMetadata(depMd))
 		}
 	}
+
 	return nil
 }
 
@@ -663,7 +721,7 @@ func (r *HelmReleaseReconciler) evalReadyExpr(
 	ctx context.Context,
 	expr string,
 	selfMap map[string]any,
-	dep *v2.HelmRelease,
+	dep *unstructured.Unstructured,
 ) (bool, error) {
 	const (
 		selfName = "self"
@@ -675,7 +733,7 @@ func (r *HelmReleaseReconciler) evalReadyExpr(
 		cel.WithOutputType(celtypes.BoolType),
 		cel.WithStructVariables(selfName, depName))
 	if err != nil {
-		return false, reconcile.TerminalError(fmt.Errorf("failed to evaluate dependency %s: %w", dep.Name, err))
+		return false, reconcile.TerminalError(fmt.Errorf("failed to evaluate dependency %s: %w", dep.GetName(), err))
 	}
 
 	depMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(dep)
