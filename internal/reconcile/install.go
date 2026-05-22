@@ -165,6 +165,7 @@ func (r *Install) failure(req *Request, buffer *action.LogBuffer, err error) {
 			addAppVersion(req.Chart.AppVersion()), addOCIDigest(req.Object.Status.LastAttemptedRevisionDigest)),
 		corev1.EventTypeWarning,
 		v2.InstallFailedReason,
+		"%s",
 		eventMessageWithLog(msg, buffer),
 	)
 }
@@ -198,6 +199,7 @@ func (r *Install) success(req *Request) {
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.InstallSucceededReason,
+		"%s",
 		msg,
 	)
 }

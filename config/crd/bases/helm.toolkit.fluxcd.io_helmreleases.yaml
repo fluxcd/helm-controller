@@ -244,16 +244,17 @@ spec:
                   references to HelmRelease resources that must be ready before this HelmRelease
                   can be reconciled.
                 items:
-                  description: DependencyReference defines a HelmRelease dependency
-                    on another HelmRelease resource.
+                  description: |-
+                    DependencyReference contains enough information to locate the referenced Kubernetes resource object
+                    and optional CEL expression to assess its readiness.
                   properties:
                     name:
                       description: Name of the referent.
                       type: string
                     namespace:
                       description: |-
-                        Namespace of the referent, defaults to the namespace of the HelmRelease
-                        resource object that contains the reference.
+                        Namespace of the referent, defaults to the namespace of the resource
+                        object that contains the reference.
                       type: string
                     readyExpr:
                       description: |-
