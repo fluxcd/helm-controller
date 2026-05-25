@@ -487,6 +487,13 @@ An item on the list offers the following subkeys:
   `true`, a not found error for the values reference is ignored, but any
   `valuesKey`, `targetPath` or transient error will still result in a
   reconciliation failure. Defaults to `false` when omitted.
+- `literal` (Optional): When set together with `targetPath`, the referenced
+  value is merged at the target path verbatim, without interpreting Helm's
+  `--set` syntax (commas, brackets, dots, equal signs, etc.). Mirrors the
+  behavior of `helm --set-literal`. Use this to inject arbitrary file content
+  (config files, JSON blobs, multi-line strings containing special characters)
+  through `valuesFrom`. Has no effect when `targetPath` is empty.
+  Defaults to `false` when omitted.
 
 ```yaml
 spec:
@@ -499,6 +506,11 @@ spec:
       valuesKey: crt
       targetPath: tls.crt
       optional: true
+    - kind: ConfigMap
+      name: app-config-source
+      valuesKey: application.yml
+      targetPath: 'externalConfig.application\.yml.content'
+      literal: true
 ```
 
 **Note:** The `targetPath` supports the same formatting as you would supply as
@@ -509,6 +521,11 @@ a list). You can read more about the available formats and limitations in the
 
 For JSON strings, the [limitations are the same as while using `helm`](https://github.com/helm/helm/issues/5618)
 and require you to escape the full JSON string (including `=`, `[`, `,`, `.`).
+
+To skip the `--set`-style parsing entirely and pass the value as a raw string
+(useful for full config files or any content containing `,`, `[`, `]`, `{`,
+`}`, `=`), set `literal: true` together with `targetPath`. This mirrors
+`helm --set-literal`.
 
 To make a HelmRelease react immediately to changes in the referenced Secret
 or ConfigMap see [this](#reacting-immediately-to-configuration-dependencies)
