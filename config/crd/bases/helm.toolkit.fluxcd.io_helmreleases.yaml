@@ -1080,6 +1080,17 @@ spec:
                       - Secret
                       - ConfigMap
                       type: string
+                    literal:
+                      description: |-
+                        Literal marks this ValuesReference as a literal value. When set in
+                        combination with TargetPath, the referenced value is merged at the target
+                        path without interpreting Helm's `--set` syntax (commas, brackets, dots,
+                        equal signs, etc.), mirroring the behavior of `helm --set-literal`. This
+                        is the only safe way to inject arbitrary file content (config files, JSON
+                        blobs, multi-line strings containing special characters) through
+                        `valuesFrom`. Has no effect when TargetPath is empty: in that mode the
+                        referenced value is always YAML-merged at the root.
+                      type: boolean
                     name:
                       description: |-
                         Name of the values referent. Should reside in the same namespace as the
