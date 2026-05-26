@@ -207,7 +207,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		conditions.MarkFalse(obj, meta.ReadyCondition, meta.InvalidCELExpressionReason, "%s", errMsg)
 		conditions.MarkStalled(obj, meta.InvalidCELExpressionReason, "%s", errMsg)
 		obj.Status.ObservedGeneration = obj.Generation
-		r.Eventf(obj, corev1.EventTypeWarning, meta.InvalidCELExpressionReason, err.Error())
+		r.Eventf(obj, corev1.EventTypeWarning, meta.InvalidCELExpressionReason, "%s", err.Error())
 		return ctrl.Result{}, reconcile.TerminalError(err)
 	}
 
@@ -248,7 +248,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 				errMsg := fmt.Sprintf("%s: %v", terminalErrorMessage, err)
 				conditions.MarkFalse(obj, meta.ReadyCondition, meta.InvalidCELExpressionReason, "%s", errMsg)
 				conditions.MarkStalled(obj, meta.InvalidCELExpressionReason, "%s", errMsg)
-				r.Eventf(obj, corev1.EventTypeWarning, meta.InvalidCELExpressionReason, err.Error())
+				r.Eventf(obj, corev1.EventTypeWarning, meta.InvalidCELExpressionReason, "%s", err.Error())
 				return ctrl.Result{}, err
 			}
 
@@ -256,7 +256,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 			msg := fmt.Sprintf("dependencies do not meet ready condition (%s): retrying in %s",
 				err.Error(), r.DependencyRequeueInterval.String())
 			conditions.MarkFalse(obj, meta.ReadyCondition, v2.DependencyNotReadyReason, "%s", err)
-			r.Eventf(obj, corev1.EventTypeNormal, v2.DependencyNotReadyReason, err.Error())
+			r.Eventf(obj, corev1.EventTypeNormal, v2.DependencyNotReadyReason, "%s", err.Error())
 			log.Info(msg)
 
 			// Exponential backoff would cause execution to be prolonged too much,
@@ -278,7 +278,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 			conditions.MarkStalled(obj, aclv1.AccessDeniedReason, "%s", err)
 			conditions.MarkFalse(obj, meta.ReadyCondition, aclv1.AccessDeniedReason, "%s", err)
 			conditions.Delete(obj, meta.ReconcilingCondition)
-			r.Eventf(obj, corev1.EventTypeWarning, aclv1.AccessDeniedReason, err.Error())
+			r.Eventf(obj, corev1.EventTypeWarning, aclv1.AccessDeniedReason, "%s", err.Error())
 
 			// Recovering from this is not possible without a restart of the
 			// controller or a change of spec, both triggering a new
@@ -317,7 +317,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		obj.Spec.ValuesFrom...)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "ValuesError", "%s", err)
-		r.Eventf(obj, corev1.EventTypeWarning, "ValuesError", err.Error())
+		r.Eventf(obj, corev1.EventTypeWarning, "ValuesError", "%s", err.Error())
 		return ctrl.Result{}, err
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.
@@ -336,7 +336,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		}
 
 		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "Could not load chart: %s", err)
-		r.Eventf(obj, corev1.EventTypeWarning, v2.ArtifactFailedReason, err.Error())
+		r.Eventf(obj, corev1.EventTypeWarning, v2.ArtifactFailedReason, "%s", err.Error())
 		return ctrl.Result{}, err
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.

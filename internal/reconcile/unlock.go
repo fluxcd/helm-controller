@@ -124,6 +124,7 @@ func (r *Unlock) failure(req *Request, cur *v2.Snapshot, status helmreleasecommo
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeWarning,
 		"PendingRelease",
+		"%s",
 		msg,
 	)
 }
@@ -143,6 +144,7 @@ func (r *Unlock) success(req *Request, cur *v2.Snapshot, status helmreleasecommo
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		"PendingRelease",
+		"%s",
 		msg,
 	)
 }
