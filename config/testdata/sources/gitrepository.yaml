@@ -6,4 +6,4 @@ spec:
   interval: 1m
   url: https://github.com/stefanprodan/podinfo
   ref:
-    branch: master
+    semver: '>=6.0.0'
