@@ -1186,6 +1186,150 @@ jobs:
         run: |
           kubectl -n default apply -f config/testdata/crds-upgrade/create-replace
           kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
+      - name: Run upgrade with chart name changed and default ChartNameChangeStrategy
+        run: |
+          test_name=upgrade-chart-name-change
+          kubectl -n helm-system apply -f config/testdata/$test_name/install.yaml
+          echo -n ">>> Waiting for expected conditions"
+          count=0
+          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="True" and .Ready=="True"' )" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 24 ]]; then
+              echo ' No more retries left!'
+              exit 1
+            fi
+          done
+          echo ' done'
+
+          # Validate release was installed.
+          HISTORY=$(helm -n helm-system history -o json $test_name)
+          REVISION_COUNT=$(echo "$HISTORY" | jq 'length')
+          if [ "$REVISION_COUNT" != 1 ]; then
+            echo -e "Unexpected revision count: $REVISION_COUNT"
+            exit 1
+          fi
+          LAST_REVISION_STATUS=$(echo "$HISTORY" | jq -r 'last | .status')
+          if [ "$LAST_REVISION_STATUS" != "deployed" ]; then
+            echo -e "Unexpected last revision status: $LAST_REVISION_STATUS"
+            exit 1
+          fi
+
+          kubectl -n helm-system apply -f config/testdata/$test_name/upgrade.yaml
+
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Validate release was uninstalled/reinstalled.
+          HISTORY=$(helm -n helm-system history -o json $test_name)
+          REVISION_COUNT=$(echo "$HISTORY" | jq 'length')
+          if [ "$REVISION_COUNT" != 1 ]; then
+            echo -e "Unexpected revision count: $REVISION_COUNT"
+            exit 1
+          fi
+          LAST_REVISION_STATUS=$(echo "$HISTORY" | jq -r 'last | .status')
+          if [ "$LAST_REVISION_STATUS" != "deployed" ]; then
+            echo -e "Unexpected last revision status: $LAST_REVISION_STATUS"
+            exit 1
+          fi
+
+          kubectl delete -n helm-system -f config/testdata/$test_name/install.yaml
+      - name: Run upgrade with chart name changed and reinstall ChartNameChangeStrategy
+        run: |
+          test_name=upgrade-chart-name-change
+          kubectl -n helm-system apply -f config/testdata/$test_name/install.yaml
+          echo -n ">>> Waiting for expected conditions"
+          count=0
+          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="True" and .Ready=="True"' )" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 24 ]]; then
+              echo ' No more retries left!'
+              exit 1
+            fi
+          done
+          echo ' done'
+
+          # Validate release was installed.
+          HISTORY=$(helm -n helm-system history -o json $test_name)
+          REVISION_COUNT=$(echo "$HISTORY" | jq 'length')
+          if [ "$REVISION_COUNT" != 1 ]; then
+            echo -e "Unexpected revision count: $REVISION_COUNT"
+            exit 1
+          fi
+          LAST_REVISION_STATUS=$(echo "$HISTORY" | jq -r 'last | .status')
+          if [ "$LAST_REVISION_STATUS" != "deployed" ]; then
+            echo -e "Unexpected last revision status: $LAST_REVISION_STATUS"
+            exit 1
+          fi
+
+          kubectl -n helm-system apply -f config/testdata/$test_name/upgrade-reinstall.yaml
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          # Validate release was uninstalled/reinstalled.
+          HISTORY=$(helm -n helm-system history -o json $test_name)
+          REVISION_COUNT=$(echo "$HISTORY" | jq 'length')
+          if [ "$REVISION_COUNT" != 1 ]; then
+            echo -e "Unexpected revision count: $REVISION_COUNT"
+            exit 1
+          fi
+          LAST_REVISION_STATUS=$(echo "$HISTORY" | jq -r 'last | .status')
+          if [ "$LAST_REVISION_STATUS" != "deployed" ]; then
+            echo -e "Unexpected last revision status: $LAST_REVISION_STATUS"
+            exit 1
+          fi
+
+          kubectl delete -n helm-system -f config/testdata/$test_name/install.yaml
+      - name: Run upgrade with chart name changed and InPlaceUpdate ChartNameChangeStrategy
+        run: |
+          test_name=upgrade-chart-name-change
+          kubectl -n helm-system apply -f config/testdata/$test_name/install.yaml
+          echo -n ">>> Waiting for expected conditions"
+          count=0
+          until [ 'true' == "$( kubectl -n helm-system get helmrelease/$test_name -o json | jq '.status.conditions | map( { (.type): .status } ) | add | .Released=="True" and .Ready=="True"' )" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 24 ]]; then
+              echo ' No more retries left!'
+              exit 1
+            fi
+          done
+          echo ' done'
+
+          # Validate release was installed.
+          HISTORY=$(helm -n helm-system history -o json $test_name)
+          REVISION_COUNT=$(echo "$HISTORY" | jq 'length')
+          if [ "$REVISION_COUNT" != 1 ]; then
+            echo -e "Unexpected revision count: $REVISION_COUNT"
+            exit 1
+          fi
+          LAST_REVISION_STATUS=$(echo "$HISTORY" | jq -r 'last | .status')
+          if [ "$LAST_REVISION_STATUS" != "deployed" ]; then
+            echo -e "Unexpected last revision status: $LAST_REVISION_STATUS"
+            exit 1
+          fi
+
+          kubectl -n helm-system apply -f config/testdata/$test_name/upgrade-inplace.yaml
+
+          # Wait for the upgrade to complete (revision count should be 2).
+          echo -n ">>> Waiting for upgrade"
+          count=0
+          until [ '2' == "$(helm -n helm-system history -o json $test_name 2>/dev/null | jq 'length')" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 24 ]]; then
+              echo ' No more retries left!'
+              exit 1
+            fi
+          done
+          echo ' done'
+
+          kubectl -n helm-system wait helmreleases/$test_name --for=condition=ready --timeout=4m
+
+          kubectl delete -n helm-system -f config/testdata/$test_name/install.yaml
       - name: Logs
         if: always()
         continue-on-error: true
