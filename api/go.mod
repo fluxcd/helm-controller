@@ -3,11 +3,11 @@ module github.com/fluxcd/helm-controller/api
 go 1.26.0
 
 require (
-	github.com/fluxcd/pkg/apis/kustomize v1.17.0
-	github.com/fluxcd/pkg/apis/meta v1.28.0
-	k8s.io/apiextensions-apiserver v0.35.2
-	k8s.io/apimachinery v0.36.0
-	sigs.k8s.io/controller-runtime v0.23.1
+	github.com/fluxcd/pkg/apis/kustomize v1.18.0
+	github.com/fluxcd/pkg/apis/meta v1.29.0
+	k8s.io/apiextensions-apiserver v0.36.1
+	k8s.io/apimachinery v0.36.1
+	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -20,8 +20,8 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
-	golang.org/x/net v0.53.0 // indirect
-	golang.org/x/text v0.36.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260317180543-43fb72c5454a // indirect
