@@ -178,7 +178,7 @@ func observeInventory(obj *v2.HelmRelease, chart *helmchart.Chart, getter generi
 		}
 		if len(warnings) > 0 {
 			recorder.Eventf(obj, corev1.EventTypeWarning, v2.NamespaceCheckSkippedReason,
-				strings.Join(warnings, "; "))
+				"%s", strings.Join(warnings, "; "))
 		}
 		if chart != nil {
 			if err := inventory.AddCRDs(inv, chart); err != nil {

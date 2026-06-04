@@ -147,6 +147,7 @@ func (r *Test) failure(req *Request, err error) {
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeWarning,
 		v2.TestFailedReason,
+		"%s",
 		msg,
 	)
 
@@ -183,6 +184,7 @@ func (r *Test) success(req *Request) {
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.TestSucceededReason,
+		"%s",
 		msg,
 	)
 }

@@ -145,7 +145,7 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 	entry, err := rm.Apply(ctx, u, ssa.DefaultApplyOptions())
 	if err != nil {
 		err = fmt.Errorf("failed to run server-side apply: %w", err)
-		r.eventRecorder.Eventf(req.Object, eventv1.EventTypeTrace, "HelmChartSyncErr", err.Error())
+		r.eventRecorder.Eventf(req.Object, eventv1.EventTypeTrace, "HelmChartSyncErr", "%s", err.Error())
 		return err
 	}
 
@@ -159,7 +159,7 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 
 		ctrl.LoggerFrom(ctx).Info(msg)
 		r.eventRecorder.Eventf(req.Object, eventv1.EventTypeTrace,
-			fmt.Sprintf("HelmChart%s", strings.Title(entry.Action.String())), msg)
+			fmt.Sprintf("HelmChart%s", strings.Title(entry.Action.String())), "%s", msg)
 	case ssa.UnchangedAction:
 		msg := fmt.Sprintf("%s with SourceRef '%s/%s/%s' is in-sync", entry.Subject,
 			newChart.Spec.SourceRef.Kind, newChart.GetNamespace(), newChart.Spec.SourceRef.Name)
