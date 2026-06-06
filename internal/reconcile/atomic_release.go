@@ -26,11 +26,12 @@ import (
 	"helm.sh/helm/v4/pkg/kube"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
@@ -113,7 +114,7 @@ var (
 type AtomicRelease struct {
 	patchHelper             *patch.SerialPatcher
 	configFactory           *action.ConfigFactory
-	eventRecorder           record.EventRecorder
+	eventRecorder           events.EventRecorder
 	strategy                releaseStrategy
 	fieldManager            string
 	disallowedFieldManagers []string
@@ -122,7 +123,7 @@ type AtomicRelease struct {
 
 // NewAtomicRelease returns a new AtomicRelease reconciler configured with the
 // provided values.
-func NewAtomicRelease(patchHelper *patch.SerialPatcher, cfg *action.ConfigFactory, recorder record.EventRecorder, fieldManager string, disallowedFieldManagers []string, defaultToRetryOnFailure bool) *AtomicRelease {
+func NewAtomicRelease(patchHelper *patch.SerialPatcher, cfg *action.ConfigFactory, recorder events.EventRecorder, fieldManager string, disallowedFieldManagers []string, defaultToRetryOnFailure bool) *AtomicRelease {
 	return &AtomicRelease{
 		patchHelper:             patchHelper,
 		eventRecorder:           recorder,
@@ -442,7 +443,7 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 
 		msg := fmt.Sprintf("Cluster state of release %s has drifted from the desired state:\n%s",
 			req.Object.Status.History.Latest().FullReleaseName(), diff.SummarizeDiffSet(state.Diff))
-		r.eventRecorder.Eventf(req.Object, corev1.EventTypeWarning, v2.DriftDetectedReason, "%s", msg)
+		r.eventRecorder.Eventf(req.Object, req.Source, corev1.EventTypeWarning, "DriftDetected", eventv1.ActionReconciling, "%s", msg)
 		conditions.MarkTrue(req.Object, v2.DriftedCondition, v2.DriftDetectedReason, "%s", msg)
 
 		if req.Object.GetDriftDetection().GetMode() == v2.DriftDetectionEnabled {
