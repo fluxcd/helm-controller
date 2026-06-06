@@ -30,11 +30,12 @@ import (
 	helmstorage "helm.sh/helm/v4/pkg/storage"
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	"github.com/fluxcd/pkg/chartutil"
 
@@ -390,7 +391,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 			got := NewUninstallRemediation(cfg, recorder).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
@@ -442,7 +443,7 @@ func TestUninstallRemediation_failure(t *testing.T) {
 	t.Run("records failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &UninstallRemediation{
 			eventRecorder: recorder,
 		}
@@ -459,11 +460,12 @@ func TestUninstallRemediation_failure(t *testing.T) {
 			*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason, "%s", expectMsg),
 		}))
 		g.Expect(req.Object.Status.Failures).To(Equal(int64(1)))
-		g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+		g.Expect(recorder.GetEvents()).To(ConsistOf([]eventsv1.Event{
 			{
-				Type:    corev1.EventTypeWarning,
-				Reason:  v2.UninstallFailedReason,
-				Message: expectMsg,
+				Type:   corev1.EventTypeWarning,
+				Reason: v2.UninstallFailedReason,
+				Action: string(v2.ReleaseActionUninstallRemediation),
+				Note:   expectMsg,
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						eventMetaGroupKey(eventv1.MetaRevisionKey): cur.Chart.Metadata.Version,
@@ -478,7 +480,7 @@ func TestUninstallRemediation_failure(t *testing.T) {
 	t.Run("records failure with logs", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &UninstallRemediation{
 			eventRecorder: recorder,
 		}
@@ -491,7 +493,7 @@ func TestUninstallRemediation_failure(t *testing.T) {
 
 		events := recorder.GetEvents()
 		g.Expect(events).To(HaveLen(1))
-		g.Expect(events[0].Message).To(ContainSubstring(expectSubStr))
+		g.Expect(events[0].Note).To(ContainSubstring(expectSubStr))
 	})
 }
 
@@ -505,7 +507,7 @@ func TestUninstallRemediation_success(t *testing.T) {
 		Version:   4,
 	})
 
-	recorder := testutil.NewFakeRecorder(10, false)
+	recorder := events.NewFakeRecorder(10, false)
 	r := &UninstallRemediation{
 		eventRecorder: recorder,
 	}
@@ -529,11 +531,12 @@ func TestUninstallRemediation_success(t *testing.T) {
 		*conditions.TrueCondition(v2.RemediatedCondition, v2.UninstallSucceededReason, "%s", expectMsg),
 	}))
 	g.Expect(req.Object.Status.Failures).To(Equal(int64(0)))
-	g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+	g.Expect(recorder.GetEvents()).To(ConsistOf([]eventsv1.Event{
 		{
-			Type:    corev1.EventTypeNormal,
-			Reason:  v2.UninstallSucceededReason,
-			Message: expectMsg,
+			Type:   corev1.EventTypeNormal,
+			Reason: v2.UninstallSucceededReason,
+			Action: string(v2.ReleaseActionUninstallRemediation),
+			Note:   expectMsg,
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					eventMetaGroupKey(eventv1.MetaRevisionKey): cur.Chart.Metadata.Version,

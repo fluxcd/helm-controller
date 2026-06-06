@@ -32,15 +32,16 @@ import (
 	helmstorage "helm.sh/helm/v4/pkg/storage"
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/chartutil"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -48,6 +49,7 @@ import (
 	"github.com/fluxcd/helm-controller/internal/release"
 	"github.com/fluxcd/helm-controller/internal/storage"
 	"github.com/fluxcd/helm-controller/internal/testutil"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 )
 
 func TestInstall_Reconcile(t *testing.T) {
@@ -345,7 +347,7 @@ func TestInstall_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 			got := (NewInstall(cfg, recorder, false)).Reconcile(context.TODO(), &Request{
 				Object: obj,
 				Chart:  tt.chart,
@@ -467,7 +469,7 @@ func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
 			store := helmstorage.Init(cfg.Driver)
 
 			chart := testutil.BuildChartWithSubchartWithCRD()
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 			got := (NewInstall(cfg, recorder, false)).Reconcile(context.TODO(), &Request{
 				Object: obj,
 				Chart:  chart,
@@ -528,12 +530,30 @@ func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
 func TestInstall_failure(t *testing.T) {
 	var (
 		obj = &v2.HelmRelease{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       v2.HelmReleaseKind,
+				APIVersion: v2.GroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      mockReleaseName,
+				Namespace: mockReleaseNamespace,
+			},
 			Spec: v2.HelmReleaseSpec{
 				ReleaseName:     mockReleaseName,
 				TargetNamespace: mockReleaseNamespace,
 			},
 			Status: v2.HelmReleaseStatus{
 				LastAttemptedRevisionDigest: "sha256:1234567890",
+			},
+		}
+		source = &sourcev1.GitRepository{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       sourcev1.GitRepositoryKind,
+				APIVersion: sourcev1.GroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-source",
+				Namespace: mockReleaseNamespace,
 			},
 		}
 		chrt = testutil.BuildChart()
@@ -543,12 +563,17 @@ func TestInstall_failure(t *testing.T) {
 	t.Run("records failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, true)
 		r := &Install{
 			eventRecorder: recorder,
 		}
 
-		req := &Request{Object: obj.DeepCopy(), Chart: chrt, Values: map[string]any{"foo": "bar"}}
+		req := &Request{
+			Object: obj.DeepCopy(),
+			Source: source,
+			Chart:  chrt,
+			Values: map[string]any{"foo": "bar"},
+		}
 		r.failure(req, nil, err)
 
 		expectMsg := fmt.Sprintf(fmtInstallFailure, mockReleaseNamespace, mockReleaseName, chrt.Name(),
@@ -558,11 +583,24 @@ func TestInstall_failure(t *testing.T) {
 			*conditions.FalseCondition(v2.ReleasedCondition, v2.InstallFailedReason, "%s", expectMsg),
 		}))
 		g.Expect(req.Object.Status.Failures).To(Equal(int64(1)))
-		g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+		g.Expect(recorder.GetEvents()).To(ConsistOf([]eventsv1.Event{
 			{
-				Type:    corev1.EventTypeWarning,
-				Reason:  v2.InstallFailedReason,
-				Message: expectMsg,
+				Type:   corev1.EventTypeWarning,
+				Reason: v2.InstallFailedReason,
+				Note:   expectMsg,
+				Action: string(v2.ReleaseActionInstall),
+				Regarding: corev1.ObjectReference{
+					Kind:       v2.HelmReleaseKind,
+					APIVersion: v2.GroupVersion.String(),
+					Name:       mockReleaseName,
+					Namespace:  mockReleaseNamespace,
+				},
+				Related: &corev1.ObjectReference{
+					Kind:       sourcev1.GitRepositoryKind,
+					APIVersion: sourcev1.GroupVersion.String(),
+					Name:       "test-source",
+					Namespace:  mockReleaseNamespace,
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						eventMetaGroupKey(metaOCIDigestKey):        obj.Status.LastAttemptedRevisionDigest,
@@ -578,7 +616,7 @@ func TestInstall_failure(t *testing.T) {
 	t.Run("records failure with logs", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &Install{
 			eventRecorder: recorder,
 		}
@@ -591,7 +629,7 @@ func TestInstall_failure(t *testing.T) {
 
 		events := recorder.GetEvents()
 		g.Expect(events).To(HaveLen(1))
-		g.Expect(events[0].Message).To(ContainSubstring(expectSubStr))
+		g.Expect(events[0].Note).To(ContainSubstring(expectSubStr))
 	})
 }
 
@@ -603,10 +641,28 @@ func TestInstall_success(t *testing.T) {
 			Chart:     testutil.BuildChart(),
 		})
 		obj = &v2.HelmRelease{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       v2.HelmReleaseKind,
+				APIVersion: v2.GroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      mockReleaseName,
+				Namespace: mockReleaseNamespace,
+			},
 			Status: v2.HelmReleaseStatus{
 				History: v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(cur)),
 				},
+			},
+		}
+		source = &sourcev1.GitRepository{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       sourcev1.GitRepositoryKind,
+				APIVersion: sourcev1.GroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-source",
+				Namespace: mockReleaseNamespace,
 			},
 		}
 	)
@@ -614,13 +670,14 @@ func TestInstall_success(t *testing.T) {
 	t.Run("records success", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, true)
 		r := &Install{
 			eventRecorder: recorder,
 		}
 
 		req := &Request{
 			Object: obj.DeepCopy(),
+			Source: source,
 		}
 		r.success(req)
 
@@ -631,11 +688,24 @@ func TestInstall_success(t *testing.T) {
 		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason, "%s", expectMsg),
 		}))
-		g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+		g.Expect(recorder.GetEvents()).To(ConsistOf([]eventsv1.Event{
 			{
-				Type:    corev1.EventTypeNormal,
-				Reason:  v2.InstallSucceededReason,
-				Message: expectMsg,
+				Type:   corev1.EventTypeNormal,
+				Reason: v2.InstallSucceededReason,
+				Note:   expectMsg,
+				Action: string(v2.ReleaseActionInstall),
+				Regarding: corev1.ObjectReference{
+					Kind:       v2.HelmReleaseKind,
+					APIVersion: v2.GroupVersion.String(),
+					Name:       mockReleaseName,
+					Namespace:  mockReleaseNamespace,
+				},
+				Related: &corev1.ObjectReference{
+					Kind:       sourcev1.GitRepositoryKind,
+					APIVersion: sourcev1.GroupVersion.String(),
+					Name:       "test-source",
+					Namespace:  mockReleaseNamespace,
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.Status.History.Latest().ChartVersion,
@@ -650,7 +720,7 @@ func TestInstall_success(t *testing.T) {
 	t.Run("clears failures if retry strategy is configured", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &Install{
 			eventRecorder: recorder,
 		}
@@ -676,7 +746,7 @@ func TestInstall_success(t *testing.T) {
 	t.Run("records success with TestSuccess=False", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &Install{
 			eventRecorder: recorder,
 		}
