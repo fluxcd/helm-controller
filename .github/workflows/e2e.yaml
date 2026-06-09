@@ -1187,6 +1187,7 @@ jobs:
           kubectl -n default apply -f config/testdata/crds-upgrade/create-replace
           kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
       - name: Run upgrade with chart name changed and default ChartNameChangeStrategy
+        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         run: |
           test_name=upgrade-chart-name-change
           kubectl -n helm-system apply -f config/testdata/$test_name/install.yaml
@@ -1235,6 +1236,7 @@ jobs:
 
           kubectl delete -n helm-system -f config/testdata/$test_name/install.yaml
       - name: Run upgrade with chart name changed and reinstall ChartNameChangeStrategy
+        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         run: |
           test_name=upgrade-chart-name-change
           kubectl -n helm-system apply -f config/testdata/$test_name/install.yaml
@@ -1282,6 +1284,7 @@ jobs:
 
           kubectl delete -n helm-system -f config/testdata/$test_name/install.yaml
       - name: Run upgrade with chart name changed and InPlaceUpdate ChartNameChangeStrategy
+        if: ${{ startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         run: |
           test_name=upgrade-chart-name-change
           kubectl -n helm-system apply -f config/testdata/$test_name/install.yaml
