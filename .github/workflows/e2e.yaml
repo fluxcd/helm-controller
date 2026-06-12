@@ -13,7 +13,7 @@ jobs:
       contents: read # for reading the repository code.
     steps:
       - name: Test suite setup
-        uses: fluxcd/gha-workflows/.github/actions/setup-kubernetes@eb8840cfdc55bb2bbe8439305e89ec1c06aaef3f # v0.9.0
+        uses: fluxcd/gha-workflows/.github/actions/setup-kubernetes@526a0ab488375330ba526c26584ae22ee270d5b6 # v0.11.0
         with:
           go-version: 1.26.x
       - name: Run tests
