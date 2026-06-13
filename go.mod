@@ -30,7 +30,7 @@ require (
 	github.com/fluxcd/pkg/testserver v0.14.0
 	github.com/fluxcd/source-controller/api v1.8.0
 	github.com/go-logr/logr v1.4.3
-	github.com/google/cel-go v0.26.1
+	github.com/google/cel-go v0.28.1
 	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/mitchellh/copystructure v1.2.0
@@ -183,7 +183,6 @@ require (
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/spf13/cast v1.7.0 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
-	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 // indirect
 	github.com/tetratelabs/wazero v1.12.0 // indirect
