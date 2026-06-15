@@ -196,7 +196,8 @@ Helm release when the HelmChart produces a new chart (version).
 
 **Warning:** Changing the `.spec.chart` to a Helm chart with a different name
 (as specified in the chart's `Chart.yaml`) will cause the controller to
-uninstall any previous release before installing the new one.
+uninstall any previous release before installing the new one unless 
+`.spec.upgrade.chartNameChangeStrategy` is set to `InPlaceUpdate`
 
 **Note:** On multi-tenant clusters, platform admins can disable cross-namespace
 references with the `--no-cross-namespace-refs=true` flag. When this flag is
@@ -655,6 +656,10 @@ The field offers the following subfields:
   Valid values are `Skip`, `Create` and `CreateReplace`. Default is `Skip`.
   Refer to [Custom Resource Definition lifecycle](#controlling-the-lifecycle-of-custom-resource-definitions)
   for more information.
+- `.chartNameChangeStrategy` (Optional): defines the strategy to use when a Helm chart name changes.
+  Valid values are `Reinstall` or `InPlaceUpdate`. Defaults to `Reinstall` if omitted.
+  `Reinstall`: Reinstall the Helm release, uninstalling the existing Helm release.
+  `InPlaceUpdate`: Update the Helm release in place.
 - `.cleanupOnFail` (Optional): Allows deletion of new resources created during
   the upgrade of the release when it fails. Defaults to `false`.
 - `.disableHooks` (Optional): Prevents [chart hooks](https://helm.sh/docs/topics/charts_hooks/)
