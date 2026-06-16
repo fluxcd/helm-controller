@@ -1,0 +1,7 @@
+apiVersion: v1
+version: 6.11.3
+appVersion: 6.11.3
+name: podinfo-renamed
+engine: gotpl
+description: Copy of Podinfo Helm chart for Kubernetes, renamed for testing chart name changes
+kubeVersion: ">=1.23.0-0"
