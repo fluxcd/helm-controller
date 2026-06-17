@@ -768,7 +768,7 @@ func Test_buildHelmChartFromTemplate(t *testing.T) {
 					},
 					Interval:    metav1.Duration{Duration: 2 * time.Minute},
 					ValuesFiles: []string{"values.yaml"},
-					Verify: &sourcev1.OCIRepositoryVerification{
+					Verify: &sourcev1.HelmChartVerification{
 						Provider: "cosign",
 						SecretRef: &meta.LocalObjectReference{
 							Name: "cosign-key",

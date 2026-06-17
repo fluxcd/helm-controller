@@ -235,7 +235,7 @@ func buildHelmChartFromTemplate(obj *v2.HelmRelease) *sourcev1.HelmChart {
 		},
 	}
 	if verifyTpl := template.Spec.Verify; verifyTpl != nil {
-		result.Spec.Verify = &sourcev1.OCIRepositoryVerification{
+		result.Spec.Verify = &sourcev1.HelmChartVerification{
 			Provider:  verifyTpl.Provider,
 			SecretRef: verifyTpl.SecretRef,
 		}
