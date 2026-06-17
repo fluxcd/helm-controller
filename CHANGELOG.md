@@ -1,5 +1,64 @@
 # Changelog
 
+## 1.6.0
+
+**Release date:** 2026-06-17
+
+This minor release continues aligning Flux with Helm v4, adding support for
+Helm's post-render strategies along with several new HelmRelease configuration
+options and improved drift observability.
+
+⚠️ **Breaking change:** the default post-render strategy is now `combined`, to
+stay aligned with Helm v4.2's default for sending hooks to post-renderers.
+Users relying on the previous Helm v3 behavior can either enable the
+`UseHelm3Defaults` feature gate (which switches the default back to `nohooks`)
+or pin the behavior per HelmRelease via `.spec.postRenderStrategy`.
+
+### HelmRelease
+
+Helm's post-render strategies are now supported through the new
+`.spec.postRenderStrategy` field, which controls how hooks are passed to
+post-renderers. The accepted values are `nohooks`, `combined` and `separate`.
+The default is `combined` to stay aligned with Helm v4.2, switching to `nohooks`
+when the `UseHelm3Defaults` feature gate is enabled.
+
+A new `.spec.upgrade.chartNameChangeStrategy` field controls what happens when a
+HelmRelease's chart name changes. The default `Reinstall` keeps the current
+behavior of uninstalling and reinstalling the release, while `InPlaceUpdate`
+performs an in-place Helm upgrade instead, re-introducing on an opt-in basis the
+behavior present before Flux 2.2.
+
+`valuesFrom` entries now accept a `literal` field. When set to `true`, the
+referenced value is used verbatim instead of being parsed with Helm's `--set`
+syntax, allowing arbitrary file content (JSON blobs, multi-line YAML, HOCON,
+etc.) that would otherwise be misinterpreted by the strvals parser.
+
+A new `Drifted` condition is now set on the HelmRelease to improve the
+observability of drift detection.
+
+Improvements:
+- Add post-render strategy support and conditional defaults
+  [#1470](https://github.com/fluxcd/helm-controller/pull/1470)
+- Support helm release upgrade on helm chart name change
+  [#1447](https://github.com/fluxcd/helm-controller/pull/1447)
+- Add `literal` field to `valuesFrom`
+  [#1503](https://github.com/fluxcd/helm-controller/pull/1503)
+- Add `Drifted` condition to HelmRelease
+  [#1367](https://github.com/fluxcd/helm-controller/pull/1367)
+- Migrate `DependencyReference` to shared `apis/meta` type
+  [#1502](https://github.com/fluxcd/helm-controller/pull/1502)
+- Update source-controller API to v1.9.0
+  [#1519](https://github.com/fluxcd/helm-controller/pull/1519)
+- Various dependency updates
+  [#1467](https://github.com/fluxcd/helm-controller/pull/1467),
+  [#1472](https://github.com/fluxcd/helm-controller/pull/1472),
+  [#1507](https://github.com/fluxcd/helm-controller/pull/1507),
+  [#1509](https://github.com/fluxcd/helm-controller/pull/1509),
+  [#1513](https://github.com/fluxcd/helm-controller/pull/1513),
+  [#1514](https://github.com/fluxcd/helm-controller/pull/1514),
+  [#1515](https://github.com/fluxcd/helm-controller/pull/1515),
+  [#1517](https://github.com/fluxcd/helm-controller/pull/1517)
+
 ## 1.5.5
 
 **Release date:** 2026-05-20
