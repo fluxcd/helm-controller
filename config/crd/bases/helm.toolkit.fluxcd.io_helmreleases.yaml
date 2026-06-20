@@ -8,6 +8,10 @@ metadata:
 spec:
   group: helm.toolkit.fluxcd.io
   names:
+    categories:
+    - all
+    - fluxcd
+    - fluxcd-helm
     kind: HelmRelease
     listKind: HelmReleaseList
     plural: helmreleases
