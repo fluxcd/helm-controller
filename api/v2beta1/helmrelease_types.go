@@ -1096,7 +1096,6 @@ const (
 
 // +genclient
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:shortName=hr
 // +kubebuilder:skipversion
 
 // HelmRelease is the Schema for the helmreleases API
