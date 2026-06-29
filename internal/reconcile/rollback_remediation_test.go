@@ -31,12 +31,13 @@ import (
 	helmstorage "helm.sh/helm/v4/pkg/storage"
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	"github.com/fluxcd/pkg/chartutil"
 
@@ -292,8 +293,10 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 					"storage update error"),
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				rollbackSnap := release.ObservedToSnapshot(release.ObserveRelease(releases[2]))
+				rollbackSnap.Action = v2.ReleaseActionRollback
 				return v2.Snapshots{
-					release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
+					rollbackSnap,
 					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
@@ -394,7 +397,7 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 			got := (NewRollbackRemediation(cfg, recorder)).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
@@ -446,7 +449,7 @@ func TestRollbackRemediation_failure(t *testing.T) {
 	t.Run("records failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &RollbackRemediation{
 			eventRecorder: recorder,
 		}
@@ -462,11 +465,12 @@ func TestRollbackRemediation_failure(t *testing.T) {
 			*conditions.FalseCondition(v2.RemediatedCondition, v2.RollbackFailedReason, "%s", expectMsg),
 		}))
 		g.Expect(req.Object.Status.Failures).To(Equal(int64(1)))
-		g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+		g.Expect(recorder.GetEvents()).To(ConsistOf([]eventsv1.Event{
 			{
-				Type:    corev1.EventTypeWarning,
-				Reason:  v2.RollbackFailedReason,
-				Message: expectMsg,
+				Type:   corev1.EventTypeWarning,
+				Reason: v2.RollbackFailedReason,
+				Note:   expectMsg,
+				Action: string(v2.ReleaseActionRollback),
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						eventMetaGroupKey(eventv1.MetaRevisionKey): prev.Chart.Metadata.Version,
@@ -481,7 +485,7 @@ func TestRollbackRemediation_failure(t *testing.T) {
 	t.Run("records failure with logs", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &RollbackRemediation{
 			eventRecorder: recorder,
 		}
@@ -494,7 +498,7 @@ func TestRollbackRemediation_failure(t *testing.T) {
 
 		events := recorder.GetEvents()
 		g.Expect(events).To(HaveLen(1))
-		g.Expect(events[0].Message).To(ContainSubstring(expectSubStr))
+		g.Expect(events[0].Note).To(ContainSubstring(expectSubStr))
 	})
 }
 
@@ -507,7 +511,7 @@ func TestRollbackRemediation_success(t *testing.T) {
 		Version: 4,
 	})
 
-	recorder := testutil.NewFakeRecorder(10, false)
+	recorder := events.NewFakeRecorder(10, false)
 	r := &RollbackRemediation{
 		eventRecorder: recorder,
 	}
@@ -522,11 +526,12 @@ func TestRollbackRemediation_success(t *testing.T) {
 		*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason, "%s", expectMsg),
 	}))
 	g.Expect(req.Object.Status.Failures).To(Equal(int64(0)))
-	g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+	g.Expect(recorder.GetEvents()).To(ConsistOf([]eventsv1.Event{
 		{
-			Type:    corev1.EventTypeNormal,
-			Reason:  v2.RollbackSucceededReason,
-			Message: expectMsg,
+			Type:   corev1.EventTypeNormal,
+			Reason: v2.RollbackSucceededReason,
+			Action: string(v2.ReleaseActionRollback),
+			Note:   expectMsg,
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					eventMetaGroupKey(eventv1.MetaRevisionKey): prev.Chart.Metadata.Version,
@@ -551,6 +556,7 @@ func Test_observeRollback(t *testing.T) {
 		})
 		observeRollback(obj)(rls)
 		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
+		expect.Action = v2.ReleaseActionRollback
 
 		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
 			expect,
@@ -580,6 +586,7 @@ func Test_observeRollback(t *testing.T) {
 			Status:    helmreleasecommon.StatusPendingRollback,
 		})
 		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
+		expect.Action = v2.ReleaseActionRollback
 
 		observeRollback(obj)(rls)
 		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{

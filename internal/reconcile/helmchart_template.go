@@ -25,12 +25,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/ssa"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
@@ -62,13 +62,13 @@ import (
 // not continue to attempt to create or update the v1.HelmChart.
 type HelmChartTemplate struct {
 	client        client.Client
-	eventRecorder record.EventRecorder
+	eventRecorder events.EventRecorder
 	fieldManager  string
 }
 
 // NewHelmChartTemplate returns a new HelmChartTemplate reconciler configured
 // with the provided values.
-func NewHelmChartTemplate(client client.Client, recorder record.EventRecorder, fieldManager string) *HelmChartTemplate {
+func NewHelmChartTemplate(client client.Client, recorder events.EventRecorder, fieldManager string) *HelmChartTemplate {
 	return &HelmChartTemplate{
 		client:        client,
 		eventRecorder: recorder,
@@ -92,7 +92,7 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 	if (obj.Status.HelmChart != "" && obj.Status.HelmChart != chartRef.String()) || !obj.DeletionTimestamp.IsZero() {
 		// If the HelmRelease is being deleted, we need to short-circuit to
 		// avoid recreating the HelmChart.
-		if err := r.reconcileDelete(ctx, req.Object); err != nil || !obj.DeletionTimestamp.IsZero() {
+		if err := r.reconcileDelete(ctx, req.Object, req.Source); err != nil || !obj.DeletionTimestamp.IsZero() {
 			return err
 		}
 	}
@@ -100,7 +100,7 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 	if mustCleanDeployedChart(obj) {
 		// If the HelmRelease has a ChartRef and no Chart template, and the
 		// HelmChart is present, we need to clean it up.
-		if err := r.reconcileDelete(ctx, req.Object); err != nil {
+		if err := r.reconcileDelete(ctx, req.Object, req.Source); err != nil {
 			return err
 		}
 		return nil
@@ -145,7 +145,7 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 	entry, err := rm.Apply(ctx, u, ssa.DefaultApplyOptions())
 	if err != nil {
 		err = fmt.Errorf("failed to run server-side apply: %w", err)
-		r.eventRecorder.Eventf(req.Object, eventv1.EventTypeTrace, "HelmChartSyncErr", "%s", err.Error())
+		r.eventRecorder.Eventf(req.Object, req.Source, eventv1.EventTypeTrace, "HelmChartSyncErr", eventv1.ActionFailed, "%s", err.Error())
 		return err
 	}
 
@@ -158,8 +158,8 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 		))
 
 		ctrl.LoggerFrom(ctx).Info(msg)
-		r.eventRecorder.Eventf(req.Object, eventv1.EventTypeTrace,
-			fmt.Sprintf("HelmChart%s", strings.Title(entry.Action.String())), "%s", msg)
+		r.eventRecorder.Eventf(req.Object, req.Source, eventv1.EventTypeTrace,
+			fmt.Sprintf("HelmChart%s", strings.Title(entry.Action.String())), entry.Action.String(), "%s", msg)
 	case ssa.UnchangedAction:
 		msg := fmt.Sprintf("%s with SourceRef '%s/%s/%s' is in-sync", entry.Subject,
 			newChart.Spec.SourceRef.Kind, newChart.GetNamespace(), newChart.Spec.SourceRef.Name)
@@ -178,7 +178,7 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 
 // reconcileDelete handles the garbage collection of the current HelmChart in
 // the Status object of the given HelmRelease.
-func (r *HelmChartTemplate) reconcileDelete(ctx context.Context, obj *v2.HelmRelease) error {
+func (r *HelmChartTemplate) reconcileDelete(ctx context.Context, obj *v2.HelmRelease, src sourcev1.Source) error {
 	if !obj.Spec.Suspend && obj.Status.HelmChart != "" {
 		ns, name := obj.Status.GetHelmChart()
 		namespacedName := types.NamespacedName{Namespace: ns, Name: name}
@@ -202,7 +202,7 @@ func (r *HelmChartTemplate) reconcileDelete(ctx context.Context, obj *v2.HelmRel
 				err = fmt.Errorf("failed to delete HelmChart '%s': %w", obj.Status.HelmChart, err)
 				return err
 			}
-			r.eventRecorder.Eventf(obj, eventv1.EventTypeTrace, "HelmChartDeleted", "deleted HelmChart '%s'", obj.Status.HelmChart)
+			r.eventRecorder.Eventf(obj, src, eventv1.EventTypeTrace, "HelmChartDeleted", eventv1.ActionDeleted, "deleted HelmChart '%s'", obj.Status.HelmChart)
 		}
 
 		// Truncate the chart reference in the status object.
