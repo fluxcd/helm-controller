@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.6.1
+
+**Release date:** 2026-06-30
+
+This patch release updates Kubernetes to 1.36.2, Helm to v4.2.2 and the
+fluxcd/pkg dependencies. It also adds kubectl categories to the HelmRelease CRD
+and documents the controller's command-line options.
+
+Improvements:
+- Add categories to the HelmRelease CRD
+  [#1527](https://github.com/fluxcd/helm-controller/pull/1527)
+- Document controller options
+  [#1531](https://github.com/fluxcd/helm-controller/pull/1531)
+- Update fluxcd/pkg dependencies
+  [#1529](https://github.com/fluxcd/helm-controller/pull/1529)
+
 ## 1.6.0
 
 **Release date:** 2026-06-17
