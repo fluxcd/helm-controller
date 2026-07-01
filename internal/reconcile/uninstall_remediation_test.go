@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 
 	"github.com/fluxcd/pkg/chartutil"
@@ -111,6 +112,8 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			expectConditions: []metav1.Condition{
 				*conditions.TrueCondition(v2.RemediatedCondition, v2.UninstallSucceededReason,
 					"succeeded"),
+				*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallSucceededReason,
+					"succeeded"),
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -144,6 +147,8 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{
+				*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallFailedReason,
+					"context deadline exceeded"),
 				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason,
 					"context deadline exceeded"),
 			},
@@ -191,6 +196,8 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{
+				*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallFailedReason,
+					"%s", ErrNoStorageUpdate.Error()),
 				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason,
 					"%s", ErrNoStorageUpdate.Error()),
 			},
@@ -234,7 +241,10 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{
-				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason, "%s", mockDeleteErr.Error()),
+				*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallFailedReason,
+					"%s", mockDeleteErr.Error()),
+				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason,
+					"%s", mockDeleteErr.Error()),
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
@@ -292,6 +302,8 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 				}
 			},
 			expectConditions: []metav1.Condition{
+				*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallFailedReason,
+					"%s", ErrReleaseMismatch.Error()),
 				*conditions.FalseCondition(v2.RemediatedCondition, v2.UninstallFailedReason,
 					"%s", ErrReleaseMismatch.Error()),
 			},
@@ -331,6 +343,8 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 			statusReader: true,
 			expectConditions: []metav1.Condition{
 				*conditions.TrueCondition(v2.RemediatedCondition, v2.UninstallSucceededReason,
+					"succeeded"),
+				*conditions.FalseCondition(meta.ReadyCondition, v2.UninstallSucceededReason,
 					"succeeded"),
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
