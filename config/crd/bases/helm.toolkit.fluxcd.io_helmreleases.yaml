@@ -4,6 +4,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.21.0
+    kustomize.toolkit.fluxcd.io/substitute: disabled
   name: helmreleases.helm.toolkit.fluxcd.io
 spec:
   group: helm.toolkit.fluxcd.io
