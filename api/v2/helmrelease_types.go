@@ -1437,6 +1437,7 @@ const (
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
+// +kubebuilder:metadata:annotations="kustomize.toolkit.fluxcd.io/substitute=disabled"
 
 // HelmRelease is the Schema for the helmreleases API
 type HelmRelease struct {
