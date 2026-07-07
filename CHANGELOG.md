@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.6.2
+
+**Release date:** 2026-07-07
+
+This patch release disables Flux variable substitution on the HelmRelease CRD.
+The CRD is now annotated with `kustomize.toolkit.fluxcd.io/substitute: disabled`
+so that Kustomizations with post-build substitution enabled no longer corrupt
+the CRD schema when it contains `${...}` sequences.
+
+Fixes:
+- Disable variable substitution in CRDs
+  [#1538](https://github.com/fluxcd/helm-controller/pull/1538)
+
 ## 1.6.1
 
 **Release date:** 2026-06-30
