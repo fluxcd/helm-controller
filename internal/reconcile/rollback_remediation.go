@@ -24,9 +24,9 @@ import (
 	helmrelease "helm.sh/helm/v4/pkg/release"
 	helmreleasev1 "helm.sh/helm/v4/pkg/release/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -60,12 +60,12 @@ import (
 // e.g. action.VerifySnapshot before calling Reconcile.
 type RollbackRemediation struct {
 	configFactory *action.ConfigFactory
-	eventRecorder record.EventRecorder
+	eventRecorder events.EventRecorder
 }
 
 // NewRollbackRemediation returns a new RollbackRemediation reconciler
 // configured with the provided values.
-func NewRollbackRemediation(configFactory *action.ConfigFactory, eventRecorder record.EventRecorder) *RollbackRemediation {
+func NewRollbackRemediation(configFactory *action.ConfigFactory, eventRecorder events.EventRecorder) *RollbackRemediation {
 	return &RollbackRemediation{
 		configFactory: configFactory,
 		eventRecorder: eventRecorder,
@@ -76,7 +76,7 @@ func (r *RollbackRemediation) Reconcile(ctx context.Context, req *Request) error
 	var (
 		cur    = req.Object.Status.History.Latest().DeepCopy()
 		logBuf = action.NewDebugLogBuffer(ctx)
-		cfg    = r.configFactory.Build(logBuf, observeRollback(req.Object), observeInventory(req.Object, req.Chart, r.configFactory.Getter, r.eventRecorder))
+		cfg    = r.configFactory.Build(logBuf, observeRollback(req.Object), observeInventory(req.Object, req.Source, req.Chart, r.configFactory.Getter, r.eventRecorder))
 	)
 
 	defer summarize(req)
@@ -142,10 +142,12 @@ func (r *RollbackRemediation) failure(req *Request, prev *v2.Snapshot, buffer *a
 	// Condition summary.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
+		req.Source,
 		eventMeta(prev.ChartVersion, chartutil.DigestValues(digest.Canonical, req.Values).String(),
 			addAppVersion(prev.AppVersion), addOCIDigest(prev.OCIDigest)),
 		corev1.EventTypeWarning,
 		v2.RollbackFailedReason,
+		string(v2.ReleaseActionRollback),
 		"%s",
 		eventMessageWithLog(msg, buffer),
 	)
@@ -163,10 +165,12 @@ func (r *RollbackRemediation) success(req *Request, prev *v2.Snapshot) {
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
+		req.Source,
 		eventMeta(prev.ChartVersion, chartutil.DigestValues(digest.Canonical, req.Values).String(),
 			addAppVersion(prev.AppVersion), addOCIDigest(prev.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.RollbackSucceededReason,
+		string(v2.ReleaseActionRollback),
 		"%s",
 		msg,
 	)
@@ -197,6 +201,7 @@ func observeRollback(obj *v2.HelmRelease) storage.ObserveFunc {
 		}
 
 		obs := release.ObserveRelease(rls)
+		obs.Action = v2.ReleaseActionRollback
 		obj.Status.History = append(v2.Snapshots{release.ObservedToSnapshot(obs)}, obj.Status.History...)
 	}
 }

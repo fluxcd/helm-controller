@@ -39,13 +39,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
-	kuberecorder "k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	aclv1 "github.com/fluxcd/pkg/apis/acl"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/auth"
 	authutils "github.com/fluxcd/pkg/auth/utils"
@@ -56,13 +56,12 @@ import (
 	runtimeClient "github.com/fluxcd/pkg/runtime/client"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	helper "github.com/fluxcd/pkg/runtime/controller"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/jitter"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/object"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/ssa"
-
-	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	intacl "github.com/fluxcd/helm-controller/internal/acl"
@@ -72,6 +71,7 @@ import (
 	"github.com/fluxcd/helm-controller/internal/kube"
 	"github.com/fluxcd/helm-controller/internal/loader"
 	intreconcile "github.com/fluxcd/helm-controller/internal/reconcile"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 )
 
 // +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete
@@ -86,7 +86,7 @@ import (
 // HelmReleaseReconciler reconciles a HelmRelease object.
 type HelmReleaseReconciler struct {
 	client.Client
-	kuberecorder.EventRecorder
+	events.EventRecorder
 	helper.Metrics
 
 	// Kubernetes configuration
@@ -207,7 +207,7 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		conditions.MarkFalse(obj, meta.ReadyCondition, meta.InvalidCELExpressionReason, "%s", errMsg)
 		conditions.MarkStalled(obj, meta.InvalidCELExpressionReason, "%s", errMsg)
 		obj.Status.ObservedGeneration = obj.Generation
-		r.Eventf(obj, corev1.EventTypeWarning, meta.InvalidCELExpressionReason, "%s", err.Error())
+		r.Eventf(obj, nil, corev1.EventTypeWarning, meta.InvalidCELExpressionReason, eventv1.ActionFailed, "%s", err.Error())
 		return ctrl.Result{}, reconcile.TerminalError(err)
 	}
 
@@ -248,7 +248,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 				errMsg := fmt.Sprintf("%s: %v", terminalErrorMessage, err)
 				conditions.MarkFalse(obj, meta.ReadyCondition, meta.InvalidCELExpressionReason, "%s", errMsg)
 				conditions.MarkStalled(obj, meta.InvalidCELExpressionReason, "%s", errMsg)
-				r.Eventf(obj, corev1.EventTypeWarning, meta.InvalidCELExpressionReason, "%s", err.Error())
+				r.Eventf(obj, nil, corev1.EventTypeWarning, meta.InvalidCELExpressionReason, eventv1.ActionFailed, "%s", err.Error())
 				return ctrl.Result{}, err
 			}
 
@@ -256,7 +256,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 			msg := fmt.Sprintf("dependencies do not meet ready condition (%s): retrying in %s",
 				err.Error(), r.DependencyRequeueInterval.String())
 			conditions.MarkFalse(obj, meta.ReadyCondition, v2.DependencyNotReadyReason, "%s", err)
-			r.Eventf(obj, corev1.EventTypeNormal, v2.DependencyNotReadyReason, "%s", err.Error())
+			r.Eventf(obj, nil, corev1.EventTypeNormal, v2.DependencyNotReadyReason, eventv1.ActionWaiting, "%s", err.Error())
 			log.Info(msg)
 
 			// Exponential backoff would cause execution to be prolonged too much,
@@ -278,7 +278,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 			conditions.MarkStalled(obj, aclv1.AccessDeniedReason, "%s", err)
 			conditions.MarkFalse(obj, meta.ReadyCondition, aclv1.AccessDeniedReason, "%s", err)
 			conditions.Delete(obj, meta.ReconcilingCondition)
-			r.Eventf(obj, corev1.EventTypeWarning, aclv1.AccessDeniedReason, "%s", err.Error())
+			r.Eventf(obj, source, corev1.EventTypeWarning, aclv1.AccessDeniedReason, eventv1.ActionFailed, "%s", err.Error())
 
 			// Recovering from this is not possible without a restart of the
 			// controller or a change of spec, both triggering a new
@@ -317,7 +317,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		obj.Spec.ValuesFrom...)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "ValuesError", "%s", err)
-		r.Eventf(obj, corev1.EventTypeWarning, "ValuesError", "%s", err.Error())
+		r.Eventf(obj, source, corev1.EventTypeWarning, "ValuesError", eventv1.ActionFailed, "%s", err.Error())
 		return ctrl.Result{}, err
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.
@@ -336,7 +336,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 		}
 
 		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "Could not load chart: %s", err)
-		r.Eventf(obj, corev1.EventTypeWarning, v2.ArtifactFailedReason, "%s", err.Error())
+		r.Eventf(obj, source, corev1.EventTypeWarning, v2.ArtifactFailedReason, eventv1.ActionFailed, "%s", err.Error())
 		return ctrl.Result{}, err
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.
@@ -375,7 +375,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 
 	if reason, changed := action.ReleaseTargetChanged(obj, loadedChart.Name()); changed && (reason != action.TargetChartName || obj.GetUpgrade().GetChartNameChangeStrategy() == v2.ChartNameChangeStrategyReinstall) {
 		log.Info(fmt.Sprintf("release target configuration changed (%s): running uninstall for current release", reason))
-		if err = r.reconcileUninstall(ctx, getter, obj); err != nil && !errors.Is(err, intreconcile.ErrNoLatest) {
+		if err = r.reconcileUninstall(ctx, getter, obj, source); err != nil && !errors.Is(err, intreconcile.ErrNoLatest) {
 			return ctrl.Result{}, err
 		}
 		obj.Status.ClearHistory()
@@ -420,6 +420,7 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	// Off we go!
 	if err = intreconcile.NewAtomicRelease(patchHelper, cfg, r.EventRecorder, r.FieldManager, r.DisallowedFieldManagers, r.DefaultToRetryOnFailure).Reconcile(ctx, &intreconcile.Request{
 		Object: obj,
+		Source: source,
 		Chart:  loadedChart,
 		Values: values,
 	}); err != nil {
@@ -429,8 +430,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 			conditions.MarkFalse(obj, meta.ReadyCondition, meta.HealthCheckCanceledReason,
 				"New reconciliation triggered by %s/%s/%s", qes.Kind, qes.Namespace, qes.Name)
 			log.Info("New reconciliation triggered, canceling health checks", "trigger", qes)
-			r.Eventf(obj, corev1.EventTypeNormal, meta.HealthCheckCanceledReason,
-				"Health checks canceled due to new reconciliation triggered by %s/%s/%s",
+			r.Eventf(obj, source, corev1.EventTypeNormal, meta.HealthCheckCanceledReason,
+				eventv1.ActionReconciling, "Health checks canceled due to new reconciliation triggered by %s/%s/%s",
 				qes.Kind, qes.Namespace, qes.Name)
 			return ctrl.Result{Requeue: true}, nil
 		}
@@ -555,7 +556,7 @@ func (r *HelmReleaseReconciler) reconcileReleaseDeletion(ctx context.Context, ob
 	}
 
 	// Attempt to uninstall the release.
-	if err = r.reconcileUninstall(ctx, getter, obj); err != nil && !errors.Is(err, intreconcile.ErrNoLatest) {
+	if err = r.reconcileUninstall(ctx, getter, obj, nil); err != nil && !errors.Is(err, intreconcile.ErrNoLatest) {
 		return err
 	}
 	if err == nil {
@@ -578,7 +579,7 @@ func (r *HelmReleaseReconciler) reconcileChartTemplate(ctx context.Context, obj 
 	})
 }
 
-func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter genericclioptions.RESTClientGetter, obj *v2.HelmRelease) error {
+func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter genericclioptions.RESTClientGetter, obj *v2.HelmRelease, source sourcev1.Source) error {
 	// Construct config factory for current release first to validate
 	// storage configuration before building the resource manager.
 	cfg, err := action.NewConfigFactory(getter,
@@ -601,7 +602,7 @@ func (r *HelmReleaseReconciler) reconcileUninstall(ctx context.Context, getter g
 	cfg.NewResourceManager = resourceManager
 
 	// Run uninstall.
-	return intreconcile.NewUninstall(cfg, r.EventRecorder).Reconcile(ctx, &intreconcile.Request{Object: obj})
+	return intreconcile.NewUninstall(cfg, r.EventRecorder).Reconcile(ctx, &intreconcile.Request{Object: obj, Source: source})
 }
 
 // checkDependencies checks if the dependencies of the current HelmRelease are ready.
