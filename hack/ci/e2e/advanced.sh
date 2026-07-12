@@ -29,42 +29,34 @@ else
 fi
 
 echo ">>> Bootstrap Tests Using Local Helm Chart"
-PR_HEAD_REPO=$(jq -r '.pull_request.head.repo.full_name // empty' "$GITHUB_EVENT_PATH" 2>/dev/null || true)
-if [[ "$GITHUB_REF" == refs/tags/* ]] || [[ "$GITHUB_REF" == refs/heads/* ]] || { [[ "$GITHUB_EVENT_NAME" == "pull_request" ]] && [[ "$PR_HEAD_REPO" == "$GITHUB_REPOSITORY" ]]; }; then
-  if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-    TYPE=branch
-    REF="${GITHUB_HEAD_REF}"
+TEST_REPOSITORY=$GITHUB_REPOSITORY
+if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+  TYPE=branch
+  REF=${GITHUB_HEAD_REF}
+  TEST_REPOSITORY=$(jq -er '.pull_request.head.repo.full_name' "$GITHUB_EVENT_PATH")
+else
+  REF=${GITHUB_REF}
+  if echo "$REF" | grep 'refs/tags/'; then
+    TYPE=tag
+    REF=${REF#refs/tags/}
   else
-    REF=${GITHUB_REF}
-    if echo "$REF" | grep 'refs/tags/'; then
-      TYPE=tag
-      REF=${REF#refs/tags/}
-    else
-      TYPE=branch
-      REF=${REF#refs/heads/}
-    fi
+    TYPE=branch
+    REF=${REF#refs/heads/}
   fi
-  echo "REF=$REF of type $TYPE"
-  echo "helm install --namespace default --set $TYPE=$REF --set url=https://github.com/$GITHUB_REPOSITORY this config/testdata/charts/crds/bootstrap"
-  helm install --namespace default --set $TYPE=$REF --set url=https://github.com/$GITHUB_REPOSITORY this config/testdata/charts/crds/bootstrap
-  kubectl -n default apply -f config/testdata/crds-upgrade/init
-  kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
 fi
+echo "REF=$REF of type $TYPE"
+echo "helm install --namespace default --set $TYPE=$REF --set url=https://github.com/$TEST_REPOSITORY this config/testdata/charts/crds/bootstrap"
+helm install --namespace default --set $TYPE=$REF --set url=https://github.com/$TEST_REPOSITORY this config/testdata/charts/crds/bootstrap
+kubectl -n default apply -f config/testdata/crds-upgrade/init
+kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
 echo ">>> CRDs Upgrade Test Create"
-PR_HEAD_REPO=$(jq -r '.pull_request.head.repo.full_name // empty' "$GITHUB_EVENT_PATH" 2>/dev/null || true)
-if [[ "$GITHUB_REF" == refs/tags/* ]] || [[ "$GITHUB_REF" == refs/heads/* ]] || { [[ "$GITHUB_EVENT_NAME" == "pull_request" ]] && [[ "$PR_HEAD_REPO" == "$GITHUB_REPOSITORY" ]]; }; then
-  kubectl -n default apply -f config/testdata/crds-upgrade/create
-  kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
-fi
+kubectl -n default apply -f config/testdata/crds-upgrade/create
+kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
 echo ">>> CRDs Upgrade Test CreateReplace"
-PR_HEAD_REPO=$(jq -r '.pull_request.head.repo.full_name // empty' "$GITHUB_EVENT_PATH" 2>/dev/null || true)
-if [[ "$GITHUB_REF" == refs/tags/* ]] || [[ "$GITHUB_REF" == refs/heads/* ]] || { [[ "$GITHUB_EVENT_NAME" == "pull_request" ]] && [[ "$PR_HEAD_REPO" == "$GITHUB_REPOSITORY" ]]; }; then
-  kubectl -n default apply -f config/testdata/crds-upgrade/create-replace
-  kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
-fi
+kubectl -n default apply -f config/testdata/crds-upgrade/create-replace
+kubectl -n default wait helmreleases/crds-upgrade-test --for=condition=ready --timeout=2m
 echo ">>> Run upgrade with chart name changed and default ChartNameChangeStrategy"
-PR_HEAD_REPO=$(jq -r '.pull_request.head.repo.full_name // empty' "$GITHUB_EVENT_PATH" 2>/dev/null || true)
-if [[ "$GITHUB_REF" == refs/tags/* ]] || [[ "$GITHUB_REF" == refs/heads/* ]] || { [[ "$GITHUB_EVENT_NAME" == "pull_request" ]] && [[ "$PR_HEAD_REPO" == "$GITHUB_REPOSITORY" ]]; }; then
+if [[ "$GITHUB_REF" == refs/tags/* ]] || [[ "$GITHUB_REF" == refs/heads/* ]] || [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
   test_name=upgrade-chart-name-change
   kubectl -n helm-system apply -f config/testdata/$test_name/install.yaml
   echo -n ">>> Waiting for expected conditions"
@@ -113,8 +105,7 @@ if [[ "$GITHUB_REF" == refs/tags/* ]] || [[ "$GITHUB_REF" == refs/heads/* ]] || 
   kubectl delete -n helm-system -f config/testdata/$test_name/install.yaml
 fi
 echo ">>> Run upgrade with chart name changed and reinstall ChartNameChangeStrategy"
-PR_HEAD_REPO=$(jq -r '.pull_request.head.repo.full_name // empty' "$GITHUB_EVENT_PATH" 2>/dev/null || true)
-if [[ "$GITHUB_REF" == refs/tags/* ]] || [[ "$GITHUB_REF" == refs/heads/* ]] || { [[ "$GITHUB_EVENT_NAME" == "pull_request" ]] && [[ "$PR_HEAD_REPO" == "$GITHUB_REPOSITORY" ]]; }; then
+if [[ "$GITHUB_REF" == refs/tags/* ]] || [[ "$GITHUB_REF" == refs/heads/* ]] || [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
   test_name=upgrade-chart-name-change
   kubectl -n helm-system apply -f config/testdata/$test_name/install.yaml
   echo -n ">>> Waiting for expected conditions"
@@ -162,8 +153,7 @@ if [[ "$GITHUB_REF" == refs/tags/* ]] || [[ "$GITHUB_REF" == refs/heads/* ]] || 
   kubectl delete -n helm-system -f config/testdata/$test_name/install.yaml
 fi
 echo ">>> Run upgrade with chart name changed and InPlaceUpdate ChartNameChangeStrategy"
-PR_HEAD_REPO=$(jq -r '.pull_request.head.repo.full_name // empty' "$GITHUB_EVENT_PATH" 2>/dev/null || true)
-if [[ "$GITHUB_REF" == refs/tags/* ]] || [[ "$GITHUB_REF" == refs/heads/* ]] || { [[ "$GITHUB_EVENT_NAME" == "pull_request" ]] && [[ "$PR_HEAD_REPO" == "$GITHUB_REPOSITORY" ]]; }; then
+if [[ "$GITHUB_REF" == refs/tags/* ]] || [[ "$GITHUB_REF" == refs/heads/* ]] || [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
   test_name=upgrade-chart-name-change
   kubectl -n helm-system apply -f config/testdata/$test_name/install.yaml
   echo -n ">>> Waiting for expected conditions"
