@@ -343,8 +343,6 @@ func TestObservedToSnapshot_WithAction(t *testing.T) {
 }
 
 func TestTestHooksFromRelease(t *testing.T) {
-	g := NewWithT(t)
-
 	hooks := []*helmrelease.Hook{
 		{
 			Name:   "never-run-test",
@@ -379,7 +377,7 @@ func TestTestHooksFromRelease(t *testing.T) {
 		Chart:     testutil.BuildChart(),
 	}, testutil.ReleaseWithHooks(hooks))
 
-	g.Expect(TestHooksFromRelease(rls)).To(testutil.Equal(map[string]*v2.TestHookStatus{
+	wantHooks := map[string]*v2.TestHookStatus{
 		hooks[0].Name: {},
 		hooks[1].Name: {
 			LastStarted:   metav1.Time{Time: hooks[1].LastRun.StartedAt},
@@ -391,5 +389,57 @@ func TestTestHooksFromRelease(t *testing.T) {
 			LastCompleted: metav1.Time{Time: hooks[2].LastRun.CompletedAt},
 			Phase:         hooks[2].LastRun.Phase.String(),
 		},
-	}))
+	}
+
+	tests := []struct {
+		name    string
+		filters []v2.Filter
+		want    map[string]*v2.TestHookStatus
+	}{
+		{
+			name: "all test hooks",
+			want: wantHooks,
+		},
+		{
+			name: "include filter",
+			filters: []v2.Filter{
+				{Name: hooks[1].Name},
+			},
+			want: map[string]*v2.TestHookStatus{
+				hooks[1].Name: wantHooks[hooks[1].Name],
+			},
+		},
+		{
+			name: "exclude filter",
+			filters: []v2.Filter{
+				{Name: hooks[0].Name, Exclude: true},
+			},
+			want: map[string]*v2.TestHookStatus{
+				hooks[1].Name: wantHooks[hooks[1].Name],
+				hooks[2].Name: wantHooks[hooks[2].Name],
+			},
+		},
+		{
+			name: "exclude wins over include",
+			filters: []v2.Filter{
+				{Name: hooks[1].Name},
+				{Name: hooks[1].Name, Exclude: true},
+			},
+			want: map[string]*v2.TestHookStatus{},
+		},
+		{
+			name: "include filter without match",
+			filters: []v2.Filter{
+				{Name: "missing-test"},
+			},
+			want: map[string]*v2.TestHookStatus{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			g.Expect(TestHooksFromRelease(rls, tt.filters...)).To(testutil.Equal(tt.want))
+		})
+	}
 }

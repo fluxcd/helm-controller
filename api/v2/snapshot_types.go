@@ -49,6 +49,9 @@ const (
 	// snapshotTestPhaseFailed indicates that the test of the release the snapshot
 	// was taken from has failed.
 	snapshotTestPhaseFailed = "Failed"
+	// snapshotTestPhaseSucceeded indicates that the test of the release the snapshot
+	// was taken from has succeeded.
+	snapshotTestPhaseSucceeded = "Succeeded"
 )
 
 // Snapshots is a list of Snapshot objects.
@@ -209,10 +212,26 @@ func (in *Snapshot) VersionedChartName() string {
 	return fmt.Sprintf("%s@%s", in.ChartName, in.ChartVersion)
 }
 
-// HasBeenTested returns true if TestHooks is not nil. This includes an empty
-// map, which indicates the chart has no tests.
+// HasBeenTested returns true if test results have been observed. This includes
+// an empty map, which indicates the chart has no selected tests.
 func (in *Snapshot) HasBeenTested() bool {
-	return in != nil && in.TestHooks != nil
+	if in == nil || in.TestHooks == nil {
+		return false
+	}
+	if len(*in.TestHooks) == 0 {
+		return true
+	}
+	for _, th := range *in.TestHooks {
+		if th != nil && th.Phase == snapshotTestPhaseFailed {
+			return true
+		}
+	}
+	for _, th := range *in.TestHooks {
+		if th == nil || th.Phase != snapshotTestPhaseSucceeded {
+			return false
+		}
+	}
+	return true
 }
 
 // GetTestHooks returns the TestHooks for the release if not nil.
@@ -227,7 +246,7 @@ func (in *Snapshot) GetTestHooks() map[string]*TestHookStatus {
 func (in *Snapshot) HasTestInPhase(phase string) bool {
 	if in != nil {
 		for _, h := range in.GetTestHooks() {
-			if h.Phase == phase {
+			if h != nil && h.Phase == phase {
 				return true
 			}
 		}
