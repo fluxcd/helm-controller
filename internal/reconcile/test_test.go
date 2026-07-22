@@ -410,6 +410,46 @@ func Test_observeTest(t *testing.T) {
 		}))
 	})
 
+	t.Run("test with filters", func(t *testing.T) {
+		g := NewWithT(t)
+
+		filters := []v2.Filter{
+			{Name: "passing-test"},
+		}
+		obj := &v2.HelmRelease{
+			Spec: v2.HelmReleaseSpec{
+				Test: &v2.Test{
+					Filters: &filters,
+				},
+			},
+			Status: v2.HelmReleaseStatus{
+				History: v2.Snapshots{
+					&v2.Snapshot{
+						Name:      mockReleaseName,
+						Namespace: mockReleaseNamespace,
+						Version:   1,
+					},
+				},
+			},
+		}
+		rls := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      mockReleaseName,
+			Namespace: mockReleaseNamespace,
+			Version:   1,
+		}, testutil.ReleaseWithHooks(testHookFixtures))
+
+		expect := release.ObservedToSnapshot(release.ObserveRelease(rls))
+		expect.SetTestHooks(release.TestHooksFromRelease(rls, filters...))
+
+		observeTest(obj)(rls)
+		g.Expect(obj.Status.History).To(testutil.Equal(v2.Snapshots{
+			expect,
+		}))
+		g.Expect(obj.Status.History.Latest().GetTestHooks()).To(HaveKey("passing-test"))
+		g.Expect(obj.Status.History.Latest().GetTestHooks()).ToNot(HaveKey("never-run-test"))
+		g.Expect(obj.Status.History.Latest().GetTestHooks()).ToNot(HaveKey("failing-test"))
+	})
+
 	t.Run("test with current preserves action", func(t *testing.T) {
 		g := NewWithT(t)
 

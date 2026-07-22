@@ -182,10 +182,14 @@ func ObservedToSnapshot(rls Observation) *v2.Snapshot {
 }
 
 // TestHooksFromRelease returns the list of v2.TestHookStatus for the
-// given release, indexed by name.
-func TestHooksFromRelease(rls *helmrelease.Release) map[string]*v2.TestHookStatus {
+// given release, indexed by name. When filters are provided, only hooks
+// selected by the filters are returned.
+func TestHooksFromRelease(rls *helmrelease.Release, filters ...v2.Filter) map[string]*v2.TestHookStatus {
 	hooks := make(map[string]*v2.TestHookStatus)
 	for k, v := range GetTestHooks(rls) {
+		if !isTestHookSelected(k, filters) {
+			continue
+		}
 		var h *v2.TestHookStatus
 		if v != nil {
 			h = &v2.TestHookStatus{
@@ -197,4 +201,24 @@ func TestHooksFromRelease(rls *helmrelease.Release) map[string]*v2.TestHookStatu
 		hooks[k] = h
 	}
 	return hooks
+}
+
+func isTestHookSelected(name string, filters []v2.Filter) bool {
+	var (
+		hasInclude bool
+		included   bool
+	)
+	for _, f := range filters {
+		if f.Exclude {
+			if f.Name == name {
+				return false
+			}
+			continue
+		}
+		hasInclude = true
+		if f.Name == name {
+			included = true
+		}
+	}
+	return !hasInclude || included
 }
