@@ -221,6 +221,44 @@ func Test_DetermineReleaseState(t *testing.T) {
 			},
 		},
 		{
+			name: "incomplete test result",
+			releases: []*helmrelease.Release{
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   1,
+					Status:    helmreleasecommon.StatusDeployed,
+					Chart:     testutil.BuildChart(),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Test = &v2.Test{
+					Enable: true,
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				cur := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+				cur.SetTestHooks(map[string]*v2.TestHookStatus{
+					"passing-test": {
+						Phase: helmrelease.HookPhaseSucceeded.String(),
+					},
+					"never-run-test": {},
+				})
+
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						cur,
+					},
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
+				}
+			},
+			chart:  testutil.BuildChart(),
+			values: map[string]any{"foo": "bar"},
+			want: ReleaseState{
+				Status: ReleaseStatusUntested,
+			},
+		},
+		{
 			name: "failed test",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
@@ -251,6 +289,47 @@ func Test_DetermineReleaseState(t *testing.T) {
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				cur := release.ObservedToSnapshot(release.ObserveRelease(releases[1]))
 				cur.SetTestHooks(release.TestHooksFromRelease(releases[1]))
+
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						cur,
+					},
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
+				}
+			},
+			chart:  testutil.BuildChart(),
+			values: map[string]any{"foo": "bar"},
+			want: ReleaseState{
+				Status: ReleaseStatusFailed,
+			},
+		},
+		{
+			name: "failed test with unstarted remaining test hooks",
+			releases: []*helmrelease.Release{
+				testutil.BuildRelease(
+					&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: mockReleaseNamespace,
+						Version:   2,
+						Status:    helmreleasecommon.StatusDeployed,
+						Chart:     testutil.BuildChart(),
+					},
+					testutil.ReleaseWithConfig(map[string]any{"foo": "bar"}),
+				),
+			},
+			spec: func(spec *v2.HelmReleaseSpec) {
+				spec.Test = &v2.Test{
+					Enable: true,
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				cur := release.ObservedToSnapshot(release.ObserveRelease(releases[0]))
+				cur.SetTestHooks(map[string]*v2.TestHookStatus{
+					"failure-tests": {
+						Phase: helmrelease.HookPhaseFailed.String(),
+					},
+					"never-run-test": {},
+				})
 
 				return v2.HelmReleaseStatus{
 					History: v2.Snapshots{
