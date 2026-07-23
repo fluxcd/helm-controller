@@ -95,6 +95,98 @@ func TestSnapshots_Latest(t *testing.T) {
 	}
 }
 
+func TestSnapshots_HasBeenTested(t *testing.T) {
+	tests := []struct {
+		name string
+		in   Snapshot
+		want bool
+	}{
+		{
+			name: "no testhooks",
+			in:   Snapshot{Version: 2, Status: "deployed"},
+			want: false,
+		},
+		{
+			name: "empty testhooks",
+			in:   Snapshot{Version: 2, Status: "deployed", TestHooks: &map[string]*TestHookStatus{}},
+			want: true,
+		},
+		{
+			name: "all testhooks are zero",
+			in: Snapshot{Version: 2, Status: "deployed", TestHooks: &map[string]*TestHookStatus{
+				"test1": &TestHookStatus{},
+			}},
+			want: false,
+		},
+		{
+			name: "nil testhook",
+			in: Snapshot{Version: 2, Status: "deployed", TestHooks: &map[string]*TestHookStatus{
+				"test1": nil,
+			}},
+			want: false,
+		},
+		{
+			name: "all testhooks succeeded",
+			in: Snapshot{Version: 2, Status: "deployed", TestHooks: &map[string]*TestHookStatus{
+				"test1": {Phase: "Succeeded"},
+			}},
+			want: true,
+		},
+		{
+			name: "all testhooks failed",
+			in: Snapshot{Version: 2, Status: "deployed", TestHooks: &map[string]*TestHookStatus{
+				"test1": {Phase: "Failed"},
+			}},
+			want: true,
+		},
+		{
+			name: "mixed terminal testhooks",
+			in: Snapshot{Version: 2, Status: "deployed", TestHooks: &map[string]*TestHookStatus{
+				"test1": {Phase: "Succeeded"},
+				"test2": {Phase: "Failed"},
+			}},
+			want: true,
+		},
+		{
+			name: "mixed failed and zero testhooks",
+			in: Snapshot{Version: 2, Status: "deployed", TestHooks: &map[string]*TestHookStatus{
+				"test1": {Phase: "Failed"},
+				"test2": {},
+			}},
+			want: true,
+		},
+		{
+			name: "mixed succeeded and zero testhooks",
+			in: Snapshot{Version: 2, Status: "deployed", TestHooks: &map[string]*TestHookStatus{
+				"test1": {Phase: "Succeeded"},
+				"test2": {},
+			}},
+			want: false,
+		},
+		{
+			name: "testhook still running",
+			in: Snapshot{Version: 2, Status: "deployed", TestHooks: &map[string]*TestHookStatus{
+				"test1": {Phase: "Running"},
+			}},
+			want: false,
+		},
+		{
+			name: "testhook phase unknown",
+			in: Snapshot{Version: 2, Status: "deployed", TestHooks: &map[string]*TestHookStatus{
+				"test1": {Phase: "Unknown"},
+			}},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.in.HasBeenTested(); got != tt.want {
+				t.Errorf("HasBeenTested() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestSnapshots_Previous(t *testing.T) {
 	tests := []struct {
 		name        string
