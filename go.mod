@@ -20,7 +20,7 @@ replace helm.sh/helm/v4 => github.com/fluxcd/helm/v4 v4.2.4-flux.1
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/fluxcd/cli-utils v1.2.2
-	github.com/fluxcd/helm-controller/api v1.6.2
+	github.com/fluxcd/helm-controller/api v1.6.3
 	github.com/fluxcd/pkg/apis/acl v0.10.0
 	github.com/fluxcd/pkg/apis/event v0.27.1
 	github.com/fluxcd/pkg/apis/kustomize v1.19.1
