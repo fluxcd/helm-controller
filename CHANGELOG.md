@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.6.3
+
+**Release date:** 2026-07-23
+
+This patch release fixes empty lines vanishing from rendered chart manifests,
+and releases being marked as tested when their Helm test hooks never ran.
+
+Fixes:
+- Fix vanishing empty lines
+  [#1545](https://github.com/fluxcd/helm-controller/pull/1545)
+- Fix `HasBeenTested` for all corner cases
+  [#1548](https://github.com/fluxcd/helm-controller/pull/1548)
+
+Improvements:
+- ci: parallelize e2e job to speed it up
+  [#1543](https://github.com/fluxcd/helm-controller/pull/1543)
+
 ## 1.6.2
 
 **Release date:** 2026-07-07
