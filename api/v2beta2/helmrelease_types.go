@@ -1290,7 +1290,3 @@ type HelmReleaseList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []HelmRelease `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&HelmRelease{}, &HelmReleaseList{})
-}
