@@ -37,7 +37,13 @@ func NewCombined(renderer ...helmpostrender.PostRenderer) *Combined {
 }
 
 func (c *Combined) Run(renderedManifests *bytes.Buffer) (modifiedManifests *bytes.Buffer, err error) {
-	var result = renderedManifests
+	// Inflate aliases before any renderer parses the stream. Helm v4 can emit
+	// cross-document anchors when unwrapping kind:List (see inflateYAMLAliases).
+	inflated, err := inflateYAMLAliases(renderedManifests.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	var result = bytes.NewBuffer(inflated)
 	for _, renderer := range c.renderers {
 		result, err = renderer.Run(result)
 		if err != nil {
