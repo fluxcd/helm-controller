@@ -16,17 +16,17 @@ replace (
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
-	github.com/fluxcd/cli-utils v1.2.2
+	github.com/fluxcd/cli-utils v1.2.3
 	github.com/fluxcd/helm-controller/api v1.6.3
 	github.com/fluxcd/pkg/apis/acl v0.10.0
-	github.com/fluxcd/pkg/apis/event v0.27.1
-	github.com/fluxcd/pkg/apis/kustomize v1.19.1
-	github.com/fluxcd/pkg/apis/meta v1.30.1
-	github.com/fluxcd/pkg/auth v0.54.1
+	github.com/fluxcd/pkg/apis/event v0.27.2
+	github.com/fluxcd/pkg/apis/kustomize v1.19.2
+	github.com/fluxcd/pkg/apis/meta v1.30.2
+	github.com/fluxcd/pkg/auth v0.54.3
 	github.com/fluxcd/pkg/cache v0.14.0
-	github.com/fluxcd/pkg/chartutil v1.27.1
-	github.com/fluxcd/pkg/runtime v0.110.1
-	github.com/fluxcd/pkg/ssa v0.76.1
+	github.com/fluxcd/pkg/chartutil v1.27.2
+	github.com/fluxcd/pkg/runtime v0.110.2
+	github.com/fluxcd/pkg/ssa v0.76.2
 	github.com/fluxcd/pkg/testserver v0.14.0
 	github.com/fluxcd/source-controller/api v1.9.0
 	github.com/go-logr/logr v1.4.3
@@ -42,12 +42,12 @@ require (
 	go.uber.org/zap v1.28.0
 	golang.org/x/text v0.40.0
 	helm.sh/helm/v4 v4.2.4
-	k8s.io/api v0.36.2
-	k8s.io/apiextensions-apiserver v0.36.2
-	k8s.io/apimachinery v0.36.2
-	k8s.io/cli-runtime v0.36.2
-	k8s.io/client-go v0.36.2
-	k8s.io/kubectl v0.36.2
+	k8s.io/api v0.36.4
+	k8s.io/apiextensions-apiserver v0.36.4
+	k8s.io/apimachinery v0.36.4
+	k8s.io/cli-runtime v0.36.4
+	k8s.io/client-go v0.36.4
+	k8s.io/kubectl v0.36.4
 	k8s.io/utils v0.0.0-20260507154919-ff6756f316d2
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/kustomize/api v0.21.1
@@ -218,8 +218,8 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiserver v0.36.2 // indirect
-	k8s.io/component-base v0.36.2 // indirect
+	k8s.io/apiserver v0.36.4 // indirect
+	k8s.io/component-base v0.36.4 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260603220949-865597e52e25 // indirect
 	oras.land/oras-go/v2 v2.6.1 // indirect
