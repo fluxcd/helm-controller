@@ -195,7 +195,7 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 			},
 			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
 				return v2.Snapshots{
-					observeReleaseWithAction(releases[2], v2.ReleaseActionRollback),
+					release.ObservedToSnapshot(release.ObserveRelease(releases[2])),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[1])),
 					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 				}
