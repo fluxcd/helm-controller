@@ -1146,11 +1146,13 @@ stringData:
     # ...omitted for brevity
 ```
 
-**Note:** The KubeConfig should be self-contained and not rely on binaries, the
-environment, or credential files from the helm-controller Pod. This matches the
-constraints of KubeConfigs from current Cluster API providers. KubeConfigs with
-`cmd-path` in them likely won't work without a custom, per-provider installation
-of helm-controller. For more information, see
+**Note:** The KubeConfig must be self-contained and not rely on binaries, the
+environment, or credential files from the helm-controller Pod. KubeConfigs with
+local file references in `certificate-authority`, `tokenFile`,
+`client-certificate`, or `client-key` are rejected. This matches the constraints
+of KubeConfigs from current Cluster API providers. KubeConfigs with `cmd-path`
+in them likely won't work without a custom, per-provider installation of
+helm-controller. For more information, see
 [remote clusters/Cluster-API](#remote-cluster-api-clusters).
 
 #### Secret-less authentication
