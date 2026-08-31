@@ -47,6 +47,46 @@ users:
   user:
     password: some-password
     username: exp`
+
+	kubeCfgTokenFile = `apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    insecure-skip-tls-verify: true
+    server: https://1.2.3.4
+  name: development
+contexts:
+- context:
+    cluster: development
+    namespace: frontend
+    user: developer
+  name: dev-frontend
+current-context: dev-frontend
+preferences: {}
+users:
+- name: developer
+  user:
+    tokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token`
+
+	kubeCfgCertificateAuthorityFile = `apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    certificate-authority: /etc/kubernetes/ca.crt
+    server: https://1.2.3.4
+  name: development
+contexts:
+- context:
+    cluster: development
+    namespace: frontend
+    user: developer
+  name: dev-frontend
+current-context: dev-frontend
+preferences: {}
+users:
+- name: developer
+  user:
+    token: some-token`
 )
 
 func TestConfigFromSecret(t *testing.T) {
@@ -183,6 +223,46 @@ func TestConfigFromSecret(t *testing.T) {
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(got).To(BeNil())
 		g.Expect(err.Error()).To(ContainSubstring("couldn't get version/kind"))
+	})
+
+	t.Run("kubeconfig with file references", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			kubeConfig string
+			wantErr    string
+		}{
+			{
+				name:       "token file",
+				kubeConfig: kubeCfgTokenFile,
+				wantErr:    "references a tokenFile",
+			},
+			{
+				name:       "certificate authority file",
+				kubeConfig: kubeCfgCertificateAuthorityFile,
+				wantErr:    "references a certificate-authority file",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				g := NewWithT(t)
+
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "super-secret",
+						Namespace: "vault",
+					},
+					Data: map[string][]byte{
+						DefaultKubeConfigSecretKey: []byte(tt.kubeConfig),
+					},
+				}
+
+				got, err := ConfigFromSecret(t.Context(), secret, "", client.KubeConfigOptions{})
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(got).To(BeNil())
+				g.Expect(err.Error()).To(ContainSubstring(tt.wantErr))
+			})
+		}
 	})
 
 	t.Run("with kubeconfig options", func(t *testing.T) {
