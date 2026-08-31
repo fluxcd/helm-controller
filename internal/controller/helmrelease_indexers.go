@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/dependency"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,6 +34,29 @@ import (
 
 func isReadyOrReconciling(from conditions.Getter) bool {
 	return conditions.IsReady(from) || conditions.IsReconciling(from)
+}
+
+type sortableHelmRelease struct {
+	*v2.HelmRelease
+}
+
+// GetDependsOn adapts the legacy HelmRelease method signature to dependency.Dependent.
+func (in sortableHelmRelease) GetDependsOn() []meta.DependencyReference {
+	return in.Spec.DependsOn
+}
+
+func sortedRequests(objects []dependency.Dependent) ([]reconcile.Request, error) {
+	sorted, err := dependency.Sort(objects)
+	if err != nil {
+		return nil, err
+	}
+
+	reqs := make([]reconcile.Request, len(sorted))
+	for i := range sorted {
+		reqs[i].NamespacedName.Name = sorted[i].Name
+		reqs[i].NamespacedName.Namespace = sorted[i].Namespace
+	}
+	return reqs, nil
 }
 
 // requestsForHelmChartChange enqueues requests for watched HelmCharts
@@ -56,14 +81,20 @@ func (r *HelmReleaseReconciler) requestsForHelmChartChange(ctx context.Context, 
 		return nil
 	}
 
-	var reqs []reconcile.Request
+	var objects []dependency.Dependent
 	for i, hr := range list.Items {
 		// If the HelmRelease is ready or reconciling and the revision of the artifact equals to the
 		// last attempted revision, we should not make a request for this HelmRelease
 		if isReadyOrReconciling(&list.Items[i]) && hc.GetArtifact().HasRevision(hr.Status.GetLastAttemptedRevision()) {
 			continue
 		}
-		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
+		objects = append(objects, sortableHelmRelease{&list.Items[i]})
+	}
+
+	reqs, err := sortedRequests(objects)
+	if err != nil {
+		ctrl.LoggerFrom(ctx).Error(err, "failed to sort dependencies for HelmChart change")
+		return nil
 	}
 	return reqs
 }
@@ -90,7 +121,7 @@ func (r *HelmReleaseReconciler) requestsForOCIRepositoryChange(ctx context.Conte
 		return nil
 	}
 
-	var reqs []reconcile.Request
+	var objects []dependency.Dependent
 	for i, hr := range list.Items {
 		// If the HelmRelease is ready or reconciling and the digest of the artifact equals to the
 		// last attempted revision digest, we should not make a request for this HelmRelease,
@@ -106,7 +137,13 @@ func (r *HelmReleaseReconciler) requestsForOCIRepositoryChange(ctx context.Conte
 			continue
 		}
 
-		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
+		objects = append(objects, sortableHelmRelease{&list.Items[i]})
+	}
+
+	reqs, err := sortedRequests(objects)
+	if err != nil {
+		ctrl.LoggerFrom(ctx).Error(err, "failed to sort dependencies for OCIRepository change")
+		return nil
 	}
 	return reqs
 }
@@ -133,7 +170,7 @@ func (r *HelmReleaseReconciler) requestsForExternalArtifactChange(ctx context.Co
 		log.Error(err, "failed to list HelmReleases for ExternalArtifact change")
 		return nil
 	}
-	var reqs []reconcile.Request
+	var objects []dependency.Dependent
 	for i, hr := range list.Items {
 		revision := ea.GetArtifact().Revision
 
@@ -150,7 +187,13 @@ func (r *HelmReleaseReconciler) requestsForExternalArtifactChange(ctx context.Co
 			}
 		}
 
-		reqs = append(reqs, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&list.Items[i])})
+		objects = append(objects, sortableHelmRelease{&list.Items[i]})
+	}
+
+	reqs, err := sortedRequests(objects)
+	if err != nil {
+		log.Error(err, "failed to sort dependencies for ExternalArtifact change")
+		return nil
 	}
 	return reqs
 }
