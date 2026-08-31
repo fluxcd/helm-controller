@@ -28,7 +28,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"github.com/fluxcd/pkg/apis/meta"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -535,6 +537,42 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 		err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: "default", Name: "chart"}, &sourcev1.HelmChart{})
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(apierrors.IsNotFound(err)).To(BeTrue())
+	})
+
+	t.Run("Status.HelmChart is cleared when delete returns NotFound", func(t *testing.T) {
+		g := NewWithT(t)
+
+		builder := fake.NewClientBuilder().
+			WithScheme(NewTestScheme()).
+			WithObjects(&sourcev1.HelmChart{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "chart",
+				},
+			}).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Delete: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.DeleteOption) error {
+					return apierrors.NewNotFound(sourcev1.GroupVersion.WithResource("helmcharts").GroupResource(), obj.GetName())
+				},
+			})
+
+		r := &HelmChartTemplate{
+			client:        builder.Build(),
+			eventRecorder: record.NewFakeRecorder(32),
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "default",
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart: "default/chart",
+			},
+		}
+		err := r.reconcileDelete(context.TODO(), obj)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(obj.Status.HelmChart).To(BeEmpty())
 	})
 
 	t.Run("Status.HelmChart already deleted", func(t *testing.T) {

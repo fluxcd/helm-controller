@@ -198,7 +198,7 @@ func (r *HelmChartTemplate) reconcileDelete(ctx context.Context, obj *v2.HelmRel
 		}
 		if err == nil {
 			// Delete the HelmChart.
-			if err = r.client.Delete(ctx, &chart); err != nil {
+			if err = r.client.Delete(ctx, &chart); client.IgnoreNotFound(err) != nil {
 				err = fmt.Errorf("failed to delete HelmChart '%s': %w", obj.Status.HelmChart, err)
 				return err
 			}
