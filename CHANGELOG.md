@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.6.4
+
+**Release date:** 2026-08-31
+
+This patch release hardens the handling of HelmRelease kubeconfig Secrets:
+kubeconfigs referencing local files are now rejected, credentials and
+certificates must be embedded inline. It also moves the controller back to
+upstream Helm, now at v4.2.4, dropping the temporary Flux fork, and updates
+Kubernetes to 1.36.4.
+
+Fixes:
+- Validate HelmRelease kubeconfigs
+  [#1572](https://github.com/fluxcd/helm-controller/pull/1572)
+
+Improvements:
+- Move v1.6 back to upstream helm
+  [#1565](https://github.com/fluxcd/helm-controller/pull/1565)
+- Update fluxcd/pkg dependencies
+  [#1567](https://github.com/fluxcd/helm-controller/pull/1567)
+  [#1568](https://github.com/fluxcd/helm-controller/pull/1568)
+
 ## 1.6.3
 
 **Release date:** 2026-07-23
