@@ -22,7 +22,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/fluxcd/pkg/runtime/client"
 )
@@ -65,7 +64,7 @@ func ConfigFromSecret(ctx context.Context, secret *corev1.Secret, key string, op
 		return nil, fmt.Errorf("KubeConfig secret '%s' does not contain a '%s' or '%s' key with data", secretName, DefaultKubeConfigSecretKey, DefaultKubeConfigSecretKeyExt)
 	}
 
-	cfg, err := clientcmd.RESTConfigFromKubeConfig(kubeConfig)
+	cfg, err := client.KubeConfigFromBytes(kubeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load KubeConfig from secret '%s': %w", secretName, err)
 	}
