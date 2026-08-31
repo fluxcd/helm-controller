@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/opencontainers/go-digest"
-	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,6 +31,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/testenv"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	. "github.com/onsi/gomega"
 
@@ -226,10 +227,10 @@ func TestHelmReleaseReconciler_CancelHealthCheckOnNewRevision(t *testing.T) {
 
 	// Verify the HealthCheckCanceled event was emitted.
 	g.Eventually(func() bool {
-		events := getEvents(resultHR.GetName(), nil)
+		events := testenv.GetEvents(testCtx, k8sClient, resultHR.GetName(), "", nil)
 		for _, event := range events {
 			if event.Reason == meta.HealthCheckCanceledReason {
-				t.Logf("Found HealthCheckCanceled event: %s", event.Message)
+				t.Logf("Found HealthCheckCanceled event: %s", event.Note)
 				return true
 			}
 		}
@@ -237,8 +238,8 @@ func TestHelmReleaseReconciler_CancelHealthCheckOnNewRevision(t *testing.T) {
 	}, timeout, time.Second).Should(BeTrue(), "HealthCheckCanceled event should be recorded")
 
 	// Verify the event message indicates the trigger source.
-	events := getEvents(resultHR.GetName(), nil)
-	var cancelEvent *corev1.Event
+	events := testenv.GetEvents(testCtx, k8sClient, resultHR.GetName(), "", nil)
+	var cancelEvent *eventsv1.Event
 	for i := range events {
 		if events[i].Reason == meta.HealthCheckCanceledReason {
 			cancelEvent = &events[i]
@@ -246,8 +247,8 @@ func TestHelmReleaseReconciler_CancelHealthCheckOnNewRevision(t *testing.T) {
 		}
 	}
 	g.Expect(cancelEvent).ToNot(BeNil())
-	g.Expect(cancelEvent.Message).To(ContainSubstring("Health checks canceled"))
-	g.Expect(cancelEvent.Message).To(ContainSubstring("HelmChart"))
+	g.Expect(cancelEvent.Note).To(ContainSubstring("Health checks canceled"))
+	g.Expect(cancelEvent.Note).To(ContainSubstring("HelmChart"))
 
 	// Verify the HelmRelease becomes Ready after the fixed revision is reconciled.
 	g.Eventually(func() bool {

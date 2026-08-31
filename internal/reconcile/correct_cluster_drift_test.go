@@ -24,19 +24,21 @@ import (
 	. "github.com/onsi/gomega"
 	extjsondiff "github.com/wI2L/jsondiff"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/ssa"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
-	"github.com/fluxcd/helm-controller/internal/testutil"
 )
 
 func TestCorrectClusterDrift_Reconcile(t *testing.T) {
@@ -145,7 +147,7 @@ func TestCorrectClusterDrift_Reconcile(t *testing.T) {
 			cfg, err := action.NewConfigFactory(getter, action.WithStorage(action.DefaultStorageDriver, namedNS.Name))
 			g.Expect(err).ToNot(HaveOccurred())
 
-			recorder := testutil.NewFakeRecorder(10, false)
+			recorder := events.NewFakeRecorder(10, false)
 
 			r := NewCorrectClusterDrift(cfg, recorder, tt.diff(namedNS.Name), testFieldManager)
 			g.Expect(r.Reconcile(context.TODO(), &Request{
@@ -183,7 +185,7 @@ func TestCorrectClusterDrift_report(t *testing.T) {
 		obj       *v2.HelmRelease
 		changeSet *ssa.ChangeSet
 		err       error
-		wantEvent []corev1.Event
+		wantEvent []eventsv1.Event
 	}{
 		{
 			name: "with multiple changes",
@@ -200,11 +202,12 @@ func TestCorrectClusterDrift_report(t *testing.T) {
 					},
 				},
 			},
-			wantEvent: []corev1.Event{
+			wantEvent: []eventsv1.Event{
 				{
 					Type:   corev1.EventTypeNormal,
 					Reason: "DriftCorrected",
-					Message: `Cluster state of release mock-ns/mock-release.v3 has been corrected:
+					Action: eventv1.ActionApplied,
+					Note: `Cluster state of release mock-ns/mock-release.v3 has been corrected:
 Secret/namespace/name created
 Deployment/namespace/name configured`,
 				},
@@ -233,11 +236,12 @@ Deployment/namespace/name configured`,
 				errors.New("error 1"),
 				errors.New("error 2"),
 			}),
-			wantEvent: []corev1.Event{
+			wantEvent: []eventsv1.Event{
 				{
 					Type:   corev1.EventTypeWarning,
 					Reason: "DriftCorrectionFailed",
-					Message: `Failed to partially correct cluster state of release mock-ns/mock-release.v3:
+					Action: eventv1.ActionFailed,
+					Note: `Failed to partially correct cluster state of release mock-ns/mock-release.v3:
 error 1
 error 2
 
@@ -255,11 +259,12 @@ ConfigMap/namespace/name configured`,
 				errors.New("error 1"),
 				errors.New("error 2"),
 			}),
-			wantEvent: []corev1.Event{
+			wantEvent: []eventsv1.Event{
 				{
+					Action: eventv1.ActionFailed,
 					Type:   corev1.EventTypeWarning,
 					Reason: "DriftCorrectionFailed",
-					Message: `Failed to correct cluster state of release mock-ns/mock-release.v3:
+					Note: `Failed to correct cluster state of release mock-ns/mock-release.v3:
 error 1
 error 2`,
 				},
@@ -276,11 +281,12 @@ error 2`,
 					},
 				},
 			},
-			wantEvent: []corev1.Event{
+			wantEvent: []eventsv1.Event{
 				{
+					Action: eventv1.ActionApplied,
 					Type:   corev1.EventTypeNormal,
 					Reason: "DriftCorrected",
-					Message: `Cluster state of release mock-ns/mock-release.v3 has been corrected:
+					Note: `Cluster state of release mock-ns/mock-release.v3 has been corrected:
 Secret/namespace/name created`,
 				},
 			},
@@ -289,11 +295,12 @@ Secret/namespace/name created`,
 			name: "with single error",
 			obj:  mockObj.DeepCopy(),
 			err:  errors.New("error 1"),
-			wantEvent: []corev1.Event{
+			wantEvent: []eventsv1.Event{
 				{
 					Type:   corev1.EventTypeWarning,
 					Reason: "DriftCorrectionFailed",
-					Message: `Failed to correct cluster state of release mock-ns/mock-release.v3:
+					Action: eventv1.ActionFailed,
+					Note: `Failed to correct cluster state of release mock-ns/mock-release.v3:
 error 1`,
 				},
 			},
@@ -301,7 +308,7 @@ error 1`,
 		{
 			name:      "empty change set",
 			obj:       mockObj.DeepCopy(),
-			wantEvent: []corev1.Event{},
+			wantEvent: []eventsv1.Event{},
 		},
 	}
 
@@ -309,7 +316,7 @@ error 1`,
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			recorder := testutil.NewFakeRecorder(10, false)
+			recorder := events.NewFakeRecorder(10, false)
 			r := &CorrectClusterDrift{
 				eventRecorder: recorder,
 			}

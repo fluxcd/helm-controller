@@ -24,10 +24,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/fluxcd/pkg/chartutil"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -58,13 +58,13 @@ import (
 // e.g. action.VerifySnapshot before calling Reconcile.
 type Install struct {
 	configFactory           *action.ConfigFactory
-	eventRecorder           record.EventRecorder
+	eventRecorder           events.EventRecorder
 	defaultToRetryOnFailure bool
 }
 
 // NewInstall returns a new Install reconciler configured with the provided
 // values.
-func NewInstall(cfg *action.ConfigFactory, recorder record.EventRecorder, defaultToRetryOnFailure bool) *Install {
+func NewInstall(cfg *action.ConfigFactory, recorder events.EventRecorder, defaultToRetryOnFailure bool) *Install {
 	return &Install{configFactory: cfg, eventRecorder: recorder, defaultToRetryOnFailure: defaultToRetryOnFailure}
 }
 
@@ -72,7 +72,7 @@ func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 	var (
 		logBuf      = action.NewDebugLogBuffer(ctx)
 		obsReleases = make(observedReleases)
-		cfg         = r.configFactory.Build(logBuf, observeRelease(obsReleases), observeInventory(req.Object, req.Chart, r.configFactory.Getter, r.eventRecorder))
+		cfg         = r.configFactory.Build(logBuf, observeRelease(obsReleases), observeInventory(req.Object, req.Source, req.Chart, r.configFactory.Getter, r.eventRecorder))
 		startTime   = time.Now()
 	)
 
@@ -161,10 +161,12 @@ func (r *Install) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Condition summary.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
+		req.Source,
 		eventMeta(req.Chart.Metadata.Version, chartutil.DigestValues(digest.Canonical, req.Values).String(),
 			addAppVersion(req.Chart.AppVersion()), addOCIDigest(req.Object.Status.LastAttemptedRevisionDigest)),
 		corev1.EventTypeWarning,
 		v2.InstallFailedReason,
+		string(v2.ReleaseActionInstall),
 		"%s",
 		eventMessageWithLog(msg, buffer),
 	)
@@ -196,9 +198,11 @@ func (r *Install) success(req *Request) {
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
+		req.Source,
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.InstallSucceededReason,
+		string(v2.ReleaseActionInstall),
 		"%s",
 		msg,
 	)

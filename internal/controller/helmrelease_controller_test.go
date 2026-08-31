@@ -39,7 +39,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -52,6 +51,7 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/chartutil"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/patch"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
@@ -106,7 +106,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(dependency, obj).
 				Build(),
-			EventRecorder:             record.NewFakeRecorder(32),
+			EventRecorder:             events.NewFakeRecorder(32, false),
 			DependencyRequeueInterval: 5 * time.Second,
 		}
 		r.APIReader = r.Client
@@ -171,7 +171,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(obj).
 				Build(),
-			EventRecorder: record.NewFakeRecorder(32),
+			EventRecorder: events.NewFakeRecorder(32, false),
 		}
 		r.APIReader = r.Client
 
@@ -347,7 +347,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(chart, obj).
 				Build(),
-			EventRecorder: record.NewFakeRecorder(32),
+			EventRecorder: events.NewFakeRecorder(32, false),
 		}
 		r.APIReader = r.Client
 
@@ -468,7 +468,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Client:           c,
 			APIReader:        c,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj, nil)
@@ -565,7 +565,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		r := &HelmReleaseReconciler{
 			Client:           c,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		//Store the Helm release mock in the test namespace.
@@ -667,7 +667,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		r := &HelmReleaseReconciler{
 			Client:           c,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		//Store the Helm release mock in the test namespace.
@@ -752,7 +752,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Client:           c,
 			APIReader:        c,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj, nil)
@@ -825,7 +825,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Client:           c,
 			APIReader:        c,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj, nil)
@@ -913,7 +913,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Client:           c,
 			APIReader:        c,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, c), obj, nil)
@@ -1003,7 +1003,7 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 			Client:           c,
 			APIReader:        c,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 			FieldManager:     "test",
 		}
 
@@ -1119,7 +1119,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(obj).
 				Build(),
-			EventRecorder: record.NewFakeRecorder(32),
+			EventRecorder: events.NewFakeRecorder(32, false),
 		}
 
 		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
@@ -1154,7 +1154,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(obj).
 				Build(),
-			EventRecorder: record.NewFakeRecorder(32),
+			EventRecorder: events.NewFakeRecorder(32, false),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
@@ -1272,7 +1272,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 				WithObjects(chart, obj).
 				Build(),
 			DependencyRequeueInterval: 10 * time.Second,
-			EventRecorder:             record.NewFakeRecorder(32),
+			EventRecorder:             events.NewFakeRecorder(32, false),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
@@ -1352,7 +1352,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 				WithObjects(chart, sharedChart, obj).
 				Build(),
 			DependencyRequeueInterval: 10 * time.Second,
-			EventRecorder:             record.NewFakeRecorder(32),
+			EventRecorder:             events.NewFakeRecorder(32, false),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
@@ -1479,7 +1479,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		r := &HelmReleaseReconciler{
 			Client:           c,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		//Store the Helm release mock in the test namespace.
@@ -1586,7 +1586,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(obj).
 				Build(),
-			EventRecorder: record.NewFakeRecorder(32),
+			EventRecorder: events.NewFakeRecorder(32, false),
 		}
 
 		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
@@ -1621,7 +1621,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(obj).
 				Build(),
-			EventRecorder: record.NewFakeRecorder(32),
+			EventRecorder: events.NewFakeRecorder(32, false),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
@@ -1742,7 +1742,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				WithStatusSubresource(&v2.HelmRelease{}).
 				WithObjects(ocirepo, obj).
 				Build(),
-			EventRecorder: record.NewFakeRecorder(32),
+			EventRecorder: events.NewFakeRecorder(32, false),
 		}
 
 		_, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
@@ -1801,7 +1801,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				WithObjects(ocirepo, obj).
 				Build(),
 			DependencyRequeueInterval: 10 * time.Second,
-			EventRecorder:             record.NewFakeRecorder(32),
+			EventRecorder:             events.NewFakeRecorder(32, false),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
@@ -1881,7 +1881,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				WithObjects(chart, ocirepo, obj).
 				Build(),
 			DependencyRequeueInterval: 10 * time.Second,
-			EventRecorder:             record.NewFakeRecorder(32),
+			EventRecorder:             events.NewFakeRecorder(32, false),
 		}
 
 		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
@@ -1945,7 +1945,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				WithObjects(ocirepo, obj).
 				Build(),
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
@@ -2039,7 +2039,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		r := &HelmReleaseReconciler{
 			Client:           c,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
@@ -2136,7 +2136,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		r := &HelmReleaseReconciler{
 			Client:           c,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
@@ -2213,7 +2213,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		r := &HelmReleaseReconciler{
 			Client:           c,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		_, err = r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
@@ -2332,7 +2332,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		r := &HelmReleaseReconciler{
 			Client:           c,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		// Store the Helm release mock in the test namespace.
@@ -2427,7 +2427,7 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 			Client:           testEnv.Client,
 			APIReader:        testEnv.Client,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		// Store the Helm release mock in the test namespace.
@@ -2538,7 +2538,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 			Client:           testEnv.Client,
 			APIReader:        testEnv.Client,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		// Store the Helm release mock in the test namespace.
@@ -2787,7 +2787,7 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 					Host: "https://failing-mock.local",
 				}, nil
 			},
-			EventRecorder: record.NewFakeRecorder(32),
+			EventRecorder: events.NewFakeRecorder(32, false),
 		}
 
 		obj := &v2.HelmRelease{
@@ -2877,7 +2877,7 @@ func TestHelmReleaseReconciler_reconcileChartTemplate(t *testing.T) {
 
 		r := &HelmReleaseReconciler{
 			Client:        fake.NewClientBuilder().WithScheme(NewTestScheme()).Build(),
-			EventRecorder: record.NewFakeRecorder(32),
+			EventRecorder: events.NewFakeRecorder(32, false),
 		}
 
 		obj := &v2.HelmRelease{
@@ -2909,7 +2909,7 @@ func TestHelmReleaseReconciler_reconcileUninstall(t *testing.T) {
 		}
 
 		// We do not care about the result of the uninstall, only that it was attempted.
-		err := (&HelmReleaseReconciler{}).reconcileUninstall(context.TODO(), getter, obj)
+		err := (&HelmReleaseReconciler{}).reconcileUninstall(context.TODO(), getter, obj, nil)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(errors.Is(err, intreconcile.ErrNoLatest)).To(BeTrue())
 	})
@@ -2923,7 +2923,7 @@ func TestHelmReleaseReconciler_reconcileUninstall(t *testing.T) {
 			},
 		}
 
-		err := (&HelmReleaseReconciler{}).reconcileUninstall(context.TODO(), nil, obj)
+		err := (&HelmReleaseReconciler{}).reconcileUninstall(context.TODO(), nil, obj, nil)
 		g.Expect(err).To(HaveOccurred())
 
 		g.Expect(conditions.IsFalse(obj, meta.ReadyCondition)).To(BeTrue())
@@ -2973,7 +2973,7 @@ func TestHelmReleaseReconciler_reconcileUninstall(t *testing.T) {
 			Client:           testEnv.Client,
 			APIReader:        testEnv.Client,
 			GetClusterConfig: GetTestClusterConfig,
-			EventRecorder:    record.NewFakeRecorder(32),
+			EventRecorder:    events.NewFakeRecorder(32, false),
 		}
 
 		// Store the Helm release mock in the test namespace.
@@ -2986,7 +2986,7 @@ func TestHelmReleaseReconciler_reconcileUninstall(t *testing.T) {
 		store := helmstorage.Init(cfg.Driver)
 		g.Expect(store.Create(rls)).To(Succeed())
 
-		err = r.reconcileUninstall(context.TODO(), getter, obj)
+		err = r.reconcileUninstall(context.TODO(), getter, obj, nil)
 		g.Expect(err).To(HaveOccurred())
 
 		// Verify status of Helm release has not been updated.
@@ -3613,7 +3613,7 @@ func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
 
 			r := &HelmReleaseReconciler{
 				Client:        c.Build(),
-				EventRecorder: record.NewFakeRecorder(32),
+				EventRecorder: events.NewFakeRecorder(32, false),
 			}
 
 			curAllow := intacl.AllowCrossNamespaceRef
@@ -3732,7 +3732,7 @@ func TestHelmReleaseReconciler_getSourceFromOCIRef_DirectSourceFetch(t *testing.
 				Client:            fakeClient,
 				APIReader:         fakeAPIReader,
 				DirectSourceFetch: tt.directSourceFetch,
-				EventRecorder:     record.NewFakeRecorder(32),
+				EventRecorder:     events.NewFakeRecorder(32, false),
 			}
 
 			rel := &v2.HelmRelease{

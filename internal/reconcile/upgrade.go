@@ -24,10 +24,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/fluxcd/pkg/chartutil"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -54,13 +54,13 @@ import (
 // e.g. action.VerifySnapshot before calling Reconcile.
 type Upgrade struct {
 	configFactory           *action.ConfigFactory
-	eventRecorder           record.EventRecorder
+	eventRecorder           events.EventRecorder
 	defaultToRetryOnFailure bool
 }
 
 // NewUpgrade returns a new Upgrade reconciler configured with the provided
 // values.
-func NewUpgrade(cfg *action.ConfigFactory, recorder record.EventRecorder, defaultToRetryOnFailure bool) *Upgrade {
+func NewUpgrade(cfg *action.ConfigFactory, recorder events.EventRecorder, defaultToRetryOnFailure bool) *Upgrade {
 	return &Upgrade{configFactory: cfg, eventRecorder: recorder, defaultToRetryOnFailure: defaultToRetryOnFailure}
 }
 
@@ -68,7 +68,7 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	var (
 		logBuf      = action.NewDebugLogBuffer(ctx)
 		obsReleases = make(observedReleases)
-		cfg         = r.configFactory.Build(logBuf, observeRelease(obsReleases), observeInventory(req.Object, req.Chart, r.configFactory.Getter, r.eventRecorder))
+		cfg         = r.configFactory.Build(logBuf, observeRelease(obsReleases), observeInventory(req.Object, req.Source, req.Chart, r.configFactory.Getter, r.eventRecorder))
 		startTime   = time.Now()
 	)
 
@@ -151,10 +151,12 @@ func (r *Upgrade) failure(req *Request, buffer *action.LogBuffer, err error) {
 	// Condition summary.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
+		req.Source,
 		eventMeta(req.Chart.Metadata.Version, chartutil.DigestValues(digest.Canonical, req.Values).String(),
 			addAppVersion(req.Chart.AppVersion()), addOCIDigest(req.Object.Status.LastAttemptedRevisionDigest)),
 		corev1.EventTypeWarning,
 		v2.UpgradeFailedReason,
+		string(v2.ReleaseActionUpgrade),
 		"%s",
 		eventMessageWithLog(msg, buffer),
 	)
@@ -186,9 +188,11 @@ func (r *Upgrade) success(req *Request) {
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
+		req.Source,
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.UpgradeSucceededReason,
+		string(v2.ReleaseActionUpgrade),
 		"%s",
 		msg,
 	)

@@ -22,10 +22,11 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/client-go/tools/record"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/ssa"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
 
@@ -44,12 +45,12 @@ import (
 // whether the cluster state was successfully corrected or not.
 type CorrectClusterDrift struct {
 	configFactory *action.ConfigFactory
-	eventRecorder record.EventRecorder
+	eventRecorder events.EventRecorder
 	diff          jsondiff.DiffSet
 	fieldManager  string
 }
 
-func NewCorrectClusterDrift(configFactory *action.ConfigFactory, recorder record.EventRecorder, diff jsondiff.DiffSet, fieldManager string) *CorrectClusterDrift {
+func NewCorrectClusterDrift(configFactory *action.ConfigFactory, recorder events.EventRecorder, diff jsondiff.DiffSet, fieldManager string) *CorrectClusterDrift {
 	return &CorrectClusterDrift{
 		configFactory: configFactory,
 		eventRecorder: recorder,
@@ -104,13 +105,13 @@ func (r *CorrectClusterDrift) report(obj *v2.HelmRelease, changeSet *ssa.ChangeS
 			sb.WriteString(changeSet.String())
 		}
 
-		r.eventRecorder.AnnotatedEventf(obj, eventMeta(cur.ChartVersion, cur.ConfigDigest,
+		r.eventRecorder.AnnotatedEventf(obj, nil, eventMeta(cur.ChartVersion, cur.ConfigDigest,
 			addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)), corev1.EventTypeWarning,
-			"DriftCorrectionFailed", "%s", sb.String())
+			"DriftCorrectionFailed", eventv1.ActionFailed, "%s", sb.String())
 	case changeSet != nil && len(changeSet.Entries) > 0:
-		r.eventRecorder.AnnotatedEventf(obj, eventMeta(cur.ChartVersion, cur.ConfigDigest,
+		r.eventRecorder.AnnotatedEventf(obj, nil, eventMeta(cur.ChartVersion, cur.ConfigDigest,
 			addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)), corev1.EventTypeNormal,
-			"DriftCorrected", "Cluster state of release %s has been corrected:\n%s",
+			"DriftCorrected", eventv1.ActionApplied, "Cluster state of release %s has been corrected:\n%s",
 			obj.Status.History.Latest().FullReleaseName(), changeSet.String())
 	}
 }
