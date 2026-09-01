@@ -372,6 +372,22 @@ func (r *AtomicRelease) actionForState(ctx context.Context, req *Request, state 
 				reason, msgFmt = v2.InstallSucceededReason, fmtInstallSuccess
 			case v2.UpgradeFailedReason:
 				reason, msgFmt = v2.UpgradeSucceededReason, fmtUpgradeSuccess
+			default:
+				// Released may be missing after a failed post-action
+				// condition patch while history was persisted. Derive
+				// the success reason from the last attempted action.
+				action := req.Object.Status.LastAttemptedReleaseAction
+				if action == "" {
+					if cur := req.Object.Status.History.Latest(); cur != nil {
+						action = cur.Action
+					}
+				}
+				switch action {
+				case v2.ReleaseActionInstall:
+					reason, msgFmt = v2.InstallSucceededReason, fmtInstallSuccess
+				case v2.ReleaseActionUpgrade:
+					reason, msgFmt = v2.UpgradeSucceededReason, fmtUpgradeSuccess
+				}
 			}
 			if reason != "" {
 				cur := req.Object.Status.History.Latest()
