@@ -1575,6 +1575,65 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			},
 		},
 		{
+			name: "in-sync release with missing released condition after install",
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{Version: 1},
+					},
+					LastAttemptedReleaseAction: v2.ReleaseActionInstall,
+					Conditions: []metav1.Condition{
+						*conditions.UnknownCondition(meta.ReadyCondition, meta.ProgressingReason, "Running 'install' action"),
+					},
+				}
+			},
+			state: ReleaseState{Status: ReleaseStatusInSync},
+			want:  nil,
+			assertConditions: []metav1.Condition{
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason, "install succeeded"),
+				*conditions.TrueCondition(meta.ReadyCondition, v2.InstallSucceededReason, "install succeeded"),
+			},
+		},
+		{
+			name: "in-sync release with missing released condition after upgrade",
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{Version: 2},
+					},
+					LastAttemptedReleaseAction: v2.ReleaseActionUpgrade,
+					Conditions: []metav1.Condition{
+						*conditions.UnknownCondition(meta.ReadyCondition, meta.ProgressingReason, "Running 'upgrade' action"),
+					},
+				}
+			},
+			state: ReleaseState{Status: ReleaseStatusInSync},
+			want:  nil,
+			assertConditions: []metav1.Condition{
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "upgrade succeeded"),
+				*conditions.TrueCondition(meta.ReadyCondition, v2.UpgradeSucceededReason, "upgrade succeeded"),
+			},
+		},
+		{
+			name: "in-sync release with missing released condition recovers from history action",
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						{Version: 1, Action: v2.ReleaseActionInstall},
+					},
+					Conditions: []metav1.Condition{
+						*conditions.UnknownCondition(meta.ReadyCondition, meta.ProgressingReason, "Running 'install' action"),
+					},
+				}
+			},
+			state: ReleaseState{Status: ReleaseStatusInSync},
+			want:  nil,
+			assertConditions: []metav1.Condition{
+				*conditions.TrueCondition(v2.ReleasedCondition, v2.InstallSucceededReason, "install succeeded"),
+				*conditions.TrueCondition(meta.ReadyCondition, v2.InstallSucceededReason, "install succeeded"),
+			},
+		},
+		{
 			name:  "locked release triggers unlock action",
 			state: ReleaseState{Status: ReleaseStatusLocked},
 			want:  &Unlock{},
