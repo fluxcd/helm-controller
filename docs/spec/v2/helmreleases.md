@@ -653,7 +653,7 @@ The field offers the following subfields:
   operation (like Jobs for hooks) during the upgrade of the release.
   Defaults to the [global timeout value](#timeout).
 - `.crds` (Optional): The Custom Resource Definition upgrade policy to use.
-  Valid values are `Skip`, `Create` and `CreateReplace`. Default is `Skip`.
+  Valid values are `Skip`, `Create` and `CreateReplace`. Default is `Create`.
   Refer to [Custom Resource Definition lifecycle](#controlling-the-lifecycle-of-custom-resource-definitions)
   for more information.
 - `.chartNameChangeStrategy` (Optional): defines the strategy to use when a Helm chart name changes.
@@ -1387,10 +1387,10 @@ and [`.spec.upgrade`](#upgrade-configuration) configurations.
 
 The following policy values are supported:
 
-- `Skip`: Skip the installation or upgrade of CRDs. This is the default value
-  for `.spec.upgrade.crds`.
+- `Skip`: Skip the installation or upgrade of CRDs.
 - `Create`: Create CRDs if they do not exist, but do not upgrade or delete them.
-  This is the default value for `.spec.install.crds`.
+  This is the default value for both `.spec.install.crds` and
+  `.spec.upgrade.crds`.
 - `CreateReplace`: Create new CRDs, update (replace) existing ones, but **do
   not** delete CRDs which no longer exist in the current Helm chart.
 
