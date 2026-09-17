@@ -321,8 +321,8 @@ func main() {
 	probes.SetupChecks(mgr, setupLog)
 
 	metricsH := helper.NewMetrics(mgr, metrics.MustMakeRecorder(), v2.HelmReleaseFinalizer)
-	var eventRecorder *events.Recorder
-	if eventRecorder, err = events.NewRecorder(mgr, ctrl.Log, eventsAddr, controllerName); err != nil {
+	eventRecorder, err := events.NewRecorder(ctrl.Log, eventsAddr, controllerName, events.WithManager(mgr))
+	if err != nil {
 		setupLog.Error(err, "unable to create event recorder")
 		os.Exit(1)
 	}
@@ -382,7 +382,7 @@ func main() {
 	if err = (&controller.HelmReleaseReconciler{
 		Client:                     mgr.GetClient(),
 		APIReader:                  mgr.GetAPIReader(),
-		EventRecorder:              eventRecorder,
+		Recorder:                   eventRecorder,
 		Metrics:                    metricsH,
 		GetClusterConfig:           ctrl.GetConfig,
 		ClientOpts:                 clientOptions,

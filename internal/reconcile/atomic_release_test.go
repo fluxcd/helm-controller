@@ -31,14 +31,16 @@ import (
 	helmstorage "helm.sh/helm/v4/pkg/storage"
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
 
@@ -171,7 +173,7 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 			WithStatusSubresource(&v2.HelmRelease{}).
 			Build()
 		patchHelper := patch.NewSerialPatcher(obj, client)
-		recorder := new(record.FakeRecorder)
+		recorder := new(events.FakeRecorder)
 
 		req := &Request{
 			Object: obj,
@@ -1222,7 +1224,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				Build()
 			patchHelper := patch.NewSerialPatcher(obj, client)
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 
 			req := &Request{
 				Object: obj,
@@ -1454,7 +1456,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				Build()
 			patchHelper := patch.NewSerialPatcher(obj, client)
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 
 			req := &Request{
 				Object: obj,
@@ -1483,7 +1485,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 		status           func(releases []*helmrelease.Release) v2.HelmReleaseStatus
 		state            ReleaseState
 		want             ActionReconciler
-		wantEvent        *corev1.Event
+		wantEvent        *eventsv1.Event
 		wantErr          error
 		assertConditions []metav1.Condition
 	}{
@@ -1706,10 +1708,11 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 				}
 			},
 			want: &CorrectClusterDrift{},
-			wantEvent: &corev1.Event{
-				Reason: "DriftDetected",
+			wantEvent: &eventsv1.Event{
+				Reason: v2.DriftDetectedReason,
 				Type:   corev1.EventTypeWarning,
-				Message: fmt.Sprintf(
+				Action: eventv1.ActionReconciling,
+				Note: fmt.Sprintf(
 					"Cluster state of release %s has drifted from the desired state:\n%s",
 					mockReleaseNamespace+"/"+mockReleaseName+".v1",
 					"Deployment/something/mock removed",
@@ -1778,10 +1781,11 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			}},
 			want:    nil,
 			wantErr: nil,
-			wantEvent: &corev1.Event{
-				Reason: "DriftDetected",
+			wantEvent: &eventsv1.Event{
+				Reason: v2.DriftDetectedReason,
 				Type:   corev1.EventTypeWarning,
-				Message: fmt.Sprintf(
+				Action: eventv1.ActionReconciling,
+				Note: fmt.Sprintf(
 					"Cluster state of release %s has drifted from the desired state:\n%s",
 					mockReleaseNamespace+"/"+mockReleaseName+".v1",
 					"Deployment/something/mock changed (0 additions, 1 changes, 0 removals)",
@@ -2152,7 +2156,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 				}
 			}
 
-			recorder := testutil.NewFakeRecorder(1, false)
+			recorder := events.NewFakeRecorder(1, false)
 			r := &AtomicRelease{configFactory: cfg, eventRecorder: recorder}
 			got, err := r.actionForState(context.TODO(), &Request{Object: obj}, tt.state)
 
@@ -2170,7 +2174,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			g.Expect(got).To(want)
 
 			if tt.wantEvent != nil {
-				g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{*tt.wantEvent}))
+				g.Expect(recorder.GetEvents()).To(ConsistOf([]eventsv1.Event{*tt.wantEvent}))
 			} else {
 				g.Expect(recorder.GetEvents()).To(BeEmpty())
 			}
@@ -2501,7 +2505,7 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				Build()
 			patchHelper := patch.NewSerialPatcher(obj, client)
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 
 			req := &Request{
 				Object: obj,
