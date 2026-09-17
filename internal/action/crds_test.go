@@ -19,9 +19,11 @@ package action
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path"
 	"strings"
 	"sync"
 	"testing"
@@ -75,6 +77,10 @@ spec:
 type stubKubeClient struct {
 	*helmkubefake.PrintingKubeClient
 
+	// client is attached to the Infos returned by Build, mirroring how the
+	// real Helm kube client populates resource.Info.Client.
+	client resource.RESTClient
+
 	createCalls []helmkube.ResourceList
 	updateCalls []struct {
 		Original, Target helmkube.ResourceList
@@ -99,6 +105,7 @@ func (c *stubKubeClient) Build(r io.Reader, _ bool) (helmkube.ResourceList, erro
 		Name:      u.GetName(),
 		Namespace: u.GetNamespace(),
 		Object:    u,
+		Client:    c.client,
 		Mapping: &apimeta.RESTMapping{
 			GroupVersionKind: gvk,
 			Resource: schema.GroupVersionResource{
@@ -143,29 +150,48 @@ func testChart() *helmchart.Chart {
 	}
 }
 
-// fakeAPIServer records every GET path it sees and always responds 404, so
+// fakeAPIServer records every GET path it sees and responds 404 by default, so
 // that any apiextensions client.Get() call surfaces as IsNotFound but is also
-// captured for assertion.
+// captured for assertion. CRDs registered through AddCRD respond 200 instead.
 type fakeAPIServer struct {
 	server *httptest.Server
 
-	mu       sync.Mutex
-	getPaths []string
+	mu           sync.Mutex
+	getPaths     []string
+	existingCRDs map[string]bool
 }
 
 func newFakeAPIServer(t *testing.T) *fakeAPIServer {
 	t.Helper()
-	f := &fakeAPIServer{}
+	f := &fakeAPIServer{existingCRDs: make(map[string]bool)}
 	f.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
+			name := path.Base(r.URL.Path)
 			f.mu.Lock()
 			f.getPaths = append(f.getPaths, r.URL.Path)
+			exists := f.existingCRDs[name]
 			f.mu.Unlock()
+			if exists {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, _ = fmt.Fprintf(w,
+					`{"apiVersion":"apiextensions.k8s.io/v1","kind":"CustomResourceDefinition","metadata":{"name":%q}}`,
+					name)
+				return
+			}
 		}
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	t.Cleanup(f.server.Close)
 	return f
+}
+
+// AddCRD marks the named CustomResourceDefinition as existing, making GET
+// requests for it return 200 instead of 404.
+func (f *fakeAPIServer) AddCRD(name string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.existingCRDs[name] = true
 }
 
 func (f *fakeAPIServer) GetPaths() []string {
@@ -197,7 +223,25 @@ func newTestCfg(t *testing.T) (context.Context, *helmaction.Configuration, *stub
 	t.Helper()
 	api := newFakeAPIServer(t)
 	getter := kube.NewMemoryRESTClientGetter(&rest.Config{Host: api.server.URL})
+
+	// Build a REST client for the CRD API group the same way the real Helm
+	// kube client does, so that resource.Info.Get() works against the fake
+	// apiserver.
+	restCfg, err := getter.ToRESTConfig()
+	if err != nil {
+		t.Fatalf("failed to get REST config: %v", err)
+	}
+	restCfg = rest.CopyConfig(restCfg)
+	restCfg.ContentConfig = resource.UnstructuredPlusDefaultContentConfig()
+	restCfg.GroupVersion = &schema.GroupVersion{Group: "apiextensions.k8s.io", Version: "v1"}
+	restCfg.APIPath = "/apis"
+	restClient, err := rest.RESTClientFor(restCfg)
+	if err != nil {
+		t.Fatalf("failed to create REST client: %v", err)
+	}
+
 	kc := &stubKubeClient{
+		client: restClient,
 		PrintingKubeClient: &helmkubefake.PrintingKubeClient{
 			Out:       io.Discard,
 			LogOutput: io.Discard,
@@ -237,8 +281,45 @@ func Test_applyCRDs_CreateFiltersNonCRDsAndWarns(t *testing.T) {
 		"Create policy must emit the non-CRD warning too")
 	g.Expect(logOut).To(ContainSubstring(expectedNonCRDJSON))
 
-	// And the apiextensions Get() path is not exercised at all by Create.
+	// With server-side apply the CRD is looked up first, so an existing CRD
+	// can be skipped instead of upserted.
+	g.Expect(api.GetPaths()).To(HaveLen(1))
+	g.Expect(api.GetPaths()[0]).To(ContainSubstring("foos.example.com"))
+}
+
+// With the Create policy and server-side apply, an already existing CRD must
+// not be re-applied: the existence check turns it into the same skip that
+// client-side apply gets from the apiserver's AlreadyExists error.
+func Test_applyCRDs_CreateSSASkipsExistingCRDs(t *testing.T) {
+	g := NewWithT(t)
+
+	ctx, cfg, kc, api, _ := newTestCfg(t)
+	api.AddCRD("foos.example.com")
+
+	err := applyCRDs(ctx, cfg, v2.Create, testChart(), nil, true, helmkube.StatusWatcherStrategy, nil)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// The CRD was looked up via apiextensions...
+	g.Expect(api.GetPaths()).To(HaveLen(1))
+	g.Expect(api.GetPaths()[0]).To(ContainSubstring("foos.example.com"))
+
+	// ...found to exist, and therefore never applied.
+	g.Expect(kc.createCalls).To(BeEmpty())
+}
+
+// Client-side apply relies on the apiserver to reject existing CRDs with an
+// AlreadyExists error, so the pre-apply existence check must not run.
+func Test_applyCRDs_CreateCSADoesNotLookUpCRDs(t *testing.T) {
+	g := NewWithT(t)
+
+	ctx, cfg, kc, api, _ := newTestCfg(t)
+	api.AddCRD("foos.example.com")
+
+	err := applyCRDs(ctx, cfg, v2.Create, testChart(), nil, false, helmkube.StatusWatcherStrategy, nil)
+	g.Expect(err).ToNot(HaveOccurred())
+
 	g.Expect(api.GetPaths()).To(BeEmpty())
+	g.Expect(kc.createCalls).To(HaveLen(1))
 }
 
 // With CreateReplace, the structurally CRD-only path must reject non-CRDs

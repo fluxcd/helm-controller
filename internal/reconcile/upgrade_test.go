@@ -33,6 +33,7 @@ import (
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -644,13 +645,18 @@ func TestUpgrade_Reconcile_withSubchartWithCRDs(t *testing.T) {
 				g.Expect(store.Create(r)).To(Succeed())
 			}
 
-			// Delete any prior CRD.
+			// Delete any prior CRD and wait for it to be gone, as CRD
+			// deletion is asynchronous and the upgrade must not observe a
+			// terminating CRD (the Create policy skips existing CRDs).
 			subChartCRD := &apiextensionsv1.CustomResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "crontabs.stable.example.com",
 				},
 			}
 			_ = testEnv.Delete(context.TODO(), subChartCRD)
+			g.Eventually(func() bool {
+				return apierrors.IsNotFound(testEnv.Get(context.TODO(), client.ObjectKeyFromObject(subChartCRD), subChartCRD))
+			}, time.Minute).Should(BeTrue(), "timed out waiting for CRD to be deleted")
 
 			chart := testutil.BuildChartWithSubchartWithCRD()
 			recorder := new(record.FakeRecorder)
