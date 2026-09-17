@@ -146,24 +146,46 @@ func applyCRDs(ctx context.Context, cfg *helmaction.Configuration, policy v2.CRD
 	switch policy {
 	case v2.Create:
 		for i := range allCRDs {
-			if rr, err := cfg.KubeClient.Create(allCRDs[i:i+1],
-				helmkube.ClientCreateOptionServerSideApply(serverSideApply, forceConflicts)); err != nil {
-				crdName := allCRDs[i].Name
+			crdName := allCRDs[i].Name
+
+			var rr *helmkube.Result
+			var err error
+
+			// Server-side apply has upsert semantics, which would update an
+			// existing CRD even though the Create policy must leave it alone.
+			// Surface the same AlreadyExists error a client-side create
+			// returns, so the shared skip branch below handles both alike.
+			if serverSideApply {
+				if getErr := allCRDs[i].Get(); getErr == nil {
+					err = apierrors.NewAlreadyExists(schema.GroupResource{
+						Group:    "apiextensions.k8s.io",
+						Resource: "customresourcedefinitions",
+					}, crdName)
+				} else if !apierrors.IsNotFound(getErr) {
+					err = fmt.Errorf("failed to get CustomResourceDefinition %s: %w", crdName, getErr)
+					l.Error(err.Error())
+					return err
+				}
+			}
+
+			if err == nil {
+				rr, err = cfg.KubeClient.Create(allCRDs[i:i+1],
+					helmkube.ClientCreateOptionServerSideApply(serverSideApply, forceConflicts))
+			}
+
+			if err != nil {
 				// If the CustomResourceDefinition already exists, we skip it.
 				if apierrors.IsAlreadyExists(err) {
 					l.Info(fmt.Sprintf("CustomResourceDefinition %s is already present. Skipping.", crdName))
-					if rr != nil && rr.Created != nil {
-						totalItems = append(totalItems, rr.Created...)
-					}
 					continue
 				}
 				err = fmt.Errorf("failed to create CustomResourceDefinition %s: %w", crdName, err)
 				l.Error(err.Error())
 				return err
-			} else {
-				if rr != nil && rr.Created != nil {
-					totalItems = append(totalItems, rr.Created...)
-				}
+			}
+
+			if rr != nil && rr.Created != nil {
+				totalItems = append(totalItems, rr.Created...)
 			}
 		}
 	case v2.CreateReplace:
