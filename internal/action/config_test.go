@@ -18,6 +18,7 @@ package action
 
 import (
 	"errors"
+	"io"
 	"log/slog"
 	"testing"
 
@@ -256,6 +257,15 @@ func TestConfigFactory_Build(t *testing.T) {
 		g.Expect(cfg).To(Not(BeNil()))
 		g.Expect(cfg.Releases).ToNot(BeNil())
 		g.Expect(cfg.Releases.Driver).To(BeAssignableToTypeOf(&storage.Observer{}))
+	})
+
+	t.Run("sets a non-nil HookOutputFunc", func(t *testing.T) {
+		g := NewWithT(t)
+
+		cfg := (&ConfigFactory{}).Build(nil)
+
+		g.Expect(cfg.HookOutputFunc).ToNot(BeNil())
+		g.Expect(cfg.HookOutputFunc("ns", "pod", "container")).To(Equal(io.Discard))
 	})
 }
 

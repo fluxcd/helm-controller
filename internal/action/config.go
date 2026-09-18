@@ -19,6 +19,7 @@ package action
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 
 	helmaction "helm.sh/helm/v4/pkg/action"
@@ -183,6 +184,10 @@ func (c *ConfigFactory) Build(log slog.Handler, observers ...storage.ObserveFunc
 	conf.RESTClientGetter = c.Getter
 	conf.Releases = c.NewStorage(observers...)
 	conf.KubeClient = client
+	// Helm's own CLI initialization defaults HookOutputFunc to io.Discard, but
+	// helmaction.NewConfiguration does not. Without it, hooks annotated with
+	// helm.sh/hook-output-log-policy make Helm panic on a nil HookOutputFunc.
+	conf.HookOutputFunc = func(_, _, _ string) io.Writer { return io.Discard }
 	return conf
 }
 
