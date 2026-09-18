@@ -288,6 +288,13 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 
 		msg := fmt.Sprintf("could not get Source object: %s", err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "%s", msg)
+
+		if apierrors.IsNotFound(err) {
+			// Exponential backoff would cause execution to be prolonged too much,
+			// instead we requeue on a fixed interval.
+			log.Info(fmt.Sprintf("%s: retrying in %s", msg, r.DependencyRequeueInterval.String()))
+			return ctrl.Result{RequeueAfter: r.DependencyRequeueInterval}, errWaitForDependency
+		}
 		return ctrl.Result{}, err
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.
@@ -318,6 +325,13 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, "ValuesError", "%s", err)
 		r.Eventf(obj, corev1.EventTypeWarning, "ValuesError", "%s", err.Error())
+
+		if errors.Is(err, chartutil.ErrResourceNotFound) {
+			// Exponential backoff would cause execution to be prolonged too much,
+			// instead we requeue on a fixed interval.
+			log.Info(fmt.Sprintf("%s: retrying in %s", err.Error(), r.DependencyRequeueInterval.String()))
+			return ctrl.Result{RequeueAfter: r.DependencyRequeueInterval}, errWaitForDependency
+		}
 		return ctrl.Result{}, err
 	}
 	// Remove any stale corresponding Ready=False condition with Unknown.
