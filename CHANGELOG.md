@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.6.5
+
+**Release date:** 2026-10-01
+
+This patch release stops chart CRDs from being reapplied on every upgrade when
+server-side apply is enabled (the default): the default `Create` policy is meant to
+leave existing CRDs alone, but SSA's upsert semantics were updating them anyway, and
+they are now skipped as with client-side apply. It also recovers HelmReleases
+stranded with a drifted `Ready=Unknown` condition after a failed status patch, keeps
+HelmChart cleanup from getting stuck when the chart is already gone, and corrects the
+documented default CRD upgrade policy (`.spec.upgrade.crds` defaults to `Create`,
+not `Skip`).
+
+Fixes:
+- Fix updating CRDs on upgrades with the Create policy when using SSA
+  [#1589](https://github.com/fluxcd/helm-controller/pull/1589)
+- Recover from drifted Ready/Released status conditions
+  [#1580](https://github.com/fluxcd/helm-controller/pull/1580)
+- Ignore NotFound when deleting HelmChart
+  [#1574](https://github.com/fluxcd/helm-controller/pull/1574)
+
 ## 1.6.4
 
 **Release date:** 2026-08-31
