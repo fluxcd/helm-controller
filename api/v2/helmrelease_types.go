@@ -287,6 +287,17 @@ var (
 	// detect or respond to differences between the manifest in the Helm
 	// storage and the resources currently existing in the cluster.
 	DriftDetectionDisabled DriftDetectionMode = "disabled"
+
+	// DriftDetectionEnabledWithRender instructs the controller to, in
+	// addition to DriftDetectionEnabled, perform a live re-render of the
+	// chart (evaluating e.g. the Helm `lookup` function against the
+	// current cluster state) on every reconciliation, and to trigger a
+	// Helm upgrade if the resulting manifest differs from the manifest
+	// observed at the most recent release action.
+	//
+	// PROOF OF CONCEPT: this mode exists to size the change, see
+	// https://github.com/fluxcd/helm-controller/issues/1583.
+	DriftDetectionEnabledWithRender DriftDetectionMode = "enabledWithRender"
 )
 
 var (
@@ -321,7 +332,7 @@ type DriftDetection struct {
 	// Mode defines how differences should be handled between the Helm manifest
 	// and the manifest currently applied to the cluster.
 	// If not explicitly set, it defaults to DiffModeDisabled.
-	// +kubebuilder:validation:Enum=enabled;warn;disabled
+	// +kubebuilder:validation:Enum=enabled;warn;disabled;enabledWithRender
 	// +optional
 	Mode DriftDetectionMode `json:"mode,omitempty"`
 
@@ -344,6 +355,13 @@ func (d DriftDetection) GetMode() DriftDetectionMode {
 // DiffModeWarn.
 func (d DriftDetection) MustDetectChanges() bool {
 	return d.GetMode() == DriftDetectionEnabled || d.GetMode() == DriftDetectionWarn
+}
+
+// MustRenderForDrift returns true if the DriftDetectionMode requires a live
+// re-render of the chart to detect drift, in addition to comparing the Helm
+// storage manifest against the cluster state.
+func (d DriftDetection) MustRenderForDrift() bool {
+	return d.GetMode() == DriftDetectionEnabledWithRender
 }
 
 // HelmChartTemplate defines the template from which the controller will
@@ -1297,6 +1315,18 @@ type HelmReleaseStatus struct {
 	// the last successful reconciliation attempt.
 	// +optional
 	ObservedCommonMetadataDigest string `json:"observedCommonMetadataDigest,omitempty"`
+
+	// ObservedTemplateDigest is the digest of the manifest produced by the
+	// most recent Helm install or upgrade action. When
+	// spec.driftDetection.mode is set to DriftDetectionEnabledWithRender,
+	// it is compared against a live re-render of the chart on every
+	// reconciliation to detect changes that do not result in a change of
+	// Generation, such as those produced by the Helm `lookup` function.
+	//
+	// PROOF OF CONCEPT: added to size
+	// https://github.com/fluxcd/helm-controller/issues/1583.
+	// +optional
+	ObservedTemplateDigest string `json:"observedTemplateDigest,omitempty"`
 
 	// LastAttemptedGeneration is the last generation the controller attempted
 	// to reconcile.
