@@ -235,6 +235,8 @@ func main() {
 		disableCacheFor = append(disableCacheFor, &corev1.Secret{}, &corev1.ConfigMap{})
 	}
 
+	disableCacheFor = append(disableCacheFor, &corev1.ServiceAccount{})
+
 	leaderElectionId := fmt.Sprintf("%s-%s", controllerName, "leader-election")
 	if watchOptions.LabelSelector != "" {
 		leaderElectionId = leaderelection.GenerateID(leaderElectionId, watchOptions.LabelSelector)
