@@ -20,11 +20,11 @@ import (
 	"context"
 	"fmt"
 
+	"helm.sh/helm/v4/pkg/registry"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,27 +39,26 @@ import (
 	"github.com/fluxcd/helm-controller/internal/strings"
 )
 
-// HelmChartTemplate attempts to create, update or delete a v1.HelmChart
-// based on the given Request data.
+// HelmChartTemplate attempts to create, update or delete a v1.HelmChart or
+// v1.OCIRepository based on the given Request data.
 //
-// It does this by building a v1.HelmChart from the template declared in
-// the v2.HelmRelease, and then reconciling that v1.HelmChart using
-// a server-side apply.
+// It does this by building the chart from the template declared in the
+// v2.HelmRelease, and then reconciling it using a server-side apply.
 //
-// When the server-side apply succeeds, the namespaced name of the chart is
-// written to the Status.HelmChart field of the v2.HelmRelease. If the
-// server-side apply fails, the error is returned to the caller and indicates
-// they should retry.
-//
-// When at the beginning of the reconciliation the deletion timestamp is set
-// on the v2.HelmRelease, or the Status.HelmChart differs from the
-// namespaced name of the chart to be applied, the existing chart is deleted.
-// The deletion is observed, and when it completes, the Status.HelmChart is
-// cleared. If the deletion fails, the error is returned to the caller and
+// When the server-side apply succeeds, the typed and namespaced name of the
+// chart is written to the Status.HelmChart field of the v2.HelmRelease. If
+// the server-side apply fails, the error is returned to the caller and
 // indicates they should retry.
 //
+// When at the beginning of the reconciliation the deletion timestamp is set
+// on the v2.HelmRelease, or the Status.HelmChart differs from the reference
+// of the chart to be applied, the existing chart is deleted. The deletion is
+// observed, and when it completes, the Status.HelmChart is cleared. If the
+// deletion fails, the error is returned to the caller and indicates they
+// should retry.
+//
 // In case the v2.HelmRelease is marked for deletion, the reconciler will
-// not continue to attempt to create or update the v1.HelmChart.
+// not continue to attempt to create or update the chart.
 type HelmChartTemplate struct {
 	client        client.Client
 	eventRecorder record.EventRecorder
@@ -77,59 +76,67 @@ func NewHelmChartTemplate(client client.Client, recorder record.EventRecorder, f
 }
 
 func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
-	var (
-		obj      = req.Object
-		chartRef = types.NamespacedName{}
-	)
+	obj := req.Object
+	ref := obj.GetHelmChartTemplateReference()
 
-	if obj.Spec.Chart != nil {
-		chartRef.Name = obj.GetHelmChartName()
-		chartRef.Namespace = obj.Spec.Chart.GetNamespace(obj.Namespace)
-	}
-
-	// The HelmChart name and/or namespace diverges or the HelmRelease is
-	// being deleted, delete the HelmChart.
-	if (obj.Status.HelmChart != "" && obj.Status.HelmChart != chartRef.String()) || !obj.DeletionTimestamp.IsZero() {
+	// The chart reference diverges or the HelmRelease is being deleted,
+	// delete the chart.
+	if (obj.Status.HasChart() && !obj.Status.GetHelmChartReference().Matches(ref)) || !obj.DeletionTimestamp.IsZero() {
 		// If the HelmRelease is being deleted, we need to short-circuit to
-		// avoid recreating the HelmChart.
-		if err := r.reconcileDelete(ctx, req.Object); err != nil || !obj.DeletionTimestamp.IsZero() {
+		// avoid recreating the chart.
+		if err := r.reconcileDelete(ctx, obj); err != nil || !obj.DeletionTimestamp.IsZero() {
 			return err
 		}
 	}
 
 	if mustCleanDeployedChart(obj) {
-		// If the HelmRelease has a ChartRef and no Chart template, and the
-		// HelmChart is present, we need to clean it up.
-		if err := r.reconcileDelete(ctx, req.Object); err != nil {
+		// If the HelmRelease has a ChartRef and no Chart template, but a
+		// chart is present in the status, we need to clean it up.
+		if err := r.reconcileDelete(ctx, obj); err != nil {
 			return err
 		}
 		return nil
 	}
 
 	if obj.HasChartRef() {
-		// if a chartRef is present, we do not need to reconcile the HelmChart from the template.
+		// if a chartRef is present, we do not need to reconcile the chart from the template.
 		return nil
 	}
 
-	// Confirm we are allowed to fetch the HelmChart.
-	if err := acl.AllowsAccessTo(req.Object, sourcev1.HelmChartKind, chartRef); err != nil {
+	// Confirm we are allowed to fetch the chart.
+	if err := acl.AllowsAccessTo(obj, ref); err != nil {
 		return err
 	}
 
-	// Build new HelmChart based on the declared template.
-	newChart := buildHelmChartFromTemplate(req.Object)
+	// Build a new chart based on the declared template.
+	var newChart client.Object
+	var newChartDeepCopy any
+	var newChartWithSourceRef string
+	switch ref.Kind {
+	case sourcev1.HelmChartKind:
+		hc := buildHelmChartFromTemplate(obj, ref)
+		newChart = hc
+		newChartDeepCopy = hc.DeepCopy()
+		newChartWithSourceRef = fmt.Sprintf(" with SourceRef '%s/%s/%s'",
+			hc.Spec.SourceRef.Kind, hc.GetNamespace(), hc.Spec.SourceRef.Name)
+	case sourcev1.OCIRepositoryKind:
+		or := buildOCIRepositoryFromTemplate(obj, ref)
+		newChart = or
+		newChartDeepCopy = or.DeepCopy()
+		newChartWithSourceRef = ""
+	}
 
 	// Convert to an unstructured object to please the SSA library.
-	uo, err := runtime.DefaultUnstructuredConverter.ToUnstructured(newChart.DeepCopy())
+	uo, err := runtime.DefaultUnstructuredConverter.ToUnstructured(newChartDeepCopy)
 	if err != nil {
-		return fmt.Errorf("failed to convert HelmChart to unstructured: %w", err)
+		return fmt.Errorf("failed to convert %s to unstructured: %w", ref.Kind, err)
 	}
 	u := &unstructured.Unstructured{Object: uo}
 
 	// Get the GVK for the object according to the current scheme.
 	gvk, err := apiutil.GVKForObject(newChart, r.client.Scheme())
 	if err != nil {
-		return fmt.Errorf("unable to get GVK for HelmChart: %w", err)
+		return fmt.Errorf("unable to get GVK for %s: %w", ref.Kind, err)
 	}
 	u.SetGroupVersionKind(gvk)
 
@@ -145,24 +152,22 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 	entry, err := rm.Apply(ctx, u, ssa.DefaultApplyOptions())
 	if err != nil {
 		err = fmt.Errorf("failed to run server-side apply: %w", err)
-		r.eventRecorder.Eventf(req.Object, eventv1.EventTypeTrace, "HelmChartSyncErr", "%s", err.Error())
+		reason := fmt.Sprintf("%sSyncErr", ref.Kind)
+		r.eventRecorder.Eventf(obj, eventv1.EventTypeTrace, reason, "%s", err.Error())
 		return err
 	}
 
 	// Consult the entry result and act accordingly.
 	switch entry.Action {
 	case ssa.CreatedAction, ssa.ConfiguredAction:
-		msg := strings.Normalize(fmt.Sprintf(
-			"%s %s with SourceRef '%s/%s/%s'", entry.Action.String(), entry.Subject,
-			newChart.Spec.SourceRef.Kind, newChart.GetNamespace(), newChart.Spec.SourceRef.Name,
-		))
+		msg := strings.Normalize(fmt.Sprintf("%s %s%s",
+			entry.Action.String(), entry.Subject, newChartWithSourceRef))
 
 		ctrl.LoggerFrom(ctx).Info(msg)
-		r.eventRecorder.Eventf(req.Object, eventv1.EventTypeTrace,
-			fmt.Sprintf("HelmChart%s", strings.Title(entry.Action.String())), "%s", msg)
+		r.eventRecorder.Eventf(obj, eventv1.EventTypeTrace,
+			fmt.Sprintf("%s%s", ref.Kind, strings.Title(entry.Action.String())), "%s", msg)
 	case ssa.UnchangedAction:
-		msg := fmt.Sprintf("%s with SourceRef '%s/%s/%s' is in-sync", entry.Subject,
-			newChart.Spec.SourceRef.Kind, newChart.GetNamespace(), newChart.Spec.SourceRef.Name)
+		msg := fmt.Sprintf("%s%s is in-sync", entry.Subject, newChartWithSourceRef)
 
 		ctrl.LoggerFrom(ctx).Info(msg)
 	default:
@@ -170,69 +175,74 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 		return err
 	}
 
-	// From this moment on, we know the HelmChart spec is up-to-date.
-	obj.Status.HelmChart = chartRef.String()
+	// From this moment on, we know the chart spec is up-to-date.
+	obj.Status.SetChart(ref)
 
 	return nil
 }
 
-// reconcileDelete handles the garbage collection of the current HelmChart in
-// the Status object of the given HelmRelease.
+// reconcileDelete handles the garbage collection of the current chart
+// referenced in the Status object of the given HelmRelease.
 func (r *HelmChartTemplate) reconcileDelete(ctx context.Context, obj *v2.HelmRelease) error {
-	if !obj.Spec.Suspend && obj.Status.HelmChart != "" {
-		ns, name := obj.Status.GetHelmChart()
-		namespacedName := types.NamespacedName{Namespace: ns, Name: name}
+	if !obj.Spec.Suspend && obj.Status.HasChart() {
+		ref := obj.Status.GetHelmChartReference()
 
-		// Confirm we are allowed to fetch the HelmChart.
-		if err := acl.AllowsAccessTo(obj, sourcev1.HelmChartKind, namespacedName); err != nil {
+		// Confirm we are allowed to fetch the chart.
+		if err := acl.AllowsAccessTo(obj, ref); err != nil {
 			return err
 		}
 
-		// Fetch the HelmChart.
-		var chart sourcev1.HelmChart
-		err := r.client.Get(ctx, namespacedName, &chart)
+		// Fetch the chart.
+		var chart client.Object
+		if ref.Kind == sourcev1.OCIRepositoryKind {
+			chart = &sourcev1.OCIRepository{}
+		} else {
+			chart = &sourcev1.HelmChart{}
+		}
+		err := r.client.Get(ctx, ref.GetObjectKey(), chart)
 		if err != nil && !apierrors.IsNotFound(err) {
 			// Return error to retry until we succeed.
-			err = fmt.Errorf("failed to delete HelmChart '%s': %w", obj.Status.HelmChart, err)
+			err = fmt.Errorf("failed to get '%s': %w", ref, err)
 			return err
 		}
 		if err == nil {
-			// Delete the HelmChart.
-			if err = r.client.Delete(ctx, &chart); client.IgnoreNotFound(err) != nil {
-				err = fmt.Errorf("failed to delete HelmChart '%s': %w", obj.Status.HelmChart, err)
+			// Delete the chart.
+			if err = r.client.Delete(ctx, chart); client.IgnoreNotFound(err) != nil {
+				err = fmt.Errorf("failed to delete '%s': %w", ref, err)
 				return err
 			}
-			r.eventRecorder.Eventf(obj, eventv1.EventTypeTrace, "HelmChartDeleted", "deleted HelmChart '%s'", obj.Status.HelmChart)
+			reason := fmt.Sprintf("%sDeleted", ref.Kind)
+			r.eventRecorder.Eventf(obj, eventv1.EventTypeTrace, reason, "deleted '%s'", ref)
 		}
 
 		// Truncate the chart reference in the status object.
-		obj.Status.HelmChart = ""
+		obj.Status.SetChart(nil)
 	}
 
 	return nil
 }
 
-// buildHelmChartFromTemplate builds a v1.HelmChart from the
-// v2.HelmChartTemplate of the given v2.HelmRelease.
-func buildHelmChartFromTemplate(obj *v2.HelmRelease) *sourcev1.HelmChart {
+func buildHelmChartFromTemplate(obj *v2.HelmRelease, ref *v2.HelmChartReference) *sourcev1.HelmChart {
 	template := obj.Spec.Chart.DeepCopy()
 	result := &sourcev1.HelmChart{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      obj.GetHelmChartName(),
-			Namespace: template.GetNamespace(obj.Namespace),
+			Name:      ref.Name,
+			Namespace: ref.Namespace,
 		},
 		Spec: sourcev1.HelmChartSpec{
-			Chart:   template.Spec.Chart,
-			Version: template.Spec.Version,
-			SourceRef: sourcev1.LocalHelmChartSourceReference{
-				Name: template.Spec.SourceRef.Name,
-				Kind: template.Spec.SourceRef.Kind,
-			},
-			Interval:                 template.GetInterval(obj.Spec.Interval),
-			ReconcileStrategy:        template.Spec.ReconcileStrategy,
+			Chart:                    template.Spec.Chart,
+			Version:                  template.Spec.GetVersion(),
+			Interval:                 obj.GetTemplateInterval(),
+			ReconcileStrategy:        template.Spec.GetReconcileStrategy(),
 			ValuesFiles:              template.Spec.ValuesFiles,
 			IgnoreMissingValuesFiles: template.Spec.IgnoreMissingValuesFiles,
 		},
+	}
+	if sourceRef := template.Spec.SourceRef; sourceRef != nil {
+		result.Spec.SourceRef = sourcev1.LocalHelmChartSourceReference{
+			Name: sourceRef.Name,
+			Kind: sourceRef.Kind,
+		}
 	}
 	if verifyTpl := template.Spec.Verify; verifyTpl != nil {
 		result.Spec.Verify = &sourcev1.HelmChartVerification{
@@ -240,7 +250,34 @@ func buildHelmChartFromTemplate(obj *v2.HelmRelease) *sourcev1.HelmChart {
 			SecretRef: verifyTpl.SecretRef,
 		}
 	}
-	if metaTpl := template.ObjectMeta; metaTpl != nil {
+	if metaTpl := obj.Spec.Chart.ObjectMeta; metaTpl != nil {
+		result.SetAnnotations(metaTpl.Annotations)
+		result.SetLabels(metaTpl.Labels)
+	}
+	return result
+}
+
+func buildOCIRepositoryFromTemplate(obj *v2.HelmRelease, ref *v2.HelmChartReference) *sourcev1.OCIRepository {
+	template := obj.Spec.Chart
+	interval := obj.GetTemplateInterval()
+	spec := template.Spec.OCIRepositorySpec.DeepCopy()
+	spec.Interval = &interval
+	// If the layer selector is not explicitly specified, default to
+	// selecting the Helm chart layer and copying it as-is.
+	if spec.LayerSelector == nil {
+		spec.LayerSelector = &sourcev1.OCILayerSelector{
+			MediaType: registry.ChartLayerMediaType,
+			Operation: sourcev1.OCILayerCopy,
+		}
+	}
+	result := &sourcev1.OCIRepository{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ref.Name,
+			Namespace: ref.Namespace,
+		},
+		Spec: *spec,
+	}
+	if metaTpl := obj.Spec.Chart.ObjectMeta; metaTpl != nil {
 		result.SetAnnotations(metaTpl.Annotations)
 		result.SetLabels(metaTpl.Labels)
 	}
@@ -248,11 +285,5 @@ func buildHelmChartFromTemplate(obj *v2.HelmRelease) *sourcev1.HelmChart {
 }
 
 func mustCleanDeployedChart(obj *v2.HelmRelease) bool {
-	if obj.HasChartRef() && !obj.HasChartTemplate() {
-		if obj.Status.HelmChart != "" {
-			return true
-		}
-	}
-
-	return false
+	return obj.HasChartRef() && !obj.HasChartTemplate() && obj.Status.HasChart()
 }
