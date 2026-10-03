@@ -56,23 +56,16 @@ func (r *HelmReleaseReconciler) SetupWithManager(ctx context.Context, mgr ctrl.M
 	if err := mgr.GetFieldIndexer().IndexField(ctx, &v2.HelmRelease{}, v2.SourceIndexKey,
 		func(o client.Object) []string {
 			obj := o.(*v2.HelmRelease)
-			var kind, name, namespace string
+			var ref *v2.HelmChartReference
 			switch {
 			case obj.HasChartRef() && !obj.HasChartTemplate():
-				kind = obj.Spec.ChartRef.Kind
-				name = obj.Spec.ChartRef.Name
-				namespace = obj.Spec.ChartRef.Namespace
-				if namespace == "" {
-					namespace = obj.GetNamespace()
-				}
+				ref = obj.GetHelmChartReference()
 			case !obj.HasChartRef() && obj.HasChartTemplate():
-				kind = sourcev1.HelmChartKind
-				name = obj.GetHelmChartName()
-				namespace = obj.Spec.Chart.GetNamespace(obj.GetNamespace())
+				ref = obj.GetHelmChartTemplateReference()
 			default:
 				return nil
 			}
-			return []string{fmt.Sprintf("%s/%s/%s", kind, namespace, name)}
+			return []string{ref.String()}
 		},
 	); err != nil {
 		return err

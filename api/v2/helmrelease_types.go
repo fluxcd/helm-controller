@@ -27,6 +27,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 )
 
 const (
@@ -45,8 +46,9 @@ const (
 // HelmReleaseSpec defines the desired state of a Helm release.
 // +kubebuilder:validation:XValidation:rule="(has(self.chart) && !has(self.chartRef)) || (!has(self.chart) && has(self.chartRef))", message="either chart or chartRef must be set"
 type HelmReleaseSpec struct {
-	// Chart defines the template of the v1.HelmChart that should be created
-	// for this HelmRelease.
+	// Chart defines the template of the source object that should be
+	// created for this HelmRelease. The Kind field determines whether a
+	// sourcev1.HelmChart or sourcev1.OCIRepository is created.
 	// +optional
 	Chart *HelmChartTemplate `json:"chart,omitempty"`
 
@@ -208,6 +210,24 @@ type HelmReleaseSpec struct {
 	HealthCheckExprs []kustomize.CustomHealthCheck `json:"healthCheckExprs,omitempty"`
 }
 
+func (in *HelmRelease) GetHelmChartReference() *HelmChartReference {
+	if in == nil || in.Spec.ChartRef == nil {
+		return nil
+	}
+	ref := &HelmChartReference{
+		Kind:      in.Spec.ChartRef.Kind,
+		Name:      in.Spec.ChartRef.Name,
+		Namespace: in.Spec.ChartRef.Namespace,
+	}
+	if ref.Kind == "" {
+		ref.Kind = sourcev1.HelmChartKind
+	}
+	if ref.Namespace == "" {
+		ref.Namespace = in.GetNamespace()
+	}
+	return ref
+}
+
 // +kubebuilder:object:generate=false
 
 type ValuesReference = meta.ValuesReference
@@ -347,20 +367,32 @@ func (d DriftDetection) MustDetectChanges() bool {
 }
 
 // HelmChartTemplate defines the template from which the controller will
-// generate a v1.HelmChart object in the same namespace as the referenced
-// v1.Source.
+// generate a sourcev1.HelmChart or sourcev1.OCIRepository object. The
+// Kind field determines which object is generated.
+//
+// +kubebuilder:validation:XValidation:rule="!has(self.kind) || self.kind != 'OCIRepository' || (has(self.spec.url) && size(self.spec.url) > 0)", message="chart.spec.url must be set when chart.kind is 'OCIRepository'"
+// +kubebuilder:validation:XValidation:rule="(has(self.kind) && self.kind == 'OCIRepository') || (has(self.spec.chart) && has(self.spec.sourceRef))", message="chart.spec.chart and chart.spec.sourceRef must be set when chart.kind is not 'OCIRepository'"
+// +kubebuilder:validation:XValidation:rule="!has(self.kind) || self.kind != 'OCIRepository' || (!has(self.spec.chart) && (!has(self.spec.version) || self.spec.version == '*') && (!has(self.spec.reconcileStrategy) || self.spec.reconcileStrategy == 'ChartVersion') && !has(self.spec.sourceRef) && !has(self.spec.valuesFiles) && !has(self.spec.ignoreMissingValuesFiles))", message="HelmChart-only fields in chart.spec cannot be set when chart.kind is 'OCIRepository'"
 type HelmChartTemplate struct {
+	// Kind is the Flux Custom Resource kind for the HelmChartTemplate.
+	// Accepted values are:
+	//   - HelmChart (the default)
+	//   - OCIRepository
+	// +kubebuilder:validation:Enum=HelmChart;OCIRepository
+	// +optional
+	Kind string `json:"kind,omitempty"`
+
 	// ObjectMeta holds the template for metadata like labels and annotations.
 	// +optional
 	ObjectMeta *HelmChartTemplateObjectMeta `json:"metadata,omitempty"`
 
-	// Spec holds the template for the v1.HelmChartSpec for this HelmRelease.
+	// Spec holds the spec of the object generated for this HelmRelease.
 	// +required
 	Spec HelmChartTemplateSpec `json:"spec"`
 }
 
-// HelmChartTemplateObjectMeta defines the template for the ObjectMeta of a
-// v1.HelmChart.
+// HelmChartTemplateObjectMeta defines the template for the ObjectMeta of the
+// generated object.
 type HelmChartTemplateObjectMeta struct {
 	// Map of string keys and values that can be used to organize and categorize
 	// (scope and select) objects.
@@ -377,13 +409,15 @@ type HelmChartTemplateObjectMeta struct {
 }
 
 // HelmChartTemplateSpec defines the template from which the controller will
-// generate a v1.HelmChartSpec object.
+// generate a sourcev1.HelmChartSpec or sourcev1.OCIRepositorySpec object.
 type HelmChartTemplateSpec struct {
+	sourcev1.OCIRepositorySpec `json:",inline"`
+
 	// The name or path the Helm chart is available at in the SourceRef.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=2048
-	// +required
-	Chart string `json:"chart"`
+	// +optional
+	Chart string `json:"chart,omitempty"`
 
 	// Version semver expression, ignored for charts from v1.GitRepository and
 	// v1beta2.Bucket sources. Defaults to latest when omitted.
@@ -392,15 +426,8 @@ type HelmChartTemplateSpec struct {
 	Version string `json:"version,omitempty"`
 
 	// The name and namespace of the v1.Source the chart is available at.
-	// +required
-	SourceRef CrossNamespaceObjectReference `json:"sourceRef"`
-
-	// Interval at which to check the v1.Source for updates. Defaults to
-	// 'HelmReleaseSpec.Interval'.
-	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +optional
-	Interval *metav1.Duration `json:"interval,omitempty"`
+	SourceRef *CrossNamespaceObjectReference `json:"sourceRef,omitempty"`
 
 	// Determines what enables the creation of a new artifact. Valid values are
 	// ('ChartVersion', 'Revision').
@@ -421,46 +448,15 @@ type HelmChartTemplateSpec struct {
 	// IgnoreMissingValuesFiles controls whether to silently ignore missing values files rather than failing.
 	// +optional
 	IgnoreMissingValuesFiles bool `json:"ignoreMissingValuesFiles,omitempty"`
-
-	// Verify contains the secret name containing the trusted public keys
-	// used to verify the signature and specifies which provider to use to check
-	// whether OCI image is authentic.
-	// This field is only supported for OCI sources.
-	// Chart dependencies, which are not bundled in the umbrella chart artifact,
-	// are not verified.
-	// +optional
-	Verify *HelmChartTemplateVerification `json:"verify,omitempty"`
 }
 
-// GetInterval returns the configured interval for the v1.HelmChart,
+// GetInterval returns the configured interval for the generated object,
 // or the given default.
 func (in HelmChartTemplate) GetInterval(defaultInterval metav1.Duration) metav1.Duration {
 	if in.Spec.Interval == nil {
 		return defaultInterval
 	}
 	return *in.Spec.Interval
-}
-
-// GetNamespace returns the namespace targeted namespace for the
-// v1.HelmChart, or the given default.
-func (in HelmChartTemplate) GetNamespace(defaultNamespace string) string {
-	if in.Spec.SourceRef.Namespace == "" {
-		return defaultNamespace
-	}
-	return in.Spec.SourceRef.Namespace
-}
-
-// HelmChartTemplateVerification verifies the authenticity of an OCI Helm chart.
-type HelmChartTemplateVerification struct {
-	// Provider specifies the technology used to sign the OCI Helm chart.
-	// +kubebuilder:validation:Enum=cosign;notation
-	// +kubebuilder:default:=cosign
-	Provider string `json:"provider"`
-
-	// SecretRef specifies the Kubernetes Secret containing the
-	// trusted public keys.
-	// +optional
-	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 // WaitStrategyName is a strategy for waiting for resources to be ready.
@@ -1307,8 +1303,8 @@ type HelmReleaseStatus struct {
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// HelmChart is the namespaced name of the HelmChart resource created by
-	// the controller for the HelmRelease.
+	// HelmChart is the typed and namespaced name of the HelmChart or
+	// OCIRepository resource created by the controller for the HelmRelease.
 	// +optional
 	HelmChart string `json:"helmChart,omitempty"`
 
@@ -1408,15 +1404,37 @@ func (in *HelmReleaseStatus) ClearFailures() {
 	in.UpgradeFailures = 0
 }
 
-// GetHelmChart returns the namespace and name of the HelmChart.
-func (in HelmReleaseStatus) GetHelmChart() (string, string) {
+// HasChart returns true if the status has a HelmChart.
+func (in *HelmReleaseStatus) HasChart() bool {
+	return in.HelmChart != ""
+}
+
+// SetChart sets the typed and namespaced reference of the HelmChart.
+func (in *HelmReleaseStatus) SetChart(ref *HelmChartReference) {
+	in.HelmChart = ref.String()
+}
+
+// GetHelmChartReference returns the typed and namespaced reference of the HelmChart.
+func (in HelmReleaseStatus) GetHelmChartReference() *HelmChartReference {
 	if in.HelmChart == "" {
-		return "", ""
+		return nil
 	}
-	if split := strings.Split(in.HelmChart, string(types.Separator)); len(split) > 1 {
-		return split[0], split[1]
+	switch s := strings.Split(in.HelmChart, string(types.Separator)); len(s) {
+	case 2:
+		return &HelmChartReference{
+			Kind:      sourcev1.HelmChartKind,
+			Namespace: s[0],
+			Name:      s[1],
+		}
+	case 3:
+		return &HelmChartReference{
+			Kind:      s[0],
+			Namespace: s[1],
+			Name:      s[2],
+		}
+	default:
+		return nil
 	}
-	return "", ""
 }
 
 func (in *HelmReleaseStatus) GetLastAttemptedRevision() string {
@@ -1576,9 +1594,23 @@ func (in HelmRelease) GetStorageNamespace() string {
 	return in.Namespace
 }
 
-// GetHelmChartName returns the name used by the controller for the HelmChart creation.
-func (in HelmRelease) GetHelmChartName() string {
-	return strings.Join([]string{in.Namespace, in.Name}, "-")
+// GetHelmChartTemplateReference returns the typed and namespaced reference of the HelmChartTemplate.
+func (in *HelmRelease) GetHelmChartTemplateReference() *HelmChartReference {
+	if in == nil || in.Spec.Chart == nil {
+		return nil
+	}
+	ref := &HelmChartReference{
+		Kind:      in.Spec.Chart.Kind,
+		Name:      strings.Join([]string{in.Namespace, in.Name}, "-"),
+		Namespace: in.GetNamespace(),
+	}
+	if ref.Kind == "" {
+		ref.Kind = sourcev1.HelmChartKind
+	}
+	if ref.Kind == sourcev1.HelmChartKind && in.Spec.Chart.Spec.SourceRef != nil && in.Spec.Chart.Spec.SourceRef.Namespace != "" {
+		ref.Namespace = in.Spec.Chart.Spec.SourceRef.Namespace
+	}
+	return ref
 }
 
 // GetTimeout returns the configured Timeout, or the default of 300s.

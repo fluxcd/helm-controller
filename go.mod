@@ -28,7 +28,7 @@ require (
 	github.com/fluxcd/pkg/runtime v0.112.0
 	github.com/fluxcd/pkg/ssa v0.78.0
 	github.com/fluxcd/pkg/testserver v0.14.0
-	github.com/fluxcd/source-controller/api v1.9.5
+	github.com/fluxcd/source-controller/api v1.9.6
 	github.com/go-logr/logr v1.4.4
 	github.com/google/cel-go v0.29.2
 	github.com/google/go-cmp v0.7.0
@@ -224,3 +224,5 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
+
+replace github.com/fluxcd/source-controller/api => github.com/fluxcd/source-controller/api v1.9.1-0.20261003215104-45cec61d284e
