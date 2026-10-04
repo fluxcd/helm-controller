@@ -19,8 +19,9 @@ package acl
 import (
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	v2 "github.com/fluxcd/helm-controller/api/v2"
 
 	"github.com/fluxcd/pkg/runtime/acl"
 )
@@ -33,11 +34,10 @@ var (
 
 // AllowsAccessTo returns an error if the object does not allow access to the
 // given reference.
-func AllowsAccessTo(obj client.Object, kind string, ref types.NamespacedName) error {
+func AllowsAccessTo(obj client.Object, ref *v2.HelmChartReference) error {
 	if !AllowCrossNamespaceRef && obj.GetNamespace() != ref.Namespace {
-		return acl.AccessDeniedError(fmt.Sprintf("cross-namespace references are not allowed: cannot access %s %s",
-			kind, ref.String(),
-		))
+		msg := fmt.Sprintf("cross-namespace references are not allowed: cannot access %s", ref)
+		return acl.AccessDeniedError(msg)
 	}
 	return nil
 }
