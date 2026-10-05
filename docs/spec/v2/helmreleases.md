@@ -14,15 +14,6 @@ The following is an example of a HelmRelease which installs the
 
 ```yaml
 ---
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
-metadata:
-  name: podinfo
-  namespace: default
-spec:
-  interval: 15m
-  url: https://stefanprodan.github.io/podinfo
----
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -32,13 +23,12 @@ spec:
   interval: 15m
   timeout: 5m
   chart:
+    kind: OCIRepository
     spec:
-      chart: podinfo
-      version: '6.5.*'
-      sourceRef:
-        kind: HelmRepository
-        name: podinfo
       interval: 5m
+      url: oci://ghcr.io/stefanprodan/charts/podinfo
+      ref:
+        semver: '6.5.*'
   releaseName: podinfo
   install:
     remediation:
@@ -60,12 +50,10 @@ spec:
 
 In the above example:
 
-- A [HelmRepository](https://fluxcd.io/flux/components/source/helmrepositories/)
-  named `podinfo` is created, pointing to the Helm repository from which the 
-  podinfo chart can be installed.
-- A HelmRelease named `podinfo` is created, that will create a [HelmChart](https://fluxcd.io/flux/components/source/helmcharts/) object
+- A HelmRelease named `podinfo` is created, that will create an
+  [OCIRepository](https://fluxcd.io/flux/components/source/ocirepositories/) object
   from [the `.spec.chart`](#chart-template) and watch it for Artifact changes.
-- The controller will fetch the chart from the HelmChart's Artifact and use it
+- The controller will fetch the chart from the OCIRepository's Artifact and use it
   together with the `.spec.releaseName` and `.spec.values` to confirm if the
   Helm release exists and is up-to-date.
 - If the Helm release does not exist, is not up-to-date, or has not observed to
@@ -124,7 +112,7 @@ You can run this example by saving the manifest into `podinfo.yaml`.
        Reason:                TestSucceeded
        Status:                True
        Type:                  TestSuccess
-     Helm Chart:              default/default-podinfo
+     Helm Chart:              OCIRepository/default/default-podinfo
      History:
        Chart Name:      podinfo
        Chart Version:   6.5.3
@@ -159,8 +147,7 @@ You can run this example by saving the manifest into `podinfo.yaml`.
    Events:
      Type    Reason            Age   From             Message
      ----    ------            ----  ----             -------
-     Normal  HelmChartCreated  23s   helm-controller  Created HelmChart/default/default-podinfo with SourceRef 'HelmRepository/default/podinfo'
-     Normal  HelmChartInSync   22s   helm-controller  HelmChart/default/default-podinfo with SourceRef 'HelmRepository/default/podinfo' is in-sync
+     Normal  OCIRepositoryCreated  23s   helm-controller  Created OCIRepository/default/default-podinfo
      Normal  InstallSucceeded  18s   helm-controller  Helm install succeeded for release default/podinfo.v1 with chart podinfo@6.5.3
      Normal  TestSucceeded     10s   helm-controller  Helm test succeeded for release default/podinfo.v1 with chart podinfo@6.5.3: 3 test hooks completed successfully
    ```
@@ -177,22 +164,50 @@ A HelmRelease also needs a
 ### Chart template
 
 `.spec.chart` is an optional field used by the helm-controller as a template to
-create a new [HelmChart resource](https://fluxcd.io/flux/components/source/helmcharts/).
+create a new Source resource which provides the Helm chart artifact. The kind
+of the resource is set with `.spec.chart.kind`, which defaults to `HelmChart`.
+Supported kinds are [HelmChart](https://fluxcd.io/flux/components/source/helmcharts/)
+and [OCIRepository](https://fluxcd.io/flux/components/source/ocirepositories/).
 
-The spec for the HelmChart is provided via `.spec.chart.spec`, refer to
+The spec of the created resource is provided via `.spec.chart.spec`. When
+`.spec.chart.kind` is `HelmChart`, refer to
 [writing a HelmChart spec](https://fluxcd.io/flux/components/source/helmcharts/#writing-a-helmchart-spec)
-for in-depth information.
+for in-depth information. When `.spec.chart.kind` is `OCIRepository`, refer to
+[writing an OCIRepository spec](https://fluxcd.io/flux/components/source/ocirepositories/#writing-an-ocirepository-spec)
+for in-depth information; `.spec.chart.spec.url` is required in this case.
+
+The HelmChart-only fields are rejected by the API server when `.spec.chart.kind`
+is `OCIRepository`. Conversely, `.spec.chart.spec.url` must and can only be set
+when `.spec.chart.kind` is `OCIRepository`. The fields `.spec.chart.spec.chart`
+and `.spec.chart.spec.sourceRef` are required when `.spec.chart.kind` is
+`HelmChart`.
+
+When `.spec.chart.kind` is `OCIRepository` and `.spec.chart.spec.layerSelector`
+is not set, the controller defaults it to selecting the Helm chart layer
+(`application/vnd.cncf.helm.chart.content.v1.tar+gzip`) with the `copy`
+operation.
+
+For `HelmChart`, the resource is created in the same namespace as the
+`.sourceRef`. For `OCIRepository`, it is created in the same namespace as the
+HelmRelease. In both cases the name matches the HelmRelease's
+`<.metadata.namespace>-<.metadata.name>`, and the reference of the created
+resource is reported in `.status.helmChart`. The reference is formatted as
+`<namespace>/<name>` for `HelmChart` and as `<kind>/<namespace>/<name>` for
+other kinds.
 
 Annotations and labels can be added by configuring the respective
 `.spec.chart.metadata` fields.
 
-The HelmChart is created in the same namespace as the `.sourceRef`, with a name
-matching the HelmRelease's `<.metadata.namespace>-<.metadata.name>`, and will
-be reported in `.status.helmChart`.
-
 The chart version of the last release attempt is reported in
 `.status.lastAttemptedRevision`. The controller will automatically perform a
-Helm release when the HelmChart produces a new chart (version).
+Helm release when the source produces a new chart (version).
+
+A major advantage of a chart template versus a [chart reference](#chart-reference)
+is the ability to atomically change `.spec.values` together with the chart version,
+avoiding failures in the Helm upgrade due to incompatbility of values between the
+two different chart versions. On the other hand, a disadvantage of a template versus
+a reference is that the same source object cannot be reused for multiple HelmRelease
+objects.
 
 **Warning:** Changing the `.spec.chart` to a Helm chart with a different name
 (as specified in the chart's `Chart.yaml`) will cause the controller to
@@ -203,6 +218,61 @@ uninstall any previous release before installing the new one unless
 references with the `--no-cross-namespace-refs=true` flag. When this flag is
 set, the HelmRelease can only refer to Sources in the same namespace as the
 HelmRelease object.
+
+#### OCIRepository template example
+
+```yaml
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 10m
+  chart:
+    kind: OCIRepository
+    spec:
+      interval: 10m
+      url: oci://ghcr.io/stefanprodan/charts/podinfo
+      ref:
+        semver: ">= 6.0.0"
+  values:
+    replicaCount: 2
+```
+
+#### HelmChart template example
+
+```yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 10m
+  url: https://stefanprodan.github.io/podinfo
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 10m
+  chart:
+    kind: HelmChart
+    spec:
+      interval: 10m
+      chart: podinfo
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+      version: "6.x"
+      valuesFiles:
+        - values-prod.yaml
+  values:
+    replicaCount: 2
+```
 
 ### Chart reference
 
@@ -223,12 +293,22 @@ The controller will automatically perform a Helm upgrade when the `OCIRepository
 detects a new digest in the OCI artifact stored in registry, even if the version
 inside `Chart.yaml` is unchanged.
 
+A major advantage of a chart reference versus a [chart template](#chart-template)
+is the ability to reuse the same source object across multiple HelmRelease objects.
+On the other hand, a disadvantage of a reference versus a template is that it can
+have transient failures in the Helm upgrade when trying to atomically change
+`.spec.values` and the version of the chart in the source object in the same
+commit. Because of potential value incompatibilies between the two different
+chart versions, if helm-controller reconciles first, it will not see the new
+chart version and will apply the `.spec.values` change with values that are
+incompatible with the old chart version.
+
 **Note:** Disabling the appending of the digest to the chart version can be done
 with the `--feature-gates=DisableChartDigestTracking=true` controller flag.
 
 **Warning:** One of `.spec.chart` or `.spec.chartRef` must be set, but not both.
 When switching from `.spec.chart` to `.spec.chartRef`, the controller will perform
-an Helm upgrade and will garbage collect the old HelmChart object.
+an Helm upgrade and will garbage collect the old source object.
 
 **Note:** On multi-tenant clusters, platform admins can disable cross-namespace
 references with the `--no-cross-namespace-refs=true` controller flag. When this flag is
@@ -908,7 +988,7 @@ causes the selector to be more specific:
   `v2beta[\d]`.
 - `kind` (Optional): Matches the `.kind` of resources while offering support
   for regular expressions. For example, `Deployment`, `HelmRelelease` or
-  `(HelmRelease|HelmChart)`.
+  `(HelmRelease|OCIRepository)`.
 - `name` (Optional): Matches the `.metadata.name` of resources while offering
   support for regular expressions. For example, `podinfo` or `podinfo.*`.
 - `namespace` (Optional): Matches the `.metadata.namespace` of resources while
@@ -1246,7 +1326,7 @@ duration string format](https://pkg.go.dev/time#ParseDuration), e.g. `15m0s`
 to reconcile the object every fifteen minutes.
 
 If the `.metadata.generation` of a resource changes (due to e.g. a change to
-the spec) or the HelmChart revision changes (which generates a Kubernetes
+the spec) or the OCIRepository revision changes (which generates a Kubernetes
 Event), or a ConfigMap/Secret referenced in `valuesFrom` changes,
 this is handled instantly outside the interval window.
 
@@ -1408,13 +1488,12 @@ metadata:
 spec:
   interval: 15m
   chart:
+    kind: OCIRepository
     spec:
-      chart: my-operator
-      version: "1.0.1"
-      sourceRef:
-        kind: HelmRepository
-        name: my-operator-repo
       interval: 5m
+      url: oci://ghcr.io/example/my-operator
+      ref:
+        tag: "1.0.1"
   install:
     crds: CreateReplace
   upgrade:
@@ -1496,11 +1575,9 @@ spec:
  serviceAccountName: webapp-reconciler
  interval: 15m
  chart:
+   kind: OCIRepository
    spec:
-     chart: podinfo
-     sourceRef:
-       kind: HelmRepository
-       name: podinfo
+     url: oci://ghcr.io/stefanprodan/charts/podinfo
 ```
 
 When the controller reconciles the `podinfo` HelmRelease, it will impersonate
@@ -1571,12 +1648,11 @@ spec:
     secretRef:
       name: stage-kubeconfig # Cluster API creates this for the matching Cluster
   chart:
+    kind: OCIRepository
     spec:
-      chart: prometheus
-      version: ">=4.0.0 <5.0.0"
-      sourceRef:
-        kind: HelmRepository
-        name: prometheus-community
+      url: oci://ghcr.io/prometheus-community/charts/prometheus
+      ref:
+        semver: ">=4.0.0 <5.0.0"
   install:
     remediation:
       retries: -1
@@ -1865,8 +1941,7 @@ Status:
 Events:
   Type     Reason            Age   From             Message
   ----     ------            ----  ----             -------
-  Normal   HelmChartCreated  88s   helm-controller  Created HelmChart/podinfo/podinfo-podinfo with SourceRef 'HelmRepository/podinfo/podinfo'
-  Normal   HelmChartInSync   88s   helm-controller  HelmChart/podinfo/podinfo-podinfo with SourceRef 'HelmRepository/podinfo/podinfo' is in-sync
+  Normal   OCIRepositoryCreated  88s   helm-controller  Created OCIRepository/podinfo/podinfo-podinfo
   Normal   InstallSucceeded  83s   helm-controller  Helm install succeeded for release podinfo/podinfo.v1 with chart podinfo@6.5.3
   Warning  TestFailed        78s   helm-controller  Helm test failed for release podinfo/podinfo.v1 with chart podinfo@6.5.3: 1 error occurred:
            * pod podinfo-fault-test-a0tew failed
@@ -1886,8 +1961,7 @@ lists
 
 ```shell
 LAST SEEN   TYPE      REASON             OBJECT                MESSAGE
-88s         Normal    HelmChartCreated   HelmRelease/podinfo   Created HelmChart/podinfo/podinfo-podinfo with SourceRef 'HelmRepository/podinfo/podinfo'
-88s         Normal    HelmChartInSync    HelmRelease/podinfo   HelmChart/podinfo/podinfo-podinfo with SourceRef 'HelmRepository/podinfo/podinfo' is in-sync
+88s         Normal    OCIRepositoryCreated   HelmRelease/podinfo   Created OCIRepository/podinfo/podinfo-podinfo
 83s         Normal    InstallSucceeded   HelmRelease/podinfo   Helm install succeeded for release podinfo/podinfo.v1 with chart podinfo@6.5.3
 78s         Warning   TestFailed         HelmRelease/podinfo   Helm test failed for release podinfo/podinfo.v1 with chart podinfo@6.5.3: 1 error occurred:
                                                                * pod podinfo-fault-test-a0tew failed
@@ -2080,7 +2154,7 @@ better (timeout) support to solutions polling the HelmRelease to become `Ready`.
 
 #### Reconciling HelmRelease
 
-The helm-controller marks the HelmRepository as _reconciling_ when it is working
+The helm-controller marks the HelmRelease as _reconciling_ when it is working
 on re-assessing the Helm release state, or working on a Helm action such as
 installing or upgrading the release.
 
@@ -2185,7 +2259,7 @@ attributes in the HelmRelease's `.status.conditions`:
 The helm-controller may get stuck trying to determine state or produce a Helm
 release without completing. This can occur due to some of the following factors:
 
-- The HelmChart does not have an Artifact, or is not ready.
+- The OCIRepository does not have an Artifact, or is not ready.
 - The HelmRelease's dependencies are not ready.
 - The composition of [values references](#values-references) and [inline values](#inline-values)
   failed due to a misconfiguration.

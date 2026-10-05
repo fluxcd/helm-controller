@@ -759,12 +759,12 @@ func (r *HelmReleaseReconciler) getSourceClient() client.Reader {
 	return r.Client
 }
 
-// getSource returns the source object containing the HelmChart, either by
-// using the chartRef in the spec, or by looking up the HelmChart
-// referenced in the status object.
+// getSource returns the source object containing the Helm chart, either by
+// using the chartRef in the spec, or by looking up the reference in the
+// status object.
 // It returns the source object or an error.
 func (r *HelmReleaseReconciler) getSource(ctx context.Context, obj *v2.HelmRelease) (sourcev1.Source, error) {
-	var name, namespace string
+	var ref *v2.HelmChartReference
 	if obj.HasChartRef() {
 		if obj.Spec.ChartRef.Kind == sourcev1.OCIRepositoryKind {
 			return r.getSourceFromOCIRef(ctx, obj)
@@ -772,65 +772,63 @@ func (r *HelmReleaseReconciler) getSource(ctx context.Context, obj *v2.HelmRelea
 		if obj.Spec.ChartRef.Kind == sourcev1.ExternalArtifactKind {
 			return r.getSourceFromExternalArtifact(ctx, obj)
 		}
-		name, namespace = obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
-		if namespace == "" {
-			namespace = obj.GetNamespace()
-		}
+		ref = obj.GetHelmChartReference()
 	} else {
-		namespace, name = obj.Status.GetHelmChart()
+		ref = obj.Status.GetHelmChartReference()
+	}
+	if ref == nil {
+		return nil, fmt.Errorf("no Helm chart reference found")
 	}
 
-	chartRef := types.NamespacedName{Namespace: namespace, Name: name}
-
-	if err := intacl.AllowsAccessTo(obj, sourcev1.HelmChartKind, chartRef); err != nil {
+	if err := intacl.AllowsAccessTo(obj, ref); err != nil {
 		return nil, err
 	}
 
+	if ref.Kind == sourcev1.OCIRepositoryKind {
+		or := sourcev1.OCIRepository{}
+		if err := r.getSourceClient().Get(ctx, ref.GetObjectKey(), &or); err != nil {
+			return nil, err
+		}
+		return &or, nil
+	}
+
 	hc := sourcev1.HelmChart{}
-	if err := r.getSourceClient().Get(ctx, chartRef, &hc); err != nil {
+	if err := r.getSourceClient().Get(ctx, ref.GetObjectKey(), &hc); err != nil {
 		return nil, err
 	}
 	return &hc, nil
 }
 
 func (r *HelmReleaseReconciler) getSourceFromOCIRef(ctx context.Context, obj *v2.HelmRelease) (sourcev1.Source, error) {
-	name, namespace := obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
-	if namespace == "" {
-		namespace = obj.GetNamespace()
-	}
-	ociRepoRef := types.NamespacedName{Namespace: namespace, Name: name}
+	ref := obj.GetHelmChartReference()
 
-	if err := intacl.AllowsAccessTo(obj, sourcev1.OCIRepositoryKind, ociRepoRef); err != nil {
+	if err := intacl.AllowsAccessTo(obj, ref); err != nil {
 		return nil, err
 	}
 
 	or := sourcev1.OCIRepository{}
-	if err := r.getSourceClient().Get(ctx, ociRepoRef, &or); err != nil {
+	if err := r.getSourceClient().Get(ctx, ref.GetObjectKey(), &or); err != nil {
 		return nil, err
 	}
 	return &or, nil
 }
 
 func (r *HelmReleaseReconciler) getSourceFromExternalArtifact(ctx context.Context, obj *v2.HelmRelease) (sourcev1.Source, error) {
-	name, namespace := obj.Spec.ChartRef.Name, obj.Spec.ChartRef.Namespace
-	if namespace == "" {
-		namespace = obj.GetNamespace()
-	}
-	sourceRef := types.NamespacedName{Namespace: namespace, Name: name}
+	ref := obj.GetHelmChartReference()
 
-	if err := intacl.AllowsAccessTo(obj, sourcev1.ExternalArtifactKind, sourceRef); err != nil {
+	if err := intacl.AllowsAccessTo(obj, ref); err != nil {
 		return nil, err
 	}
 
 	// Check if ExternalArtifact kind is allowed.
 	if obj.Spec.ChartRef.Kind == sourcev1.ExternalArtifactKind && !r.AllowExternalArtifact {
-		return nil, acl.AccessDeniedError(
-			fmt.Sprintf("can't access '%s/%s/%s', %s feature gate is disabled",
-				obj.Spec.ChartRef.Kind, namespace, name, helper.FeatureGateExternalArtifact))
+		msg := fmt.Sprintf("can't access '%s', %s feature gate is disabled",
+			ref, helper.FeatureGateExternalArtifact)
+		return nil, acl.AccessDeniedError(msg)
 	}
 
 	or := sourcev1.ExternalArtifact{}
-	if err := r.getSourceClient().Get(ctx, sourceRef, &or); err != nil {
+	if err := r.getSourceClient().Get(ctx, ref.GetObjectKey(), &or); err != nil {
 		return nil, err
 	}
 	return &or, nil
