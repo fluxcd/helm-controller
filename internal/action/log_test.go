@@ -465,3 +465,20 @@ func Test_newLogRingBuffer_customSize(t *testing.T) {
 	g.Expect(l).ToNot(BeNil())
 	g.Expect(l.buf.Len()).To(Equal(20))
 }
+
+func TestHookLogWriter_Bounds(t *testing.T) {
+	g := NewWithT(t)
+	buffer := NewDebugLogBuffer(context.Background())
+	w := &hookLogWriter{log: slog.New(buffer)}
+	input := strings.Repeat("x", maxHookLogBytes+1)
+	n, err := w.Write([]byte(input))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(n).To(Equal(len(input)))
+	g.Expect(w.written).To(Equal(maxHookLogBytes))
+	g.Expect(buffer.String()).To(ContainSubstring("Helm hook output truncated"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring(strings.Repeat("x", maxHookLogChunkBytes+1)))
+	before := buffer.String()
+	_, err = w.Write([]byte("more output"))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(Equal(before))
+}

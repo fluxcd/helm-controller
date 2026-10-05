@@ -19,6 +19,7 @@ package action
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 
 	helmaction "helm.sh/helm/v4/pkg/action"
@@ -183,6 +184,12 @@ func (c *ConfigFactory) Build(log slog.Handler, observers ...storage.ObserveFunc
 	conf.RESTClientGetter = c.Getter
 	conf.Releases = c.NewStorage(observers...)
 	conf.KubeClient = client
+	conf.HookOutputFunc = func(namespace, pod, container string) io.Writer {
+		if log == nil {
+			return io.Discard
+		}
+		return &hookLogWriter{log: slog.New(log).With("namespace", namespace, "pod", pod, "container", container)}
+	}
 	return conf
 }
 

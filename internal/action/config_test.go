@@ -17,15 +17,23 @@ limitations under the License.
 package action
 
 import (
+	"context"
 	"errors"
+	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
 	helmkube "helm.sh/helm/v4/pkg/kube"
 	helmrelease "helm.sh/helm/v4/pkg/release"
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/rest"
 	cmdtest "k8s.io/kubectl/pkg/cmd/testing"
 
 	"github.com/fluxcd/helm-controller/internal/kube"
@@ -316,4 +324,52 @@ func TestConfigFactory_Valid(t *testing.T) {
 			g.Expect(tt.factory.Valid()).To(Equal(tt.wantErr))
 		})
 	}
+}
+
+func TestConfigFactory_HookOutput(t *testing.T) {
+	g := NewWithT(t)
+	buffer := NewDebugLogBuffer(context.Background())
+	cfg := (&ConfigFactory{}).Build(buffer)
+	g.Expect(cfg.HookOutputFunc).NotTo(BeNil())
+	writer := cfg.HookOutputFunc("hook-ns", "hook-pod", "hook-container")
+	_, err := io.Copy(writer, strings.NewReader("first line\nlast line without newline"))
+	g.Expect(err).NotTo(HaveOccurred())
+	for _, want := range []string{"first line", "last line without newline", "hook-ns", "hook-pod", "hook-container"} {
+		g.Expect(buffer.String()).To(ContainSubstring(want))
+	}
+	cfg = (&ConfigFactory{}).Build(nil)
+	g.Expect(cfg.HookOutputFunc).NotTo(BeNil())
+	_, err = cfg.HookOutputFunc("ns", "pod", "container").Write([]byte("output"))
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestConfigFactory_StreamHookOutput(t *testing.T) {
+	g := NewWithT(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/version":
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := io.WriteString(w, `{"major":"1","minor":"37","gitVersion":"v1.37.0"}`); err != nil {
+				t.Error(err)
+			}
+		case "/api/v1/namespaces/ns/pods/hook/log":
+			if r.URL.Query().Get("container") != "main" {
+				t.Error("missing container selection")
+			}
+			if _, err := io.WriteString(w, "hook completed\nfinal fragment"); err != nil {
+				t.Error(err)
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	buffer := NewDebugLogBuffer(context.Background())
+	factory := &ConfigFactory{Getter: kube.NewMemoryRESTClientGetter(&rest.Config{Host: server.URL})}
+	cfg := factory.Build(buffer)
+	g.Expect(cfg.KubeClient.IsReachable()).To(Succeed())
+	pods := &corev1.PodList{Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: "hook"}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "main"}}}}}}
+	g.Expect(cfg.KubeClient.OutputContainerLogsForPodList(pods, "ns", cfg.HookOutputFunc)).To(Succeed())
+	g.Expect(buffer.String()).To(ContainSubstring("hook completed"))
+	g.Expect(buffer.String()).To(ContainSubstring("final fragment"))
 }

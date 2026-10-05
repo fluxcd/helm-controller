@@ -302,3 +302,42 @@ func (l *logRingBuffer) String() string {
 	l.mu.RUnlock()
 	return strings.TrimSpace(str)
 }
+
+// hookLogWriter forwards bounded chunks without retaining partial lines: Helm
+// supplies only an io.Writer and does not close it after streaming container logs.
+// A separate writer is constructed for each container stream.
+type hookLogWriter struct {
+	log       *slog.Logger
+	mu        sync.Mutex
+	written   int
+	truncated bool
+}
+
+const (
+	maxHookLogBytes      = 64 * 1024
+	maxHookLogChunkBytes = 1024
+)
+
+func (w *hookLogWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	n := len(p)
+	for len(p) > 0 && w.written < maxHookLogBytes {
+		size := min(len(p), maxHookLogChunkBytes, maxHookLogBytes-w.written)
+		chunk := p[:size]
+		if i := strings.IndexByte(string(chunk), '\n'); i >= 0 {
+			chunk = chunk[:i+1]
+		}
+		w.written += len(chunk)
+		p = p[len(chunk):]
+		if msg := strings.TrimRight(string(chunk), "\r\n"); msg != "" {
+			w.log.Debug("Helm hook output", "output", msg)
+		}
+	}
+	if len(p) > 0 && !w.truncated {
+		w.log.Debug("Helm hook output truncated", "limitBytes", maxHookLogBytes)
+		w.truncated = true
+	}
+	// Logging limits must not turn an otherwise successful hook into a failure.
+	return n, nil
+}
