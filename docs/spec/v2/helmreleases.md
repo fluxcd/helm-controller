@@ -1890,10 +1890,8 @@ The existing recent-action-log buffer can also include this output in install,
 upgrade, rollback, and uninstall failure events, regardless of the controller's
 configured log level. Successful action events do not include the log buffer.
 
-Output is limited to 64 KiB per container stream and split into chunks of at
-most 1 KiB. A truncation entry marks output beyond the limit. Chunk boundaries
-may split a line. Hook authors must avoid printing credentials or other sensitive
-values: enabling this annotation can expose the output through logs and events.
+Hook authors must avoid printing credentials or other sensitive values:
+enabling this annotation can expose the output through logs and events.
 
 #### Describe the HelmRelease
 
