@@ -1068,7 +1068,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
 						Chart: "mychart",
-						SourceRef: v2.CrossNamespaceObjectReference{
+						SourceRef: &v2.CrossNamespaceObjectReference{
 							Name: "something",
 						},
 					},
@@ -1536,7 +1536,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
 						Chart: "mychart",
-						SourceRef: v2.CrossNamespaceObjectReference{
+						SourceRef: &v2.CrossNamespaceObjectReference{
 							Name: "something",
 						},
 					},
@@ -1702,7 +1702,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				Generation: 2,
 			},
 			Spec: sourcev1.OCIRepositorySpec{
-				Interval: metav1.Duration{Duration: 1 * time.Second},
+				Interval: &metav1.Duration{Duration: 1 * time.Second},
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
@@ -1764,7 +1764,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				Generation: 2,
 			},
 			Spec: sourcev1.OCIRepositorySpec{
-				Interval: metav1.Duration{Duration: 1 * time.Second},
+				Interval: &metav1.Duration{Duration: 1 * time.Second},
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
@@ -1841,7 +1841,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				Generation: 2,
 			},
 			Spec: sourcev1.OCIRepositorySpec{
-				Interval: metav1.Duration{Duration: 1 * time.Second},
+				Interval: &metav1.Duration{Duration: 1 * time.Second},
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
@@ -1910,7 +1910,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 				Generation: 1,
 			},
 			Spec: sourcev1.OCIRepositorySpec{
-				Interval: metav1.Duration{Duration: 1 * time.Second},
+				Interval: &metav1.Duration{Duration: 1 * time.Second},
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 1,
@@ -2003,7 +2003,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://test-example.com",
-				Interval: metav1.Duration{Duration: 1 * time.Second},
+				Interval: &metav1.Duration{Duration: 1 * time.Second},
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 1,
@@ -2100,7 +2100,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://test-example.com",
-				Interval: metav1.Duration{Duration: 1 * time.Second},
+				Interval: &metav1.Duration{Duration: 1 * time.Second},
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 1,
@@ -2177,7 +2177,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://test-example.com",
-				Interval: metav1.Duration{Duration: 1 * time.Second},
+				Interval: &metav1.Duration{Duration: 1 * time.Second},
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 1,
@@ -2280,7 +2280,7 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 			},
 			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://test-example.com",
-				Interval: metav1.Duration{Duration: 1 * time.Second},
+				Interval: &metav1.Duration{Duration: 1 * time.Second},
 			},
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 1,
@@ -2883,6 +2883,36 @@ func TestHelmReleaseReconciler_reconcileChartTemplate(t *testing.T) {
 		obj := &v2.HelmRelease{
 			Spec: v2.HelmReleaseSpec{
 				Chart: &v2.HelmChartTemplate{},
+			},
+			Status: v2.HelmReleaseStatus{
+				StorageNamespace: "default",
+			},
+		}
+
+		// We do not care about the result of the reconcile, only that it was attempted.
+		err := r.reconcileChartTemplate(context.TODO(), obj)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("failed to run server-side apply"))
+	})
+
+	t.Run("attempts to reconcile OCIRepository chart template", func(t *testing.T) {
+		g := NewWithT(t)
+
+		r := &HelmReleaseReconciler{
+			Client:        fake.NewClientBuilder().WithScheme(NewTestScheme()).Build(),
+			EventRecorder: record.NewFakeRecorder(32),
+		}
+
+		obj := &v2.HelmRelease{
+			Spec: v2.HelmReleaseSpec{
+				Chart: &v2.HelmChartTemplate{
+					Kind: sourcev1.OCIRepositoryKind,
+					Spec: v2.HelmChartTemplateSpec{
+						OCIRepositorySpec: sourcev1.OCIRepositorySpec{
+							URL: "oci://ghcr.io/stefanprodan/charts/podinfo",
+						},
+					},
+				},
 			},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: "default",
@@ -3639,6 +3669,97 @@ func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
 	}
 }
 
+func TestHelmReleaseReconciler_getSource_OCIRepository(t *testing.T) {
+	g := NewWithT(t)
+
+	repo := &sourcev1.OCIRepository{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "some-namespace",
+			Name:      "some-repo-name",
+		},
+	}
+
+	tests := []struct {
+		name            string
+		rel             *v2.HelmRelease
+		repo            *sourcev1.OCIRepository
+		expectRepo      bool
+		wantErr         bool
+		disallowCrossNS bool
+	}{
+		{
+			name: "retrieves OCIRepository object from Status",
+			rel: &v2.HelmRelease{
+				Status: v2.HelmReleaseStatus{
+					HelmChart: fmt.Sprintf("%s/some-namespace/some-repo-name", sourcev1.OCIRepositoryKind),
+				},
+			},
+			repo:       repo,
+			expectRepo: true,
+		},
+		{
+			name: "no OCIRepository found",
+			rel: &v2.HelmRelease{
+				Status: v2.HelmReleaseStatus{
+					HelmChart: fmt.Sprintf("%s/some-namespace/some-repo-name", sourcev1.OCIRepositoryKind),
+				},
+			},
+			repo:       nil,
+			expectRepo: false,
+			wantErr:    true,
+		},
+		{
+			name: "ACL disallows cross namespace",
+			rel: &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+				},
+				Status: v2.HelmReleaseStatus{
+					HelmChart: fmt.Sprintf("%s/some-namespace/some-repo-name", sourcev1.OCIRepositoryKind),
+				},
+			},
+			repo:            repo,
+			expectRepo:      false,
+			wantErr:         true,
+			disallowCrossNS: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := fake.NewClientBuilder()
+			c.WithScheme(NewTestScheme())
+			if tt.repo != nil {
+				c.WithObjects(tt.repo)
+			}
+
+			r := &HelmReleaseReconciler{
+				Client:        c.Build(),
+				EventRecorder: record.NewFakeRecorder(32),
+			}
+
+			curAllow := intacl.AllowCrossNamespaceRef
+			intacl.AllowCrossNamespaceRef = !tt.disallowCrossNS
+			t.Cleanup(func() { intacl.AllowCrossNamespaceRef = !curAllow })
+
+			got, err := r.getSource(context.TODO(), tt.rel)
+			if tt.wantErr {
+				g.Expect(err).To(HaveOccurred())
+				g.Expect(got).To(BeNil())
+				return
+			}
+			g.Expect(err).ToNot(HaveOccurred())
+			or, ok := got.(*sourcev1.OCIRepository)
+			g.Expect(ok).To(BeTrue())
+			expect := g.Expect(or.ObjectMeta)
+			if tt.expectRepo {
+				expect.To(BeEquivalentTo(tt.repo.ObjectMeta))
+			} else {
+				expect.To(BeNil())
+			}
+		})
+	}
+}
+
 func TestHelmReleaseReconciler_getSourceClient(t *testing.T) {
 	g := NewWithT(t)
 
@@ -4021,7 +4142,7 @@ func TestValuesReferenceValidation(t *testing.T) {
 					Chart: &v2.HelmChartTemplate{
 						Spec: v2.HelmChartTemplateSpec{
 							Chart: "mychart",
-							SourceRef: v2.CrossNamespaceObjectReference{
+							SourceRef: &v2.CrossNamespaceObjectReference{
 								Name: "something",
 								Kind: "HelmRepository",
 							},
