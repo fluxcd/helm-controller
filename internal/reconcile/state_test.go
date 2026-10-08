@@ -192,6 +192,23 @@ func Test_DetermineReleaseState(t *testing.T) {
 			},
 		},
 		{
+			name: "release in uninstalling state",
+			releases: []*helmrelease.Release{
+				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+					Name:      mockReleaseName,
+					Namespace: mockReleaseNamespace,
+					Version:   1,
+					Status:    helmreleasecommon.StatusUninstalling,
+					Chart:     testutil.BuildChart(),
+				}, testutil.ReleaseWithConfig(map[string]any{"foo": "bar"})),
+			},
+			chart:  testutil.BuildChart(),
+			values: map[string]any{"foo": "bar"},
+			want: ReleaseState{
+				Status: ReleaseStatusLocked,
+			},
+		},
+		{
 			name: "untested release",
 			releases: []*helmrelease.Release{
 				testutil.BuildRelease(&helmrelease.MockReleaseOptions{
