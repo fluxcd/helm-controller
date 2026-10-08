@@ -197,6 +197,23 @@ func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *
 			}
 		}
 
+		// PROOF OF CONCEPT: detect changes a live re-render would produce
+		// (e.g. from the Helm `lookup` function) that a plain comparison
+		// against the stored release manifest can never see, since that
+		// comparison never re-renders the chart. Deliberately not gated on
+		// a Generation change, unlike the digests above: the entire point
+		// is to catch changes that happen without one.
+		// See https://github.com/fluxcd/helm-controller/issues/1583.
+		if req.Object.GetDriftDetection().MustRenderForDrift() {
+			templateDigest, err := action.RenderTemplateDigest(ctx, cfg.Build(nil), req.Object, req.Chart, req.Values)
+			if err != nil {
+				return ReleaseState{Status: ReleaseStatusUnknown}, fmt.Errorf("failed to render template for drift detection: %w", err)
+			}
+			if templateDigest != req.Object.Status.ObservedTemplateDigest {
+				return ReleaseState{Status: ReleaseStatusOutOfSync, Reason: "template digest changed"}, nil
+			}
+		}
+
 		// Confirm the cluster state matches the desired config.
 		if diffOpts := req.Object.GetDriftDetection(); diffOpts.MustDetectChanges() {
 			diffSet, err := action.Diff(ctx, cfg.Build(nil), rls, kube.ManagedFieldsManager, disallowedFieldManagers, req.Object.GetDriftDetection().Ignore...)
