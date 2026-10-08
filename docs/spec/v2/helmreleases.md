@@ -1886,6 +1886,11 @@ purposes.
 Hooks annotated with `helm.sh/hook-output-log-policy` forward their container
 output to the controller's debug logs according to Helm's `hook-succeeded` and
 `hook-failed` policies. Each entry identifies the namespace, Pod, and container.
+Complete JSON object lines are recorded as structured `logFields`; other lines
+are trimmed and recorded as `logLine`. Partial lines are buffered across writes,
+and a final line without a newline is flushed when log collection ends, including
+on errors. Blank lines are skipped.
+
 The existing recent-action-log buffer can also include this output in install,
 upgrade, rollback, and uninstall failure events, regardless of the controller's
 configured log level. Successful action events do not include the log buffer.

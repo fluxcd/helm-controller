@@ -19,6 +19,7 @@ package action
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -334,6 +335,7 @@ func TestConfigFactory_HookOutput(t *testing.T) {
 	writer := cfg.HookOutputFunc("hook-ns", "hook-pod", "hook-container")
 	_, err := io.Copy(writer, strings.NewReader("first line\nlast line without newline"))
 	g.Expect(err).NotTo(HaveOccurred())
+	writer.(*hookLogWriter).Flush()
 	for _, want := range []string{"first line", "last line without newline", "hook-ns", "hook-pod", "hook-container"} {
 		g.Expect(buffer.String()).To(ContainSubstring(want))
 	}
@@ -344,32 +346,44 @@ func TestConfigFactory_HookOutput(t *testing.T) {
 }
 
 func TestConfigFactory_StreamHookOutput(t *testing.T) {
-	g := NewWithT(t)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/version":
-			w.Header().Set("Content-Type", "application/json")
-			if _, err := io.WriteString(w, `{"major":"1","minor":"37","gitVersion":"v1.37.0"}`); err != nil {
-				t.Error(err)
+	for _, interrupted := range []bool{false, true} {
+		t.Run(fmt.Sprint("interrupted=", interrupted), func(t *testing.T) {
+			g := NewWithT(t)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/version":
+					w.Header().Set("Content-Type", "application/json")
+					if _, err := io.WriteString(w, `{"major":"1","minor":"37","gitVersion":"v1.37.0"}`); err != nil {
+						t.Error(err)
+					}
+				case "/api/v1/namespaces/ns/pods/hook/log":
+					if r.URL.Query().Get("container") != "main" {
+						t.Error("missing container selection")
+					}
+					if interrupted {
+						w.Header().Set("Content-Length", "1000")
+					}
+					if _, err := io.WriteString(w, "hook completed\nfinal fragment"); err != nil {
+						t.Error(err)
+					}
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer server.Close()
+			buffer := NewDebugLogBuffer(context.Background())
+			factory := &ConfigFactory{Getter: kube.NewMemoryRESTClientGetter(&rest.Config{Host: server.URL})}
+			cfg := factory.Build(buffer)
+			g.Expect(cfg.KubeClient.IsReachable()).To(Succeed())
+			pods := &corev1.PodList{Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: "hook"}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "main"}}}}}}
+			err := cfg.KubeClient.OutputContainerLogsForPodList(pods, "ns", cfg.HookOutputFunc)
+			if interrupted {
+				g.Expect(err).To(HaveOccurred())
+			} else {
+				g.Expect(err).NotTo(HaveOccurred())
 			}
-		case "/api/v1/namespaces/ns/pods/hook/log":
-			if r.URL.Query().Get("container") != "main" {
-				t.Error("missing container selection")
-			}
-			if _, err := io.WriteString(w, "hook completed\nfinal fragment"); err != nil {
-				t.Error(err)
-			}
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer server.Close()
-	buffer := NewDebugLogBuffer(context.Background())
-	factory := &ConfigFactory{Getter: kube.NewMemoryRESTClientGetter(&rest.Config{Host: server.URL})}
-	cfg := factory.Build(buffer)
-	g.Expect(cfg.KubeClient.IsReachable()).To(Succeed())
-	pods := &corev1.PodList{Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: "hook"}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "main"}}}}}}
-	g.Expect(cfg.KubeClient.OutputContainerLogsForPodList(pods, "ns", cfg.HookOutputFunc)).To(Succeed())
-	g.Expect(buffer.String()).To(ContainSubstring("hook completed"))
-	g.Expect(buffer.String()).To(ContainSubstring("final fragment"))
+			g.Expect(buffer.String()).To(ContainSubstring("hook completed"))
+			g.Expect(buffer.String()).To(ContainSubstring("final fragment"))
+		})
+	}
 }
