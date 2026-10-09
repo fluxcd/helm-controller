@@ -30,12 +30,13 @@ import (
 	helmstorage "helm.sh/helm/v4/pkg/storage"
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	"github.com/fluxcd/pkg/chartutil"
 
@@ -368,7 +369,7 @@ func TestUnlock_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 			got := NewUnlock(cfg, recorder).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
@@ -410,8 +411,7 @@ func TestUnlock_failure(t *testing.T) {
 		status = helmreleasecommon.StatusPendingInstall
 		err    = fmt.Errorf("unlock error")
 	)
-
-	recorder := testutil.NewFakeRecorder(10, false)
+	recorder := events.NewFakeRecorder(10, false)
 	r := &Unlock{
 		eventRecorder: recorder,
 	}
@@ -428,11 +428,12 @@ func TestUnlock_failure(t *testing.T) {
 		*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "%s", expectMsg),
 	}))
 	g.Expect(req.Object.Status.Failures).To(Equal(int64(1)))
-	g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+	g.Expect(recorder.GetEvents()).To(ConsistOf([]eventsv1.Event{
 		{
-			Type:    corev1.EventTypeWarning,
-			Reason:  "PendingRelease",
-			Message: expectMsg,
+			Type:   corev1.EventTypeWarning,
+			Reason: "PendingRelease",
+			Action: eventv1.ActionFailed,
+			Note:   expectMsg,
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					eventMetaGroupKey(eventv1.MetaRevisionKey): cur.Chart.Metadata.Version,
@@ -458,7 +459,7 @@ func TestUnlock_success(t *testing.T) {
 		status = helmreleasecommon.StatusPendingInstall
 	)
 
-	recorder := testutil.NewFakeRecorder(10, false)
+	recorder := events.NewFakeRecorder(10, false)
 	r := &Unlock{
 		eventRecorder: recorder,
 	}
@@ -475,11 +476,12 @@ func TestUnlock_success(t *testing.T) {
 		*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "%s", expectMsg),
 	}))
 	g.Expect(req.Object.Status.Failures).To(Equal(int64(0)))
-	g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+	g.Expect(recorder.GetEvents()).To(ConsistOf([]eventsv1.Event{
 		{
-			Type:    corev1.EventTypeNormal,
-			Reason:  "PendingRelease",
-			Message: expectMsg,
+			Type:   corev1.EventTypeNormal,
+			Reason: "PendingRelease",
+			Action: eventv1.ActionValidated,
+			Note:   expectMsg,
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					eventMetaGroupKey(eventv1.MetaRevisionKey): cur.Chart.Metadata.Version,
@@ -538,7 +540,7 @@ func TestUnlock_withOCIDigest(t *testing.T) {
 	store := helmstorage.Init(cfg.Driver)
 	g.Expect(store.Create(rls)).To(Succeed())
 
-	recorder := testutil.NewFakeRecorder(10, false)
+	recorder := events.NewFakeRecorder(10, false)
 	got := NewUnlock(cfg, recorder).Reconcile(context.TODO(), &Request{
 		Object: obj,
 	})
@@ -564,11 +566,12 @@ func TestUnlock_withOCIDigest(t *testing.T) {
 		fmt.Sprintf("%s@%s", rls.Chart.Name(), rls.Chart.Metadata.Version),
 		rls.Info.Status.String())
 
-	g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+	g.Expect(recorder.GetEvents()).To(ConsistOf([]eventsv1.Event{
 		{
-			Type:    corev1.EventTypeNormal,
-			Reason:  "PendingRelease",
-			Message: expectMsg,
+			Type:   corev1.EventTypeNormal,
+			Reason: "PendingRelease",
+			Action: eventv1.ActionValidated,
+			Note:   expectMsg,
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					eventMetaGroupKey(metaOCIDigestKey):        expected.OCIDigest,

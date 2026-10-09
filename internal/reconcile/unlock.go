@@ -26,9 +26,10 @@ import (
 	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
 	helmreleasev1 "helm.sh/helm/v4/pkg/release/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/record"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -52,12 +53,12 @@ import (
 // propagated to the Ready condition on the Request.Object.
 type Unlock struct {
 	configFactory *action.ConfigFactory
-	eventRecorder record.EventRecorder
+	eventRecorder events.Recorder
 }
 
 // NewUnlock returns a new Unlock reconciler configured with the provided
 // values.
-func NewUnlock(cfg *action.ConfigFactory, recorder record.EventRecorder) *Unlock {
+func NewUnlock(cfg *action.ConfigFactory, recorder events.Recorder) *Unlock {
 	return &Unlock{configFactory: cfg, eventRecorder: recorder}
 }
 
@@ -122,9 +123,11 @@ func (r *Unlock) failure(req *Request, cur *v2.Snapshot, status helmreleasecommo
 	// Record warning event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
+		req.Source,
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeWarning,
 		"PendingRelease",
+		eventv1.ActionFailed,
 		"%s",
 		msg,
 	)
@@ -142,9 +145,11 @@ func (r *Unlock) success(req *Request, cur *v2.Snapshot, status helmreleasecommo
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
+		req.Source,
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		"PendingRelease",
+		eventv1.ActionValidated,
 		"%s",
 		msg,
 	)

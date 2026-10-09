@@ -32,16 +32,17 @@ import (
 	helmstorage "helm.sh/helm/v4/pkg/storage"
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/chartutil"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -498,7 +499,7 @@ func TestUpgrade_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 			got := NewUpgrade(cfg, recorder, false).Reconcile(context.TODO(), &Request{
 				Object: obj,
 				Chart:  tt.chart,
@@ -659,7 +660,7 @@ func TestUpgrade_Reconcile_withSubchartWithCRDs(t *testing.T) {
 			}, time.Minute).Should(BeTrue(), "timed out waiting for CRD to be deleted")
 
 			chart := testutil.BuildChartWithSubchartWithCRD()
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 			got := NewUpgrade(cfg, recorder, false).Reconcile(context.TODO(), &Request{
 				Object: obj,
 				Chart:  chart,
@@ -730,7 +731,7 @@ func TestUpgrade_failure(t *testing.T) {
 	t.Run("records failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, true)
 		r := &Upgrade{
 			eventRecorder: recorder,
 		}
@@ -745,11 +746,12 @@ func TestUpgrade_failure(t *testing.T) {
 			*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason, "%s", expectMsg),
 		}))
 		g.Expect(req.Object.Status.Failures).To(Equal(int64(1)))
-		g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+		g.Expect(recorder.GetEvents()).To(ConsistOf([]eventsv1.Event{
 			{
-				Type:    corev1.EventTypeWarning,
-				Reason:  v2.UpgradeFailedReason,
-				Message: expectMsg,
+				Type:   corev1.EventTypeWarning,
+				Reason: v2.UpgradeFailedReason,
+				Action: string(v2.ReleaseActionUpgrade),
+				Note:   expectMsg,
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						eventMetaGroupKey(metaOCIDigestKey):        obj.Status.LastAttemptedRevisionDigest,
@@ -765,7 +767,7 @@ func TestUpgrade_failure(t *testing.T) {
 	t.Run("records failure with logs", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &Upgrade{
 			eventRecorder: recorder,
 		}
@@ -778,7 +780,7 @@ func TestUpgrade_failure(t *testing.T) {
 
 		events := recorder.GetEvents()
 		g.Expect(events).To(HaveLen(1))
-		g.Expect(events[0].Message).To(ContainSubstring(expectSubStr))
+		g.Expect(events[0].Note).To(ContainSubstring(expectSubStr))
 	})
 }
 
@@ -801,7 +803,7 @@ func TestUpgrade_success(t *testing.T) {
 	t.Run("records success", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, true)
 		r := &Upgrade{
 			eventRecorder: recorder,
 		}
@@ -818,11 +820,12 @@ func TestUpgrade_success(t *testing.T) {
 		g.Expect(req.Object.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
 			*conditions.TrueCondition(v2.ReleasedCondition, v2.UpgradeSucceededReason, "%s", expectMsg),
 		}))
-		g.Expect(recorder.GetEvents()).To(ConsistOf([]corev1.Event{
+		g.Expect(recorder.GetEvents()).To(ConsistOf([]eventsv1.Event{
 			{
-				Type:    corev1.EventTypeNormal,
-				Reason:  v2.UpgradeSucceededReason,
-				Message: expectMsg,
+				Type:   corev1.EventTypeNormal,
+				Reason: v2.UpgradeSucceededReason,
+				Action: string(v2.ReleaseActionUpgrade),
+				Note:   expectMsg,
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.Status.History.Latest().ChartVersion,
@@ -837,7 +840,7 @@ func TestUpgrade_success(t *testing.T) {
 	t.Run("clears failures if retry strategy is configured", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &Upgrade{
 			eventRecorder: recorder,
 		}
@@ -863,7 +866,7 @@ func TestUpgrade_success(t *testing.T) {
 	t.Run("records success with TestSuccess=False", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &Upgrade{
 			eventRecorder: recorder,
 		}
