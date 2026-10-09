@@ -38,13 +38,14 @@ import (
 )
 
 // Unlock is an ActionReconciler which attempts to unlock the latest release
-// for a Request.Object in the Helm storage if stuck in a pending state, by
-// setting the status to release.StatusFailed and persisting it.
+// for a Request.Object in the Helm storage if stuck in a pending or
+// uninstalling state, by setting the status to release.StatusFailed and
+// persisting it.
 //
 // This write to the Helm storage is observed, and updates the Status.History
 // field if the persisted object targets the same release version.
 //
-// Any pending state marks the v2.HelmRelease object with
+// Any such state marks the v2.HelmRelease object with
 // ReleasedCondition=False, even if persisting the object to the Helm storage
 // fails.
 //
@@ -79,10 +80,10 @@ func (r *Unlock) Reconcile(_ context.Context, req *Request) error {
 		return err
 	}
 
-	// Ensure the release is in a pending state.
+	// Ensure the release is in a pending or uninstalling state.
 	cur := processCurrentSnaphot(req.Object, rls)
-	if status := rls.Info.Status; status.IsPending() {
-		// Update pending status to failed and persist.
+	if status := rls.Info.Status; isLockedStatus(status) {
+		// Update the stale status to failed and persist.
 		rls.SetStatus(helmreleasecommon.StatusFailed, fmt.Sprintf("Release unlocked from stale '%s' state", status.String()))
 		if err = cfg.Releases.Update(rls); err != nil {
 			r.failure(req, cur, status, err)

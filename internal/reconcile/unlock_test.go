@@ -113,6 +113,36 @@ func TestUnlock_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "unlock success from uninstalling state",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Chart:     testutil.BuildChart(),
+						Status:    helmreleasecommon.StatusUninstalling,
+					}),
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+				}
+			},
+			expectConditions: []metav1.Condition{
+				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "Unlocked Helm release"),
+				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "Unlocked Helm release"),
+			},
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
+		},
+		{
 			name: "unlock failure",
 			driver: func(driver helmdriver.Driver) helmdriver.Driver {
 				return &storage.Failing{
