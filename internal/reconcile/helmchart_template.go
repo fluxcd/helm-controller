@@ -25,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -154,7 +153,7 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 	if err != nil {
 		err = fmt.Errorf("failed to run server-side apply: %w", err)
 		reason := fmt.Sprintf("%sSyncErr", ref.Kind)
-		r.eventRecorder.Eventf(obj, eventv1.EventTypeTrace, reason, "%s", err.Error())
+		r.eventRecorder.Eventf(obj, nil, eventv1.EventTypeTrace, reason, "%s", err.Error())
 		return err
 	}
 
@@ -165,7 +164,7 @@ func (r *HelmChartTemplate) Reconcile(ctx context.Context, req *Request) error {
 			entry.Action.String(), entry.Subject, newChartWithSourceRef))
 
 		ctrl.LoggerFrom(ctx).Info(msg)
-		r.eventRecorder.Eventf(obj, eventv1.EventTypeTrace,
+		r.eventRecorder.Eventf(obj, nil, eventv1.EventTypeTrace,
 			fmt.Sprintf("%s%s", ref.Kind, strings.Title(entry.Action.String())), "%s", msg)
 	case ssa.UnchangedAction:
 		msg := fmt.Sprintf("%s%s is in-sync", entry.Subject, newChartWithSourceRef)
@@ -213,7 +212,7 @@ func (r *HelmChartTemplate) reconcileDelete(ctx context.Context, obj *v2.HelmRel
 				return err
 			}
 			reason := fmt.Sprintf("%sDeleted", ref.Kind)
-			r.eventRecorder.Eventf(obj, eventv1.EventTypeTrace, reason, "deleted '%s'", ref)
+			r.eventRecorder.Eventf(obj, nil, eventv1.EventTypeTrace, reason, "deleted '%s'", ref.String())
 		}
 
 		// Truncate the chart reference in the status object.

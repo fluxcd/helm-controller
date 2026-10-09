@@ -2899,8 +2899,8 @@ func TestHelmReleaseReconciler_reconcileChartTemplate(t *testing.T) {
 		g := NewWithT(t)
 
 		r := &HelmReleaseReconciler{
-			Client:        fake.NewClientBuilder().WithScheme(NewTestScheme()).Build(),
-			EventRecorder: record.NewFakeRecorder(32),
+			Client:   fake.NewClientBuilder().WithScheme(NewTestScheme()).Build(),
+			Recorder: events.NewFakeRecorder(32, false),
 		}
 
 		obj := &v2.HelmRelease{
@@ -3733,8 +3733,8 @@ func TestHelmReleaseReconciler_getSource_OCIRepository(t *testing.T) {
 			}
 
 			r := &HelmReleaseReconciler{
-				Client:        c.Build(),
-				EventRecorder: record.NewFakeRecorder(32),
+				Client:   c.Build(),
+				Recorder: events.NewFakeRecorder(32, false),
 			}
 
 			curAllow := intacl.AllowCrossNamespaceRef

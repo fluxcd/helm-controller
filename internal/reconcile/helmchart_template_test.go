@@ -514,13 +514,7 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 				HelmChart: "default/chart",
 			},
 		}
-		srcObj := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "chart",
-				Namespace: "default",
-			},
-		}
-		err := r.reconcileDelete(context.TODO(), obj, srcObj)
+		err := r.reconcileDelete(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(obj.Status.HelmChart).To(BeEmpty())
 
@@ -560,7 +554,7 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 				HelmChart: "default/chart",
 			},
 		}
-		err := r.reconcileDelete(context.TODO(), obj, nil)
+		err := r.reconcileDelete(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(obj.Status.HelmChart).To(BeEmpty())
 	})
@@ -580,13 +574,7 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 				HelmChart: "default/chart",
 			},
 		}
-		srcObj := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "chart",
-				Namespace: "default",
-			},
-		}
-		err := r.reconcileDelete(context.TODO(), obj, srcObj)
+		err := r.reconcileDelete(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(obj.Status.HelmChart).To(BeEmpty())
 	})
@@ -621,13 +609,7 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 				HelmChart: "default/chart",
 			},
 		}
-		srcObj := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "chart",
-				Namespace: "default",
-			},
-		}
-		err := r.reconcileDelete(context.TODO(), obj, srcObj)
+		err := r.reconcileDelete(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(obj.Status.HelmChart).ToNot(BeEmpty())
 
@@ -662,18 +644,12 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 				HelmChart: "other/chart",
 			},
 		}
-		srcObj := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "chart",
-				Namespace: "default",
-			},
-		}
 
 		currentAllow := acl.AllowCrossNamespaceRef
 		acl.AllowCrossNamespaceRef = false
 		t.Cleanup(func() { acl.AllowCrossNamespaceRef = currentAllow })
 
-		err := r.reconcileDelete(context.TODO(), obj, srcObj)
+		err := r.reconcileDelete(context.TODO(), obj)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(obj.Status.HelmChart).ToNot(BeEmpty())
 
@@ -692,10 +668,7 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 		obj := &v2.HelmRelease{
 			Status: v2.HelmReleaseStatus{},
 		}
-		srcObj := &sourcev1.HelmChart{
-			Status: sourcev1.HelmChartStatus{},
-		}
-		err := r.reconcileDelete(context.TODO(), obj, srcObj)
+		err := r.reconcileDelete(context.TODO(), obj)
 		g.Expect(err).ToNot(HaveOccurred())
 	})
 }
@@ -1115,7 +1088,7 @@ func TestHelmChartTemplate_reconcileDelete_OCIRepository(t *testing.T) {
 				},
 			})
 
-		recorder := record.NewFakeRecorder(32)
+		recorder := events.NewFakeRecorder(32, false)
 		r := &HelmChartTemplate{
 			client:        builder.Build(),
 			eventRecorder: recorder,
@@ -1158,7 +1131,7 @@ func TestHelmChartTemplate_reconcileDelete_OCIRepository(t *testing.T) {
 
 		r := &HelmChartTemplate{
 			client:        builder.Build(),
-			eventRecorder: record.NewFakeRecorder(32),
+			eventRecorder: events.NewFakeRecorder(32, false),
 		}
 
 		obj := &v2.HelmRelease{
@@ -1207,7 +1180,7 @@ func TestHelmChartTemplate_reconcileDelete_OCIRepository(t *testing.T) {
 				},
 			})
 
-		recorder := record.NewFakeRecorder(32)
+		recorder := events.NewFakeRecorder(32, false)
 		r := &HelmChartTemplate{
 			client:        builder.Build(),
 			eventRecorder: recorder,
@@ -1313,7 +1286,7 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 			g.Expect(testEnv.Cleanup(context.Background(), &existingRepo)).To(Succeed())
 		})
 
-		recorder := record.NewFakeRecorder(32)
+		recorder := events.NewFakeRecorder(32, false)
 		r := &HelmChartTemplate{
 			client:        testEnv,
 			eventRecorder: recorder,
@@ -1367,7 +1340,7 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 
 		r := &HelmChartTemplate{
 			client:        testEnv,
-			eventRecorder: record.NewFakeRecorder(32),
+			eventRecorder: events.NewFakeRecorder(32, false),
 			fieldManager:  testFieldManager,
 		}
 
@@ -1413,7 +1386,7 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 	t.Run("OCIRepository NotFound creates OCIRepository", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := record.NewFakeRecorder(32)
+		recorder := events.NewFakeRecorder(32, false)
 		r := &HelmChartTemplate{
 			client:        testEnv,
 			eventRecorder: recorder,
@@ -1481,7 +1454,7 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 			g.Expect(testEnv.Cleanup(context.Background(), &existingRepo)).To(Succeed())
 		})
 
-		recorder := record.NewFakeRecorder(32)
+		recorder := events.NewFakeRecorder(32, false)
 		r := &HelmChartTemplate{
 			client:        testEnv,
 			eventRecorder: recorder,
@@ -1548,7 +1521,7 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 			g.Expect(testEnv.Cleanup(context.Background(), existingRepo)).To(Succeed())
 		})
 
-		recorder := record.NewFakeRecorder(32)
+		recorder := events.NewFakeRecorder(32, false)
 		r := &HelmChartTemplate{
 			client:        testEnv,
 			eventRecorder: recorder,
@@ -1589,7 +1562,7 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 	t.Run("sets owner labels on OCIRepository", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := record.NewFakeRecorder(32)
+		recorder := events.NewFakeRecorder(32, false)
 		r := &HelmChartTemplate{
 			client:        testEnv,
 			eventRecorder: recorder,
@@ -1655,7 +1628,7 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 			g.Expect(testEnv.Cleanup(context.Background(), &existingRepo)).To(Succeed())
 		})
 
-		recorder := record.NewFakeRecorder(32)
+		recorder := events.NewFakeRecorder(32, false)
 		r := &HelmChartTemplate{
 			client:        testEnv,
 			eventRecorder: recorder,
