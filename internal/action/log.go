@@ -17,6 +17,7 @@ limitations under the License.
 package action
 
 import (
+	"bytes"
 	"container/ring"
 	"context"
 	"encoding/json"
@@ -301,4 +302,51 @@ func (l *logRingBuffer) String() string {
 	})
 	l.mu.RUnlock()
 	return strings.TrimSpace(str)
+}
+
+// hookLogWriter buffers incomplete lines and forwards each complete line to
+// the action logger. The client flushes the final line after log collection.
+type hookLogWriter struct {
+	log     *slog.Logger
+	mu      sync.Mutex
+	pending bytes.Buffer
+}
+
+func (w *hookLogWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	n := len(p)
+	for len(p) > 0 {
+		i := bytes.IndexByte(p, '\n')
+		if i < 0 {
+			w.pending.Write(p)
+			break
+		}
+		w.pending.Write(p[:i])
+		w.emitLine()
+		p = p[i+1:]
+	}
+	return n, nil
+}
+
+// Flush emits any remaining line, including on an interrupted log stream.
+func (w *hookLogWriter) Flush() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.emitLine()
+}
+
+// emitLine consumes the buffered line. The caller must hold mu.
+func (w *hookLogWriter) emitLine() {
+	line := strings.TrimSpace(w.pending.String())
+	w.pending.Reset()
+	if line == "" {
+		return
+	}
+	var fields map[string]any
+	if err := json.Unmarshal([]byte(line), &fields); err == nil && fields != nil {
+		w.log.Debug("Helm hook output", "logFields", fields)
+	} else {
+		w.log.Debug("Helm hook output", "logLine", line)
+	}
 }

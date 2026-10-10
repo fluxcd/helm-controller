@@ -17,6 +17,7 @@ limitations under the License.
 package action
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -464,4 +465,66 @@ func Test_newLogRingBuffer_customSize(t *testing.T) {
 
 	g.Expect(l).ToNot(BeNil())
 	g.Expect(l.buf.Len()).To(Equal(20))
+}
+
+func TestHookLogWriter_PreservesOutput(t *testing.T) {
+	g := NewWithT(t)
+	buffer := NewDebugLogBuffer(context.Background())
+	w := &hookLogWriter{log: slog.New(buffer)}
+	input := strings.Repeat("x", 64*1024+1) + "final output"
+	n, err := w.Write([]byte(input))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(n).To(Equal(len(input)))
+	w.Flush()
+	g.Expect(buffer.String()).To(ContainSubstring(input))
+}
+
+func TestHookLogWriter_Lines(t *testing.T) {
+	var output bytes.Buffer
+	w := &hookLogWriter{log: slog.New(slog.NewJSONHandler(&output, &slog.HandlerOptions{Level: slog.LevelDebug}))}
+	g := NewWithT(t)
+	write := func(s string) {
+		t.Helper()
+		n, err := w.Write([]byte(s))
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(n).To(Equal(len(s)))
+	}
+	write("  par")
+	g.Expect(output.Len()).To(BeZero())
+	write("tial line  \r\n{\"nested\":{\"ok\":true},\"count\":2")
+	write("}\n[]\nnull\n42\n\"text\"\n{bad json}\n{} trailing\n \nfinal")
+	w.Flush()
+	before := output.String()
+	w.Flush()
+	g.Expect(output.String()).To(Equal(before))
+	var records []map[string]any
+	for _, line := range strings.Split(strings.TrimSpace(output.String()), "\n") {
+		var record map[string]any
+		g.Expect(json.Unmarshal([]byte(line), &record)).To(Succeed())
+		records = append(records, record)
+	}
+	g.Expect(records).To(HaveLen(9))
+	g.Expect(records[0]["logLine"]).To(Equal("partial line"))
+	g.Expect(records[1]["logFields"]).To(Equal(map[string]any{"nested": map[string]any{"ok": true}, "count": float64(2)}))
+	for i, want := range []string{"[]", "null", "42", `"text"`, "{bad json}", "{} trailing", "final"} {
+		g.Expect(records[i+2]["logLine"]).To(Equal(want))
+		g.Expect(records[i+2]).NotTo(HaveKey("logFields"))
+	}
+}
+
+func TestHookLogWriter_ContainerIsolation(t *testing.T) {
+	g := NewWithT(t)
+	buffer := NewDebugLogBuffer(context.Background())
+	cfg := (&ConfigFactory{}).Build(buffer)
+	first := cfg.HookOutputFunc("ns", "pod", "first").(*hookLogWriter)
+	second := cfg.HookOutputFunc("ns", "pod", "second").(*hookLogWriter)
+	_, err := first.Write([]byte("first partial"))
+	g.Expect(err).NotTo(HaveOccurred())
+	_, err = second.Write([]byte("second line\n"))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).NotTo(ContainSubstring("first partial"))
+	g.Expect(buffer.String()).To(ContainSubstring(`"container":"second"`))
+	first.Flush()
+	g.Expect(buffer.String()).To(ContainSubstring(`"container":"first"`))
+	g.Expect(buffer.String()).To(ContainSubstring(`"logLine":"first partial"`))
 }

@@ -18,8 +18,10 @@ package action
 
 import (
 	"context"
+	"io"
 
 	helmkube "helm.sh/helm/v4/pkg/kube"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/fluxcd/pkg/ssa"
@@ -75,4 +77,23 @@ func (c *Client) newWaiter(strategy helmkube.WaitStrategy,
 		newResourceManager: c.newResourceManager,
 		waitContext:        c.waitContext,
 	}, nil
+}
+
+// OutputContainerLogsForPodList flushes incomplete hook log lines after Helm
+// finishes streaming, even when reading a container's logs fails.
+func (c *Client) OutputContainerLogsForPodList(pods *corev1.PodList, namespace string,
+	writerFunc func(namespace, pod, container string) io.Writer) error {
+	var writers []*hookLogWriter
+	defer func() {
+		for _, writer := range writers {
+			writer.Flush()
+		}
+	}()
+	return c.Client.OutputContainerLogsForPodList(pods, namespace, func(namespace, pod, container string) io.Writer {
+		writer := writerFunc(namespace, pod, container)
+		if buffered, ok := writer.(*hookLogWriter); ok {
+			writers = append(writers, buffered)
+		}
+		return writer
+	})
 }
