@@ -31,6 +31,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/controller"
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
@@ -244,6 +245,17 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 
 				conditions.Delete(req.Object, meta.ReconcilingCondition)
 				return nil
+			}
+
+			// Do not start a remediation when the object has been enqueued again.
+			// The new request may have changed the inputs, and a rollback would
+			// fail waiting on the already canceled interrupt context, so requeue
+			// and let the next reconcile decide.
+			if next.Type() == ReconcilerTypeRemediate {
+				if enqueued, _ := controller.IsObjectEnqueued(ctx); enqueued {
+					conditions.MarkReconciling(req.Object, meta.ProgressingWithRetryReason, "%s", conditions.GetMessage(req.Object, meta.ReadyCondition))
+					return ErrMustRequeue
+				}
 			}
 
 			// Mark the release as reconciling before we attempt to run the action.
