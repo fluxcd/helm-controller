@@ -129,6 +129,20 @@ func (r *HelmReleaseReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Fetch the HelmRelease
 	obj := &v2.HelmRelease{}
 	if err := r.Get(ctx, req.NamespacedName, obj); err != nil {
+		if apierrors.IsNotFound(err) {
+			// The object is gone from the cluster, so the deferred metrics
+			// recording below never runs for it. Drop its duration series
+			// here directly, otherwise objects deleted without a reconcile
+			// pass that observes the deletion accumulate in the registry
+			// until the controller restarts.
+			if r.Metrics.MetricsRecorder != nil {
+				r.Metrics.MetricsRecorder.DeleteDuration(corev1.ObjectReference{
+					Kind:      v2.HelmReleaseKind,
+					Name:      req.Name,
+					Namespace: req.Namespace,
+				})
+			}
+		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
