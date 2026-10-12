@@ -375,11 +375,15 @@ func TestHelmReleaseReconciler_CancelHealthCheckWithRemediation(t *testing.T) {
 		"3": "deployed",
 	}), "unexpected releases in Helm storage")
 
-	latest := resultHR.Status.History.Latest()
-	g.Expect(latest).ToNot(BeNil())
-	g.Expect(latest.Version).To(Equal(3))
-	g.Expect(latest.Action).To(Equal(v2.ReleaseActionUpgrade))
-	g.Expect(latest.ChartVersion).To(Equal(fixedChart.Metadata.Version))
+	// The history is patched after the conditions, so wait for it
+	g.Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)).To(Succeed())
+		latest := resultHR.Status.History.Latest()
+		g.Expect(latest).ToNot(BeNil())
+		g.Expect(latest.Version).To(Equal(3))
+		g.Expect(latest.Action).To(Equal(v2.ReleaseActionUpgrade))
+		g.Expect(latest.ChartVersion).To(Equal(fixedChart.Metadata.Version))
+	}, timeout, time.Second).Should(Succeed())
 
 	// Verify the HealthCheckCanceled event was emitted.
 	g.Eventually(func() bool {
@@ -511,11 +515,15 @@ func TestHelmReleaseReconciler_CancelHealthCheckWithRemediationOnReconcileReques
 		"3": "deployed",
 	}), "unexpected releases in Helm storage")
 
-	latest := resultHR.Status.History.Latest()
-	g.Expect(latest).ToNot(BeNil())
-	g.Expect(latest.Version).To(Equal(3))
-	g.Expect(latest.Action).To(Equal(v2.ReleaseActionRollback))
-	g.Expect(latest.ChartVersion).To(Equal(successChart.Metadata.Version))
+	// The history is patched after the conditions, so wait for it
+	g.Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)).To(Succeed())
+		latest := resultHR.Status.History.Latest()
+		g.Expect(latest).ToNot(BeNil())
+		g.Expect(latest.Version).To(Equal(3))
+		g.Expect(latest.Action).To(Equal(v2.ReleaseActionRollback))
+		g.Expect(latest.ChartVersion).To(Equal(successChart.Metadata.Version))
+	}, timeout, time.Second).Should(Succeed())
 
 	// Verify the HealthCheckCanceled event was emitted.
 	g.Eventually(func() bool {
