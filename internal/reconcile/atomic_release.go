@@ -220,9 +220,11 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 				conditions.Delete(req.Object, meta.ReconcilingCondition)
 
 				// Always summarize; this ensures we restore transient errors
-				// written to Ready, and updates the observed post-renderers
-				// and common-metadata digests.
+				// written to Ready. The release is in sync with the desired
+				// state, so record the observed post-renderers and
+				// common-metadata digests.
 				summarize(req)
+				observePostRenderers(req)
 
 				return nil
 			}
