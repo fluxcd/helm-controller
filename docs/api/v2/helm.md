@@ -476,6 +476,12 @@ HelmReleaseStatus
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2.Action">Action
+(<code>string</code> alias)</h3>
+<p>Action describes an observable stage of the reconcile loop, from checking
+dependencies and resolving the chart source and values, through performing
+Helm operations (install, upgrade, test, rollback, uninstall), to drift
+detection, health checking and unlocking stale releases.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.ActionStrategyName">ActionStrategyName
 (<code>string</code> alias)</h3>
 <p>ActionStrategyName is a valid name for an action strategy.</p>

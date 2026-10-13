@@ -42,12 +42,13 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	rclient "github.com/fluxcd/pkg/runtime/client"
 	helper "github.com/fluxcd/pkg/runtime/controller"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/testenv"
 	"github.com/fluxcd/pkg/testserver"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/controller"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -70,6 +71,17 @@ func randStringRunes(n int) string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
+}
+
+// createMockEventRecorder creates an events.Recorder backed by the test
+// environment, mirroring the recorder construction in main.go.
+func createMockEventRecorder(mgr ctrl.Manager, controllerName string) events.Recorder {
+	logger := ctrl.Log.WithName("events")
+	eventRecorder, err := events.NewRecorder(logger, "", controllerName, events.WithManager(mgr))
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create event recorder: %v", err))
+	}
+	return eventRecorder
 }
 
 func NewTestScheme() *runtime.Scheme {
@@ -166,7 +178,7 @@ func StartController() error {
 	timeout := time.Second * 10
 	reconciler = &controller.HelmReleaseReconciler{
 		Client:           testEnv,
-		EventRecorder:    testEnv.GetEventRecorderFor(controllerName),
+		Recorder:         createMockEventRecorder(testEnv, controllerName),
 		Metrics:          helper.Metrics{},
 		GetClusterConfig: GetTestClusterConfig,
 		ClientOpts: rclient.Options{
@@ -278,25 +290,4 @@ func applyHelmChart(objKey client.ObjectKey, artifact *meta.Artifact) error {
 		return err
 	}
 	return nil
-}
-
-func getEvents(objName string, annotations map[string]string) []corev1.Event {
-	var result []corev1.Event
-	events := &corev1.EventList{}
-	_ = k8sClient.List(testCtx, events)
-	for _, event := range events.Items {
-		if event.InvolvedObject.Name == objName {
-			if len(annotations) == 0 {
-				result = append(result, event)
-			} else {
-				for ak, av := range annotations {
-					if event.GetAnnotations()[ak] == av {
-						result = append(result, event)
-						break
-					}
-				}
-			}
-		}
-	}
-	return result
 }

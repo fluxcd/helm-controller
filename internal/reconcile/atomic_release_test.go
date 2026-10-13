@@ -33,12 +33,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
 
@@ -171,7 +171,7 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 			WithStatusSubresource(&v2.HelmRelease{}).
 			Build()
 		patchHelper := patch.NewSerialPatcher(obj, client)
-		recorder := new(record.FakeRecorder)
+		recorder := new(events.FakeRecorder)
 
 		req := &Request{
 			Object: obj,
@@ -1222,7 +1222,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				Build()
 			patchHelper := patch.NewSerialPatcher(obj, client)
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 
 			req := &Request{
 				Object: obj,
@@ -1454,7 +1454,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				Build()
 			patchHelper := patch.NewSerialPatcher(obj, client)
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 
 			req := &Request{
 				Object: obj,
@@ -1707,8 +1707,9 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			},
 			want: &CorrectClusterDrift{},
 			wantEvent: &corev1.Event{
-				Reason: "DriftDetected",
+				Reason: v2.DriftDetectedReason,
 				Type:   corev1.EventTypeWarning,
+				Action: v2.ActionDriftDetection.String(),
 				Message: fmt.Sprintf(
 					"Cluster state of release %s has drifted from the desired state:\n%s",
 					mockReleaseNamespace+"/"+mockReleaseName+".v1",
@@ -1779,8 +1780,9 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			want:    nil,
 			wantErr: nil,
 			wantEvent: &corev1.Event{
-				Reason: "DriftDetected",
+				Reason: v2.DriftDetectedReason,
 				Type:   corev1.EventTypeWarning,
+				Action: v2.ActionDriftDetection.String(),
 				Message: fmt.Sprintf(
 					"Cluster state of release %s has drifted from the desired state:\n%s",
 					mockReleaseNamespace+"/"+mockReleaseName+".v1",
@@ -2152,7 +2154,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 				}
 			}
 
-			recorder := testutil.NewFakeRecorder(1, false)
+			recorder := events.NewFakeRecorder(1, false)
 			r := &AtomicRelease{configFactory: cfg, eventRecorder: recorder}
 			got, err := r.actionForState(context.TODO(), &Request{Object: obj}, tt.state)
 
@@ -2501,7 +2503,7 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 				WithStatusSubresource(&v2.HelmRelease{}).
 				Build()
 			patchHelper := patch.NewSerialPatcher(obj, client)
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 
 			req := &Request{
 				Object: obj,
