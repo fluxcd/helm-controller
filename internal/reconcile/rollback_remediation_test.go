@@ -32,11 +32,11 @@ import (
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	"github.com/fluxcd/pkg/chartutil"
 
@@ -394,7 +394,7 @@ func TestRollbackRemediation_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 			got := (NewRollbackRemediation(cfg, recorder)).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
@@ -446,7 +446,7 @@ func TestRollbackRemediation_failure(t *testing.T) {
 	t.Run("records failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &RollbackRemediation{
 			eventRecorder: recorder,
 		}
@@ -467,6 +467,7 @@ func TestRollbackRemediation_failure(t *testing.T) {
 				Type:    corev1.EventTypeWarning,
 				Reason:  v2.RollbackFailedReason,
 				Message: expectMsg,
+				Action:  v2.ActionHelmRollback.String(),
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						eventMetaGroupKey(eventv1.MetaRevisionKey): prev.Chart.Metadata.Version,
@@ -481,7 +482,7 @@ func TestRollbackRemediation_failure(t *testing.T) {
 	t.Run("records failure with logs", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &RollbackRemediation{
 			eventRecorder: recorder,
 		}
@@ -507,7 +508,7 @@ func TestRollbackRemediation_success(t *testing.T) {
 		Version: 4,
 	})
 
-	recorder := testutil.NewFakeRecorder(10, false)
+	recorder := events.NewFakeRecorder(10, false)
 	r := &RollbackRemediation{
 		eventRecorder: recorder,
 	}
@@ -526,6 +527,7 @@ func TestRollbackRemediation_success(t *testing.T) {
 		{
 			Type:    corev1.EventTypeNormal,
 			Reason:  v2.RollbackSucceededReason,
+			Action:  v2.ActionHelmRollback.String(),
 			Message: expectMsg,
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{

@@ -23,6 +23,7 @@ import (
 	helmchart "helm.sh/helm/v4/pkg/chart/v2"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 )
 
 const (
@@ -78,6 +79,10 @@ type Request struct {
 	// Object is the Helm release to be reconciled, and describes the desired
 	// state to the ActionReconciler.
 	Object *v2.HelmRelease
+	// Source is the source object the chart originates from, for example a
+	// HelmChart, OCIRepository or ExternalArtifact. It is attached to emitted
+	// events as the related object, and may be nil.
+	Source sourcev1.Source
 	// Chart is the Helm chart to be installed or upgraded.
 	Chart *helmchart.Chart
 	// Values is the Helm chart values to be used for the installation or

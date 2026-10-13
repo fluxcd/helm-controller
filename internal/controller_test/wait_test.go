@@ -31,6 +31,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/testenv"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	. "github.com/onsi/gomega"
 
@@ -226,7 +227,7 @@ func TestHelmReleaseReconciler_CancelHealthCheckOnNewRevision(t *testing.T) {
 
 	// Verify the HealthCheckCanceled event was emitted.
 	g.Eventually(func() bool {
-		events := getEvents(resultHR.GetName(), nil)
+		events, _ := testenv.GetEvents(testCtx, k8sClient, resultHR.GetName(), "", nil)
 		for _, event := range events {
 			if event.Reason == meta.HealthCheckCanceledReason {
 				t.Logf("Found HealthCheckCanceled event: %s", event.Message)
@@ -237,7 +238,7 @@ func TestHelmReleaseReconciler_CancelHealthCheckOnNewRevision(t *testing.T) {
 	}, timeout, time.Second).Should(BeTrue(), "HealthCheckCanceled event should be recorded")
 
 	// Verify the event message indicates the trigger source.
-	events := getEvents(resultHR.GetName(), nil)
+	events, _ := testenv.GetEvents(testCtx, k8sClient, resultHR.GetName(), "", nil)
 	var cancelEvent *corev1.Event
 	for i := range events {
 		if events[i].Reason == meta.HealthCheckCanceledReason {
@@ -387,7 +388,8 @@ func TestHelmReleaseReconciler_CancelHealthCheckWithRemediation(t *testing.T) {
 
 	// Verify the HealthCheckCanceled event was emitted.
 	g.Eventually(func() bool {
-		for _, event := range getEvents(resultHR.GetName(), nil) {
+		events, _ := testenv.GetEvents(testCtx, k8sClient, resultHR.GetName(), "", nil)
+		for _, event := range events {
 			if event.Reason == meta.HealthCheckCanceledReason {
 				return true
 			}
@@ -527,7 +529,8 @@ func TestHelmReleaseReconciler_CancelHealthCheckWithRemediationOnReconcileReques
 
 	// Verify the HealthCheckCanceled event was emitted.
 	g.Eventually(func() bool {
-		for _, event := range getEvents(resultHR.GetName(), nil) {
+		events, _ := testenv.GetEvents(testCtx, k8sClient, resultHR.GetName(), "", nil)
+		for _, event := range events {
 			if event.Reason == meta.HealthCheckCanceledReason {
 				return true
 			}
@@ -756,7 +759,8 @@ func TestHelmReleaseReconciler_CancelHealthCheckWithUninstallRemediation(t *test
 			// emitted.
 			eventReasons := func() []string {
 				var reasons []string
-				for _, event := range getEvents(hr.GetName(), nil) {
+				events, _ := testenv.GetEvents(testCtx, k8sClient, resultHR.GetName(), "", nil)
+				for _, event := range events {
 					reasons = append(reasons, event.Reason)
 				}
 				return reasons

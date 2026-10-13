@@ -22,12 +22,13 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/ssa"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -44,12 +45,12 @@ import (
 // whether the cluster state was successfully corrected or not.
 type CorrectClusterDrift struct {
 	configFactory *action.ConfigFactory
-	eventRecorder record.EventRecorder
+	eventRecorder events.Recorder
 	diff          jsondiff.DiffSet
 	fieldManager  string
 }
 
-func NewCorrectClusterDrift(configFactory *action.ConfigFactory, recorder record.EventRecorder, diff jsondiff.DiffSet, fieldManager string) *CorrectClusterDrift {
+func NewCorrectClusterDrift(configFactory *action.ConfigFactory, recorder events.Recorder, diff jsondiff.DiffSet, fieldManager string) *CorrectClusterDrift {
 	return &CorrectClusterDrift{
 		configFactory: configFactory,
 		eventRecorder: recorder,
@@ -70,11 +71,11 @@ func (r *CorrectClusterDrift) Reconcile(ctx context.Context, req *Request) error
 	conditions.MarkUnknown(req.Object, meta.ReadyCondition, meta.ProgressingReason, "correcting cluster drift")
 
 	changeSet, err := action.ApplyDiff(ctx, r.configFactory.Build(nil), r.diff, r.fieldManager)
-	r.report(req.Object, changeSet, err)
+	r.report(req.Object, req.Source, changeSet, err)
 	return nil
 }
 
-func (r *CorrectClusterDrift) report(obj *v2.HelmRelease, changeSet *ssa.ChangeSet, err error) {
+func (r *CorrectClusterDrift) report(obj *v2.HelmRelease, source sourcev1.Source, changeSet *ssa.ChangeSet, err error) {
 	cur := obj.Status.History.Latest()
 
 	switch {
@@ -104,13 +105,13 @@ func (r *CorrectClusterDrift) report(obj *v2.HelmRelease, changeSet *ssa.ChangeS
 			sb.WriteString(changeSet.String())
 		}
 
-		r.eventRecorder.AnnotatedEventf(obj, eventMeta(cur.ChartVersion, cur.ConfigDigest,
+		r.eventRecorder.AnnotatedEventf(obj, source, eventMeta(cur.ChartVersion, cur.ConfigDigest,
 			addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)), corev1.EventTypeWarning,
-			"DriftCorrectionFailed", "%s", sb.String())
+			"DriftCorrectionFailed", v2.ActionDriftDetection.String(), "%s", sb.String())
 	case changeSet != nil && len(changeSet.Entries) > 0:
-		r.eventRecorder.AnnotatedEventf(obj, eventMeta(cur.ChartVersion, cur.ConfigDigest,
+		r.eventRecorder.AnnotatedEventf(obj, source, eventMeta(cur.ChartVersion, cur.ConfigDigest,
 			addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)), corev1.EventTypeNormal,
-			"DriftCorrected", "Cluster state of release %s has been corrected:\n%s",
+			"DriftCorrected", v2.ActionDriftDetection.String(), "Cluster state of release %s has been corrected:\n%s",
 			obj.Status.History.Latest().FullReleaseName(), changeSet.String())
 	}
 }

@@ -24,9 +24,9 @@ import (
 	helmrelease "helm.sh/helm/v4/pkg/release"
 	helmreleasev1 "helm.sh/helm/v4/pkg/release/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -61,11 +61,11 @@ import (
 // e.g. action.VerifySnapshot before calling Reconcile.
 type Test struct {
 	configFactory *action.ConfigFactory
-	eventRecorder record.EventRecorder
+	eventRecorder events.Recorder
 }
 
 // NewTest returns a new Test reconciler configured with the provided values.
-func NewTest(cfg *action.ConfigFactory, recorder record.EventRecorder) *Test {
+func NewTest(cfg *action.ConfigFactory, recorder events.Recorder) *Test {
 	return &Test{configFactory: cfg, eventRecorder: recorder}
 }
 
@@ -144,9 +144,11 @@ func (r *Test) failure(req *Request, err error) {
 	// Condition summary.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
+		req.Source,
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeWarning,
 		v2.TestFailedReason,
+		v2.ActionHelmTest.String(),
 		"%s",
 		msg,
 	)
@@ -181,9 +183,11 @@ func (r *Test) success(req *Request) {
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
+		req.Source,
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		v2.TestSucceededReason,
+		v2.ActionHelmTest.String(),
 		"%s",
 		msg,
 	)
