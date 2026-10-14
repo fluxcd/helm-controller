@@ -188,8 +188,8 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#DependencyReference">
-[]github.com/fluxcd/pkg/apis/meta.DependencyReference
+<a href="#helm.toolkit.fluxcd.io/v2.DependencyReference">
+[]DependencyReference
 </a>
 </em>
 </td>
@@ -351,8 +351,8 @@ Uninstall
 <td>
 <code>valuesFrom</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#ValuesReference">
-[]github.com/fluxcd/pkg/apis/meta.ValuesReference
+<a href="#helm.toolkit.fluxcd.io/v2.ValuesReference">
+[]ValuesReference
 </a>
 </em>
 </td>
@@ -683,6 +683,13 @@ resource object that contains the reference.</p>
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2.DependencyReference">DependencyReference
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>DependencyReference defines a HelmRelease dependency on another HelmRelease resource.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.DriftDetection">DriftDetection
 </h3>
 <p>
@@ -1313,8 +1320,8 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#DependencyReference">
-[]github.com/fluxcd/pkg/apis/meta.DependencyReference
+<a href="#helm.toolkit.fluxcd.io/v2.DependencyReference">
+[]DependencyReference
 </a>
 </em>
 </td>
@@ -1476,8 +1483,8 @@ Uninstall
 <td>
 <code>valuesFrom</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#ValuesReference">
-[]github.com/fluxcd/pkg/apis/meta.ValuesReference
+<a href="#helm.toolkit.fluxcd.io/v2.ValuesReference">
+[]ValuesReference
 </a>
 </em>
 </td>
@@ -3467,6 +3474,12 @@ Defaults to &lsquo;5m&rsquo;.</p>
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2.ValuesReference">ValuesReference
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.WaitStrategy">WaitStrategy
 </h3>
 <p>
