@@ -31,12 +31,12 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/ssa"
 	"github.com/fluxcd/pkg/ssa/jsondiff"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
-	"github.com/fluxcd/helm-controller/internal/testutil"
 )
 
 func TestCorrectClusterDrift_Reconcile(t *testing.T) {
@@ -145,7 +145,7 @@ func TestCorrectClusterDrift_Reconcile(t *testing.T) {
 			cfg, err := action.NewConfigFactory(getter, action.WithStorage(action.DefaultStorageDriver, namedNS.Name))
 			g.Expect(err).ToNot(HaveOccurred())
 
-			recorder := testutil.NewFakeRecorder(10, false)
+			recorder := events.NewFakeRecorder(10, false)
 
 			r := NewCorrectClusterDrift(cfg, recorder, tt.diff(namedNS.Name), testFieldManager)
 			g.Expect(r.Reconcile(context.TODO(), &Request{
@@ -204,6 +204,7 @@ func TestCorrectClusterDrift_report(t *testing.T) {
 				{
 					Type:   corev1.EventTypeNormal,
 					Reason: "DriftCorrected",
+					Action: v2.ActionDriftDetection.String(),
 					Message: `Cluster state of release mock-ns/mock-release.v3 has been corrected:
 Secret/namespace/name created
 Deployment/namespace/name configured`,
@@ -237,6 +238,7 @@ Deployment/namespace/name configured`,
 				{
 					Type:   corev1.EventTypeWarning,
 					Reason: "DriftCorrectionFailed",
+					Action: v2.ActionDriftDetection.String(),
 					Message: `Failed to partially correct cluster state of release mock-ns/mock-release.v3:
 error 1
 error 2
@@ -257,6 +259,7 @@ ConfigMap/namespace/name configured`,
 			}),
 			wantEvent: []corev1.Event{
 				{
+					Action: v2.ActionDriftDetection.String(),
 					Type:   corev1.EventTypeWarning,
 					Reason: "DriftCorrectionFailed",
 					Message: `Failed to correct cluster state of release mock-ns/mock-release.v3:
@@ -278,6 +281,7 @@ error 2`,
 			},
 			wantEvent: []corev1.Event{
 				{
+					Action: v2.ActionDriftDetection.String(),
 					Type:   corev1.EventTypeNormal,
 					Reason: "DriftCorrected",
 					Message: `Cluster state of release mock-ns/mock-release.v3 has been corrected:
@@ -293,6 +297,7 @@ Secret/namespace/name created`,
 				{
 					Type:   corev1.EventTypeWarning,
 					Reason: "DriftCorrectionFailed",
+					Action: v2.ActionDriftDetection.String(),
 					Message: `Failed to correct cluster state of release mock-ns/mock-release.v3:
 error 1`,
 				},
@@ -309,12 +314,12 @@ error 1`,
 		t.Run(tt.name, func(t *testing.T) {
 			g := NewWithT(t)
 
-			recorder := testutil.NewFakeRecorder(10, false)
+			recorder := events.NewFakeRecorder(10, false)
 			r := &CorrectClusterDrift{
 				eventRecorder: recorder,
 			}
 
-			r.report(tt.obj, tt.changeSet, tt.err)
+			r.report(tt.obj, nil, tt.changeSet, tt.err)
 			g.Expect(recorder.GetEvents()).To(ConsistOf(tt.wantEvent))
 		})
 	}

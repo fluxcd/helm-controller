@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -31,7 +30,7 @@ func TestAllowsAccessTo(t *testing.T) {
 		name    string
 		allow   bool
 		obj     client.Object
-		ref     types.NamespacedName
+		ref     v2.HelmChartReference
 		wantErr bool
 	}{
 		{
@@ -43,7 +42,8 @@ func TestAllowsAccessTo(t *testing.T) {
 					Namespace: "some-namespace",
 				},
 			},
-			ref: types.NamespacedName{
+			ref: v2.HelmChartReference{
+				Kind:      "mock",
 				Name:      "some-name",
 				Namespace: "some-other-namespace",
 			},
@@ -58,7 +58,8 @@ func TestAllowsAccessTo(t *testing.T) {
 					Namespace: "some-namespace",
 				},
 			},
-			ref: types.NamespacedName{
+			ref: v2.HelmChartReference{
+				Kind:      "mock",
 				Name:      "some-name",
 				Namespace: "some-other-namespace",
 			},
@@ -73,7 +74,8 @@ func TestAllowsAccessTo(t *testing.T) {
 					Namespace: "some-namespace",
 				},
 			},
-			ref: types.NamespacedName{
+			ref: v2.HelmChartReference{
+				Kind:      "mock",
 				Name:      "some-name",
 				Namespace: "some-namespace",
 			},
@@ -87,7 +89,7 @@ func TestAllowsAccessTo(t *testing.T) {
 			AllowCrossNamespaceRef = tt.allow
 			t.Cleanup(func() { AllowCrossNamespaceRef = curAllow })
 
-			if err := AllowsAccessTo(tt.obj, "mock", tt.ref); (err != nil) != tt.wantErr {
+			if err := AllowsAccessTo(tt.obj, &tt.ref); (err != nil) != tt.wantErr {
 				t.Errorf("AllowsAccessTo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

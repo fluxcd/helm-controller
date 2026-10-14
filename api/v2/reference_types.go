@@ -16,7 +16,13 @@ limitations under the License.
 
 package v2
 
-import "github.com/fluxcd/pkg/apis/meta"
+import (
+	"fmt"
+
+	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/fluxcd/pkg/apis/meta"
+)
 
 // CrossNamespaceObjectReference contains enough information to let you locate
 // the typed referenced object at cluster level.
@@ -69,6 +75,43 @@ type CrossNamespaceSourceReference struct {
 	// +kubebuilder:validation:Optional
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
+}
+
+// HelmChartReference holds a typed and namespaced reference for a Helm chart.
+type HelmChartReference struct {
+	// Kind of the Helm chart.
+	// +kubebuilder:validation:Enum=HelmChart;OCIRepository;ExternalArtifact
+	// +required
+	Kind string `json:"kind"`
+
+	// Name of the Helm chart.
+	// +required
+	Name string `json:"name"`
+
+	// Namespace of the Helm chart.
+	// +required
+	Namespace string `json:"namespace"`
+}
+
+func (in *HelmChartReference) String() string {
+	if in == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s/%s/%s", in.Kind, in.Namespace, in.Name)
+}
+
+func (in *HelmChartReference) GetObjectKey() types.NamespacedName {
+	return types.NamespacedName{
+		Namespace: in.Namespace,
+		Name:      in.Name,
+	}
+}
+
+func (in *HelmChartReference) Matches(other *HelmChartReference) bool {
+	if in == nil || other == nil {
+		return false
+	}
+	return *in == *other
 }
 
 // DependencyReference defines a HelmRelease dependency on another HelmRelease resource.

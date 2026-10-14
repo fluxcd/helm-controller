@@ -31,6 +31,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/kustomize"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/testenv"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	. "github.com/onsi/gomega"
 
@@ -226,7 +227,7 @@ func TestHelmReleaseReconciler_CancelHealthCheckOnNewRevision(t *testing.T) {
 
 	// Verify the HealthCheckCanceled event was emitted.
 	g.Eventually(func() bool {
-		events := getEvents(resultHR.GetName(), nil)
+		events, _ := testenv.GetEvents(testCtx, k8sClient, resultHR.GetName(), "", nil)
 		for _, event := range events {
 			if event.Reason == meta.HealthCheckCanceledReason {
 				t.Logf("Found HealthCheckCanceled event: %s", event.Message)
@@ -237,7 +238,7 @@ func TestHelmReleaseReconciler_CancelHealthCheckOnNewRevision(t *testing.T) {
 	}, timeout, time.Second).Should(BeTrue(), "HealthCheckCanceled event should be recorded")
 
 	// Verify the event message indicates the trigger source.
-	events := getEvents(resultHR.GetName(), nil)
+	events, _ := testenv.GetEvents(testCtx, k8sClient, resultHR.GetName(), "", nil)
 	var cancelEvent *corev1.Event
 	for i := range events {
 		if events[i].Reason == meta.HealthCheckCanceledReason {
@@ -254,4 +255,659 @@ func TestHelmReleaseReconciler_CancelHealthCheckOnNewRevision(t *testing.T) {
 		_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)
 		return apimeta.IsStatusConditionTrue(resultHR.Status.Conditions, meta.ReadyCondition)
 	}, timeout, time.Second).Should(BeTrue(), "HelmRelease did not become ready after fixed revision")
+}
+
+func TestHelmReleaseReconciler_CancelHealthCheckWithRemediation(t *testing.T) {
+	g := NewWithT(t)
+	id := "cancel-" + randStringRunes(5)
+	timeout := 120 * time.Second
+
+	err := createNamespace(id)
+	g.Expect(err).NotTo(HaveOccurred(), "failed to create test namespace")
+
+	err = createKubeConfigSecret(id)
+	g.Expect(err).NotTo(HaveOccurred(), "failed to create kubeconfig secret")
+
+	// Create initial successful chart
+	successChart := testutil.BuildChart(
+		testutil.ChartWithVersion("1.0.0"),
+		testutil.ChartWithName("test-cancel-chart"),
+	)
+	successArtifact, err := testutil.SaveChartAsArtifact(successChart, digest.SHA256, testServer.URL(), testServer.Root())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	chartKey := types.NamespacedName{
+		Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
+		Namespace: id,
+	}
+
+	err = applyHelmChart(chartKey, successArtifact)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	hr := &v2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
+			Namespace: id,
+		},
+		Spec: v2.HelmReleaseSpec{
+			Interval: metav1.Duration{Duration: 10 * time.Minute},
+			ChartRef: &v2.CrossNamespaceSourceReference{
+				Kind:      sourcev1.HelmChartKind,
+				Name:      chartKey.Name,
+				Namespace: chartKey.Namespace,
+			},
+			KubeConfig: &meta.KubeConfigReference{
+				SecretRef: &meta.SecretKeyReference{
+					Name: "kubeconfig",
+				},
+			},
+			TargetNamespace: id,
+			Timeout:         &metav1.Duration{Duration: 5 * time.Minute},
+			Upgrade: &v2.Upgrade{
+				Remediation: &v2.UpgradeRemediation{
+					Retries:              1,
+					RemediateLastFailure: new(true),
+				},
+			},
+		},
+	}
+
+	err = k8sClient.Create(context.Background(), hr)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Wait for initial reconciliation to succeed
+	resultHR := &v2.HelmRelease{}
+	g.Eventually(func() bool {
+		_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)
+		return apimeta.IsStatusConditionTrue(resultHR.Status.Conditions, meta.ReadyCondition)
+	}, timeout, time.Second).Should(BeTrue(), "HelmRelease did not become ready")
+
+	// Create a failing chart (deployment with bad image that will timeout)
+	failingChart := testutil.BuildChart(
+		testutil.ChartWithVersion("2.0.0"),
+		testutil.ChartWithName("test-cancel-chart"),
+		testutil.ChartWithFailingDeployment(),
+	)
+	failingArtifact, err := testutil.SaveChartAsArtifact(failingChart, digest.SHA256, testServer.URL(), testServer.Root())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Apply failing revision
+	err = applyHelmChart(chartKey, failingArtifact)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// releaseStatuses returns the status of each Helm release in storage
+	releaseStatuses := func() map[string]string {
+		secrets := &corev1.SecretList{}
+		_ = k8sClient.List(context.Background(), secrets, client.InNamespace(id), client.MatchingLabels{"owner": "helm"})
+		statuses := map[string]string{}
+		for _, secret := range secrets.Items {
+			statuses[secret.Labels["version"]] = secret.Labels["status"]
+		}
+		return statuses
+	}
+
+	// Wait for the failing revision to be pending while its health check runs
+	g.Eventually(func() string {
+		return releaseStatuses()["2"]
+	}, timeout, time.Second).Should(Equal("pending-upgrade"), "failing revision did not start upgrading")
+
+	// Apply a fixed revision while the upgrade is in progress
+	fixedChart := testutil.BuildChart(
+		testutil.ChartWithVersion("3.0.0"),
+		testutil.ChartWithName("test-cancel-chart"),
+	)
+	fixedArtifact, err := testutil.SaveChartAsArtifact(fixedChart, digest.SHA256, testServer.URL(), testServer.Root())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = applyHelmChart(chartKey, fixedArtifact)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Wait for the fixed revision to be released
+	g.Eventually(func() bool {
+		_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)
+		return resultHR.Status.LastAttemptedRevision == fixedChart.Metadata.Version &&
+			apimeta.IsStatusConditionTrue(resultHR.Status.Conditions, meta.ReadyCondition)
+	}, timeout, time.Second).Should(BeTrue(), "HelmRelease did not become ready after fixed revision")
+
+	// The key test: no rollback release is stored for the canceled upgrade
+	g.Expect(releaseStatuses()).To(Equal(map[string]string{
+		"1": "superseded",
+		"2": "failed",
+		"3": "deployed",
+	}), "unexpected releases in Helm storage")
+
+	// The history is patched after the conditions, so wait for it
+	g.Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)).To(Succeed())
+		latest := resultHR.Status.History.Latest()
+		g.Expect(latest).ToNot(BeNil())
+		g.Expect(latest.Version).To(Equal(3))
+		g.Expect(latest.Action).To(Equal(v2.ReleaseActionUpgrade))
+		g.Expect(latest.ChartVersion).To(Equal(fixedChart.Metadata.Version))
+	}, timeout, time.Second).Should(Succeed())
+
+	// Verify the HealthCheckCanceled event was emitted.
+	g.Eventually(func() bool {
+		events, _ := testenv.GetEvents(testCtx, k8sClient, resultHR.GetName(), "", nil)
+		for _, event := range events {
+			if event.Reason == meta.HealthCheckCanceledReason {
+				return true
+			}
+		}
+		return false
+	}, timeout, time.Second).Should(BeTrue(), "HealthCheckCanceled event should be recorded")
+}
+
+func TestHelmReleaseReconciler_CancelHealthCheckWithRemediationOnReconcileRequest(t *testing.T) {
+	g := NewWithT(t)
+	id := "cancel-" + randStringRunes(5)
+	timeout := 120 * time.Second
+
+	err := createNamespace(id)
+	g.Expect(err).NotTo(HaveOccurred(), "failed to create test namespace")
+
+	err = createKubeConfigSecret(id)
+	g.Expect(err).NotTo(HaveOccurred(), "failed to create kubeconfig secret")
+
+	// Create initial successful chart
+	successChart := testutil.BuildChart(
+		testutil.ChartWithVersion("1.0.0"),
+		testutil.ChartWithName("test-cancel-chart"),
+	)
+	successArtifact, err := testutil.SaveChartAsArtifact(successChart, digest.SHA256, testServer.URL(), testServer.Root())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	chartKey := types.NamespacedName{
+		Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
+		Namespace: id,
+	}
+
+	err = applyHelmChart(chartKey, successArtifact)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	hr := &v2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
+			Namespace: id,
+		},
+		Spec: v2.HelmReleaseSpec{
+			Interval: metav1.Duration{Duration: 10 * time.Minute},
+			ChartRef: &v2.CrossNamespaceSourceReference{
+				Kind:      sourcev1.HelmChartKind,
+				Name:      chartKey.Name,
+				Namespace: chartKey.Namespace,
+			},
+			KubeConfig: &meta.KubeConfigReference{
+				SecretRef: &meta.SecretKeyReference{
+					Name: "kubeconfig",
+				},
+			},
+			TargetNamespace: id,
+			Timeout:         &metav1.Duration{Duration: 5 * time.Minute},
+			Upgrade: &v2.Upgrade{
+				// Without retries the rollback is the last action, so no
+				// further upgrade attempt changes the history afterwards.
+				Remediation: &v2.UpgradeRemediation{
+					Retries:              0,
+					RemediateLastFailure: new(true),
+				},
+			},
+		},
+	}
+
+	err = k8sClient.Create(context.Background(), hr)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Wait for initial reconciliation to succeed
+	resultHR := &v2.HelmRelease{}
+	g.Eventually(func() bool {
+		_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)
+		return apimeta.IsStatusConditionTrue(resultHR.Status.Conditions, meta.ReadyCondition)
+	}, timeout, time.Second).Should(BeTrue(), "HelmRelease did not become ready")
+
+	// Create a failing chart (deployment with bad image that will timeout)
+	failingChart := testutil.BuildChart(
+		testutil.ChartWithVersion("2.0.0"),
+		testutil.ChartWithName("test-cancel-chart"),
+		testutil.ChartWithFailingDeployment(),
+	)
+	failingArtifact, err := testutil.SaveChartAsArtifact(failingChart, digest.SHA256, testServer.URL(), testServer.Root())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Apply failing revision
+	err = applyHelmChart(chartKey, failingArtifact)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// releaseStatuses returns the status of each Helm release in storage
+	releaseStatuses := func() map[string]string {
+		secrets := &corev1.SecretList{}
+		_ = k8sClient.List(context.Background(), secrets, client.InNamespace(id), client.MatchingLabels{"owner": "helm"})
+		statuses := map[string]string{}
+		for _, secret := range secrets.Items {
+			statuses[secret.Labels["version"]] = secret.Labels["status"]
+		}
+		return statuses
+	}
+
+	// Wait for the failing revision to be pending while its health check runs
+	g.Eventually(func() string {
+		return releaseStatuses()["2"]
+	}, timeout, time.Second).Should(Equal("pending-upgrade"), "failing revision did not start upgrading")
+
+	// Request a reconciliation without changing the chart or values
+	err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)
+	g.Expect(err).NotTo(HaveOccurred())
+	patch := client.MergeFrom(resultHR.DeepCopy())
+	resultHR.SetAnnotations(map[string]string{
+		meta.ReconcileRequestAnnotation: time.Now().Format(time.RFC3339Nano),
+	})
+	err = k8sClient.Patch(context.Background(), resultHR, patch)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Wait for the failing revision to be remediated
+	g.Eventually(func() bool {
+		_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)
+		return apimeta.IsStatusConditionTrue(resultHR.Status.Conditions, v2.RemediatedCondition)
+	}, timeout, time.Second).Should(BeTrue(), "HelmRelease was not remediated")
+
+	// The key test: the next reconcile rolls back on a fresh context
+	g.Expect(releaseStatuses()).To(Equal(map[string]string{
+		"1": "superseded",
+		"2": "failed",
+		"3": "deployed",
+	}), "unexpected releases in Helm storage")
+
+	// The history is patched after the conditions, so wait for it
+	g.Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)).To(Succeed())
+		latest := resultHR.Status.History.Latest()
+		g.Expect(latest).ToNot(BeNil())
+		g.Expect(latest.Version).To(Equal(3))
+		g.Expect(latest.Action).To(Equal(v2.ReleaseActionRollback))
+		g.Expect(latest.ChartVersion).To(Equal(successChart.Metadata.Version))
+	}, timeout, time.Second).Should(Succeed())
+
+	// Verify the HealthCheckCanceled event was emitted.
+	g.Eventually(func() bool {
+		events, _ := testenv.GetEvents(testCtx, k8sClient, resultHR.GetName(), "", nil)
+		for _, event := range events {
+			if event.Reason == meta.HealthCheckCanceledReason {
+				return true
+			}
+		}
+		return false
+	}, timeout, time.Second).Should(BeTrue(), "HealthCheckCanceled event should be recorded")
+}
+
+func TestHelmReleaseReconciler_CancelHealthCheckWithUninstallRemediation(t *testing.T) {
+	tests := []struct {
+		name string
+		// failUpgrade fails an upgrade of a ready release, remediated with the
+		// configured uninstall strategy, instead of the first install.
+		failUpgrade bool
+		// reconcileRequest requests a reconciliation without changing the
+		// chart or values, instead of applying a fixed chart revision.
+		reconcileRequest bool
+		wantReleases     map[string]string
+		wantVersion      int
+		wantAction       v2.ReleaseAction
+		wantChartVersion string
+		wantRemediated   bool
+	}{
+		// The uninstall is not interrupted, so with a fixed revision the fixed
+		// chart is installed as a new release afterwards.
+		{
+			name:             "install on new revision",
+			wantReleases:     map[string]string{"1": "deployed"},
+			wantVersion:      1,
+			wantAction:       v2.ReleaseActionInstall,
+			wantChartVersion: "2.0.0",
+		},
+		{
+			name:             "install on reconcile request",
+			reconcileRequest: true,
+			wantReleases:     map[string]string{},
+			wantVersion:      1,
+			wantAction:       v2.ReleaseActionUninstallRemediation,
+			wantChartVersion: "1.0.0",
+			wantRemediated:   true,
+		},
+		{
+			name:             "upgrade on new revision",
+			failUpgrade:      true,
+			wantReleases:     map[string]string{"1": "deployed"},
+			wantVersion:      1,
+			wantAction:       v2.ReleaseActionInstall,
+			wantChartVersion: "3.0.0",
+		},
+		{
+			// After the uninstall the controller installs the failing chart
+			// again as a new release, which fails too, so the latest release
+			// is that install.
+			name:             "upgrade on reconcile request",
+			failUpgrade:      true,
+			reconcileRequest: true,
+			wantReleases:     map[string]string{"1": "failed"},
+			wantVersion:      1,
+			wantAction:       v2.ReleaseActionInstall,
+			wantChartVersion: "2.0.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			id := "cancel-" + randStringRunes(5)
+			timeout := 120 * time.Second
+
+			err := createNamespace(id)
+			g.Expect(err).NotTo(HaveOccurred(), "failed to create test namespace")
+
+			err = createKubeConfigSecret(id)
+			g.Expect(err).NotTo(HaveOccurred(), "failed to create kubeconfig secret")
+
+			chartKey := types.NamespacedName{
+				Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
+				Namespace: id,
+			}
+
+			// applyChart applies a chart revision, with a deployment that
+			// never becomes ready if failing is set.
+			applyChart := func(version string, failing bool) {
+				opts := []testutil.ChartOption{
+					testutil.ChartWithVersion(version),
+					testutil.ChartWithName("test-cancel-chart"),
+				}
+				if failing {
+					opts = append(opts, testutil.ChartWithFailingDeployment())
+				}
+				artifact, err := testutil.SaveChartAsArtifact(testutil.BuildChart(opts...), digest.SHA256, testServer.URL(), testServer.Root())
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(applyHelmChart(chartKey, artifact)).To(Succeed())
+			}
+
+			// releaseStatuses returns the status of each Helm release in storage
+			releaseStatuses := func() map[string]string {
+				secrets := &corev1.SecretList{}
+				_ = k8sClient.List(context.Background(), secrets, client.InNamespace(id), client.MatchingLabels{"owner": "helm"})
+				statuses := map[string]string{}
+				for _, secret := range secrets.Items {
+					statuses[secret.Labels["version"]] = secret.Labels["status"]
+				}
+				return statuses
+			}
+
+			hr := &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
+					Namespace: id,
+				},
+				Spec: v2.HelmReleaseSpec{
+					Interval: metav1.Duration{Duration: 10 * time.Minute},
+					ChartRef: &v2.CrossNamespaceSourceReference{
+						Kind:      sourcev1.HelmChartKind,
+						Name:      chartKey.Name,
+						Namespace: chartKey.Namespace,
+					},
+					KubeConfig: &meta.KubeConfigReference{
+						SecretRef: &meta.SecretKeyReference{
+							Name: "kubeconfig",
+						},
+					},
+					TargetNamespace: id,
+					Timeout:         &metav1.Duration{Duration: 5 * time.Minute},
+				},
+			}
+
+			// Without retries, the uninstall only runs when the remediation
+			// of the last failure is enabled.
+			if tt.failUpgrade {
+				hr.Spec.Upgrade = &v2.Upgrade{
+					Remediation: &v2.UpgradeRemediation{
+						Strategy:             new(v2.UninstallRemediationStrategy),
+						RemediateLastFailure: new(true),
+					},
+				}
+				hr.Spec.Install = &v2.Install{
+					// The failing chart is installed again after the uninstall.
+					// Let that install fail after 10s instead of 5m.
+					Timeout: &metav1.Duration{Duration: 10 * time.Second},
+				}
+			} else {
+				hr.Spec.Install = &v2.Install{
+					Remediation: &v2.InstallRemediation{
+						RemediateLastFailure: new(true),
+					},
+				}
+			}
+
+			applyChart("1.0.0", !tt.failUpgrade)
+			err = k8sClient.Create(context.Background(), hr)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			resultHR := &v2.HelmRelease{}
+			fixedVersion := "2.0.0"
+			pendingReleases := map[string]string{"1": "pending-install"}
+			if tt.failUpgrade {
+				// Wait for initial reconciliation to succeed
+				g.Eventually(func() bool {
+					_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)
+					return apimeta.IsStatusConditionTrue(resultHR.Status.Conditions, meta.ReadyCondition)
+				}, timeout, time.Second).Should(BeTrue(), "HelmRelease did not become ready")
+
+				applyChart("2.0.0", true)
+				fixedVersion = "3.0.0"
+				pendingReleases = map[string]string{"1": "deployed", "2": "pending-upgrade"}
+			}
+
+			// Wait for the failing release to be pending while its health check runs
+			g.Eventually(releaseStatuses, timeout, time.Second).Should(Equal(pendingReleases),
+				"failing release did not start")
+
+			if tt.reconcileRequest {
+				// Request a reconciliation without changing the chart or values
+				err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)
+				g.Expect(err).NotTo(HaveOccurred())
+				patch := client.MergeFrom(resultHR.DeepCopy())
+				resultHR.SetAnnotations(map[string]string{
+					meta.ReconcileRequestAnnotation: time.Now().Format(time.RFC3339Nano),
+				})
+				err = k8sClient.Patch(context.Background(), resultHR, patch)
+				g.Expect(err).NotTo(HaveOccurred())
+
+				// Wait for the HelmRelease to stall with no retries left
+				g.Eventually(func() bool {
+					_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)
+					return apimeta.IsStatusConditionTrue(resultHR.Status.Conditions, meta.StalledCondition)
+				}, timeout, time.Second).Should(BeTrue(), "HelmRelease did not stall")
+			} else {
+				// Apply a fixed revision while the health check runs
+				applyChart(fixedVersion, false)
+
+				// Wait for the fixed revision to be released
+				g.Eventually(func() bool {
+					_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)
+					return resultHR.Status.LastAttemptedRevision == fixedVersion &&
+						apimeta.IsStatusConditionTrue(resultHR.Status.Conditions, meta.ReadyCondition)
+				}, timeout, time.Second).Should(BeTrue(), "HelmRelease did not become ready after fixed revision")
+			}
+
+			// The key test: the failing release was uninstalled despite the
+			// canceled health check
+			g.Expect(releaseStatuses()).To(Equal(tt.wantReleases), "unexpected releases in Helm storage")
+
+			// The history is patched after the conditions, so wait for it
+			g.Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)).To(Succeed())
+				latest := resultHR.Status.History.Latest()
+				g.Expect(latest).ToNot(BeNil())
+				g.Expect(latest.Version).To(Equal(tt.wantVersion))
+				g.Expect(latest.Action).To(Equal(tt.wantAction))
+				g.Expect(latest.ChartVersion).To(Equal(tt.wantChartVersion))
+			}, timeout, time.Second).Should(Succeed())
+
+			remediated := apimeta.FindStatusCondition(resultHR.Status.Conditions, v2.RemediatedCondition)
+			if tt.wantRemediated {
+				g.Expect(remediated).ToNot(BeNil())
+				g.Expect(remediated.Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(remediated.Reason).To(Equal(v2.UninstallSucceededReason))
+			} else {
+				g.Expect(remediated).To(BeNil())
+			}
+
+			// Verify the HealthCheckCanceled and UninstallSucceeded events were
+			// emitted.
+			eventReasons := func() []string {
+				var reasons []string
+				events, _ := testenv.GetEvents(testCtx, k8sClient, resultHR.GetName(), "", nil)
+				for _, event := range events {
+					reasons = append(reasons, event.Reason)
+				}
+				return reasons
+			}
+			g.Eventually(eventReasons, timeout, time.Second).Should(ContainElement(meta.HealthCheckCanceledReason),
+				"HealthCheckCanceled event should be recorded")
+			g.Eventually(eventReasons, timeout, time.Second).Should(ContainElement(v2.UninstallSucceededReason),
+				"UninstallSucceeded event should be recorded")
+			g.Expect(eventReasons()).ToNot(ContainElement(v2.UninstallFailedReason))
+		})
+	}
+}
+
+func TestHelmReleaseReconciler_CancelHealthCheckWithRemediationBeyondMaxHistory(t *testing.T) {
+	g := NewWithT(t)
+	id := "cancel-" + randStringRunes(5)
+	timeout := 120 * time.Second
+
+	err := createNamespace(id)
+	g.Expect(err).NotTo(HaveOccurred(), "failed to create test namespace")
+
+	err = createKubeConfigSecret(id)
+	g.Expect(err).NotTo(HaveOccurred(), "failed to create kubeconfig secret")
+
+	// Create initial successful chart
+	successChart := testutil.BuildChart(
+		testutil.ChartWithVersion("1.0.0"),
+		testutil.ChartWithName("test-cancel-chart"),
+	)
+	successArtifact, err := testutil.SaveChartAsArtifact(successChart, digest.SHA256, testServer.URL(), testServer.Root())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	chartKey := types.NamespacedName{
+		Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
+		Namespace: id,
+	}
+
+	err = applyHelmChart(chartKey, successArtifact)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	hr := &v2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
+			Namespace: id,
+		},
+		Spec: v2.HelmReleaseSpec{
+			Interval: metav1.Duration{Duration: 10 * time.Minute},
+			ChartRef: &v2.CrossNamespaceSourceReference{
+				Kind:      sourcev1.HelmChartKind,
+				Name:      chartKey.Name,
+				Namespace: chartKey.Namespace,
+			},
+			KubeConfig: &meta.KubeConfigReference{
+				SecretRef: &meta.SecretKeyReference{
+					Name: "kubeconfig",
+				},
+			},
+			TargetNamespace: id,
+			Timeout:         &metav1.Duration{Duration: 5 * time.Minute},
+			// Keep fewer releases than the number of canceled upgrades below
+			MaxHistory: new(2),
+			Upgrade: &v2.Upgrade{
+				Remediation: &v2.UpgradeRemediation{
+					Retries:              0,
+					RemediateLastFailure: new(true),
+				},
+			},
+		},
+	}
+
+	err = k8sClient.Create(context.Background(), hr)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Wait for initial reconciliation to succeed
+	resultHR := &v2.HelmRelease{}
+	g.Eventually(func() bool {
+		_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)
+		return apimeta.IsStatusConditionTrue(resultHR.Status.Conditions, meta.ReadyCondition)
+	}, timeout, time.Second).Should(BeTrue(), "HelmRelease did not become ready")
+
+	// releaseStatuses returns the status of each Helm release in storage
+	releaseStatuses := func() map[string]string {
+		secrets := &corev1.SecretList{}
+		_ = k8sClient.List(context.Background(), secrets, client.InNamespace(id), client.MatchingLabels{"owner": "helm"})
+		statuses := map[string]string{}
+		for _, secret := range secrets.Items {
+			statuses[secret.Labels["version"]] = secret.Labels["status"]
+		}
+		return statuses
+	}
+
+	// Cancel the health check of one failing revision after another, so
+	// that more releases than the history limit are stored. Chart N.0.0
+	// becomes release N.
+	for version := 2; version <= 4; version++ {
+		failingChart := testutil.BuildChart(
+			testutil.ChartWithVersion(fmt.Sprintf("%d.0.0", version)),
+			testutil.ChartWithName("test-cancel-chart"),
+			testutil.ChartWithFailingDeployment(),
+		)
+		failingArtifact, err := testutil.SaveChartAsArtifact(failingChart, digest.SHA256, testServer.URL(), testServer.Root())
+		g.Expect(err).NotTo(HaveOccurred())
+
+		err = applyHelmChart(chartKey, failingArtifact)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		// Wait for the failing revision to be pending while its health check runs
+		g.Eventually(func() string {
+			return releaseStatuses()[fmt.Sprint(version)]
+		}, timeout, time.Second).Should(Equal("pending-upgrade"), "failing revision did not start upgrading")
+	}
+
+	// The successful release survives the history limit
+	g.Eventually(releaseStatuses, timeout, time.Second).Should(Equal(map[string]string{
+		"1": "deployed",
+		"4": "pending-upgrade",
+	}), "unexpected releases in Helm storage")
+
+	// Request a reconciliation without changing the chart or values
+	err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)
+	g.Expect(err).NotTo(HaveOccurred())
+	patch := client.MergeFrom(resultHR.DeepCopy())
+	resultHR.SetAnnotations(map[string]string{
+		meta.ReconcileRequestAnnotation: time.Now().Format(time.RFC3339Nano),
+	})
+	err = k8sClient.Patch(context.Background(), resultHR, patch)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Wait for the failing revision to be remediated
+	g.Eventually(func() bool {
+		_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)
+		return apimeta.IsStatusConditionTrue(resultHR.Status.Conditions, v2.RemediatedCondition)
+	}, timeout, time.Second).Should(BeTrue(), "HelmRelease was not remediated")
+
+	// The key test: the rollback to the successful release still works
+	g.Expect(releaseStatuses()).To(Equal(map[string]string{
+		"1": "superseded",
+		"5": "deployed",
+	}), "unexpected releases in Helm storage")
+
+	// The history is patched after the conditions, so wait for it
+	g.Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(hr), resultHR)).To(Succeed())
+		latest := resultHR.Status.History.Latest()
+		g.Expect(latest).ToNot(BeNil())
+		g.Expect(latest.Version).To(Equal(5))
+		g.Expect(latest.Action).To(Equal(v2.ReleaseActionRollback))
+		g.Expect(latest.ChartVersion).To(Equal(successChart.Metadata.Version))
+	}, timeout, time.Second).Should(Succeed())
 }

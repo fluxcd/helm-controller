@@ -79,8 +79,9 @@ HelmChartTemplate
 </td>
 <td>
 <em>(Optional)</em>
-<p>Chart defines the template of the v1.HelmChart that should be created
-for this HelmRelease.</p>
+<p>Chart defines the template of the source object that should be
+created for this HelmRelease. The Kind field determines whether a
+sourcev1.HelmChart or sourcev1.OCIRepository is created.</p>
 </td>
 </tr>
 <tr>
@@ -187,8 +188,8 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#DependencyReference">
-[]github.com/fluxcd/pkg/apis/meta.DependencyReference
+<a href="#helm.toolkit.fluxcd.io/v2.DependencyReference">
+[]DependencyReference
 </a>
 </em>
 </td>
@@ -350,8 +351,8 @@ Uninstall
 <td>
 <code>valuesFrom</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#ValuesReference">
-[]github.com/fluxcd/pkg/apis/meta.ValuesReference
+<a href="#helm.toolkit.fluxcd.io/v2.ValuesReference">
+[]ValuesReference
 </a>
 </em>
 </td>
@@ -475,6 +476,12 @@ HelmReleaseStatus
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2.Action">Action
+(<code>string</code> alias)</h3>
+<p>Action describes an observable stage of the reconcile loop, from checking
+dependencies and resolving the chart source and values, through performing
+Helm operations (install, upgrade, test, rollback, uninstall), to drift
+detection, health checking and unlocking stale releases.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.ActionStrategyName">ActionStrategyName
 (<code>string</code> alias)</h3>
 <p>ActionStrategyName is a valid name for an action strategy.</p>
@@ -676,6 +683,13 @@ resource object that contains the reference.</p>
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2.DependencyReference">DependencyReference
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>DependencyReference defines a HelmRelease dependency on another HelmRelease resource.</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.DriftDetection">DriftDetection
 </h3>
 <p>
@@ -783,15 +797,9 @@ bool
 </table>
 </div>
 </div>
-<h3 id="helm.toolkit.fluxcd.io/v2.HelmChartTemplate">HelmChartTemplate
+<h3 id="helm.toolkit.fluxcd.io/v2.HelmChartReference">HelmChartReference
 </h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
-</p>
-<p>HelmChartTemplate defines the template from which the controller will
-generate a v1.HelmChart object in the same namespace as the referenced
-v1.Source.</p>
+<p>HelmChartReference holds a typed and namespaced reference for a Helm chart.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -802,6 +810,83 @@ v1.Source.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<code>kind</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Kind of the Helm chart.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name of the Helm chart.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>namespace</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Namespace of the Helm chart.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="helm.toolkit.fluxcd.io/v2.HelmChartTemplate">HelmChartTemplate
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
+<p>HelmChartTemplate defines the template from which the controller will
+generate a sourcev1.HelmChart or sourcev1.OCIRepository object. The
+Kind field determines which object is generated.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>kind</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Kind is the kind of the source object generated from this template. Valid values:
+- HelmChart (default): generates a source.toolkit.fluxcd.io/v1 HelmChart from
+the HelmChartSpec-compatible fields under .spec.chart.spec. In particular,
+.spec.chart.spec.chart and .spec.chart.spec.sourceRef are required.
+- OCIRepository: generates a source.toolkit.fluxcd.io/v1 OCIRepository from
+the OCIRepositorySpec fields under .spec.chart.spec. In particular,
+.spec.chart.spec.url is required, and .spec.chart.spec.interval defaults
+to .spec.interval (interval is required in a plain OCIRepository).
+Use OCIRepository for charts hosted in OCI registries; use HelmChart for
+HelmRepository, GitRepository or Bucket sources.</p>
+</td>
+</tr>
 <tr>
 <td>
 <code>metadata</code><br>
@@ -826,10 +911,23 @@ HelmChartTemplateSpec
 </em>
 </td>
 <td>
-<p>Spec holds the template for the v1.HelmChartSpec for this HelmRelease.</p>
+<p>Spec holds the spec of the object generated for this HelmRelease.</p>
 <br/>
 <br/>
 <table>
+<tr>
+<td>
+<code>OCIRepositorySpec</code><br>
+<em>
+github.com/fluxcd/source-controller/api/v1.OCIRepositorySpec
+</em>
+</td>
+<td>
+<p>
+(Members of <code>OCIRepositorySpec</code> are embedded into this type.)
+</p>
+</td>
+</tr>
 <tr>
 <td>
 <code>chart</code><br>
@@ -838,6 +936,7 @@ string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The name or path the Helm chart is available at in the SourceRef.</p>
 </td>
 </tr>
@@ -851,7 +950,7 @@ string
 <td>
 <em>(Optional)</em>
 <p>Version semver expression, ignored for charts from v1.GitRepository and
-v1beta2.Bucket sources. Defaults to latest when omitted.</p>
+v1beta2.Bucket sources. Defaults to latest when omitted i.e. to &lsquo;*&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -864,22 +963,8 @@ CrossNamespaceObjectReference
 </em>
 </td>
 <td>
-<p>The name and namespace of the v1.Source the chart is available at.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>interval</code><br>
-<em>
-<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
-Kubernetes meta/v1.Duration
-</a>
-</em>
-</td>
-<td>
 <em>(Optional)</em>
-<p>Interval at which to check the v1.Source for updates. Defaults to
-&lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
+<p>The name and namespace of the v1.Source the chart is available at.</p>
 </td>
 </tr>
 <tr>
@@ -924,25 +1009,6 @@ bool
 <p>IgnoreMissingValuesFiles controls whether to silently ignore missing values files rather than failing.</p>
 </td>
 </tr>
-<tr>
-<td>
-<code>verify</code><br>
-<em>
-<a href="#helm.toolkit.fluxcd.io/v2.HelmChartTemplateVerification">
-HelmChartTemplateVerification
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Verify contains the secret name containing the trusted public keys
-used to verify the signature and specifies which provider to use to check
-whether OCI image is authentic.
-This field is only supported for OCI sources.
-Chart dependencies, which are not bundled in the umbrella chart artifact,
-are not verified.</p>
-</td>
-</tr>
 </table>
 </td>
 </tr>
@@ -956,8 +1022,8 @@ are not verified.</p>
 (<em>Appears on:</em>
 <a href="#helm.toolkit.fluxcd.io/v2.HelmChartTemplate">HelmChartTemplate</a>)
 </p>
-<p>HelmChartTemplateObjectMeta defines the template for the ObjectMeta of a
-v1.HelmChart.</p>
+<p>HelmChartTemplateObjectMeta defines the template for the ObjectMeta of the
+generated object.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1008,7 +1074,7 @@ More info: <a href="https://kubernetes.io/docs/concepts/overview/working-with-ob
 <a href="#helm.toolkit.fluxcd.io/v2.HelmChartTemplate">HelmChartTemplate</a>)
 </p>
 <p>HelmChartTemplateSpec defines the template from which the controller will
-generate a v1.HelmChartSpec object.</p>
+generate a sourcev1.HelmChartSpec or sourcev1.OCIRepositorySpec object.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1021,12 +1087,26 @@ generate a v1.HelmChartSpec object.</p>
 <tbody>
 <tr>
 <td>
+<code>OCIRepositorySpec</code><br>
+<em>
+github.com/fluxcd/source-controller/api/v1.OCIRepositorySpec
+</em>
+</td>
+<td>
+<p>
+(Members of <code>OCIRepositorySpec</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>chart</code><br>
 <em>
 string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The name or path the Helm chart is available at in the SourceRef.</p>
 </td>
 </tr>
@@ -1040,7 +1120,7 @@ string
 <td>
 <em>(Optional)</em>
 <p>Version semver expression, ignored for charts from v1.GitRepository and
-v1beta2.Bucket sources. Defaults to latest when omitted.</p>
+v1beta2.Bucket sources. Defaults to latest when omitted i.e. to &lsquo;*&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -1053,22 +1133,8 @@ CrossNamespaceObjectReference
 </em>
 </td>
 <td>
-<p>The name and namespace of the v1.Source the chart is available at.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>interval</code><br>
-<em>
-<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
-Kubernetes meta/v1.Duration
-</a>
-</em>
-</td>
-<td>
 <em>(Optional)</em>
-<p>Interval at which to check the v1.Source for updates. Defaults to
-&lsquo;HelmReleaseSpec.Interval&rsquo;.</p>
+<p>The name and namespace of the v1.Source the chart is available at.</p>
 </td>
 </tr>
 <tr>
@@ -1113,72 +1179,6 @@ bool
 <p>IgnoreMissingValuesFiles controls whether to silently ignore missing values files rather than failing.</p>
 </td>
 </tr>
-<tr>
-<td>
-<code>verify</code><br>
-<em>
-<a href="#helm.toolkit.fluxcd.io/v2.HelmChartTemplateVerification">
-HelmChartTemplateVerification
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Verify contains the secret name containing the trusted public keys
-used to verify the signature and specifies which provider to use to check
-whether OCI image is authentic.
-This field is only supported for OCI sources.
-Chart dependencies, which are not bundled in the umbrella chart artifact,
-are not verified.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<h3 id="helm.toolkit.fluxcd.io/v2.HelmChartTemplateVerification">HelmChartTemplateVerification
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#helm.toolkit.fluxcd.io/v2.HelmChartTemplateSpec">HelmChartTemplateSpec</a>)
-</p>
-<p>HelmChartTemplateVerification verifies the authenticity of an OCI Helm chart.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>provider</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Provider specifies the technology used to sign the OCI Helm chart.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>secretRef</code><br>
-<em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#LocalObjectReference">
-github.com/fluxcd/pkg/apis/meta.LocalObjectReference
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>SecretRef specifies the Kubernetes Secret containing the
-trusted public keys.</p>
-</td>
-</tr>
 </tbody>
 </table>
 </div>
@@ -1211,8 +1211,9 @@ HelmChartTemplate
 </td>
 <td>
 <em>(Optional)</em>
-<p>Chart defines the template of the v1.HelmChart that should be created
-for this HelmRelease.</p>
+<p>Chart defines the template of the source object that should be
+created for this HelmRelease. The Kind field determines whether a
+sourcev1.HelmChart or sourcev1.OCIRepository is created.</p>
 </td>
 </tr>
 <tr>
@@ -1319,8 +1320,8 @@ Defaults to the namespace of the HelmRelease.</p>
 <td>
 <code>dependsOn</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#DependencyReference">
-[]github.com/fluxcd/pkg/apis/meta.DependencyReference
+<a href="#helm.toolkit.fluxcd.io/v2.DependencyReference">
+[]DependencyReference
 </a>
 </em>
 </td>
@@ -1482,8 +1483,8 @@ Uninstall
 <td>
 <code>valuesFrom</code><br>
 <em>
-<a href="https://godoc.org/github.com/fluxcd/pkg/apis/meta#ValuesReference">
-[]github.com/fluxcd/pkg/apis/meta.ValuesReference
+<a href="#helm.toolkit.fluxcd.io/v2.ValuesReference">
+[]ValuesReference
 </a>
 </em>
 </td>
@@ -1684,7 +1685,9 @@ string
 <td>
 <em>(Optional)</em>
 <p>HelmChart is the namespaced name of the HelmChart resource created by
-the controller for the HelmRelease.</p>
+the controller for the HelmRelease, in the format &lsquo;<namespace>/<name>&rsquo;,
+or the typed and namespaced name of the OCIRepository resource, in the
+format &lsquo;<kind>/<namespace>/<name>&rsquo;.</p>
 </td>
 </tr>
 <tr>
@@ -3471,6 +3474,12 @@ Defaults to &lsquo;5m&rsquo;.</p>
 </table>
 </div>
 </div>
+<h3 id="helm.toolkit.fluxcd.io/v2.ValuesReference">ValuesReference
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#helm.toolkit.fluxcd.io/v2.HelmReleaseSpec">HelmReleaseSpec</a>)
+</p>
 <h3 id="helm.toolkit.fluxcd.io/v2.WaitStrategy">WaitStrategy
 </h3>
 <p>

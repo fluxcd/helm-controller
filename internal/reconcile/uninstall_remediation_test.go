@@ -31,10 +31,10 @@ import (
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	"github.com/fluxcd/pkg/chartutil"
 
@@ -390,7 +390,7 @@ func TestUninstallRemediation_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 			got := NewUninstallRemediation(cfg, recorder).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
@@ -442,7 +442,7 @@ func TestUninstallRemediation_failure(t *testing.T) {
 	t.Run("records failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &UninstallRemediation{
 			eventRecorder: recorder,
 		}
@@ -463,6 +463,7 @@ func TestUninstallRemediation_failure(t *testing.T) {
 			{
 				Type:    corev1.EventTypeWarning,
 				Reason:  v2.UninstallFailedReason,
+				Action:  v2.ActionHelmUninstall.String(),
 				Message: expectMsg,
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
@@ -478,7 +479,7 @@ func TestUninstallRemediation_failure(t *testing.T) {
 	t.Run("records failure with logs", func(t *testing.T) {
 		g := NewWithT(t)
 
-		recorder := testutil.NewFakeRecorder(10, false)
+		recorder := events.NewFakeRecorder(10, false)
 		r := &UninstallRemediation{
 			eventRecorder: recorder,
 		}
@@ -505,7 +506,7 @@ func TestUninstallRemediation_success(t *testing.T) {
 		Version:   4,
 	})
 
-	recorder := testutil.NewFakeRecorder(10, false)
+	recorder := events.NewFakeRecorder(10, false)
 	r := &UninstallRemediation{
 		eventRecorder: recorder,
 	}
@@ -533,6 +534,7 @@ func TestUninstallRemediation_success(t *testing.T) {
 		{
 			Type:    corev1.EventTypeNormal,
 			Reason:  v2.UninstallSucceededReason,
+			Action:  v2.ActionHelmUninstall.String(),
 			Message: expectMsg,
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{

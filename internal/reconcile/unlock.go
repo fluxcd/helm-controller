@@ -26,9 +26,9 @@ import (
 	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
 	helmreleasev1 "helm.sh/helm/v4/pkg/release/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/record"
 
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/action"
@@ -37,13 +37,14 @@ import (
 )
 
 // Unlock is an ActionReconciler which attempts to unlock the latest release
-// for a Request.Object in the Helm storage if stuck in a pending state, by
-// setting the status to release.StatusFailed and persisting it.
+// for a Request.Object in the Helm storage if stuck in a pending or
+// uninstalling state, by setting the status to release.StatusFailed and
+// persisting it.
 //
 // This write to the Helm storage is observed, and updates the Status.History
 // field if the persisted object targets the same release version.
 //
-// Any pending state marks the v2.HelmRelease object with
+// Any such state marks the v2.HelmRelease object with
 // ReleasedCondition=False, even if persisting the object to the Helm storage
 // fails.
 //
@@ -51,12 +52,12 @@ import (
 // propagated to the Ready condition on the Request.Object.
 type Unlock struct {
 	configFactory *action.ConfigFactory
-	eventRecorder record.EventRecorder
+	eventRecorder events.Recorder
 }
 
 // NewUnlock returns a new Unlock reconciler configured with the provided
 // values.
-func NewUnlock(cfg *action.ConfigFactory, recorder record.EventRecorder) *Unlock {
+func NewUnlock(cfg *action.ConfigFactory, recorder events.Recorder) *Unlock {
 	return &Unlock{configFactory: cfg, eventRecorder: recorder}
 }
 
@@ -78,10 +79,10 @@ func (r *Unlock) Reconcile(_ context.Context, req *Request) error {
 		return err
 	}
 
-	// Ensure the release is in a pending state.
+	// Ensure the release is in a pending or uninstalling state.
 	cur := processCurrentSnaphot(req.Object, rls)
-	if status := rls.Info.Status; status.IsPending() {
-		// Update pending status to failed and persist.
+	if status := rls.Info.Status; isLockedStatus(status) {
+		// Update the stale status to failed and persist.
 		rls.SetStatus(helmreleasecommon.StatusFailed, fmt.Sprintf("Release unlocked from stale '%s' state", status.String()))
 		if err = cfg.Releases.Update(rls); err != nil {
 			r.failure(req, cur, status, err)
@@ -121,9 +122,11 @@ func (r *Unlock) failure(req *Request, cur *v2.Snapshot, status helmreleasecommo
 	// Record warning event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
+		req.Source,
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeWarning,
 		"PendingRelease",
+		v2.ActionUnlock.String(),
 		"%s",
 		msg,
 	)
@@ -141,9 +144,11 @@ func (r *Unlock) success(req *Request, cur *v2.Snapshot, status helmreleasecommo
 	// Record event.
 	r.eventRecorder.AnnotatedEventf(
 		req.Object,
+		req.Source,
 		eventMeta(cur.ChartVersion, cur.ConfigDigest, addAppVersion(cur.AppVersion), addOCIDigest(cur.OCIDigest)),
 		corev1.EventTypeNormal,
 		"PendingRelease",
+		v2.ActionUnlock.String(),
 		"%s",
 		msg,
 	)

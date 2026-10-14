@@ -85,6 +85,15 @@ type ReleaseState struct {
 	Diff jsondiff.DiffSet
 }
 
+// isLockedStatus returns true if the given Helm release status is a transient
+// one (pending-install, pending-upgrade, pending-rollback or uninstalling)
+// that Helm only persists while an action is in flight. A release found in
+// such a status while no action is running was interrupted, and must be
+// unlocked before any further action can be taken.
+func isLockedStatus(status helmreleasecommon.Status) bool {
+	return status.IsPending() || status == helmreleasecommon.StatusUninstalling
+}
+
 // DetermineReleaseState determines the state of the Helm release as compared
 // to the v2.HelmRelease object. It returns a ReleaseState that indicates
 // the status of the release, and an error if the state could not be determined.
@@ -97,9 +106,9 @@ func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *
 		return ReleaseState{Status: ReleaseStatusUnknown}, fmt.Errorf("failed to retrieve last release from storage: %w", err)
 	}
 
-	// If the release is in a pending state, it must be unlocked before any
-	// further action can be taken.
-	if rls.Info.Status.IsPending() {
+	// If the release is in a pending or uninstalling state, it must be
+	// unlocked before any further action can be taken.
+	if isLockedStatus(rls.Info.Status) {
 		return ReleaseState{Status: ReleaseStatusLocked, Reason: fmt.Sprintf("release with status '%s'", rls.Info.Status)}, err
 	}
 

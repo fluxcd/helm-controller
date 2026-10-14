@@ -13,6 +13,6 @@ jobs:
       - name: Test suite setup
         uses: fluxcd/gha-workflows/.github/actions/setup-kubernetes@v0.16.0
         with:
-          go-version: 1.26.x
+          go-version: 1.27.x
       - name: Smoke test Fuzzers
         run: make fuzz-smoketest

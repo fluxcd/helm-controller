@@ -31,11 +31,11 @@ import (
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 
 	"github.com/fluxcd/pkg/chartutil"
 
@@ -91,6 +91,36 @@ func TestUnlock_Reconcile(t *testing.T) {
 						Version:   1,
 						Chart:     testutil.BuildChart(),
 						Status:    helmreleasecommon.StatusPendingInstall,
+					}),
+				}
+			},
+			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
+				return v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+					},
+				}
+			},
+			expectConditions: []metav1.Condition{
+				*conditions.FalseCondition(meta.ReadyCondition, "PendingRelease", "Unlocked Helm release"),
+				*conditions.FalseCondition(v2.ReleasedCondition, "PendingRelease", "Unlocked Helm release"),
+			},
+			expectHistory: func(releases []*helmrelease.Release) v2.Snapshots {
+				return v2.Snapshots{
+					release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+				}
+			},
+		},
+		{
+			name: "unlock success from uninstalling state",
+			releases: func(namespace string) []*helmrelease.Release {
+				return []*helmrelease.Release{
+					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+						Name:      mockReleaseName,
+						Namespace: namespace,
+						Version:   1,
+						Chart:     testutil.BuildChart(),
+						Status:    helmreleasecommon.StatusUninstalling,
 					}),
 				}
 			},
@@ -338,7 +368,7 @@ func TestUnlock_Reconcile(t *testing.T) {
 				cfg.Driver = tt.driver(cfg.Driver)
 			}
 
-			recorder := new(record.FakeRecorder)
+			recorder := new(events.FakeRecorder)
 			got := NewUnlock(cfg, recorder).Reconcile(context.TODO(), &Request{
 				Object: obj,
 			})
@@ -380,8 +410,7 @@ func TestUnlock_failure(t *testing.T) {
 		status = helmreleasecommon.StatusPendingInstall
 		err    = fmt.Errorf("unlock error")
 	)
-
-	recorder := testutil.NewFakeRecorder(10, false)
+	recorder := events.NewFakeRecorder(10, false)
 	r := &Unlock{
 		eventRecorder: recorder,
 	}
@@ -402,6 +431,7 @@ func TestUnlock_failure(t *testing.T) {
 		{
 			Type:    corev1.EventTypeWarning,
 			Reason:  "PendingRelease",
+			Action:  v2.ActionUnlock.String(),
 			Message: expectMsg,
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
@@ -428,7 +458,7 @@ func TestUnlock_success(t *testing.T) {
 		status = helmreleasecommon.StatusPendingInstall
 	)
 
-	recorder := testutil.NewFakeRecorder(10, false)
+	recorder := events.NewFakeRecorder(10, false)
 	r := &Unlock{
 		eventRecorder: recorder,
 	}
@@ -449,6 +479,7 @@ func TestUnlock_success(t *testing.T) {
 		{
 			Type:    corev1.EventTypeNormal,
 			Reason:  "PendingRelease",
+			Action:  v2.ActionUnlock.String(),
 			Message: expectMsg,
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
@@ -508,7 +539,7 @@ func TestUnlock_withOCIDigest(t *testing.T) {
 	store := helmstorage.Init(cfg.Driver)
 	g.Expect(store.Create(rls)).To(Succeed())
 
-	recorder := testutil.NewFakeRecorder(10, false)
+	recorder := events.NewFakeRecorder(10, false)
 	got := NewUnlock(cfg, recorder).Reconcile(context.TODO(), &Request{
 		Object: obj,
 	})
@@ -538,6 +569,7 @@ func TestUnlock_withOCIDigest(t *testing.T) {
 		{
 			Type:    corev1.EventTypeNormal,
 			Reason:  "PendingRelease",
+			Action:  v2.ActionUnlock.String(),
 			Message: expectMsg,
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
