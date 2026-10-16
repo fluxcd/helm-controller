@@ -19,6 +19,7 @@ package action
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 
 	helmaction "helm.sh/helm/v4/pkg/action"
@@ -183,6 +184,9 @@ func (c *ConfigFactory) Build(log slog.Handler, observers ...storage.ObserveFunc
 	conf.RESTClientGetter = c.Getter
 	conf.Releases = c.NewStorage(observers...)
 	conf.KubeClient = client
+	// NewConfiguration does not initialize HookOutputFunc. Match Helm's default
+	// to prevent a nil callback panic when hooks request container logs.
+	conf.HookOutputFunc = func(_, _, _ string) io.Writer { return io.Discard }
 	return conf
 }
 
