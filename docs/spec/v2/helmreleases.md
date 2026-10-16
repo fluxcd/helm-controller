@@ -1454,16 +1454,9 @@ Helm does support [the installation of Custom Resource Definitions](https://helm
 > community consensus around how to handle CRDs and their lifecycle. As this
 > evolves, Helm will add support for those use cases.
 
-If you write your own Helm charts, you can work around this limitation by
-putting your CRDs into the templates instead of the `crds/` directory, or by
-factoring them out into a separate Helm chart as suggested by the [official Helm
-documentation](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#method-2-separate-charts).
-
-However, if you use a third-party Helm chart that installs CRDs, not being able
-to upgrade the CRDs via HelmRelease objects might become a cumbersome limitation
-within your GitOps workflow. Therefore, Flux allows you to opt in to upgrading
-CRDs by setting the `.crds` policy in the [`.spec.install`](#install-configuration)
-and [`.spec.upgrade`](#upgrade-configuration) configurations.
+Flux allows you to opt in to upgrading CRDs by setting the `.crds`
+policy in the [`.spec.install`](#install-configuration) and
+[`.spec.upgrade`](#upgrade-configuration) configurations.
 
 The following policy values are supported:
 
