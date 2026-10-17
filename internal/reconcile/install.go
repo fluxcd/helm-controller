@@ -121,6 +121,7 @@ func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 	}
 
 	r.success(req)
+	observePostRenderers(req)
 	return nil
 }
 

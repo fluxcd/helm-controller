@@ -209,9 +209,6 @@ func observeInventory(obj *v2.HelmRelease, src sourcev1.Source, chart *helmchart
 // tests are not enabled, and excluding it when failures must be ignored.
 //
 // If Ready=True, any Stalled condition is removed.
-//
-// The ObservedPostRenderersDigest and ObservedCommonMetadataDigest are
-// updated to reflect the current spec.
 func summarize(req *Request) {
 	var sumConds = []string{v2.RemediatedCondition, v2.ReleasedCondition}
 	if req.Object.GetTest().Enable && !req.Object.GetTest().IgnoreFailures {
@@ -261,9 +258,19 @@ func summarize(req *Request) {
 		Message:            conds[0].Message,
 		ObservedGeneration: req.Object.Generation,
 	})
+}
 
-	// Update the observed post-renderers and common-metadata digests to
-	// reflect the current spec.
+// observePostRenderers records the observed post-renderers and common-metadata
+// digests on the status of the given Request.Object, reflecting that the
+// current specification has been applied to the release.
+//
+// It must only be called once the current specification has been successfully
+// applied, e.g. after a successful install or upgrade, or when the release is
+// observed to be in sync with the desired state. Recording the digests after a
+// failed action that did not store a release would make the controller believe
+// the specification has been applied, causing the release to be reported as
+// in-sync without ever retrying the action.
+func observePostRenderers(req *Request) {
 	req.Object.Status.ObservedPostRenderersDigest = ""
 	if req.Object.Spec.PostRenderers != nil {
 		req.Object.Status.ObservedPostRenderersDigest = postrender.Digest(digest.Canonical, req.Object.Spec.PostRenderers).String()
