@@ -98,3 +98,90 @@ Deploy `helm-controller` into the cluster that is configured in the local kubeco
 ```sh
 make deploy
 ```
+
+## Debugging the controller locally
+
+Use this section when reproducing an issue against a real cluster. Follow
+[How to run the controller locally](#how-to-run-the-controller-locally) first
+so CRDs are installed, the in-cluster Deployment is scaled to zero when needed,
+and `SOURCE_CONTROLLER_LOCALHOST` is set if source-controller is only reachable
+via port-forward.
+
+### Readable, verbose logs
+
+`make run` starts the process with the default log settings (`info` / `json`).
+For interactive debugging, prefer console encoding and a higher verbosity:
+
+```sh
+go run ./main.go --log-level=debug --log-encoding=console
+```
+
+`--log-level=trace` is available when you need the most detailed controller-runtime
+output. The full flag list lives in [`docs/README.md`](docs/README.md).
+
+### Reduce noise from other HelmReleases
+
+A shared test cluster may hold many `HelmRelease` objects. Suspend everything
+you are not debugging so their reconciles do not interleave with yours:
+
+```sh
+flux suspend helmrelease --all --namespace <namespace>
+# or a single object:
+flux suspend helmrelease <name> --namespace <namespace>
+```
+
+Resume with `flux resume` when finished. Alternatively, label the object under
+test and narrow the manager watch with `--watch-label-selector` (for example
+`debugging=true`). Keep `--watch-all-namespaces=true` (the default) unless you
+intentionally want to hide cross-namespace behaviour.
+
+### Trigger a reconcile on demand
+
+After changing cluster state or attaching a debugger, request an immediate
+reconcile without waiting for the interval:
+
+```sh
+kubectl annotate --field-manager=flux-client-side-apply --overwrite \
+  helmrelease/<name> -n <namespace> \
+  reconcile.fluxcd.io/requestedAt="$(date +%s)"
+```
+
+### Profiles (pprof)
+
+pprof handlers are registered on the metrics server (default
+`--metrics-addr=:8080`). While the controller is running locally:
+
+```sh
+go tool pprof http://localhost:8080/debug/pprof/heap
+go tool pprof http://localhost:8080/debug/pprof/profile?seconds=30
+```
+
+### Debugging with VS Code
+
+Create `.vscode/launch.json` (gitignored) after installing CRDs and scaling down
+the in-cluster Deployment as described above:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug helm-controller",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/main.go",
+      "args": [
+        "--log-level=debug",
+        "--log-encoding=console"
+      ],
+      "env": {
+        "SOURCE_CONTROLLER_LOCALHOST": "localhost:8080"
+      }
+    }
+  ]
+}
+```
+
+Start with **Run > Start Debugging**. Adjust `SOURCE_CONTROLLER_LOCALHOST` only
+when you are port-forwarding source-controller as documented above.
