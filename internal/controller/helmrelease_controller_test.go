@@ -3457,13 +3457,16 @@ users:
 	)
 
 	tests := []struct {
-		name      string
-		env       map[string]string
-		getConfig func() (*rest.Config, error)
-		spec      v2.HelmReleaseSpec
-		secret    *corev1.Secret
-		want      genericclioptions.RESTClientGetter
-		wantErr   string
+		name                            string
+		env                             map[string]string
+		getConfig                       func() (*rest.Config, error)
+		spec                            v2.HelmReleaseSpec
+		secret                          *corev1.Secret
+		configMap                       *corev1.ConfigMap
+		defaultKubeConfigServiceAccount string
+		objectLevelWorkloadIdentity     bool
+		want                            genericclioptions.RESTClientGetter
+		wantErr                         string
 	}{
 		{
 			name: "builds in-cluster RESTClientGetter for HelmRelease",
@@ -3529,6 +3532,85 @@ users:
 			},
 			wantErr: "does not contain a 'invalid-key' key",
 		},
+		{
+			name: "error on missing KubeConfig ConfigMap",
+			spec: v2.HelmReleaseSpec{
+				KubeConfig: &meta.KubeConfigReference{
+					ConfigMapRef: &meta.LocalObjectReference{
+						Name: "kubeconfig",
+					},
+				},
+			},
+			wantErr: "failed to get configmap",
+		},
+		{
+			name: "error when KubeConfig ConfigMap uses a ServiceAccount without the feature gate",
+			spec: v2.HelmReleaseSpec{
+				KubeConfig: &meta.KubeConfigReference{
+					ConfigMapRef: &meta.LocalObjectReference{
+						Name: "kubeconfig",
+					},
+				},
+			},
+			configMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "kubeconfig",
+					Namespace: namespace,
+				},
+				Data: map[string]string{
+					meta.KubeConfigKeyProvider:           "generic",
+					meta.KubeConfigKeyAddress:            "https://1.2.3.4",
+					meta.KubeConfigKeyServiceAccountName: "auth-sa",
+				},
+			},
+			wantErr: "ObjectLevelWorkloadIdentity feature gate is not enabled",
+		},
+		{
+			name: "error when the default KubeConfig ServiceAccount is missing",
+			spec: v2.HelmReleaseSpec{
+				KubeConfig: &meta.KubeConfigReference{
+					ConfigMapRef: &meta.LocalObjectReference{
+						Name: "kubeconfig",
+					},
+				},
+			},
+			configMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "kubeconfig",
+					Namespace: namespace,
+				},
+				Data: map[string]string{
+					meta.KubeConfigKeyProvider: "generic",
+					meta.KubeConfigKeyAddress:  "https://1.2.3.4",
+				},
+			},
+			defaultKubeConfigServiceAccount: "auth-sa",
+			objectLevelWorkloadIdentity:     true,
+			wantErr:                         "failed to get service account 'some-namespace/auth-sa'",
+		},
+		{
+			name: "error when the KubeConfig ConfigMap ServiceAccount is missing",
+			spec: v2.HelmReleaseSpec{
+				KubeConfig: &meta.KubeConfigReference{
+					ConfigMapRef: &meta.LocalObjectReference{
+						Name: "kubeconfig",
+					},
+				},
+			},
+			configMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "kubeconfig",
+					Namespace: namespace,
+				},
+				Data: map[string]string{
+					meta.KubeConfigKeyProvider:           "generic",
+					meta.KubeConfigKeyAddress:            "https://1.2.3.4",
+					meta.KubeConfigKeyServiceAccountName: "auth-sa",
+				},
+			},
+			objectLevelWorkloadIdentity: true,
+			wantErr:                     "failed to get service account 'some-namespace/auth-sa'",
+		},
 	}
 
 	for _, tt := range tests {
@@ -3543,10 +3625,15 @@ users:
 			if tt.secret != nil {
 				c.WithObjects(tt.secret)
 			}
+			if tt.configMap != nil {
+				c.WithObjects(tt.configMap)
+			}
 
 			r := &HelmReleaseReconciler{
-				Client:           c.Build(),
-				GetClusterConfig: tt.getConfig,
+				Client:                          c.Build(),
+				GetClusterConfig:                tt.getConfig,
+				DefaultKubeConfigServiceAccount: tt.defaultKubeConfigServiceAccount,
+				ObjectLevelWorkloadIdentity:     tt.objectLevelWorkloadIdentity,
 			}
 
 			getter, err := r.buildRESTClientGetter(context.Background(), &v2.HelmRelease{

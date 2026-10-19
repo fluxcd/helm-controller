@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -166,12 +167,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	switch enabled, err := features.Enabled(auth.FeatureGateObjectLevelWorkloadIdentity); {
-	case err != nil:
+	objectLevelWorkloadIdentity, err := features.Enabled(auth.FeatureGateObjectLevelWorkloadIdentity)
+	if err != nil {
 		setupLog.Error(err, "unable to check feature gate "+auth.FeatureGateObjectLevelWorkloadIdentity)
 		os.Exit(1)
-	case enabled:
-		auth.EnableObjectLevelWorkloadIdentity()
 	}
 
 	switch enabled, err := features.Enabled(features.UseHelm3Defaults); {
@@ -194,12 +193,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	if defaultKubeConfigServiceAccount != "" {
-		auth.SetDefaultKubeConfigServiceAccount(defaultKubeConfigServiceAccount)
-	}
-
-	if auth.InconsistentObjectLevelConfiguration() {
-		setupLog.Error(auth.ErrInconsistentObjectLevelConfiguration, "invalid configuration")
+	if defaultKubeConfigServiceAccount != "" && !objectLevelWorkloadIdentity {
+		setupLog.Error(errors.New("cannot set the default kubeconfig service account when the "+
+			auth.FeatureGateObjectLevelWorkloadIdentity+" feature gate is not enabled"), "invalid configuration")
 		os.Exit(1)
 	}
 
@@ -380,24 +376,26 @@ func main() {
 	watchConfigs := !disableConfigWatchers
 
 	if err = (&controller.HelmReleaseReconciler{
-		Client:                     mgr.GetClient(),
-		APIReader:                  mgr.GetAPIReader(),
-		Recorder:                   eventRecorder,
-		Metrics:                    metricsH,
-		GetClusterConfig:           ctrl.GetConfig,
-		ClientOpts:                 clientOptions,
-		KubeConfigOpts:             kubeConfigOpts,
-		FieldManager:               controllerName,
-		DefaultToRetryOnFailure:    defaultToRetryOnFailure,
-		DisableChartDigestTracking: disableChartDigestTracking,
-		AdditiveCELDependencyCheck: additiveCELDependencyCheck,
-		DirectSourceFetch:          directSourceFetch,
-		TokenCache:                 tokenCache,
-		DependencyRequeueInterval:  requeueDependency,
-		ArtifactFetchRetries:       httpRetry,
-		ArtifactFetchTimeout:       httpTimeout,
-		AllowExternalArtifact:      allowExternalArtifact,
-		DisallowedFieldManagers:    disallowedFieldManagers,
+		Client:                          mgr.GetClient(),
+		APIReader:                       mgr.GetAPIReader(),
+		Recorder:                        eventRecorder,
+		Metrics:                         metricsH,
+		GetClusterConfig:                ctrl.GetConfig,
+		ClientOpts:                      clientOptions,
+		KubeConfigOpts:                  kubeConfigOpts,
+		FieldManager:                    controllerName,
+		DefaultKubeConfigServiceAccount: defaultKubeConfigServiceAccount,
+		ObjectLevelWorkloadIdentity:     objectLevelWorkloadIdentity,
+		DefaultToRetryOnFailure:         defaultToRetryOnFailure,
+		DisableChartDigestTracking:      disableChartDigestTracking,
+		AdditiveCELDependencyCheck:      additiveCELDependencyCheck,
+		DirectSourceFetch:               directSourceFetch,
+		TokenCache:                      tokenCache,
+		DependencyRequeueInterval:       requeueDependency,
+		ArtifactFetchRetries:            httpRetry,
+		ArtifactFetchTimeout:            httpTimeout,
+		AllowExternalArtifact:           allowExternalArtifact,
+		DisallowedFieldManagers:         disallowedFieldManagers,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{
 		RateLimiter:                helper.GetRateLimiter(rateLimiterOptions),
 		WatchConfigs:               watchConfigs,
