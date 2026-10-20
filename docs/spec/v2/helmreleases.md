@@ -905,8 +905,10 @@ The field offers the following subfields:
   operation (like Jobs for hooks) during the uninstalltion of the release.
   Defaults to the [global timeout value](#timeout).
 - `.deletionPropagation` (Optional): The [deletion propagation policy](https://kubernetes.io/docs/tasks/administer-cluster/use-cascading-deletion/)
-  when a Helm uninstall is performed. Valid values are `background`,
-  `foreground` and `orphan`. Defaults to `background`.
+  when a Helm uninstall is performed. The value is simply relayed to the Helm
+  SDK input with same name for the uninstall action, no other behavior is
+  influenced. Valid values are `background`, `foreground` and `orphan`.
+  Defaults to `background`.
 - `.disableHooks` (Optional): Prevents [chart hooks](https://helm.sh/docs/topics/charts_hooks/)
   from running during the uninstallation of the release. Defaults to `false`.
 - `.disableWait` (Optional): Disables waiting for resources to be deleted after
