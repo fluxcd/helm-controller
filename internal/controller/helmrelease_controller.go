@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"strings"
@@ -106,6 +107,7 @@ type HelmReleaseReconciler struct {
 	DependencyRequeueInterval time.Duration
 	ArtifactFetchRetries      int
 	ArtifactFetchTimeout      time.Duration
+	ArtifactServerTLSConfig   *tls.Config
 
 	// Feature gates
 
@@ -330,7 +332,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	}
 
 	// Load chart from artifact.
-	loadedChart, err := loader.SecureLoadChartFromURL(loader.NewRetryableHTTPClient(ctx, r.ArtifactFetchRetries, r.ArtifactFetchTimeout), source.GetArtifact().URL, source.GetArtifact().Digest)
+	loadedChart, err := loader.SecureLoadChartFromURL(ctx, source.GetArtifact().URL, source.GetArtifact().Digest,
+		r.ArtifactFetchRetries, r.ArtifactFetchTimeout, r.ArtifactServerTLSConfig)
 	if err != nil {
 		if errors.Is(err, loader.ErrFileNotFound) {
 			msg := fmt.Sprintf("Source not ready: artifact not found. Retrying in %s", r.DependencyRequeueInterval.String())

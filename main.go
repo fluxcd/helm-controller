@@ -17,12 +17,14 @@ limitations under the License.
 package main
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"os"
 	"time"
 
 	flag "github.com/spf13/pflag"
+	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"helm.sh/helm/v4/pkg/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -50,6 +52,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/metrics"
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
+	fluxspiffe "github.com/fluxcd/pkg/spiffe"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	// +kubebuilder:scaffold:imports
@@ -110,6 +113,8 @@ func main() {
 		disallowedFieldManagers         []string
 		tokenCacheOptions               cache.TokenFlags
 		defaultKubeConfigServiceAccount string
+		authorizedArtifactServers       []string
+		authorizedEventServers          []string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080",
@@ -126,7 +131,7 @@ func main() {
 		"The duration given to the reconciler to finish before forcibly stopping.")
 	flag.IntVar(&httpRetry, "http-retry", 9,
 		"The maximum number of retries when failing to fetch artifacts over HTTP.")
-	flag.DurationVar(&httpTimeout, "http-timeout", 30*time.Second,
+	flag.DurationVar(&httpTimeout, "http-timeout", 60*time.Second,
 		"The timeout for HTTP requests when fetching artifacts.")
 	flag.StringVar(&intkube.DefaultServiceAccountName, auth.ControllerFlagDefaultServiceAccount, "",
 		"Default service account used for impersonation.")
@@ -144,6 +149,10 @@ func main() {
 		"The algorithm to use to calculate the digest of Helm release storage snapshots.")
 	flag.StringArrayVar(&disallowedFieldManagers, "override-manager", []string{},
 		"List of field managers to override during drift detection.")
+	flag.StringArrayVar(&authorizedArtifactServers, fluxspiffe.ControllerFlagAuthorizedArtifactServerSPIFFEID, nil,
+		"SPIFFE ID of an artifact server authorized to serve artifacts. Can be repeated.")
+	flag.StringArrayVar(&authorizedEventServers, fluxspiffe.ControllerFlagAuthorizedEventServerSPIFFEID, nil,
+		"SPIFFE ID of an event server authorized to receive events. Can be repeated.")
 
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
@@ -317,11 +326,6 @@ func main() {
 	probes.SetupChecks(mgr, setupLog)
 
 	metricsH := helper.NewMetrics(mgr, metrics.MustMakeRecorder(), v2.HelmReleaseFinalizer)
-	eventRecorder, err := events.NewRecorder(ctrl.Log, eventsAddr, controllerName, events.WithManager(mgr))
-	if err != nil {
-		setupLog.Error(err, "unable to create event recorder")
-		os.Exit(1)
-	}
 
 	ctx := ctrl.SetupSignalHandler()
 	if ok, _ := features.Enabled(features.OOMWatch); ok {
@@ -338,6 +342,48 @@ func main() {
 			os.Exit(1)
 		}
 		ctx = ow.Watch(ctx)
+	}
+
+	var artifactServerTLSConfig, eventTLSConfig *tls.Config
+	if len(authorizedArtifactServers) > 0 || len(authorizedEventServers) > 0 {
+		source, err := workloadapi.NewX509Source(ctx)
+		if err != nil {
+			setupLog.Error(err, "unable to create SPIFFE X.509 source")
+			os.Exit(1)
+		}
+		defer func() {
+			if err := source.Close(); err != nil {
+				setupLog.Error(err, "unable to close SPIFFE X.509 source")
+			}
+		}()
+
+		if len(authorizedArtifactServers) > 0 {
+			artifactServerTLSConfig, err = fluxspiffe.BuildTLSConfig(source, authorizedArtifactServers...)
+			if err != nil {
+				setupLog.Error(err, "unable to configure SPIFFE mTLS for the artifact fetcher")
+				os.Exit(1)
+			}
+			setupLog.Info("artifact fetcher will use inter-controller mTLS via SPIFFE", "spiffeIDs", authorizedArtifactServers)
+		}
+
+		if len(authorizedEventServers) > 0 {
+			eventTLSConfig, err = fluxspiffe.BuildTLSConfig(source, authorizedEventServers...)
+			if err != nil {
+				setupLog.Error(err, "unable to configure SPIFFE mTLS for the event server")
+				os.Exit(1)
+			}
+			setupLog.Info("event server will use inter-controller mTLS via SPIFFE", "spiffeIDs", authorizedEventServers)
+		}
+	}
+
+	eventRecorderOpts := []events.RecorderOption{events.WithManager(mgr)}
+	if eventTLSConfig != nil {
+		eventRecorderOpts = append(eventRecorderOpts, events.WithTLSConfig(eventTLSConfig))
+	}
+	eventRecorder, err := events.NewRecorder(ctrl.Log, eventsAddr, controllerName, eventRecorderOpts...)
+	if err != nil {
+		setupLog.Error(err, "unable to create event recorder")
+		os.Exit(1)
 	}
 
 	var tokenCache *cache.TokenCache
@@ -394,6 +440,7 @@ func main() {
 		DependencyRequeueInterval:       requeueDependency,
 		ArtifactFetchRetries:            httpRetry,
 		ArtifactFetchTimeout:            httpTimeout,
+		ArtifactServerTLSConfig:         artifactServerTLSConfig,
 		AllowExternalArtifact:           allowExternalArtifact,
 		DisallowedFieldManagers:         disallowedFieldManagers,
 	}).SetupWithManager(ctx, mgr, controller.HelmReleaseReconcilerOptions{

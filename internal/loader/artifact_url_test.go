@@ -17,16 +17,15 @@ limitations under the License.
 package loader
 
 import (
-	"bytes"
+	"context"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/hashicorp/go-retryablehttp"
 	. "github.com/onsi/gomega"
 	digestlib "github.com/opencontainers/go-digest"
 )
@@ -41,32 +40,48 @@ func TestSecureLoadChartFromURL(t *testing.T) {
 
 	const chartPath = "/chart.tgz"
 	const notFoundPath = "/not-found.tgz"
-	server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		if req.URL.Path == chartPath {
+	const slowPath = "/slow.tgz"
+	handler := http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case chartPath:
 			res.WriteHeader(http.StatusOK)
 			_, _ = res.Write(b)
-			return
-		}
-		if req.URL.Path == notFoundPath {
+		case notFoundPath:
 			res.WriteHeader(http.StatusNotFound)
-			return
+		case slowPath:
+			time.Sleep(200 * time.Millisecond)
+			res.WriteHeader(http.StatusOK)
+			_, _ = res.Write(b)
+		default:
+			res.WriteHeader(http.StatusInternalServerError)
 		}
-		res.WriteHeader(http.StatusInternalServerError)
-	}))
-	t.Cleanup(func() {
-		server.Close()
 	})
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
 
 	chartURL := server.URL + chartPath
-
-	client := retryablehttp.NewClient()
-	client.Logger = nil
-	client.RetryMax = 2
 
 	t.Run("loads Helm chart from URL", func(t *testing.T) {
 		g := NewWithT(t)
 
-		got, err := SecureLoadChartFromURL(client, chartURL, digest.String())
+		got, err := SecureLoadChartFromURL(context.Background(), chartURL, digest.String(), 2, 5*time.Second, nil)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(got).ToNot(BeNil())
+		g.Expect(got.Name()).To(Equal("chart"))
+		g.Expect(got.Metadata.Version).To(Equal("0.1.0"))
+	})
+
+	t.Run("loads Helm chart from URL over TLS", func(t *testing.T) {
+		g := NewWithT(t)
+
+		tlsServer := httptest.NewTLSServer(handler)
+		t.Cleanup(tlsServer.Close)
+
+		tlsConfig := tlsServer.Client().Transport.(*http.Transport).TLSClientConfig
+
+		// The fetcher must upgrade the scheme from http to https.
+		httpURL := "http://" + strings.TrimPrefix(tlsServer.URL, "https://") + chartPath
+		got, err := SecureLoadChartFromURL(context.Background(), httpURL, digest.String(), 2, 5*time.Second, tlsConfig)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.Name()).To(Equal("chart"))
@@ -79,7 +94,7 @@ func TestSecureLoadChartFromURL(t *testing.T) {
 		t.Setenv(envSourceControllerLocalhost, strings.TrimPrefix(server.URL, "http://"))
 		wrongHostnameURL := "http://invalid.com" + chartPath
 
-		got, err := SecureLoadChartFromURL(client, wrongHostnameURL, digest.String())
+		got, err := SecureLoadChartFromURL(context.Background(), wrongHostnameURL, digest.String(), 2, 5*time.Second, nil)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(got).ToNot(BeNil())
 		g.Expect(got.Name()).To(Equal("chart"))
@@ -89,16 +104,15 @@ func TestSecureLoadChartFromURL(t *testing.T) {
 	t.Run("error on chart data digest mismatch", func(t *testing.T) {
 		g := NewWithT(t)
 
-		got, err := SecureLoadChartFromURL(client, chartURL, digestlib.SHA256.FromString("invalid").String())
+		got, err := SecureLoadChartFromURL(context.Background(), chartURL, digestlib.SHA256.FromString("invalid").String(), 2, 5*time.Second, nil)
 		g.Expect(err).To(HaveOccurred())
-		g.Expect(errors.Is(err, ErrIntegrity)).To(BeTrue())
 		g.Expect(got).To(BeNil())
 	})
 
 	t.Run("file not found error on 404", func(t *testing.T) {
 		g := NewWithT(t)
 
-		got, err := SecureLoadChartFromURL(client, server.URL+notFoundPath, digest.String())
+		got, err := SecureLoadChartFromURL(context.Background(), server.URL+notFoundPath, digest.String(), 2, 5*time.Second, nil)
 		g.Expect(errors.Is(err, ErrFileNotFound)).To(BeTrue())
 		g.Expect(got).To(BeNil())
 	})
@@ -106,114 +120,17 @@ func TestSecureLoadChartFromURL(t *testing.T) {
 	t.Run("error on HTTP request failure", func(t *testing.T) {
 		g := NewWithT(t)
 
-		got, err := SecureLoadChartFromURL(client, server.URL+"/invalid.tgz", digest.String())
+		got, err := SecureLoadChartFromURL(context.Background(), server.URL+"/invalid.tgz", digest.String(), 2, 5*time.Second, nil)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(errors.Is(err, ErrFileNotFound)).To(BeFalse())
 		g.Expect(got).To(BeNil())
 	})
-}
 
-func Test_copyAndVerify(t *testing.T) {
-	g := NewWithT(t)
+	t.Run("timeout", func(t *testing.T) {
+		g := NewWithT(t)
 
-	tmpDir := t.TempDir()
-	closedF, err := os.CreateTemp(tmpDir, "closed.txt")
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(closedF.Close()).ToNot(HaveOccurred())
-
-	tests := []struct {
-		name    string
-		digest  string
-		in      io.Reader
-		out     io.Writer
-		wantErr bool
-	}{
-		{
-			name:   "digest match (SHA256)",
-			digest: digestlib.SHA256.FromString("foo").String(),
-			in:     bytes.NewReader([]byte("foo")),
-			out:    bytes.NewBuffer(nil),
-		},
-		{
-			name:   "digest match (SHA384)",
-			digest: digestlib.SHA384.FromString("foo").String(),
-			in:     bytes.NewReader([]byte("foo")),
-			out:    bytes.NewBuffer(nil),
-		},
-		{
-			name:   "digest match (SHA512)",
-			digest: digestlib.SHA512.FromString("foo").String(),
-			in:     bytes.NewReader([]byte("foo")),
-			out:    bytes.NewBuffer(nil),
-		},
-		{
-			name:   "digest match (BLAKE3)",
-			digest: digestlib.BLAKE3.FromString("foo").String(),
-			in:     bytes.NewReader([]byte("foo")),
-			out:    bytes.NewBuffer(nil),
-		},
-		{
-			name:    "digest mismatch",
-			digest:  digestlib.SHA256.FromString("foo").String(),
-			in:      bytes.NewReader([]byte("bar")),
-			out:     io.Discard,
-			wantErr: true,
-		},
-		{
-			name:    "copy failure (closed file)",
-			digest:  digestlib.SHA256.FromString("foo").String(),
-			in:      bytes.NewReader([]byte("foo")),
-			out:     closedF,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := NewWithT(t)
-
-			err := copyAndVerify(tt.digest, tt.in, tt.out)
-			g.Expect(err != nil).To(Equal(tt.wantErr), err)
-		})
-	}
-}
-
-func Test_overwriteHostname(t *testing.T) {
-	tests := []struct {
-		name     string
-		URL      string
-		hostname string
-		want     string
-		wantErr  bool
-	}{
-		{
-			name:     "overwrite hostname",
-			URL:      "http://example.com",
-			hostname: "localhost",
-			want:     "http://localhost",
-		},
-		{
-			name:     "overwrite hostname with port",
-			URL:      "http://example.com",
-			hostname: "localhost:9090",
-			want:     "http://localhost:9090",
-		},
-		{
-			name:     "no hostname",
-			URL:      "http://example.com",
-			hostname: "",
-			want:     "http://example.com",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := overwriteHostname(tt.URL, tt.hostname)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("overwriteHostname() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("overwriteHostname() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
+		got, err := SecureLoadChartFromURL(context.Background(), server.URL+slowPath, digest.String(), 0, 10*time.Millisecond, nil)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(got).To(BeNil())
+	})
 }
