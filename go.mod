@@ -21,11 +21,11 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.12.0
 	github.com/fluxcd/pkg/apis/event v0.32.0
 	github.com/fluxcd/pkg/apis/kustomize v1.23.0
-	github.com/fluxcd/pkg/apis/meta v1.35.0
-	github.com/fluxcd/pkg/auth v0.62.0
+	github.com/fluxcd/pkg/apis/meta v1.36.0
+	github.com/fluxcd/pkg/auth v0.63.0
 	github.com/fluxcd/pkg/cache v0.17.0
-	github.com/fluxcd/pkg/chartutil v1.32.0
-	github.com/fluxcd/pkg/runtime v0.119.0
+	github.com/fluxcd/pkg/chartutil v1.33.0
+	github.com/fluxcd/pkg/runtime v0.120.0
 	github.com/fluxcd/pkg/ssa v0.80.0
 	github.com/fluxcd/pkg/testserver v0.15.0
 	github.com/fluxcd/source-controller/api v1.9.6
@@ -34,7 +34,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/onsi/gomega v1.43.0
+	github.com/onsi/gomega v1.44.0
 	github.com/opencontainers/go-digest v1.0.1-0.20231025023718-d50d2fec9c98
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20250116041648-1e56c6daea3b
 	github.com/spf13/pflag v1.0.10
