@@ -18,7 +18,6 @@ package main
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -53,6 +52,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
 	fluxspiffe "github.com/fluxcd/pkg/spiffe"
+	fluxbroker "github.com/fluxcd/pkg/spiffe/broker"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	// +kubebuilder:scaffold:imports
@@ -115,6 +115,8 @@ func main() {
 		defaultKubeConfigServiceAccount string
 		authorizedArtifactServers       []string
 		authorizedEventServers          []string
+		spiffeBrokerEndpoint            string
+		spiffeBrokerIDs                 []string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080",
@@ -153,6 +155,10 @@ func main() {
 		"SPIFFE ID of an artifact server authorized to serve artifacts. Can be repeated.")
 	flag.StringArrayVar(&authorizedEventServers, fluxspiffe.ControllerFlagAuthorizedEventServerSPIFFEID, nil,
 		"SPIFFE ID of an event server authorized to receive events. Can be repeated.")
+	flag.StringVar(&spiffeBrokerEndpoint, fluxspiffe.ControllerFlagSPIFFEBrokerEndpoint, "",
+		"The gRPC URL of the SPIFFE Broker endpoint.")
+	flag.StringArrayVar(&spiffeBrokerIDs, fluxspiffe.ControllerFlagSPIFFEBrokerID, nil,
+		"SPIFFE ID of the SPIFFE Broker endpoint. Can be repeated.")
 
 	clientOptions.BindFlags(flag.CommandLine)
 	logOptions.BindFlags(flag.CommandLine)
@@ -176,12 +182,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	objectLevelWorkloadIdentity, err := features.Enabled(auth.FeatureGateObjectLevelWorkloadIdentity)
-	if err != nil {
-		setupLog.Error(err, "unable to check feature gate "+auth.FeatureGateObjectLevelWorkloadIdentity)
-		os.Exit(1)
-	}
-
 	switch enabled, err := features.Enabled(features.UseHelm3Defaults); {
 	case err != nil:
 		setupLog.Error(err, "unable to check feature gate "+features.UseHelm3Defaults)
@@ -199,12 +199,6 @@ func main() {
 	cancelHealthCheckOnNewRevision, err := features.Enabled(features.CancelHealthCheckOnNewRevision)
 	if err != nil {
 		setupLog.Error(err, "unable to check feature gate "+features.CancelHealthCheckOnNewRevision)
-		os.Exit(1)
-	}
-
-	if defaultKubeConfigServiceAccount != "" && !objectLevelWorkloadIdentity {
-		setupLog.Error(errors.New("cannot set the default kubeconfig service account when the "+
-			auth.FeatureGateObjectLevelWorkloadIdentity+" feature gate is not enabled"), "invalid configuration")
 		os.Exit(1)
 	}
 
@@ -345,7 +339,9 @@ func main() {
 	}
 
 	var artifactServerTLSConfig, eventTLSConfig *tls.Config
-	if len(authorizedArtifactServers) > 0 || len(authorizedEventServers) > 0 {
+	var spiffeBroker fluxbroker.Client
+	if len(authorizedArtifactServers) > 0 || len(authorizedEventServers) > 0 ||
+		spiffeBrokerEndpoint != "" || len(spiffeBrokerIDs) > 0 {
 		source, err := workloadapi.NewX509Source(ctx)
 		if err != nil {
 			setupLog.Error(err, "unable to create SPIFFE X.509 source")
@@ -373,6 +369,21 @@ func main() {
 				os.Exit(1)
 			}
 			setupLog.Info("event server will use inter-controller mTLS via SPIFFE", "spiffeIDs", authorizedEventServers)
+		}
+
+		if spiffeBrokerEndpoint != "" || len(spiffeBrokerIDs) > 0 {
+			spiffeBroker, err = fluxbroker.New(spiffeBrokerEndpoint, spiffeBrokerIDs, source)
+			if err != nil {
+				setupLog.Error(err, "unable to create SPIFFE Broker client")
+				os.Exit(1)
+			}
+			defer func() {
+				if err := spiffeBroker.Close(); err != nil {
+					setupLog.Error(err, "unable to close SPIFFE Broker client")
+				}
+			}()
+			setupLog.Info("object-level workload identity will use the SPIFFE Broker API",
+				"endpoint", spiffeBrokerEndpoint, "spiffeIDs", spiffeBrokerIDs)
 		}
 	}
 
@@ -431,12 +442,12 @@ func main() {
 		KubeConfigOpts:                  kubeConfigOpts,
 		FieldManager:                    controllerName,
 		DefaultKubeConfigServiceAccount: defaultKubeConfigServiceAccount,
-		ObjectLevelWorkloadIdentity:     objectLevelWorkloadIdentity,
 		DefaultToRetryOnFailure:         defaultToRetryOnFailure,
 		DisableChartDigestTracking:      disableChartDigestTracking,
 		AdditiveCELDependencyCheck:      additiveCELDependencyCheck,
 		DirectSourceFetch:               directSourceFetch,
 		TokenCache:                      tokenCache,
+		SPIFFEBroker:                    spiffeBroker,
 		DependencyRequeueInterval:       requeueDependency,
 		ArtifactFetchRetries:            httpRetry,
 		ArtifactFetchTimeout:            httpTimeout,
