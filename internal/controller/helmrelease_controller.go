@@ -62,6 +62,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/object"
 	"github.com/fluxcd/pkg/runtime/patch"
+	fluxbroker "github.com/fluxcd/pkg/spiffe/broker"
 	"github.com/fluxcd/pkg/ssa"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -101,6 +102,7 @@ type HelmReleaseReconciler struct {
 	KubeConfigOpts                  runtimeClient.KubeConfigOptions
 	APIReader                       client.Reader
 	TokenCache                      *cache.TokenCache
+	SPIFFEBroker                    fluxbroker.Interface
 
 	// Retry and requeue configuration
 
@@ -111,12 +113,11 @@ type HelmReleaseReconciler struct {
 
 	// Feature gates
 
-	AdditiveCELDependencyCheck  bool
-	AllowExternalArtifact       bool
-	DefaultToRetryOnFailure     bool
-	DirectSourceFetch           bool
-	DisableChartDigestTracking  bool
-	ObjectLevelWorkloadIdentity bool
+	AdditiveCELDependencyCheck bool
+	AllowExternalArtifact      bool
+	DefaultToRetryOnFailure    bool
+	DirectSourceFetch          bool
+	DisableChartDigestTracking bool
 }
 
 const terminalErrorMessage = "Reconciliation failed terminally due to configuration error"
@@ -731,11 +732,9 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *
 		if r.DefaultKubeConfigServiceAccount != "" {
 			opts = append(opts, authutils.WithDefaultServiceAccount(r.DefaultKubeConfigServiceAccount))
 		}
-		if r.ObjectLevelWorkloadIdentity {
-			opts = append(opts, authutils.WithObjectLevelWorkloadIdentity())
-		}
 		authOpts := []auth.Option{
 			auth.WithObject(v2.GroupVersion.Group, v2.HelmReleaseKind, obj),
+			auth.WithSPIFFEBroker(r.SPIFFEBroker),
 		}
 		if r.TokenCache != nil {
 			authOpts = append(authOpts,

@@ -89,3 +89,25 @@ jobs:
           kubectl -n helm-system get helmreleases -oyaml || true
           kubectl -n helm-system get all
           helm ls -n helm-system --all
+  kubeconfig-remote:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # for reading the repository code.
+    steps:
+      - name: Test suite setup
+        # The custom kind config sets the ServiceAccount issuer URL used by the
+        # remote cluster's OIDC authenticator.
+        uses: fluxcd/gha-workflows/.github/actions/setup-kubernetes@948f0babb1fce92d805ea0755a3d7ec1cc4f3176 # v0.16.0
+        with:
+          go-version: 1.27.x
+          kind-config: hack/ci/kubeconfig-primary-kind.yaml
+      - name: Build container image
+        run: |
+          make docker-build IMG=test/helm-controller:latest \
+            BUILD_PLATFORMS=linux/amd64 \
+            BUILD_ARGS="--load"
+      - name: Run remote kubeconfig e2e
+        # Reuses the "kind" cluster the setup action created and adds a second one.
+        run: hack/ci/kubeconfig-e2e.sh
+        env:
+          IMG: test/helm-controller:latest

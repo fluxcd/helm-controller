@@ -36,6 +36,8 @@
 | `--requeue-dependency`                 | duration      | The interval at which failing dependencies are reevaluated. (default 30s)                                                                                                                |
 | `--snapshot-digest-algo`               | string        | The algorithm to use to calculate the digest of Helm release storage snapshots. (default "sha256")                                                                                       |
 | `--token-cache-max-size`               | int           | The maximum amount of entries in the LRU cache used for tokens. (default 100, enabled)                                                                                                   |
+| `--spiffe-broker-endpoint`            | string        | The gRPC URL of the SPIFFE Broker endpoint.                                                                                                                                              |
+| `--spiffe-broker-id`                  | strings       | SPIFFE ID of the SPIFFE Broker endpoint. Can be repeated.                                                                                                                                |
 | `--token-cache-max-duration`           | duration      | The maximum duration for which a token would be considered unexpired. This is capped at 1h. (default 1h)                                                                                 |
 | `--watch-all-namespaces`               | boolean       | Watch for custom resources in all namespaces, if set to false it will only watch the runtime namespace. (default true)                                                                   |
 | `--watch-configs-label-selector`       | string        | Watch for ConfigMaps and Secrets with matching labels (default 'reconcile.fluxcd.io/watch=Enabled').                                                                                     |
@@ -72,6 +74,21 @@ understands it as the trust domain of the controller's own X509-SVID.
 
 Invalid values cause helm-controller to fail at startup.
 
+### SPIFFE Broker API
+
+When `--spiffe-broker-endpoint` and at least one `--spiffe-broker-id` are set,
+helm-controller acquires an X.509-SVID from the SPIFFE Workload API and uses it to
+authenticate to the SPIFFE Broker API. The `SPIFFE_ENDPOINT_SOCKET` environment
+variable must point to the Workload API socket.
+
+The Broker is used to acquire JWT-SVIDs for object-level workload identity when
+a ServiceAccount sets `credential.auth.fluxcd.io/provider` to `spiffe`. The
+Broker endpoint is a TCP gRPC target, e.g.
+`dns:///spire-server.spire.svc.cluster.local:8443`.
+
+Each `--spiffe-broker-id` value is interpreted like the SPIFFE IDs used by the
+mTLS flags. Invalid values cause helm-controller to fail at startup.
+
 ### Feature Gates
 
 | Name                             | Default Value | Description                                                                                                                                                                                                                                            |
@@ -86,6 +103,5 @@ Invalid values cause helm-controller to fail at startup.
 | `DisableChartDigestTracking`     | `false`       | Disables the tracking of digest changes for Helm OCI charts. When set to `true`, the controller will not append the OCI digest to the chart version in `Chart.yaml`.                                                                                   |
 | `DisableConfigWatchers`          | `false`       | Disables the watchers for ConfigMaps and Secrets.                                                                                                                                                                                                      |
 | `ExternalArtifact`               | `true`        | Enables support for the [ExternalArtifact](https://github.com/fluxcd/source-controller/blob/main/docs/spec/v1/externalartifacts.md) source type.                                                                                                       |
-| `ObjectLevelWorkloadIdentity`    | `false`       | Enables the use of object-level workload identity for the controller.                                                                                                                                                                                  |
 | `OOMWatch`                       | `false`       | Enables the OOM watcher, which will gracefully shut down the controller when the memory usage exceeds the configured limit. This is disabled by default.                                                                                               |
 | `UseHelm3Defaults`               | `false`       | Restores Helm v3 defaults. When enabled, uses client-side apply for installation, Helm's legacy readiness logic, and the `nohooks` post-render strategy instead of the Helm v4 defaults (server-side apply, kstatus-based health checking, and `combined` post-render strategy).                                              |
