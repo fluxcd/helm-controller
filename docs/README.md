@@ -4,6 +4,8 @@
 
 | Name                                   | Type          | Description                                                                                                                                                                              |
 |----------------------------------------|---------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--authorized-artifact-server-spiffe-id` | strings     | SPIFFE ID of an artifact server authorized to serve artifacts to helm-controller. Can be repeated. When set, the artifact fetcher uses SPIFFE mTLS.                                    |
+| `--authorized-event-server-spiffe-id` | strings      | SPIFFE ID of an event server authorized to receive events from helm-controller. Can be repeated. When set, the event recorder uses SPIFFE mTLS.                                        |
 | `--concurrent`                         | int           | The number of concurrent HelmRelease reconciles. (default 4)                                                                                                                             |
 | `--default-kubeconfig-service-account` | string        | Default service account used for kubeconfig.                                                                                                                                             |
 | `--default-service-account`            | string        | Default service account used for impersonation.                                                                                                                                          |
@@ -39,6 +41,36 @@
 | `--watch-configs-label-selector`       | string        | Watch for ConfigMaps and Secrets with matching labels (default 'reconcile.fluxcd.io/watch=Enabled').                                                                                     |
 | `--watch-label-selector`               | string        | Watch for resources with matching labels e.g. 'sharding.fluxcd.io/key=shard1'.                                                                                                           |
 | `--feature-gates`                      | mapStringBool | A comma separated list of key=value pairs defining the state of experimental features.                                                                                                   |
+
+### SPIFFE mTLS
+
+When at least one of the repeatable flags `--authorized-artifact-server-spiffe-id`
+or `--authorized-event-server-spiffe-id` is set, helm-controller acquires an
+X.509-SVID from the SPIFFE Workload API. The `SPIFFE_ENDPOINT_SOCKET` environment
+variable must point to the Workload API socket.
+
+- `--authorized-artifact-server-spiffe-id` authorizes the given SPIFFE IDs of
+  artifact servers from which helm-controller fetches artifacts. When set, the
+  artifact fetcher uses mTLS.
+- `--authorized-event-server-spiffe-id` authorizes the given SPIFFE IDs of
+  event servers to which helm-controller sends events. When set, the event
+  recorder uses mTLS.
+
+Each traffic type is protected independently. SPIFFE mTLS is transparent to the
+Flux API: the scheme of `.status.artifact.url` does not change.
+
+Each flag value is interpreted as follows:
+
+- `spiffe://<trust domain>/<path>` authorizes exactly that SPIFFE ID.
+- `spiffe://<trust domain>/<path>/` (with a trailing slash) authorizes any
+  SPIFFE ID with that path prefix.
+- `spiffe://<trust domain>` (without a path) authorizes any SPIFFE ID in that
+  trust domain.
+
+Whenever `<trust domain>` equals the special value `self`, helm-controller
+understands it as the trust domain of the controller's own X509-SVID.
+
+Invalid values cause helm-controller to fail at startup.
 
 ### Feature Gates
 

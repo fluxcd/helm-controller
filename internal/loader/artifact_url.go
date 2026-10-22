@@ -17,22 +17,19 @@ limitations under the License.
 package loader
 
 import (
-	"bytes"
-	_ "crypto/sha256"
-	_ "crypto/sha512"
+	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"strings"
+	"time"
 
-	"github.com/hashicorp/go-retryablehttp"
-	digestlib "github.com/opencontainers/go-digest"
-	_ "github.com/opencontainers/go-digest/blake3"
 	chart "helm.sh/helm/v4/pkg/chart/v2"
 	"helm.sh/helm/v4/pkg/chart/v2/loader"
+	ctrl "sigs.k8s.io/controller-runtime"
+
+	fluxfetch "github.com/fluxcd/pkg/http/fetch"
 )
 
 const (
@@ -50,87 +47,37 @@ const (
 var (
 	// ErrFileNotFound is an error type used to signal 404 HTTP status code responses.
 	ErrFileNotFound = errors.New("file not found")
-	// ErrIntegrity signals a chart loader failed to verify the integrity of
-	// a chart, for example due to a digest mismatch.
-	ErrIntegrity = errors.New("integrity failure")
 )
 
-// SecureLoadChartFromURL attempts to download a Helm chart from the given URL
-// using the provided client. The retrieved data is verified against the given
-// digest before loading the chart. It returns the loaded chart.Chart, or an
-// error. The error may be of type ErrIntegrity if the integrity check fails.
-func SecureLoadChartFromURL(client *retryablehttp.Client, URL, digest string) (*chart.Chart, error) {
+// SecureLoadChartFromURL attempts to download a Helm chart from the given URL,
+// verifies it against the given digest and loads it. The error may be of type
+// ErrFileNotFound if the artifact does not exist.
+func SecureLoadChartFromURL(ctx context.Context, URL, digest string, retries int, timeout time.Duration, tlsConfig *tls.Config) (*chart.Chart, error) {
 	sourceLocalhost := os.Getenv(envSourceControllerLocalhost)
 	if strings.Contains(URL, "//source-watcher") {
 		sourceLocalhost = os.Getenv(envSourceWatcherLocalhost)
 	}
 
-	u, err := overwriteHostname(URL, sourceLocalhost)
-	if err != nil {
-		return nil, err
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
 	}
 
-	req, err := retryablehttp.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return nil, err
-	}
+	fetcher := fluxfetch.New(
+		fluxfetch.WithLogger(ctrl.LoggerFrom(ctx)),
+		fluxfetch.WithRetries(retries),
+		fluxfetch.WithHostnameOverwrite(sourceLocalhost),
+		fluxfetch.WithTLSConfig(tlsConfig),
+	)
 
-	resp, err := client.Do(req)
-	if err != nil || resp != nil && resp.StatusCode != http.StatusOK {
-		if err != nil {
-			return nil, err
-		}
-		_ = resp.Body.Close()
-		if resp.StatusCode == http.StatusNotFound {
+	buf, err := fetcher.FetchBytes(ctx, URL, digest)
+	if err != nil {
+		if errors.Is(err, fluxfetch.ErrFileNotFound) {
 			return nil, fmt.Errorf("failed to download chart from '%s': %w", URL, ErrFileNotFound)
 		}
-		return nil, fmt.Errorf("failed to download chart from '%s' (status: %s)", URL, resp.Status)
-	}
-
-	var c bytes.Buffer
-	if err := copyAndVerify(digest, resp.Body, &c); err != nil {
-		_ = resp.Body.Close()
 		return nil, err
 	}
 
-	if err := resp.Body.Close(); err != nil {
-		return nil, err
-	}
-	return loader.LoadArchive(&c)
-}
-
-// copyAndVerify copies the contents of reader to writer, and verifies the
-// integrity of the data using the given digest. It returns an error if the
-// integrity check fails.
-func copyAndVerify(digest string, reader io.Reader, writer io.Writer) error {
-	dig, err := digestlib.Parse(digest)
-	if err != nil {
-		return fmt.Errorf("failed to parse digest '%s': %w", digest, err)
-	}
-
-	verifier := dig.Verifier()
-	mw := io.MultiWriter(verifier, writer)
-	if _, err := io.Copy(mw, reader); err != nil {
-		return fmt.Errorf("failed to copy and verify chart artifact: %w", err)
-	}
-
-	if !verifier.Verified() {
-		return fmt.Errorf("%w: computed digest doesn't match '%s'", ErrIntegrity, dig)
-	}
-	return nil
-}
-
-// overwriteHostname overwrites the hostname of the given URL with the given
-// hostname. If the hostname is empty, the URL is returned unmodified.
-func overwriteHostname(URL, hostname string) (string, error) {
-	if hostname == "" {
-		return URL, nil
-	}
-
-	u, err := url.Parse(URL)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse URL to overwrite hostname: %w", err)
-	}
-	u.Host = hostname
-	return u.String(), nil
+	return loader.LoadArchive(&buf)
 }

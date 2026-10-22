@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"strings"
@@ -91,28 +92,31 @@ type HelmReleaseReconciler struct {
 
 	// Kubernetes configuration
 
-	FieldManager            string
-	DisallowedFieldManagers []string
-	DefaultServiceAccount   string
-	GetClusterConfig        func() (*rest.Config, error)
-	ClientOpts              runtimeClient.Options
-	KubeConfigOpts          runtimeClient.KubeConfigOptions
-	APIReader               client.Reader
-	TokenCache              *cache.TokenCache
+	FieldManager                    string
+	DisallowedFieldManagers         []string
+	DefaultServiceAccount           string
+	DefaultKubeConfigServiceAccount string
+	GetClusterConfig                func() (*rest.Config, error)
+	ClientOpts                      runtimeClient.Options
+	KubeConfigOpts                  runtimeClient.KubeConfigOptions
+	APIReader                       client.Reader
+	TokenCache                      *cache.TokenCache
 
 	// Retry and requeue configuration
 
 	DependencyRequeueInterval time.Duration
 	ArtifactFetchRetries      int
 	ArtifactFetchTimeout      time.Duration
+	ArtifactServerTLSConfig   *tls.Config
 
 	// Feature gates
 
-	AdditiveCELDependencyCheck bool
-	AllowExternalArtifact      bool
-	DefaultToRetryOnFailure    bool
-	DirectSourceFetch          bool
-	DisableChartDigestTracking bool
+	AdditiveCELDependencyCheck  bool
+	AllowExternalArtifact       bool
+	DefaultToRetryOnFailure     bool
+	DirectSourceFetch           bool
+	DisableChartDigestTracking  bool
+	ObjectLevelWorkloadIdentity bool
 }
 
 const terminalErrorMessage = "Reconciliation failed terminally due to configuration error"
@@ -328,7 +332,8 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	}
 
 	// Load chart from artifact.
-	loadedChart, err := loader.SecureLoadChartFromURL(loader.NewRetryableHTTPClient(ctx, r.ArtifactFetchRetries, r.ArtifactFetchTimeout), source.GetArtifact().URL, source.GetArtifact().Digest)
+	loadedChart, err := loader.SecureLoadChartFromURL(ctx, source.GetArtifact().URL, source.GetArtifact().Digest,
+		r.ArtifactFetchRetries, r.ArtifactFetchTimeout, r.ArtifactServerTLSConfig)
 	if err != nil {
 		if errors.Is(err, loader.ErrFileNotFound) {
 			msg := fmt.Sprintf("Source not ready: artifact not found. Retrying in %s", r.DependencyRequeueInterval.String())
@@ -722,17 +727,23 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *
 	var err error
 	switch {
 	case kc.ConfigMapRef != nil && kc.SecretRef == nil:
-		var opts []auth.Option
-		if r.TokenCache != nil {
-			involvedObject := cache.InvolvedObject{
-				Kind:      v2.HelmReleaseKind,
-				Name:      obj.GetName(),
-				Namespace: obj.GetNamespace(),
-				Operation: cache.OperationReconcile,
-			}
-			opts = append(opts, auth.WithCache(*r.TokenCache, involvedObject))
+		var opts []authutils.Option
+		if r.DefaultKubeConfigServiceAccount != "" {
+			opts = append(opts, authutils.WithDefaultServiceAccount(r.DefaultKubeConfigServiceAccount))
 		}
-		restConfig, err = authutils.GetRESTConfig(ctx, *kc, obj.GetNamespace(), r.Client, opts...)
+		if r.ObjectLevelWorkloadIdentity {
+			opts = append(opts, authutils.WithObjectLevelWorkloadIdentity())
+		}
+		authOpts := []auth.Option{
+			auth.WithObject(v2.GroupVersion.Group, v2.HelmReleaseKind, obj),
+		}
+		if r.TokenCache != nil {
+			authOpts = append(authOpts,
+				auth.WithCache(*r.TokenCache),
+				auth.WithCacheOperation(cache.OperationReconcile))
+		}
+		opts = append(opts, authutils.WithAuthOptions(authOpts...))
+		restConfig, err = authutils.GetRESTConfig(ctx, *kc, r.Client, opts...)
 	case kc.SecretRef != nil && kc.ConfigMapRef == nil:
 		secretName := types.NamespacedName{
 			Namespace: obj.GetNamespace(),
