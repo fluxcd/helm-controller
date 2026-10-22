@@ -24,7 +24,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.37.0
 	github.com/fluxcd/pkg/auth v0.65.0
 	github.com/fluxcd/pkg/cache v0.18.0
-	github.com/fluxcd/pkg/chartutil v1.32.0
+	github.com/fluxcd/pkg/chartutil v1.33.0
 	github.com/fluxcd/pkg/http/fetch v0.29.0
 	github.com/fluxcd/pkg/runtime v0.121.0
 	github.com/fluxcd/pkg/spiffe v0.1.0
@@ -35,7 +35,7 @@ require (
 	github.com/google/cel-go v0.29.2
 	github.com/google/go-cmp v0.7.0
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/onsi/gomega v1.43.0
+	github.com/onsi/gomega v1.44.0
 	github.com/opencontainers/go-digest v1.0.1-0.20231025023718-d50d2fec9c98
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20250116041648-1e56c6daea3b
 	github.com/spf13/pflag v1.0.10
