@@ -30,7 +30,7 @@ require (
 	github.com/fluxcd/pkg/spiffe v0.2.0
 	github.com/fluxcd/pkg/ssa v0.83.0
 	github.com/fluxcd/pkg/testserver v0.15.0
-	github.com/fluxcd/source-controller/api v1.9.6
+	github.com/fluxcd/source-controller/api v1.10.0
 	github.com/go-logr/logr v1.4.4
 	github.com/google/cel-go v0.31.0
 	github.com/google/go-cmp v0.7.0
@@ -233,5 +233,3 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
-
-replace github.com/fluxcd/source-controller/api => github.com/fluxcd/source-controller/api v1.9.1-0.20261005091731-e47a59ad5d01
