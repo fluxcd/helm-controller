@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	github.com/fluxcd/pkg/apis/kustomize v1.23.0
 	github.com/fluxcd/pkg/apis/meta v1.38.0
-	github.com/fluxcd/source-controller/api v1.9.6
+	github.com/fluxcd/source-controller/api v1.10.0
 	k8s.io/apiextensions-apiserver v0.37.1
 	k8s.io/apimachinery v0.37.1
 	sigs.k8s.io/yaml v1.6.0
@@ -30,5 +30,3 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
-
-replace github.com/fluxcd/source-controller/api => github.com/fluxcd/source-controller/api v1.9.1-0.20261005091731-e47a59ad5d01

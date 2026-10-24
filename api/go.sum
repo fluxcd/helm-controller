@@ -8,8 +8,8 @@ github.com/fluxcd/pkg/apis/kustomize v1.23.0 h1:tT/sUURyh6ixQG4+Y/ZoUu+hh5/DQLRr
 github.com/fluxcd/pkg/apis/kustomize v1.23.0/go.mod h1:Jm/LmEsqJIldhhTmhkORAq8JKVZK3ZV2Q88rntjGxEI=
 github.com/fluxcd/pkg/apis/meta v1.38.0 h1:7t6/DuGFAPx2LE4MsRh1jskjnVE6qELKfr/LrfG7KE8=
 github.com/fluxcd/pkg/apis/meta v1.38.0/go.mod h1:lmdugeiZyt6w+DRm8ypkB+nwrzm+saMbqSfZKGBbTOE=
-github.com/fluxcd/source-controller/api v1.9.1-0.20261005091731-e47a59ad5d01 h1:QKNUNGjIV94G0JvE++lXtSzoEzyRlsEHMAuvo6I/VaM=
-github.com/fluxcd/source-controller/api v1.9.1-0.20261005091731-e47a59ad5d01/go.mod h1:EOuCFZQd2k3bBI+lte0x771y/QE9fR6JeGWxmxTuNNU=
+github.com/fluxcd/source-controller/api v1.10.0 h1:th1PYE0f27GWumb/7HoLB9g2zR6YpJue5+I66IuQCww=
+github.com/fluxcd/source-controller/api v1.10.0/go.mod h1:ar4cOwOZ9aMei+7eChKuJFJmnN1Mm5LOTZ9q46Yp4c0=
 github.com/fxamacker/cbor/v2 v2.9.2 h1:X4Ksno9+x3cz0TZv69ec1hxP/+tymuR8PXQJyDwfh78=
 github.com/fxamacker/cbor/v2 v2.9.2/go.mod h1:vM4b+DJCtHn+zz7h3FFp/hDAI9WNWCsZj23V5ytsSxQ=
 github.com/go-logr/logr v1.4.4 h1:tG4xh9yMsRCAiodLVTxyrkzSZ9+o0L1Kg/+cPVcbP/8=
