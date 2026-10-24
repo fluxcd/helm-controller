@@ -68,8 +68,7 @@ type HelmReleaseSpec struct {
 	// forces the controller to act on behalf of that Service Account at the
 	// target cluster.
 	// If the --default-service-account flag is set, its value will be used as
-	// a controller level fallback for when HelmReleaseSpec.ServiceAccountName
-	// is empty.
+	// the default for HelmReleaseSpec.ServiceAccountName when it is empty.
 	// +optional
 	KubeConfig *meta.KubeConfigReference `json:"kubeConfig,omitempty"`
 

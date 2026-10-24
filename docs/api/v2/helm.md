@@ -128,8 +128,7 @@ When used in combination with HelmReleaseSpec.ServiceAccountName,
 forces the controller to act on behalf of that Service Account at the
 target cluster.
 If the &ndash;default-service-account flag is set, its value will be used as
-a controller level fallback for when HelmReleaseSpec.ServiceAccountName
-is empty.</p>
+the default for HelmReleaseSpec.ServiceAccountName when it is empty.</p>
 </td>
 </tr>
 <tr>
@@ -1260,8 +1259,7 @@ When used in combination with HelmReleaseSpec.ServiceAccountName,
 forces the controller to act on behalf of that Service Account at the
 target cluster.
 If the &ndash;default-service-account flag is set, its value will be used as
-a controller level fallback for when HelmReleaseSpec.ServiceAccountName
-is empty.</p>
+the default for HelmReleaseSpec.ServiceAccountName when it is empty.</p>
 </td>
 </tr>
 <tr>
