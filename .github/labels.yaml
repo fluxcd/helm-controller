@@ -34,3 +34,6 @@
 - name: backport:release/v1.6.x
   description: To be backported to release/v1.6.x
   color: '#ffd700'
+- name: backport:release/v1.7.x
+  description: To be backported to release/v1.7.x
+  color: '#ffd700'
