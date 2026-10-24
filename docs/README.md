@@ -81,8 +81,8 @@ helm-controller acquires an X.509-SVID from the SPIFFE Workload API and uses it 
 authenticate to the SPIFFE Broker API. The `SPIFFE_ENDPOINT_SOCKET` environment
 variable must point to the Workload API socket.
 
-The Broker is used to acquire JWT-SVIDs for object-level workload identity when
-a ServiceAccount sets `credential.auth.fluxcd.io/provider` to `spiffe`. The
+The Broker is used to acquire JWT-SVIDs for object identity when a
+ServiceAccount sets `credential.auth.fluxcd.io/provider` to `spiffe`. The
 Broker endpoint is a TCP gRPC target, e.g.
 `dns:///spire-server.spire.svc.cluster.local:8443`.
 

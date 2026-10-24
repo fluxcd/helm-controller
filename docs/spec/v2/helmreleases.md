@@ -1290,10 +1290,9 @@ this feature, see the following docs:
 - [GKE](/flux/integrations/gcp/#for-google-kubernetes-engine)
 - [Generic](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#configuring-the-api-server)
 
-For a complete guide to the ServiceAccount annotations used for object-level
-workload identity, including the `spiffe` credential provider, see the
-[ServiceAccount annotations](/flux/integrations/serviceaccount-annotations)
-docs.
+For a complete guide to the ServiceAccount annotations used for object
+identity, including the `spiffe` credential provider, see the
+[Object Identity](/flux/integrations/object-identity/) docs.
 
 Example for an EKS cluster:
 
