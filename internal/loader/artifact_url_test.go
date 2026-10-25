@@ -104,8 +104,13 @@ func TestSecureLoadChartFromURL(t *testing.T) {
 	t.Run("error on chart data digest mismatch", func(t *testing.T) {
 		g := NewWithT(t)
 
-		got, err := SecureLoadChartFromURL(context.Background(), chartURL, digestlib.SHA256.FromString("invalid").String(), 2, 5*time.Second, nil)
+		wrongDigest := digestlib.SHA256.FromString("invalid").String()
+		got, err := SecureLoadChartFromURL(context.Background(), chartURL, wrongDigest, 2, 5*time.Second, nil)
 		g.Expect(err).To(HaveOccurred())
+		g.Expect(errors.Is(err, ErrDigestMismatch)).To(BeTrue())
+		g.Expect(errors.Is(err, ErrFileNotFound)).To(BeFalse())
+		g.Expect(err.Error()).To(ContainSubstring(chartURL))
+		g.Expect(err.Error()).To(ContainSubstring("computed digest doesn't match provided '" + wrongDigest + "'"))
 		g.Expect(got).To(BeNil())
 	})
 
@@ -114,6 +119,7 @@ func TestSecureLoadChartFromURL(t *testing.T) {
 
 		got, err := SecureLoadChartFromURL(context.Background(), server.URL+notFoundPath, digest.String(), 2, 5*time.Second, nil)
 		g.Expect(errors.Is(err, ErrFileNotFound)).To(BeTrue())
+		g.Expect(errors.Is(err, ErrDigestMismatch)).To(BeFalse())
 		g.Expect(got).To(BeNil())
 	})
 
@@ -123,6 +129,7 @@ func TestSecureLoadChartFromURL(t *testing.T) {
 		got, err := SecureLoadChartFromURL(context.Background(), server.URL+"/invalid.tgz", digest.String(), 2, 5*time.Second, nil)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(errors.Is(err, ErrFileNotFound)).To(BeFalse())
+		g.Expect(errors.Is(err, ErrDigestMismatch)).To(BeFalse())
 		g.Expect(got).To(BeNil())
 	})
 
@@ -131,6 +138,7 @@ func TestSecureLoadChartFromURL(t *testing.T) {
 
 		got, err := SecureLoadChartFromURL(context.Background(), server.URL+slowPath, digest.String(), 0, 10*time.Millisecond, nil)
 		g.Expect(err).To(HaveOccurred())
+		g.Expect(errors.Is(err, ErrDigestMismatch)).To(BeFalse())
 		g.Expect(got).To(BeNil())
 	})
 }

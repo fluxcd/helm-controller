@@ -47,11 +47,16 @@ const (
 var (
 	// ErrFileNotFound is an error type used to signal 404 HTTP status code responses.
 	ErrFileNotFound = errors.New("file not found")
+
+	// ErrDigestMismatch is an error type used to signal that the downloaded
+	// artifact does not match the provided digest.
+	ErrDigestMismatch = fluxfetch.ErrDigestMismatch
 )
 
 // SecureLoadChartFromURL attempts to download a Helm chart from the given URL,
 // verifies it against the given digest and loads it. The error may be of type
-// ErrFileNotFound if the artifact does not exist.
+// ErrFileNotFound if the artifact does not exist, or ErrDigestMismatch if the
+// downloaded artifact does not match the given digest.
 func SecureLoadChartFromURL(ctx context.Context, URL, digest string, retries int, timeout time.Duration, tlsConfig *tls.Config) (*chart.Chart, error) {
 	sourceLocalhost := os.Getenv(envSourceControllerLocalhost)
 	if strings.Contains(URL, "//source-watcher") {
@@ -75,6 +80,9 @@ func SecureLoadChartFromURL(ctx context.Context, URL, digest string, retries int
 	if err != nil {
 		if errors.Is(err, fluxfetch.ErrFileNotFound) {
 			return nil, fmt.Errorf("failed to download chart from '%s': %w", URL, ErrFileNotFound)
+		}
+		if errors.Is(err, fluxfetch.ErrDigestMismatch) {
+			return nil, fmt.Errorf("failed to download chart from '%s': %w", URL, err)
 		}
 		return nil, err
 	}
