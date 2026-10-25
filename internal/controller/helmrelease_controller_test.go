@@ -413,6 +413,67 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}))
 	})
 
+	t.Run("requeues on Helm chart digest mismatch", func(t *testing.T) {
+		g := NewWithT(t)
+
+		chartMock := testutil.BuildChart()
+		chartArtifact, err := testutil.SaveChartAsArtifact(chartMock, digest.SHA256, testServer.URL(), testServer.Root())
+		g.Expect(err).ToNot(HaveOccurred())
+		// Advertise a digest that differs from the served artifact.
+		chartArtifact.Digest = digest.SHA256.FromString("rebuilt").String()
+
+		chart := &sourcev1.HelmChart{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "chart",
+				Namespace:  "mock",
+				Generation: 1,
+			},
+			Status: sourcev1.HelmChartStatus{
+				ObservedGeneration: 1,
+				Artifact:           chartArtifact,
+				Conditions: []metav1.Condition{
+					{
+						Type:   meta.ReadyCondition,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		obj := &v2.HelmRelease{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "release",
+				Namespace: "mock",
+			},
+			Status: v2.HelmReleaseStatus{
+				HelmChart: "mock/chart",
+			},
+		}
+
+		recorder := events.NewFakeRecorder(32, false)
+		r := &HelmReleaseReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(NewTestScheme()).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				WithObjects(chart, obj).
+				Build(),
+			Recorder:                  recorder,
+			DependencyRequeueInterval: 10 * time.Second,
+		}
+		r.APIReader = r.Client
+
+		res, err := r.reconcileRelease(context.TODO(), patch.NewSerialPatcher(obj, r.Client), obj, nil)
+		g.Expect(err).To(Equal(errWaitForDependency))
+		g.Expect(res.RequeueAfter).To(Equal(r.DependencyRequeueInterval))
+
+		g.Expect(obj.Status.Conditions).To(conditions.MatchConditions([]metav1.Condition{
+			*conditions.TrueCondition(meta.ReconcilingCondition, meta.ProgressingReason, ""),
+			*conditions.FalseCondition(meta.ReadyCondition, v2.ArtifactFailedReason,
+				"Source not ready: artifact digest changed. Retrying in 10s"),
+		}))
+		g.Expect(recorder.Events).To(BeEmpty())
+	})
+
 	t.Run("uninstalls HelmRelease if target has changed", func(t *testing.T) {
 		g := NewWithT(t)
 

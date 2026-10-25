@@ -336,8 +336,14 @@ func (r *HelmReleaseReconciler) reconcileRelease(ctx context.Context,
 	loadedChart, err := loader.SecureLoadChartFromURL(ctx, source.GetArtifact().URL, source.GetArtifact().Digest,
 		r.ArtifactFetchRetries, r.ArtifactFetchTimeout, r.ArtifactServerTLSConfig)
 	if err != nil {
-		if errors.Is(err, loader.ErrFileNotFound) {
-			msg := fmt.Sprintf("Source not ready: artifact not found. Retrying in %s", r.DependencyRequeueInterval.String())
+		// Requeue at the dependency interval if the artifact is not found or
+		// its digest doesn't match, as the source status may not be updated yet.
+		if errors.Is(err, loader.ErrFileNotFound) || errors.Is(err, loader.ErrDigestMismatch) {
+			cause := "artifact not found"
+			if errors.Is(err, loader.ErrDigestMismatch) {
+				cause = "artifact digest changed"
+			}
+			msg := fmt.Sprintf("Source not ready: %s. Retrying in %s", cause, r.DependencyRequeueInterval.String())
 			conditions.MarkFalse(obj, meta.ReadyCondition, v2.ArtifactFailedReason, "%s", msg)
 			log.Info(msg)
 			return ctrl.Result{RequeueAfter: r.DependencyRequeueInterval}, errWaitForDependency
