@@ -25,7 +25,7 @@ require (
 	github.com/fluxcd/pkg/auth v0.66.0
 	github.com/fluxcd/pkg/cache v0.19.0
 	github.com/fluxcd/pkg/chartutil v1.35.0
-	github.com/fluxcd/pkg/http/fetch v0.30.0
+	github.com/fluxcd/pkg/http/fetch v0.31.0
 	github.com/fluxcd/pkg/runtime v0.122.0
 	github.com/fluxcd/pkg/spiffe v0.2.0
 	github.com/fluxcd/pkg/ssa v0.83.0
