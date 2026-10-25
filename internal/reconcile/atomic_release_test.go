@@ -1361,7 +1361,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 			wantReleaseAction: v2.ReleaseActionUpgrade,
 		},
 		{
-			name: "post renderers mismatch remains in sync for processed config",
+			name: "post renderers mismatch upgrades for processed generation",
 			releases: func(namespace string) []*helmrelease.Release {
 				return []*helmrelease.Release{
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
@@ -1378,7 +1378,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					ObservedGeneration: 2, // Matches obj.Generation to skip the digest check.
+					ObservedGeneration: 2, // The digest is compared regardless of the generation.
 					History: v2.Snapshots{
 						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
@@ -1393,7 +1393,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 				}
 			},
 			wantDigest:        postrender.Digest(digest.Canonical, postRenderers2).String(),
-			wantReleaseAction: "",
+			wantReleaseAction: v2.ReleaseActionUpgrade,
 		},
 	}
 
@@ -1555,7 +1555,7 @@ func TestAtomicRelease_Reconcile_PostRenderers_UpgradeFailureWithoutRelease(t *t
 		WithStatusSubresource(&v2.HelmRelease{}).
 		Build()
 	patchHelper := patch.NewSerialPatcher(obj, client)
-	recorder := new(record.FakeRecorder)
+	recorder := new(events.FakeRecorder)
 
 	req := &Request{
 		Object: obj,
@@ -1580,6 +1580,100 @@ func TestAtomicRelease_Reconcile_PostRenderers_UpgradeFailureWithoutRelease(t *t
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(state.Status).To(Equal(ReleaseStatusOutOfSync))
 	g.Expect(state.Reason).To(Equal("postrenderers digest has changed"))
+}
+
+// TestAtomicRelease_Reconcile_PostRenderers_RetriesExhaustedAfterRollback is a
+// regression test for a post-renderers change whose upgrades kept failing and
+// were rolled back until the retries were exhausted. The terminal error
+// advances status.observedGeneration, which must not cause the release to be
+// reported as in-sync while it still runs the previous post-renderers.
+func TestAtomicRelease_Reconcile_PostRenderers_RetriesExhaustedAfterRollback(t *testing.T) {
+	g := NewWithT(t)
+
+	namedNS, err := testEnv.CreateNamespace(context.TODO(), mockReleaseNamespace)
+	g.Expect(err).NotTo(HaveOccurred())
+	t.Cleanup(func() {
+		_ = testEnv.Delete(context.TODO(), namedNS)
+	})
+	releaseNamespace := namedNS.Name
+
+	// The release resulting from the rollback remediation.
+	releases := []*helmrelease.Release{
+		testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+			Name:      mockReleaseName,
+			Namespace: releaseNamespace,
+			Version:   3,
+			Status:    helmreleasecommon.StatusDeployed,
+			Chart:     testutil.BuildChart(),
+		}, testutil.ReleaseWithConfig(nil)),
+	}
+
+	previousDigest := postrender.Digest(digest.Canonical, postRenderers).String()
+	obj := &v2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       mockReleaseName,
+			Namespace:  releaseNamespace,
+			Generation: 2,
+		},
+		Spec: v2.HelmReleaseSpec{
+			ReleaseName:      mockReleaseName,
+			TargetNamespace:  releaseNamespace,
+			StorageNamespace: releaseNamespace,
+			Timeout:          &metav1.Duration{Duration: 200 * time.Millisecond},
+			PostRenderers:    postRenderers2,
+		},
+		Status: v2.HelmReleaseStatus{
+			// Advanced by the terminal error of the previous reconcile.
+			ObservedGeneration: 2,
+			History: v2.Snapshots{
+				release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
+			},
+			ObservedPostRenderersDigest: previousDigest,
+			LastAttemptedReleaseAction:  v2.ReleaseActionUpgrade,
+			Failures:                    1,
+			UpgradeFailures:             1,
+			Conditions: []metav1.Condition{
+				*conditions.FalseCondition(meta.ReadyCondition, v2.RollbackSucceededReason, "rollback succeeded"),
+				*conditions.FalseCondition(v2.ReleasedCondition, v2.UpgradeFailedReason, "upgrade failed"),
+				*conditions.TrueCondition(v2.RemediatedCondition, v2.RollbackSucceededReason, "rollback succeeded"),
+			},
+		},
+	}
+
+	getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	cfg, err := action.NewConfigFactory(getter,
+		action.WithStorage(action.DefaultStorageDriver, obj.GetStorageNamespace()),
+	)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	store := helmstorage.Init(cfg.Driver)
+	for _, r := range releases {
+		g.Expect(store.Create(r)).To(Succeed())
+	}
+
+	client := fake.NewClientBuilder().
+		WithScheme(testEnv.Scheme()).
+		WithObjects(obj).
+		WithStatusSubresource(&v2.HelmRelease{}).
+		Build()
+	patchHelper := patch.NewSerialPatcher(obj, client)
+	recorder := new(events.FakeRecorder)
+
+	req := &Request{
+		Object: obj,
+		Chart:  testutil.BuildChart(),
+		Values: nil,
+	}
+
+	err = NewAtomicRelease(patchHelper, cfg, recorder, testFieldManager, nil, false).Reconcile(context.TODO(), req)
+	g.Expect(err).To(MatchError(ErrExceededMaxRetries))
+
+	g.Expect(obj.Status.ObservedPostRenderersDigest).To(Equal(previousDigest))
+	g.Expect(conditions.IsReady(obj)).To(BeFalse())
+	g.Expect(conditions.IsTrue(obj, v2.ReleasedCondition)).To(BeFalse())
+	g.Expect(conditions.IsStalled(obj)).To(BeTrue())
 }
 
 func TestAtomicRelease_actionForState(t *testing.T) {
@@ -2516,7 +2610,7 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 			wantReleaseAction: v2.ReleaseActionUpgrade,
 		},
 		{
-			name: "common metadata mismatch remains in sync for processed config",
+			name: "common metadata mismatch upgrades for processed generation",
 			releases: func(namespace string) []*helmrelease.Release {
 				return []*helmrelease.Release{
 					testutil.BuildRelease(&helmrelease.MockReleaseOptions{
@@ -2533,7 +2627,7 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 			},
 			status: func(releases []*helmrelease.Release) v2.HelmReleaseStatus {
 				return v2.HelmReleaseStatus{
-					ObservedGeneration: 2, // Matches obj.Generation to skip the digest check.
+					ObservedGeneration: 2, // The digest is compared regardless of the generation.
 					History: v2.Snapshots{
 						release.ObservedToSnapshot(release.ObserveRelease(releases[0])),
 					},
@@ -2544,11 +2638,11 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 							ObservedGeneration: 2,
 						},
 					},
-					ObservedPostRenderersDigest: postrender.CommonMetadataDigest(digest.Canonical, commonMetadata).String(),
+					ObservedCommonMetadataDigest: postrender.CommonMetadataDigest(digest.Canonical, commonMetadata).String(),
 				}
 			},
 			wantDigest:        postrender.CommonMetadataDigest(digest.Canonical, commonMetadata2).String(),
-			wantReleaseAction: "",
+			wantReleaseAction: v2.ReleaseActionUpgrade,
 		},
 	}
 

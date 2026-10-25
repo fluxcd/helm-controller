@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/fluxcd/pkg/ssa/jsondiff"
+	godigest "github.com/opencontainers/go-digest"
 	"helm.sh/helm/v4/pkg/kube"
 	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
@@ -83,6 +84,15 @@ type ReleaseState struct {
 	// Diff contains any differences between the Helm storage manifest and the
 	// cluster state when Status equals ReleaseStatusDrifted.
 	Diff jsondiff.DiffSet
+}
+
+// observedDigestAlgorithm returns the algorithm of the given observed digest,
+// or digest.Canonical if the digest is empty or cannot be parsed.
+func observedDigestAlgorithm(observed string) godigest.Algorithm {
+	if d, err := godigest.Parse(observed); err == nil {
+		return d.Algorithm()
+	}
+	return digest.Canonical
 }
 
 // isLockedStatus returns true if the given Helm release status is a transient
@@ -153,32 +163,31 @@ func DetermineReleaseState(ctx context.Context, cfg *action.ConfigFactory, req *
 			}
 		}
 
-		// Verify if postrender digest or common metadata digest has changed
-		// for new generations only. The observed digests are updated after
-		// each successful release action, so comparing here will not cause
-		// an infinite loop within the same reconciliation.
+		// Verify if postrender digest or common metadata digest has changed.
+		// The observed digests are only updated once the current spec has
+		// been applied, so the comparison must not depend on the observed
+		// generation: a failed upgrade followed by a terminal error advances
+		// status.observedGeneration while the release still runs the
+		// previous post-renderers.
 		//
-		// We use the top-level status.observedGeneration rather than the
-		// Ready condition's ObservedGeneration, because the latter can be
-		// inadvertently advanced by the patch helper's conflict resolution
-		// (patchStatusConditions re-fetches the object from the API server,
-		// and conditions.Set always sets ObservedGeneration to the latest
-		// metadata.generation).
-		if req.Object.Status.ObservedGeneration != req.Object.Generation {
-			var postrenderersDigest string
-			if req.Object.Spec.PostRenderers != nil {
-				postrenderersDigest = postrender.Digest(digest.Canonical, req.Object.Spec.PostRenderers).String()
-			}
-			if postrenderersDigest != req.Object.Status.ObservedPostRenderersDigest {
-				return ReleaseState{Status: ReleaseStatusOutOfSync, Reason: "postrenderers digest has changed"}, nil
-			}
-			var commonMetadataDigest string
-			if req.Object.Spec.CommonMetadata != nil {
-				commonMetadataDigest = postrender.CommonMetadataDigest(digest.Canonical, req.Object.Spec.CommonMetadata).String()
-			}
-			if commonMetadataDigest != req.Object.Status.ObservedCommonMetadataDigest {
-				return ReleaseState{Status: ReleaseStatusOutOfSync, Reason: "common metadata digest has changed"}, nil
-			}
+		// The digests are calculated with the algorithm of the observed
+		// digest, so that a change of the --snapshot-digest-algo flag does
+		// not cause an upgrade.
+		var postrenderersDigest string
+		if req.Object.Spec.PostRenderers != nil {
+			algo := observedDigestAlgorithm(req.Object.Status.ObservedPostRenderersDigest)
+			postrenderersDigest = postrender.Digest(algo, req.Object.Spec.PostRenderers).String()
+		}
+		if postrenderersDigest != req.Object.Status.ObservedPostRenderersDigest {
+			return ReleaseState{Status: ReleaseStatusOutOfSync, Reason: "postrenderers digest has changed"}, nil
+		}
+		var commonMetadataDigest string
+		if req.Object.Spec.CommonMetadata != nil {
+			algo := observedDigestAlgorithm(req.Object.Status.ObservedCommonMetadataDigest)
+			commonMetadataDigest = postrender.CommonMetadataDigest(algo, req.Object.Spec.CommonMetadata).String()
+		}
+		if commonMetadataDigest != req.Object.Status.ObservedCommonMetadataDigest {
+			return ReleaseState{Status: ReleaseStatusOutOfSync, Reason: "common metadata digest has changed"}, nil
 		}
 
 		// For the further determination of test results, we look at the
