@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.7.1
+
+**Release date:** 2026-10-26
+
+This patch release fixes a case where a failed upgrade was reported as Ready.
+When an upgrade fails before Helm stores a release and the only change is
+`.spec.postRenderers`, the controller now compares the post-renderers digests on
+every reconcile and retries, instead of reporting the HelmRelease as ready while
+the release in the cluster still runs the previous post-renderers. The digest
+comparison uses the algorithm of the observed digest, so changing
+`--snapshot-digest-algo` no longer triggers upgrades. It also changes how the
+controller reacts when a downloaded artifact does not match the digest
+advertised in the source status: instead of failing until the next retry
+interval, the HelmRelease is marked as not ready with `ArtifactFailed` and
+requeued after `--requeue-dependency` (default 30s), matching the behavior it
+already had for a missing artifact, and the `Could not load chart` warning event
+is no longer emitted for this error.
+
+Fixes:
+- Fix invalid postRenderers change causing release to report Ready
+  [#1640](https://github.com/fluxcd/helm-controller/pull/1640)
+- Requeue on artifact digest mismatch
+  [#1639](https://github.com/fluxcd/helm-controller/pull/1639)
+- Update fluxcd/pkg dependencies
+  [#1636](https://github.com/fluxcd/helm-controller/pull/1636)
+
 ## 1.7.0
 
 **Release date:** 2026-10-24
