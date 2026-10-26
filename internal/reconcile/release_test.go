@@ -531,10 +531,8 @@ func Test_summarize(t *testing.T) {
 			g := NewWithT(t)
 
 			obj := &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Generation: tt.generation,
-				},
-				Status: tt.status,
+				Generation: tt.generation,
+				Status:     tt.status,
 			}
 			if tt.spec != nil {
 				obj.Spec = *tt.spec.DeepCopy()
@@ -609,10 +607,8 @@ func Test_RecordOnObject(t *testing.T) {
 		{
 			name: "record observed releases",
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-				},
+				Name:      mockReleaseName,
+				Namespace: mockReleaseNamespace,
 			},
 			r: observedReleases{
 				1: {
@@ -637,10 +633,8 @@ func Test_RecordOnObject(t *testing.T) {
 		{
 			name: "record observed releases with multiple versions",
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-				},
+				Name:      mockReleaseName,
+				Namespace: mockReleaseNamespace,
 			},
 			r: observedReleases{
 				1: {
@@ -676,10 +670,8 @@ func Test_RecordOnObject(t *testing.T) {
 		{
 			name: "record observed releases with status digest",
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-				},
+				Name:      mockReleaseName,
+				Namespace: mockReleaseNamespace,
 				Status: v2.HelmReleaseStatus{
 					LastAttemptedRevisionDigest: "sha256:123456",
 				},
@@ -712,10 +704,8 @@ func Test_RecordOnObject(t *testing.T) {
 		{
 			name: "record observed releases with multiple versions and status digest",
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      mockReleaseName,
-					Namespace: mockReleaseNamespace,
-				},
+				Name:      mockReleaseName,
+				Namespace: mockReleaseNamespace,
 				Status: v2.HelmReleaseStatus{
 					LastAttemptedRevisionDigest: "sha256:123456",
 				},
@@ -777,10 +767,8 @@ func Test_RecordOnObject_withAction(t *testing.T) {
 	g := NewWithT(t)
 
 	obj := &v2.HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      mockReleaseName,
-			Namespace: mockReleaseNamespace,
-		},
+		Name:      mockReleaseName,
+		Namespace: mockReleaseNamespace,
 	}
 	r := observedReleases{
 		1: {

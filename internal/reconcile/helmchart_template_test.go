@@ -44,9 +44,7 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 	g := NewWithT(t)
 
 	namespace := corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "helm-release-chart-reconciler-",
-		},
+		GenerateName: "helm-release-chart-reconciler-",
 	}
 	g.Expect(testEnv.CreateAndWait(context.Background(), &namespace)).To(Succeed())
 	t.Cleanup(func() {
@@ -58,13 +56,11 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 
 		releaseName := "deletion-timestamp"
 		existingChart := sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
-				Labels: map[string]string{
-					v2.GroupVersion.Group + "/name":      releaseName,
-					v2.GroupVersion.Group + "/namespace": namespace.GetName(),
-				},
+			Namespace: namespace.GetName(),
+			Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
+			Labels: map[string]string{
+				v2.GroupVersion.Group + "/name":      releaseName,
+				v2.GroupVersion.Group + "/namespace": namespace.GetName(),
 			},
 			Spec: sourcev1.HelmChartSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
@@ -88,11 +84,9 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 
 		ts := metav1.Now()
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:         namespace.GetName(),
-				Name:              releaseName,
-				DeletionTimestamp: &ts,
-			},
+			Namespace:         namespace.GetName(),
+			Name:              releaseName,
+			DeletionTimestamp: &ts,
 			Status: v2.HelmReleaseStatus{
 				HelmChart: fmt.Sprintf("%s/%s", existingChart.GetNamespace(), existingChart.GetName()),
 			},
@@ -117,10 +111,8 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		g := NewWithT(t)
 
 		existingChart := sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:    namespace.GetName(),
-				GenerateName: "existing-chart-",
-			},
+			Namespace:    namespace.GetName(),
+			GenerateName: "existing-chart-",
 			Spec: sourcev1.HelmChartSpec{
 				SourceRef: sourcev1.LocalHelmChartSourceReference{
 					Kind: sourcev1.HelmRepositoryKind,
@@ -140,10 +132,8 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      "release-with-existing-chart",
-			},
+			Namespace: namespace.GetName(),
+			Name:      "release-with-existing-chart",
 			Spec: v2.HelmReleaseSpec{
 				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
@@ -188,10 +178,8 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 
 		releaseName := "not-found"
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      releaseName,
-			},
+			Namespace: namespace.GetName(),
+			Name:      releaseName,
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
 				Chart: &v2.HelmChartTemplate{
@@ -228,13 +216,11 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 
 		releaseName := "divergence"
 		existingChart := sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
-				Labels: map[string]string{
-					v2.GroupVersion.Group + "/name":      releaseName,
-					v2.GroupVersion.Group + "/namespace": namespace.GetName(),
-				},
+			Namespace: namespace.GetName(),
+			Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
+			Labels: map[string]string{
+				v2.GroupVersion.Group + "/name":      releaseName,
+				v2.GroupVersion.Group + "/namespace": namespace.GetName(),
 			},
 			Spec: sourcev1.HelmChartSpec{
 				Chart: "./bar",
@@ -256,10 +242,8 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      releaseName,
-			},
+			Namespace: namespace.GetName(),
+			Name:      releaseName,
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
 				Chart: &v2.HelmChartTemplate{
@@ -295,13 +279,11 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 
 		releaseName := "no-divergence"
 		existingChart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
-				Labels: map[string]string{
-					v2.GroupVersion.Group + "/name":      releaseName,
-					v2.GroupVersion.Group + "/namespace": namespace.GetName(),
-				},
+			Namespace: namespace.GetName(),
+			Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
+			Labels: map[string]string{
+				v2.GroupVersion.Group + "/name":      releaseName,
+				v2.GroupVersion.Group + "/namespace": namespace.GetName(),
 			},
 			Spec: sourcev1.HelmChartSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
@@ -324,10 +306,8 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      releaseName,
-			},
+			Namespace: namespace.GetName(),
+			Name:      releaseName,
 			Spec: v2.HelmReleaseSpec{
 				Interval: existingChart.Spec.Interval,
 				Chart: &v2.HelmChartTemplate{
@@ -365,10 +345,8 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 
 		releaseName := "owner-labels"
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      releaseName,
-			},
+			Namespace: namespace.GetName(),
+			Name:      releaseName,
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
 				Chart: &v2.HelmChartTemplate{
@@ -406,10 +384,8 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "default",
-			},
+			Name:      "release",
+			Namespace: "default",
 			Spec: v2.HelmReleaseSpec{
 				Chart: &v2.HelmChartTemplate{
 					Spec: v2.HelmChartTemplateSpec{
@@ -436,13 +412,11 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 
 		releaseName := "garbage-collection"
 		existingChart := sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
-				Labels: map[string]string{
-					v2.GroupVersion.Group + "/name":      releaseName,
-					v2.GroupVersion.Group + "/namespace": namespace.GetName(),
-				},
+			Namespace: namespace.GetName(),
+			Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
+			Labels: map[string]string{
+				v2.GroupVersion.Group + "/name":      releaseName,
+				v2.GroupVersion.Group + "/namespace": namespace.GetName(),
 			},
 			Spec: sourcev1.HelmChartSpec{
 				Chart: "./bar",
@@ -464,10 +438,8 @@ func TestHelmChartTemplate_Reconcile(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      releaseName,
-			},
+			Namespace: namespace.GetName(),
+			Name:      releaseName,
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
 				ChartRef: &v2.CrossNamespaceSourceReference{
@@ -494,10 +466,8 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 		builder := fake.NewClientBuilder().
 			WithScheme(NewTestScheme()).
 			WithObjects(&sourcev1.HelmChart{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-					Name:      "chart",
-				},
+				Namespace: "default",
+				Name:      "chart",
 			})
 
 		r := &HelmChartTemplate{
@@ -506,10 +476,8 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "default",
-			},
+			Name:      "release",
+			Namespace: "default",
 			Status: v2.HelmReleaseStatus{
 				HelmChart: "default/chart",
 			},
@@ -529,10 +497,8 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 		builder := fake.NewClientBuilder().
 			WithScheme(NewTestScheme()).
 			WithObjects(&sourcev1.HelmChart{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-					Name:      "chart",
-				},
+				Namespace: "default",
+				Name:      "chart",
 			}).
 			WithInterceptorFuncs(interceptor.Funcs{
 				Delete: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.DeleteOption) error {
@@ -546,10 +512,8 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "default",
-			},
+			Name:      "release",
+			Namespace: "default",
 			Status: v2.HelmReleaseStatus{
 				HelmChart: "default/chart",
 			},
@@ -566,10 +530,8 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 			client: fake.NewClientBuilder().WithScheme(NewTestScheme()).Build(),
 		}
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "default",
-			},
+			Name:      "release",
+			Namespace: "default",
 			Status: v2.HelmReleaseStatus{
 				HelmChart: "default/chart",
 			},
@@ -585,10 +547,8 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 		builder := fake.NewClientBuilder().
 			WithScheme(NewTestScheme()).
 			WithObjects(&sourcev1.HelmChart{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-					Name:      "chart",
-				},
+				Namespace: "default",
+				Name:      "chart",
 			})
 
 		r := &HelmChartTemplate{
@@ -597,11 +557,9 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "release",
-				Namespace:         "default",
-				DeletionTimestamp: &now,
-			},
+			Name:              "release",
+			Namespace:         "default",
+			DeletionTimestamp: &now,
 			Spec: v2.HelmReleaseSpec{
 				Suspend: true,
 			},
@@ -623,10 +581,8 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 		g := NewWithT(t)
 
 		chart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "other",
-				Name:      "chart",
-			},
+			Namespace: "other",
+			Name:      "chart",
 		}
 		builder := fake.NewClientBuilder().
 			WithScheme(NewTestScheme()).
@@ -637,9 +593,7 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
-			},
+			Namespace: "default",
 			Status: v2.HelmReleaseStatus{
 				HelmChart: "other/chart",
 			},
@@ -675,10 +629,8 @@ func TestHelmChartTemplate_reconcileDelete(t *testing.T) {
 
 func Test_buildHelmChartFromTemplate(t *testing.T) {
 	hrWithChartTemplate := v2.HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-release",
-			Namespace: "default",
-		},
+		Name:      "test-release",
+		Namespace: "default",
 		Spec: v2.HelmReleaseSpec{
 			Interval: metav1.Duration{Duration: time.Minute},
 			Chart: &v2.HelmChartTemplate{
@@ -707,10 +659,8 @@ func Test_buildHelmChartFromTemplate(t *testing.T) {
 			name:   "builds HelmChart from HelmChartTemplate",
 			modify: func(*v2.HelmRelease) {},
 			want: &sourcev1.HelmChart{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default-test-release",
-					Namespace: "default",
-				},
+				Name:      "default-test-release",
+				Namespace: "default",
 				Spec: sourcev1.HelmChartSpec{
 					Chart:   "chart",
 					Version: "1.0.0",
@@ -730,10 +680,8 @@ func Test_buildHelmChartFromTemplate(t *testing.T) {
 				hr.Spec.Chart.Spec.Version = ""
 			},
 			want: &sourcev1.HelmChart{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default-test-release",
-					Namespace: "default",
-				},
+				Name:      "default-test-release",
+				Namespace: "default",
 				Spec: sourcev1.HelmChartSpec{
 					Chart:   "chart",
 					Version: "*",
@@ -753,10 +701,8 @@ func Test_buildHelmChartFromTemplate(t *testing.T) {
 				hr.Spec.Chart.Spec.ReconcileStrategy = sourcev1.ReconcileStrategyRevision
 			},
 			want: &sourcev1.HelmChart{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default-test-release",
-					Namespace: "default",
-				},
+				Name:      "default-test-release",
+				Namespace: "default",
 				Spec: sourcev1.HelmChartSpec{
 					Chart:   "chart",
 					Version: "1.0.0",
@@ -776,10 +722,8 @@ func Test_buildHelmChartFromTemplate(t *testing.T) {
 				hr.Spec.Chart.Spec.SourceRef.Namespace = "cross"
 			},
 			want: &sourcev1.HelmChart{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default-test-release",
-					Namespace: "cross",
-				},
+				Name:      "default-test-release",
+				Namespace: "cross",
 				Spec: sourcev1.HelmChartSpec{
 					Chart:   "chart",
 					Version: "1.0.0",
@@ -799,10 +743,8 @@ func Test_buildHelmChartFromTemplate(t *testing.T) {
 				hr.Spec.Chart.Spec.Interval = nil
 			},
 			want: &sourcev1.HelmChart{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default-test-release",
-					Namespace: "default",
-				},
+				Name:      "default-test-release",
+				Namespace: "default",
 				Spec: sourcev1.HelmChartSpec{
 					Chart:   "chart",
 					Version: "1.0.0",
@@ -827,10 +769,8 @@ func Test_buildHelmChartFromTemplate(t *testing.T) {
 				}
 			},
 			want: &sourcev1.HelmChart{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default-test-release",
-					Namespace: "default",
-				},
+				Name:      "default-test-release",
+				Namespace: "default",
 				Spec: sourcev1.HelmChartSpec{
 					Chart:   "chart",
 					Version: "1.0.0",
@@ -863,15 +803,13 @@ func Test_buildHelmChartFromTemplate(t *testing.T) {
 				}
 			},
 			want: &sourcev1.HelmChart{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default-test-release",
-					Namespace: "default",
-					Labels: map[string]string{
-						"foo": "bar",
-					},
-					Annotations: map[string]string{
-						"bar": "baz",
-					},
+				Name:      "default-test-release",
+				Namespace: "default",
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+				Annotations: map[string]string{
+					"bar": "baz",
 				},
 				Spec: sourcev1.HelmChartSpec{
 					Chart:   "chart",
@@ -906,10 +844,8 @@ func Test_buildOCIRepositoryFromTemplate(t *testing.T) {
 	}
 
 	hrWithChartTemplate := v2.HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-release",
-			Namespace: "default",
-		},
+		Name:      "test-release",
+		Namespace: "default",
 		Spec: v2.HelmReleaseSpec{
 			Interval: metav1.Duration{Duration: time.Minute},
 			Chart: &v2.HelmChartTemplate{
@@ -936,10 +872,8 @@ func Test_buildOCIRepositoryFromTemplate(t *testing.T) {
 			name:   "builds OCIRepository from HelmChartTemplate",
 			modify: func(*v2.HelmRelease) {},
 			want: &sourcev1.OCIRepository{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default-test-release",
-					Namespace: "default",
-				},
+				Name:      "default-test-release",
+				Namespace: "default",
 				Spec: sourcev1.OCIRepositorySpec{
 					URL: "oci://ghcr.io/stefanprodan/charts/podinfo",
 					Reference: &sourcev1.OCIRepositoryRef{
@@ -956,10 +890,8 @@ func Test_buildOCIRepositoryFromTemplate(t *testing.T) {
 				hr.Spec.Chart.Spec.Interval = nil
 			},
 			want: &sourcev1.OCIRepository{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default-test-release",
-					Namespace: "default",
-				},
+				Name:      "default-test-release",
+				Namespace: "default",
 				Spec: sourcev1.OCIRepositorySpec{
 					URL: "oci://ghcr.io/stefanprodan/charts/podinfo",
 					Reference: &sourcev1.OCIRepositoryRef{
@@ -979,10 +911,8 @@ func Test_buildOCIRepositoryFromTemplate(t *testing.T) {
 				}
 			},
 			want: &sourcev1.OCIRepository{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default-test-release",
-					Namespace: "default",
-				},
+				Name:      "default-test-release",
+				Namespace: "default",
 				Spec: sourcev1.OCIRepositorySpec{
 					URL: "oci://ghcr.io/stefanprodan/charts/podinfo",
 					Reference: &sourcev1.OCIRepositoryRef{
@@ -1007,10 +937,8 @@ func Test_buildOCIRepositoryFromTemplate(t *testing.T) {
 				}
 			},
 			want: &sourcev1.OCIRepository{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default-test-release",
-					Namespace: "default",
-				},
+				Name:      "default-test-release",
+				Namespace: "default",
 				Spec: sourcev1.OCIRepositorySpec{
 					URL: "oci://ghcr.io/stefanprodan/charts/podinfo",
 					Reference: &sourcev1.OCIRepositoryRef{
@@ -1040,15 +968,13 @@ func Test_buildOCIRepositoryFromTemplate(t *testing.T) {
 				}
 			},
 			want: &sourcev1.OCIRepository{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default-test-release",
-					Namespace: "default",
-					Labels: map[string]string{
-						"foo": "bar",
-					},
-					Annotations: map[string]string{
-						"bar": "baz",
-					},
+				Name:      "default-test-release",
+				Namespace: "default",
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+				Annotations: map[string]string{
+					"bar": "baz",
 				},
 				Spec: sourcev1.OCIRepositorySpec{
 					URL: "oci://ghcr.io/stefanprodan/charts/podinfo",
@@ -1082,10 +1008,8 @@ func TestHelmChartTemplate_reconcileDelete_OCIRepository(t *testing.T) {
 		builder := fake.NewClientBuilder().
 			WithScheme(NewTestScheme()).
 			WithObjects(&sourcev1.OCIRepository{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-					Name:      "chart",
-				},
+				Namespace: "default",
+				Name:      "chart",
 			})
 
 		recorder := events.NewFakeRecorder(32, false)
@@ -1095,10 +1019,8 @@ func TestHelmChartTemplate_reconcileDelete_OCIRepository(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "default",
-			},
+			Name:      "release",
+			Namespace: "default",
 			Status: v2.HelmReleaseStatus{
 				HelmChart: fmt.Sprintf("%s/default/chart", sourcev1.OCIRepositoryKind),
 			},
@@ -1118,10 +1040,8 @@ func TestHelmChartTemplate_reconcileDelete_OCIRepository(t *testing.T) {
 		builder := fake.NewClientBuilder().
 			WithScheme(NewTestScheme()).
 			WithObjects(&sourcev1.OCIRepository{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-					Name:      "chart",
-				},
+				Namespace: "default",
+				Name:      "chart",
 			}).
 			WithInterceptorFuncs(interceptor.Funcs{
 				Delete: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.DeleteOption) error {
@@ -1135,10 +1055,8 @@ func TestHelmChartTemplate_reconcileDelete_OCIRepository(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "default",
-			},
+			Name:      "release",
+			Namespace: "default",
 			Status: v2.HelmReleaseStatus{
 				HelmChart: fmt.Sprintf("%s/default/chart", sourcev1.OCIRepositoryKind),
 			},
@@ -1155,10 +1073,8 @@ func TestHelmChartTemplate_reconcileDelete_OCIRepository(t *testing.T) {
 			client: fake.NewClientBuilder().WithScheme(NewTestScheme()).Build(),
 		}
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "default",
-			},
+			Name:      "release",
+			Namespace: "default",
 			Status: v2.HelmReleaseStatus{
 				HelmChart: fmt.Sprintf("%s/default/chart", sourcev1.OCIRepositoryKind),
 			},
@@ -1174,10 +1090,8 @@ func TestHelmChartTemplate_reconcileDelete_OCIRepository(t *testing.T) {
 		builder := fake.NewClientBuilder().
 			WithScheme(NewTestScheme()).
 			WithObjects(&sourcev1.OCIRepository{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-					Name:      "chart",
-				},
+				Namespace: "default",
+				Name:      "chart",
 			})
 
 		recorder := events.NewFakeRecorder(32, false)
@@ -1187,11 +1101,9 @@ func TestHelmChartTemplate_reconcileDelete_OCIRepository(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "release",
-				Namespace:         "default",
-				DeletionTimestamp: &now,
-			},
+			Name:              "release",
+			Namespace:         "default",
+			DeletionTimestamp: &now,
 			Spec: v2.HelmReleaseSpec{
 				Suspend: true,
 			},
@@ -1213,10 +1125,8 @@ func TestHelmChartTemplate_reconcileDelete_OCIRepository(t *testing.T) {
 		g := NewWithT(t)
 
 		repo := &sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "other",
-				Name:      "chart",
-			},
+			Namespace: "other",
+			Name:      "chart",
 		}
 		builder := fake.NewClientBuilder().
 			WithScheme(NewTestScheme()).
@@ -1227,9 +1137,7 @@ func TestHelmChartTemplate_reconcileDelete_OCIRepository(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
-			},
+			Namespace: "default",
 			Status: v2.HelmReleaseStatus{
 				HelmChart: fmt.Sprintf("%s/other/chart", sourcev1.OCIRepositoryKind),
 			},
@@ -1254,9 +1162,7 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 	g := NewWithT(t)
 
 	namespace := corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "helm-release-chart-reconciler-",
-		},
+		GenerateName: "helm-release-chart-reconciler-",
 	}
 	g.Expect(testEnv.CreateAndWait(context.Background(), &namespace)).To(Succeed())
 	t.Cleanup(func() {
@@ -1268,13 +1174,11 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 
 		releaseName := "oci-deletion-timestamp"
 		existingRepo := sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
-				Labels: map[string]string{
-					v2.GroupVersion.Group + "/name":      releaseName,
-					v2.GroupVersion.Group + "/namespace": namespace.GetName(),
-				},
+			Namespace: namespace.GetName(),
+			Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
+			Labels: map[string]string{
+				v2.GroupVersion.Group + "/name":      releaseName,
+				v2.GroupVersion.Group + "/namespace": namespace.GetName(),
 			},
 			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://ghcr.io/stefanprodan/charts/podinfo",
@@ -1295,11 +1199,9 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 
 		ts := metav1.Now()
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:         namespace.GetName(),
-				Name:              releaseName,
-				DeletionTimestamp: &ts,
-			},
+			Namespace:         namespace.GetName(),
+			Name:              releaseName,
+			DeletionTimestamp: &ts,
 			Status: v2.HelmReleaseStatus{
 				HelmChart: fmt.Sprintf("%s/%s/%s", sourcev1.OCIRepositoryKind, existingRepo.GetNamespace(), existingRepo.GetName()),
 			},
@@ -1324,10 +1226,8 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 		g := NewWithT(t)
 
 		existingRepo := sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:    namespace.GetName(),
-				GenerateName: "existing-oci-repo-",
-			},
+			Namespace:    namespace.GetName(),
+			GenerateName: "existing-oci-repo-",
 			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://ghcr.io/stefanprodan/charts/podinfo",
 				Interval: &metav1.Duration{Duration: 1 * time.Hour},
@@ -1345,10 +1245,8 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      "oci-release-with-existing-repo",
-			},
+			Namespace: namespace.GetName(),
+			Name:      "oci-release-with-existing-repo",
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
 				Chart: &v2.HelmChartTemplate{
@@ -1395,10 +1293,8 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 
 		releaseName := "oci-not-found"
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      releaseName,
-			},
+			Namespace: namespace.GetName(),
+			Name:      releaseName,
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
 				Chart: &v2.HelmChartTemplate{
@@ -1436,13 +1332,11 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 
 		releaseName := "oci-divergence"
 		existingRepo := sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
-				Labels: map[string]string{
-					v2.GroupVersion.Group + "/name":      releaseName,
-					v2.GroupVersion.Group + "/namespace": namespace.GetName(),
-				},
+			Namespace: namespace.GetName(),
+			Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
+			Labels: map[string]string{
+				v2.GroupVersion.Group + "/name":      releaseName,
+				v2.GroupVersion.Group + "/namespace": namespace.GetName(),
 			},
 			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://ghcr.io/stefanprodan/charts/bar",
@@ -1462,10 +1356,8 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      releaseName,
-			},
+			Namespace: namespace.GetName(),
+			Name:      releaseName,
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
 				Chart: &v2.HelmChartTemplate{
@@ -1499,13 +1391,11 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 
 		releaseName := "oci-no-divergence"
 		existingRepo := &sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
-				Labels: map[string]string{
-					v2.GroupVersion.Group + "/name":      releaseName,
-					v2.GroupVersion.Group + "/namespace": namespace.GetName(),
-				},
+			Namespace: namespace.GetName(),
+			Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
+			Labels: map[string]string{
+				v2.GroupVersion.Group + "/name":      releaseName,
+				v2.GroupVersion.Group + "/namespace": namespace.GetName(),
 			},
 			Spec: sourcev1.OCIRepositorySpec{
 				URL: "oci://ghcr.io/stefanprodan/charts/podinfo",
@@ -1529,10 +1419,8 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      releaseName,
-			},
+			Namespace: namespace.GetName(),
+			Name:      releaseName,
 			Spec: v2.HelmReleaseSpec{
 				Interval: *existingRepo.Spec.Interval,
 				Chart: &v2.HelmChartTemplate{
@@ -1571,10 +1459,8 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 
 		releaseName := "oci-owner-labels"
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      releaseName,
-			},
+			Namespace: namespace.GetName(),
+			Name:      releaseName,
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
 				Chart: &v2.HelmChartTemplate{
@@ -1610,13 +1496,11 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 
 		releaseName := "oci-garbage-collection"
 		existingRepo := sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
-				Labels: map[string]string{
-					v2.GroupVersion.Group + "/name":      releaseName,
-					v2.GroupVersion.Group + "/namespace": namespace.GetName(),
-				},
+			Namespace: namespace.GetName(),
+			Name:      fmt.Sprintf("%s-%s", namespace.GetName(), releaseName),
+			Labels: map[string]string{
+				v2.GroupVersion.Group + "/name":      releaseName,
+				v2.GroupVersion.Group + "/namespace": namespace.GetName(),
 			},
 			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://ghcr.io/stefanprodan/charts/bar",
@@ -1636,10 +1520,8 @@ func TestHelmChartTemplate_Reconcile_OCIRepository(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: namespace.GetName(),
-				Name:      releaseName,
-			},
+			Namespace: namespace.GetName(),
+			Name:      releaseName,
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Hour},
 				ChartRef: &v2.CrossNamespaceSourceReference{

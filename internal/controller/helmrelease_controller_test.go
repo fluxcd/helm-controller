@@ -35,7 +35,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -70,11 +69,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g := NewWithT(t)
 
 		dependency := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "dependency",
-				Namespace:  "mock",
-				Generation: 1,
-			},
+			Name:       "dependency",
+			Namespace:  "mock",
+			Generation: 1,
 			Status: v2.HelmReleaseStatus{
 				Conditions: []metav1.Condition{
 					{
@@ -87,10 +84,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "dependant",
-				Namespace: "mock",
-			},
+			Name:      "dependant",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				DependsOn: []v2.DependencyReference{
 					{
@@ -125,10 +120,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Status: v2.HelmReleaseStatus{
 				HelmChart: "mock/chart",
 			},
@@ -156,10 +149,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Status: v2.HelmReleaseStatus{
 				HelmChart: "other/chart",
 			},
@@ -190,15 +181,11 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g := NewWithT(t)
 
 		chart := &sourcev1.HelmChart{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: sourcev1.GroupVersion.String(),
-				Kind:       sourcev1.HelmChartKind,
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  "mock",
-				Generation: 2,
-			},
+			APIVersion: sourcev1.GroupVersion.String(),
+			Kind:       sourcev1.HelmChartKind,
+			Name:       "chart",
+			Namespace:  "mock",
+			Generation: 2,
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 2,
 				Artifact:           nil,
@@ -212,10 +199,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
@@ -246,15 +231,11 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g := NewWithT(t)
 
 		chart := &sourcev1.HelmChart{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: sourcev1.GroupVersion.String(),
-				Kind:       sourcev1.HelmChartKind,
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  "mock",
-				Generation: 2,
-			},
+			APIVersion: sourcev1.GroupVersion.String(),
+			Kind:       sourcev1.HelmChartKind,
+			Name:       "chart",
+			Namespace:  "mock",
+			Generation: 2,
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           &meta.Artifact{},
@@ -268,10 +249,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
@@ -303,11 +282,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g := NewWithT(t)
 
 		chart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  "mock",
-				Generation: 2,
-			},
+			Name:       "chart",
+			Namespace:  "mock",
+			Generation: 2,
 			Spec: sourcev1.HelmChartSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
@@ -324,10 +301,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ValuesFrom: []meta.ValuesReference{
 					{
@@ -364,11 +339,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g := NewWithT(t)
 
 		chart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  "mock",
-				Generation: 1,
-			},
+			Name:       "chart",
+			Namespace:  "mock",
+			Generation: 1,
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact: &meta.Artifact{
@@ -384,10 +357,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Status: v2.HelmReleaseStatus{
 				HelmChart: "mock/chart",
 			},
@@ -423,11 +394,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		chartArtifact.Digest = digest.SHA256.FromString("rebuilt").String()
 
 		chart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  "mock",
-				Generation: 1,
-			},
+			Name:       "chart",
+			Namespace:  "mock",
+			Generation: 1,
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           chartArtifact,
@@ -441,10 +410,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Status: v2.HelmReleaseStatus{
 				HelmChart: "mock/chart",
 			},
@@ -482,11 +449,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		chart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  "mock",
-				Generation: 1,
-			},
+			Name:       "chart",
+			Namespace:  "mock",
+			Generation: 1,
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           chartArtifact,
@@ -500,10 +465,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				StorageNamespace: "other",
 			},
@@ -562,11 +525,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		})
 
 		hc := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       chartMock.Name(),
-				Namespace:  ns.Name,
-				Generation: 1,
-			},
+			Name:       chartMock.Name(),
+			Namespace:  ns.Name,
+			Generation: 1,
 			Spec: sourcev1.HelmChartSpec{
 				Chart:   chartMock.Name(),
 				Version: chartMock.Metadata.Version,
@@ -595,10 +556,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		snapshot := release.ObservedToSnapshot(release.ObserveRelease(rls))
 		snapshot.ChartName = "oldChartName"
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: ns.Name,
-			},
+			Name:      "release",
+			Namespace: ns.Name,
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind: sourcev1.HelmChartKind,
@@ -667,11 +626,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		})
 
 		hc := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       chartMock.Name(),
-				Namespace:  ns.Name,
-				Generation: 1,
-			},
+			Name:       chartMock.Name(),
+			Namespace:  ns.Name,
+			Generation: 1,
 			Spec: sourcev1.HelmChartSpec{
 				Chart:   chartMock.Name(),
 				Version: chartMock.Metadata.Version,
@@ -700,10 +657,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		snapshot := release.ObservedToSnapshot(release.ObserveRelease(rls))
 		snapshot.ChartName = "oldChartName"
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: ns.Name,
-			},
+			Name:      "release",
+			Namespace: ns.Name,
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind: sourcev1.HelmChartKind,
@@ -763,11 +718,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		chart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  "mock",
-				Generation: 1,
-			},
+			Name:       "chart",
+			Namespace:  "mock",
+			Generation: 1,
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           chartArtifact,
@@ -781,11 +734,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "release",
-				Namespace:  "mock",
-				Generation: 2,
-			},
+			Name:       "release",
+			Namespace:  "mock",
+			Generation: 2,
 			Spec: v2.HelmReleaseSpec{
 				// Trigger a failure by setting an invalid storage namespace,
 				// preventing the release from actually being installed.
@@ -834,11 +785,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		chart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  "mock",
-				Generation: 1,
-			},
+			Name:       "chart",
+			Namespace:  "mock",
+			Generation: 1,
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           chartArtifact,
@@ -852,11 +801,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "release",
-				Namespace:  "mock",
-				Generation: 1,
-			},
+			Name:       "release",
+			Namespace:  "mock",
+			Generation: 1,
 			Spec: v2.HelmReleaseSpec{
 				// Trigger a failure by setting an invalid storage namespace,
 				// preventing the release from actually being installed.
@@ -923,11 +870,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		chart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  "mock",
-				Generation: 1,
-			},
+			Name:       "chart",
+			Namespace:  "mock",
+			Generation: 1,
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           chartArtifact,
@@ -941,11 +886,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "release",
-				Namespace:  "mock",
-				Generation: 2,
-			},
+			Name:       "release",
+			Namespace:  "mock",
+			Generation: 2,
 			Spec: v2.HelmReleaseSpec{
 				// Trigger a failure by setting an invalid storage namespace,
 				// preventing the release from actually being installed.
@@ -1004,11 +947,9 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		chart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "error-recovery",
-				Namespace:  ns.Name,
-				Generation: 1,
-			},
+			Name:       "error-recovery",
+			Namespace:  ns.Name,
+			Generation: 1,
 			Spec: sourcev1.HelmChartSpec{
 				Chart:   "testdata/test-helmrepo",
 				Version: "0.1.0",
@@ -1039,10 +980,8 @@ func TestHelmReleaseReconciler_reconcileRelease(t *testing.T) {
 		}, testutil.ReleaseWithConfig(nil))
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "error-recovery",
-				Namespace: ns.Name,
-			},
+			Name:      "error-recovery",
+			Namespace: ns.Name,
 			Spec: v2.HelmReleaseSpec{
 				StorageNamespace: ns.Name,
 			},
@@ -1116,10 +1055,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      sourcev1.HelmChartKind,
@@ -1146,10 +1083,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		}
 
 		res, err := r.Reconcile(context.TODO(), reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Namespace: obj.GetNamespace(),
-				Name:      obj.GetName(),
-			},
+			Namespace: obj.GetNamespace(),
+			Name:      obj.GetName(),
 		})
 
 		// only chartRef or Chart must be set
@@ -1161,10 +1096,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      sourcev1.HelmChartKind,
@@ -1196,10 +1129,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      sourcev1.HelmChartKind,
@@ -1233,15 +1164,11 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		g := NewWithT(t)
 
 		chart := &sourcev1.HelmChart{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: sourcev1.GroupVersion.String(),
-				Kind:       sourcev1.HelmChartKind,
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  "mock",
-				Generation: 2,
-			},
+			APIVersion: sourcev1.GroupVersion.String(),
+			Kind:       sourcev1.HelmChartKind,
+			Name:       "chart",
+			Namespace:  "mock",
+			Generation: 2,
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 2,
 				Conditions: []metav1.Condition{
@@ -1254,10 +1181,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      sourcev1.HelmChartKind,
@@ -1290,11 +1215,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		g := NewWithT(t)
 
 		chart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  "mock",
-				Generation: 2,
-			},
+			Name:       "chart",
+			Namespace:  "mock",
+			Generation: 2,
 			Spec: sourcev1.HelmChartSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
@@ -1313,10 +1236,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      sourcev1.HelmChartKind,
@@ -1349,11 +1270,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		g := NewWithT(t)
 
 		chart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  "mock",
-				Generation: 1,
-			},
+			Name:       "chart",
+			Namespace:  "mock",
+			Generation: 1,
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           &meta.Artifact{},
@@ -1367,11 +1286,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		}
 
 		sharedChart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "sharedChart",
-				Namespace:  "mock",
-				Generation: 2,
-			},
+			Name:       "sharedChart",
+			Namespace:  "mock",
+			Generation: 2,
 			Spec: sourcev1.HelmChartSpec{
 				Interval: metav1.Duration{Duration: 1 * time.Second},
 			},
@@ -1390,10 +1307,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      sourcev1.HelmChartKind,
@@ -1467,11 +1382,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		})
 
 		hc := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  ns.Name,
-				Generation: 1,
-			},
+			Name:       "chart",
+			Namespace:  ns.Name,
+			Generation: 1,
 			Spec: sourcev1.HelmChartSpec{
 				Chart:   "testdata/test-helmrepo",
 				Version: "0.1.0",
@@ -1502,10 +1415,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromHelmChartSource(t *testing.T)
 		})
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: ns.Name,
-			},
+			Name:      "release",
+			Namespace: ns.Name,
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind: sourcev1.HelmChartKind,
@@ -1584,10 +1495,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      "OCIRepository",
@@ -1614,10 +1523,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		}
 
 		res, err := r.Reconcile(context.TODO(), reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Namespace: obj.GetNamespace(),
-				Name:      obj.GetName(),
-			},
+			Namespace: obj.GetNamespace(),
+			Name:      obj.GetName(),
 		})
 
 		// only chartRef or Chart must be set
@@ -1628,10 +1535,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      "OCIRepository",
@@ -1663,10 +1568,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      "OCIRepository",
@@ -1700,15 +1603,11 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		g := NewWithT(t)
 
 		ocirepo := &sourcev1.OCIRepository{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: sourcev1.GroupVersion.String(),
-				Kind:       sourcev1.OCIRepositoryKind,
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "ocirepo",
-				Namespace:  "mock",
-				Generation: 2,
-			},
+			APIVersion: sourcev1.GroupVersion.String(),
+			Kind:       sourcev1.OCIRepositoryKind,
+			Name:       "ocirepo",
+			Namespace:  "mock",
+			Generation: 2,
 			Status: sourcev1.OCIRepositoryStatus{
 				ObservedGeneration: 2,
 				Conditions: []metav1.Condition{
@@ -1721,10 +1620,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      "OCIRepository",
@@ -1757,11 +1654,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		g := NewWithT(t)
 
 		ocirepo := &sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "ocirepo",
-				Namespace:  "mock",
-				Generation: 2,
-			},
+			Name:       "ocirepo",
+			Namespace:  "mock",
+			Generation: 2,
 			Spec: sourcev1.OCIRepositorySpec{
 				Interval: &metav1.Duration{Duration: 1 * time.Second},
 			},
@@ -1778,10 +1673,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      "OCIRepository",
@@ -1819,11 +1712,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		g := NewWithT(t)
 
 		ocirepo := &sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "ocirepo",
-				Namespace:  "mock",
-				Generation: 2,
-			},
+			Name:       "ocirepo",
+			Namespace:  "mock",
+			Generation: 2,
 			Spec: sourcev1.OCIRepositorySpec{
 				Interval: &metav1.Duration{Duration: 1 * time.Second},
 			},
@@ -1842,10 +1733,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      "OCIRepository",
@@ -1878,11 +1767,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		g := NewWithT(t)
 
 		chart := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  "mock",
-				Generation: 1,
-			},
+			Name:       "chart",
+			Namespace:  "mock",
+			Generation: 1,
 			Status: sourcev1.HelmChartStatus{
 				ObservedGeneration: 1,
 				Artifact:           &meta.Artifact{},
@@ -1896,11 +1783,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		}
 
 		ocirepo := &sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "ocirepo",
-				Namespace:  "mock",
-				Generation: 2,
-			},
+			Name:       "ocirepo",
+			Namespace:  "mock",
+			Generation: 2,
 			Spec: sourcev1.OCIRepositorySpec{
 				Interval: &metav1.Duration{Duration: 1 * time.Second},
 			},
@@ -1919,10 +1804,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      "OCIRepository",
@@ -1965,11 +1848,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		chartArtifact.Revision += "@" + chartArtifact.Digest
 
 		ocirepo := &sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "ocirepo",
-				Namespace:  "mock",
-				Generation: 1,
-			},
+			Name:       "ocirepo",
+			Namespace:  "mock",
+			Generation: 1,
 			Spec: sourcev1.OCIRepositorySpec{
 				Interval: &metav1.Duration{Duration: 1 * time.Second},
 			},
@@ -1986,10 +1867,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: "mock",
-			},
+			Name:      "release",
+			Namespace: "mock",
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind:      "OCIRepository",
@@ -2057,11 +1936,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 
 		// ocirepo is the chartRef object to switch to.
 		ocirepo := &sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "ocirepo",
-				Namespace:  ns.Name,
-				Generation: 1,
-			},
+			Name:       "ocirepo",
+			Namespace:  ns.Name,
+			Generation: 1,
 			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://test-example.com",
 				Interval: &metav1.Duration{Duration: 1 * time.Second},
@@ -2079,10 +1956,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: ns.Name,
-			},
+			Name:      "release",
+			Namespace: ns.Name,
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind: "OCIRepository",
@@ -2154,11 +2029,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 
 		// ocirepo is the chartRef object to switch to.
 		ocirepo := &sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "ocirepo",
-				Namespace:  ns.Name,
-				Generation: 1,
-			},
+			Name:       "ocirepo",
+			Namespace:  ns.Name,
+			Generation: 1,
 			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://test-example.com",
 				Interval: &metav1.Duration{Duration: 1 * time.Second},
@@ -2176,10 +2049,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: ns.Name,
-			},
+			Name:      "release",
+			Namespace: ns.Name,
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind: "OCIRepository",
@@ -2231,11 +2102,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 
 		// ocirepo is the chartRef object to switch to.
 		ocirepo := &sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "ocirepo",
-				Namespace:  ns.Name,
-				Generation: 1,
-			},
+			Name:       "ocirepo",
+			Namespace:  ns.Name,
+			Generation: 1,
 			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://test-example.com",
 				Interval: &metav1.Duration{Duration: 1 * time.Second},
@@ -2253,10 +2122,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: ns.Name,
-			},
+			Name:      "release",
+			Namespace: ns.Name,
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind: "OCIRepository",
@@ -2307,11 +2174,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 
 		// hc is the HelmChart object created by the HelmRelease object.
 		hc := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "chart",
-				Namespace:  ns.Name,
-				Generation: 1,
-			},
+			Name:       "chart",
+			Namespace:  ns.Name,
+			Generation: 1,
 			Spec: sourcev1.HelmChartSpec{
 				Chart:   "testdata/test-helmrepo",
 				Version: "0.1.0",
@@ -2334,11 +2199,9 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 
 		// ocirepo is the chartRef object to switch to.
 		ocirepo := &sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "ocirepo",
-				Namespace:  ns.Name,
-				Generation: 1,
-			},
+			Name:       "ocirepo",
+			Namespace:  ns.Name,
+			Generation: 1,
 			Spec: sourcev1.OCIRepositorySpec{
 				URL:      "oci://test-example.com",
 				Interval: &metav1.Duration{Duration: 1 * time.Second},
@@ -2365,10 +2228,8 @@ func TestHelmReleaseReconciler_reconcileReleaseFromOCIRepositorySource(t *testin
 		})
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "release",
-				Namespace: ns.Name,
-			},
+			Name:      "release",
+			Namespace: ns.Name,
 			Spec: v2.HelmReleaseSpec{
 				ChartRef: &v2.CrossNamespaceSourceReference{
 					Kind: "OCIRepository",
@@ -2441,10 +2302,8 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 
 		// Create HelmChart mock.
 		hc := &sourcev1.HelmChart{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "reconcile-delete",
-				Namespace: ns.Name,
-			},
+			Name:      "reconcile-delete",
+			Namespace: ns.Name,
 			Spec: sourcev1.HelmChartSpec{
 				Chart:   "testdata/test-helmrepo",
 				Version: "0.1.0",
@@ -2469,12 +2328,10 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 		})
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "reconcile-delete",
-				Namespace:         ns.Name,
-				Finalizers:        []string{v2.HelmReleaseFinalizer},
-				DeletionTimestamp: &metav1.Time{Time: time.Now()},
-			},
+			Name:              "reconcile-delete",
+			Namespace:         ns.Name,
+			Finalizers:        []string{v2.HelmReleaseFinalizer},
+			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: ns.Name,
 				History: v2.Snapshots{
@@ -2525,10 +2382,8 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Finalizers:        []string{v2.HelmReleaseFinalizer, "other-finalizer"},
-				DeletionTimestamp: &metav1.Time{Time: time.Now()},
-			},
+			Finalizers:        []string{v2.HelmReleaseFinalizer, "other-finalizer"},
+			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 			Spec: v2.HelmReleaseSpec{
 				Suspend: true,
 			},
@@ -2545,9 +2400,7 @@ func TestHelmReleaseReconciler_reconcileDelete(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Finalizers: []string{v2.HelmReleaseFinalizer},
-			},
+			Finalizers: []string{v2.HelmReleaseFinalizer},
 			Spec: v2.HelmReleaseSpec{
 				Suspend: true,
 			},
@@ -2582,11 +2435,9 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 		})
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "reconcile-delete",
-				Namespace:         ns.Name,
-				DeletionTimestamp: &metav1.Time{Time: time.Now()},
-			},
+			Name:              "reconcile-delete",
+			Namespace:         ns.Name,
+			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: ns.Name,
 				History: v2.Snapshots{
@@ -2645,11 +2496,9 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 		})
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "reconcile-delete",
-				Namespace:         ns.Name,
-				DeletionTimestamp: &metav1.Time{Time: time.Now()},
-			},
+			Name:              "reconcile-delete",
+			Namespace:         ns.Name,
+			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: ns.Name,
 				History: v2.Snapshots{
@@ -2704,11 +2553,9 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "reconcile-delete",
-				Namespace:         "mock",
-				DeletionTimestamp: &metav1.Time{Time: time.Now()},
-			},
+			Name:              "reconcile-delete",
+			Namespace:         "mock",
+			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: "mock",
 			},
@@ -2746,11 +2593,9 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 		})
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "reconcile-delete",
-				Namespace:         ns.Name,
-				DeletionTimestamp: &metav1.Time{Time: time.Now()},
-			},
+			Name:              "reconcile-delete",
+			Namespace:         ns.Name,
+			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: ns.Name,
 				History: v2.Snapshots{
@@ -2813,11 +2658,9 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "reconcile-delete",
-				Namespace:         namespace,
-				DeletionTimestamp: &metav1.Time{Time: time.Now()},
-			},
+			Name:              "reconcile-delete",
+			Namespace:         namespace,
+			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 			Spec: v2.HelmReleaseSpec{
 				ServiceAccountName: serviceAccount,
 			},
@@ -2852,11 +2695,9 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 		}
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "reconcile-delete",
-				Namespace:         "mock",
-				DeletionTimestamp: &metav1.Time{Time: time.Now()},
-			},
+			Name:              "reconcile-delete",
+			Namespace:         "mock",
+			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: "mock",
 				History: v2.Snapshots{
@@ -2877,11 +2718,9 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "reconcile-delete",
-				Namespace:         "mock",
-				DeletionTimestamp: &metav1.Time{Time: time.Now()},
-			},
+			Name:              "reconcile-delete",
+			Namespace:         "mock",
+			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 			Status: v2.HelmReleaseStatus{
 				StorageNamespace: "mock",
 			},
@@ -2905,10 +2744,8 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "reconcile-delete",
-				Namespace: "mock",
-			},
+			Name:      "reconcile-delete",
+			Namespace: "mock",
 		}
 
 		err := (&HelmReleaseReconciler{}).reconcileReleaseDeletion(context.TODO(), obj)
@@ -2920,11 +2757,9 @@ func TestHelmReleaseReconciler_reconcileReleaseDeletion(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "reconcile-delete",
-				Namespace:         "mock",
-				DeletionTimestamp: &metav1.Time{Time: time.Now()},
-			},
+			Name:              "reconcile-delete",
+			Namespace:         "mock",
+			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 		}
 
 		err := (&HelmReleaseReconciler{}).reconcileReleaseDeletion(context.TODO(), obj)
@@ -3041,11 +2876,9 @@ func TestHelmReleaseReconciler_reconcileUninstall(t *testing.T) {
 		}, testutil.ReleaseWithFailingHook())
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "reconcile-uninstall",
-				Namespace:         ns.Name,
-				DeletionTimestamp: &metav1.Time{Time: time.Now()},
-			},
+			Name:              "reconcile-uninstall",
+			Namespace:         ns.Name,
+			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 			Spec: v2.HelmReleaseSpec{
 				Uninstall: &v2.Uninstall{
 					KeepHistory: true,
@@ -3099,14 +2932,10 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 		{
 			name: "all dependencies ready",
 			obj: &v2.HelmRelease{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: v2.GroupVersion.String(),
-					Kind:       v2.HelmReleaseKind,
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "dependant",
-					Namespace: "some-namespace",
-				},
+				APIVersion: v2.GroupVersion.String(),
+				Kind:       v2.HelmReleaseKind,
+				Name:       "dependant",
+				Namespace:  "some-namespace",
 				Spec: v2.HelmReleaseSpec{
 					DependsOn: []v2.DependencyReference{
 						{
@@ -3121,15 +2950,11 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: v2.GroupVersion.String(),
-						Kind:       v2.HelmReleaseKind,
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Generation: 1,
-						Name:       "dependency-1",
-						Namespace:  "some-namespace",
-					},
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+					Generation: 1,
+					Name:       "dependency-1",
+					Namespace:  "some-namespace",
 					Status: v2.HelmReleaseStatus{
 						ObservedGeneration: 1,
 						Conditions: []metav1.Condition{
@@ -3138,15 +2963,11 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 					},
 				},
 				&v2.HelmRelease{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: v2.GroupVersion.String(),
-						Kind:       v2.HelmReleaseKind,
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Generation: 2,
-						Name:       "dependency-2",
-						Namespace:  "some-other-namespace",
-					},
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+					Generation: 2,
+					Name:       "dependency-2",
+					Namespace:  "some-other-namespace",
 					Status: v2.HelmReleaseStatus{
 						ObservedGeneration: 2,
 						Conditions: []metav1.Condition{
@@ -3162,16 +2983,12 @@ func TestHelmReleaseReconciler_checkDependencies(t *testing.T) {
 		{
 			name: "all dependencies ready with readyExpr",
 			obj: &v2.HelmRelease{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: v2.GroupVersion.String(),
-					Kind:       v2.HelmReleaseKind,
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "dependant",
-					Namespace: "some-namespace",
-					Labels: map[string]string{
-						"app/version": "v1.2.3",
-					},
+				APIVersion: v2.GroupVersion.String(),
+				Kind:       v2.HelmReleaseKind,
+				Name:       "dependant",
+				Namespace:  "some-namespace",
+				Labels: map[string]string{
+					"app/version": "v1.2.3",
 				},
 				Spec: v2.HelmReleaseSpec{
 					Values: &apiextensionsv1.JSON{
@@ -3195,14 +3012,10 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: v2.GroupVersion.String(),
-						Kind:       v2.HelmReleaseKind,
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "dependency-1",
-						Namespace: "some-namespace",
-					},
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+					Name:       "dependency-1",
+					Namespace:  "some-namespace",
 					Spec: v2.HelmReleaseSpec{
 						Values: &apiextensionsv1.JSON{
 							Raw: []byte(`{"version":"v1.2.3"}`),
@@ -3210,17 +3023,13 @@ dep.metadata.generation == dep.status.observedGeneration
 					},
 				},
 				&v2.HelmRelease{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: v2.GroupVersion.String(),
-						Kind:       v2.HelmReleaseKind,
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Generation: 2,
-						Name:       "dependency-2",
-						Namespace:  "some-namespace",
-						Labels: map[string]string{
-							"app/version": "v1.2.3",
-						},
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+					Generation: 2,
+					Name:       "dependency-2",
+					Namespace:  "some-namespace",
+					Labels: map[string]string{
+						"app/version": "v1.2.3",
 					},
 					Status: v2.HelmReleaseStatus{
 						ObservedGeneration: 2,
@@ -3237,14 +3046,10 @@ dep.metadata.generation == dep.status.observedGeneration
 		{
 			name: "error on dependency with ObservedGeneration < Generation",
 			obj: &v2.HelmRelease{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: v2.GroupVersion.String(),
-					Kind:       v2.HelmReleaseKind,
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "dependant",
-					Namespace: "some-namespace",
-				},
+				APIVersion: v2.GroupVersion.String(),
+				Kind:       v2.HelmReleaseKind,
+				Name:       "dependant",
+				Namespace:  "some-namespace",
 				Spec: v2.HelmReleaseSpec{
 					DependsOn: []v2.DependencyReference{
 						{
@@ -3255,15 +3060,11 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: v2.GroupVersion.String(),
-						Kind:       v2.HelmReleaseKind,
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Generation: 2,
-						Name:       "dependency-1",
-						Namespace:  "some-namespace",
-					},
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+					Generation: 2,
+					Name:       "dependency-1",
+					Namespace:  "some-namespace",
 					Status: v2.HelmReleaseStatus{
 						ObservedGeneration: 1,
 						Conditions: []metav1.Condition{
@@ -3280,14 +3081,10 @@ dep.metadata.generation == dep.status.observedGeneration
 		{
 			name: "error on dependency with ObservedGeneration = Generation and ReadyCondition = False",
 			obj: &v2.HelmRelease{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: v2.GroupVersion.String(),
-					Kind:       v2.HelmReleaseKind,
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "dependant",
-					Namespace: "some-namespace",
-				},
+				APIVersion: v2.GroupVersion.String(),
+				Kind:       v2.HelmReleaseKind,
+				Name:       "dependant",
+				Namespace:  "some-namespace",
 				Spec: v2.HelmReleaseSpec{
 					DependsOn: []v2.DependencyReference{
 						{
@@ -3298,15 +3095,11 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: v2.GroupVersion.String(),
-						Kind:       v2.HelmReleaseKind,
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Generation: 1,
-						Name:       "dependency-1",
-						Namespace:  "some-namespace",
-					},
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+					Generation: 1,
+					Name:       "dependency-1",
+					Namespace:  "some-namespace",
 					Status: v2.HelmReleaseStatus{
 						ObservedGeneration: 1,
 						Conditions: []metav1.Condition{
@@ -3323,14 +3116,10 @@ dep.metadata.generation == dep.status.observedGeneration
 		{
 			name: "error on dependency without conditions",
 			obj: &v2.HelmRelease{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: v2.GroupVersion.String(),
-					Kind:       v2.HelmReleaseKind,
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "dependant",
-					Namespace: "some-namespace",
-				},
+				APIVersion: v2.GroupVersion.String(),
+				Kind:       v2.HelmReleaseKind,
+				Name:       "dependant",
+				Namespace:  "some-namespace",
 				Spec: v2.HelmReleaseSpec{
 					DependsOn: []v2.DependencyReference{
 						{
@@ -3341,15 +3130,11 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: v2.GroupVersion.String(),
-						Kind:       v2.HelmReleaseKind,
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Generation: 1,
-						Name:       "dependency-1",
-						Namespace:  "some-namespace",
-					},
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+					Generation: 1,
+					Name:       "dependency-1",
+					Namespace:  "some-namespace",
 					Status: v2.HelmReleaseStatus{
 						ObservedGeneration: 1,
 					},
@@ -3363,14 +3148,10 @@ dep.metadata.generation == dep.status.observedGeneration
 		{
 			name: "error on missing dependency",
 			obj: &v2.HelmRelease{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: v2.GroupVersion.String(),
-					Kind:       v2.HelmReleaseKind,
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "dependant",
-					Namespace: "some-namespace",
-				},
+				APIVersion: v2.GroupVersion.String(),
+				Kind:       v2.HelmReleaseKind,
+				Name:       "dependant",
+				Namespace:  "some-namespace",
 				Spec: v2.HelmReleaseSpec{
 					DependsOn: []v2.DependencyReference{
 						{
@@ -3387,14 +3168,10 @@ dep.metadata.generation == dep.status.observedGeneration
 		{
 			name: "error on dependency with readyExpr",
 			obj: &v2.HelmRelease{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: v2.GroupVersion.String(),
-					Kind:       v2.HelmReleaseKind,
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "dependant",
-					Namespace: "some-namespace",
-				},
+				APIVersion: v2.GroupVersion.String(),
+				Kind:       v2.HelmReleaseKind,
+				Name:       "dependant",
+				Namespace:  "some-namespace",
 				Spec: v2.HelmReleaseSpec{
 					DependsOn: []v2.DependencyReference{
 						{
@@ -3406,15 +3183,11 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: v2.GroupVersion.String(),
-						Kind:       v2.HelmReleaseKind,
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Generation: 1,
-						Name:       "dependency-1",
-						Namespace:  "some-namespace",
-					},
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+					Generation: 1,
+					Name:       "dependency-1",
+					Namespace:  "some-namespace",
 					Status: v2.HelmReleaseStatus{
 						ObservedGeneration: 1,
 					},
@@ -3428,14 +3201,10 @@ dep.metadata.generation == dep.status.observedGeneration
 		{
 			name: "terminal error on dependency with invalid readyExpr",
 			obj: &v2.HelmRelease{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: v2.GroupVersion.String(),
-					Kind:       v2.HelmReleaseKind,
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "dependant",
-					Namespace: "some-namespace",
-				},
+				APIVersion: v2.GroupVersion.String(),
+				Kind:       v2.HelmReleaseKind,
+				Name:       "dependant",
+				Namespace:  "some-namespace",
 				Spec: v2.HelmReleaseSpec{
 					DependsOn: []v2.DependencyReference{
 						{
@@ -3447,15 +3216,11 @@ dep.metadata.generation == dep.status.observedGeneration
 			},
 			objects: []client.Object{
 				&v2.HelmRelease{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: v2.GroupVersion.String(),
-						Kind:       v2.HelmReleaseKind,
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Generation: 1,
-						Name:       "dependency-1",
-						Namespace:  "some-namespace",
-					},
+					APIVersion: v2.GroupVersion.String(),
+					Kind:       v2.HelmReleaseKind,
+					Generation: 1,
+					Name:       "dependency-1",
+					Namespace:  "some-namespace",
 					Status: v2.HelmReleaseStatus{
 						ObservedGeneration: 1,
 					},
@@ -3553,10 +3318,8 @@ users:
 				},
 			},
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "kubeconfig",
-					Namespace: namespace,
-				},
+				Name:      "kubeconfig",
+				Namespace: namespace,
 				Data: map[string][]byte{
 					kube.DefaultKubeConfigSecretKey: []byte(kubeCfg),
 				},
@@ -3585,10 +3348,8 @@ users:
 				},
 			},
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "kubeconfig",
-					Namespace: namespace,
-				},
+				Name:      "kubeconfig",
+				Namespace: namespace,
 			},
 			wantErr: "does not contain a 'invalid-key' key",
 		},
@@ -3613,10 +3374,8 @@ users:
 				},
 			},
 			configMap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "kubeconfig",
-					Namespace: namespace,
-				},
+				Name:      "kubeconfig",
+				Namespace: namespace,
 				Data: map[string]string{
 					meta.KubeConfigKeyProvider: "generic",
 					meta.KubeConfigKeyAddress:  "https://1.2.3.4",
@@ -3635,10 +3394,8 @@ users:
 				},
 			},
 			configMap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "kubeconfig",
-					Namespace: namespace,
-				},
+				Name:      "kubeconfig",
+				Namespace: namespace,
 				Data: map[string]string{
 					meta.KubeConfigKeyProvider:           "generic",
 					meta.KubeConfigKeyAddress:            "https://1.2.3.4",
@@ -3672,11 +3429,9 @@ users:
 			}
 
 			getter, err := r.buildRESTClientGetter(context.Background(), &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "some-name",
-					Namespace: namespace,
-				},
-				Spec: tt.spec,
+				Name:      "some-name",
+				Namespace: namespace,
+				Spec:      tt.spec,
 			})
 			if len(tt.wantErr) > 0 {
 				g.Expect(err).To(HaveOccurred())
@@ -3693,10 +3448,8 @@ func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
 	g := NewWithT(t)
 
 	chart := &sourcev1.HelmChart{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "some-namespace",
-			Name:      "some-chart-name",
-		},
+		Namespace: "some-namespace",
+		Name:      "some-chart-name",
 	}
 
 	tests := []struct {
@@ -3742,9 +3495,7 @@ func TestHelmReleaseReconciler_getHelmChart(t *testing.T) {
 		{
 			name: "ACL disallows cross namespace",
 			rel: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-				},
+				Namespace: "default",
 				Status: v2.HelmReleaseStatus{
 					HelmChart: "some-namespace/some-chart-name",
 				},
@@ -3795,10 +3546,8 @@ func TestHelmReleaseReconciler_getSource_OCIRepository(t *testing.T) {
 	g := NewWithT(t)
 
 	repo := &sourcev1.OCIRepository{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "some-namespace",
-			Name:      "some-repo-name",
-		},
+		Namespace: "some-namespace",
+		Name:      "some-repo-name",
 	}
 
 	tests := []struct {
@@ -3833,9 +3582,7 @@ func TestHelmReleaseReconciler_getSource_OCIRepository(t *testing.T) {
 		{
 			name: "ACL disallows cross namespace",
 			rel: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-				},
+				Namespace: "default",
 				Status: v2.HelmReleaseStatus{
 					HelmChart: fmt.Sprintf("%s/some-namespace/some-repo-name", sourcev1.OCIRepositoryKind),
 				},
@@ -3928,10 +3675,8 @@ func TestHelmReleaseReconciler_getSourceFromOCIRef_DirectSourceFetch(t *testing.
 	g := NewWithT(t)
 
 	ociRepo := &sourcev1.OCIRepository{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-			Name:      "test-oci-repo",
-		},
+		Namespace: "default",
+		Name:      "test-oci-repo",
 	}
 
 	tests := []struct {
@@ -3979,9 +3724,7 @@ func TestHelmReleaseReconciler_getSourceFromOCIRef_DirectSourceFetch(t *testing.
 			}
 
 			rel := &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-				},
+				Namespace: "default",
 				Spec: v2.HelmReleaseSpec{
 					ChartRef: &v2.CrossNamespaceSourceReference{
 						Kind:      sourcev1.OCIRepositoryKind,
@@ -4017,9 +3760,7 @@ func Test_waitForHistoryCacheSync(t *testing.T) {
 		{
 			name: "different history",
 			rel: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "some-name",
-				},
+				Name: "some-name",
 				Status: v2.HelmReleaseStatus{
 					History: v2.Snapshots{
 						{
@@ -4034,9 +3775,7 @@ func Test_waitForHistoryCacheSync(t *testing.T) {
 				},
 			},
 			cacheRel: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "some-name",
-				},
+				Name: "some-name",
 				Status: v2.HelmReleaseStatus{
 					History: v2.Snapshots{
 						{
@@ -4051,9 +3790,7 @@ func Test_waitForHistoryCacheSync(t *testing.T) {
 		{
 			name: "same history",
 			rel: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "some-name",
-				},
+				Name: "some-name",
 				Status: v2.HelmReleaseStatus{
 					History: v2.Snapshots{
 						{
@@ -4068,9 +3805,7 @@ func Test_waitForHistoryCacheSync(t *testing.T) {
 				},
 			},
 			cacheRel: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "some-name",
-				},
+				Name: "some-name",
 				Status: v2.HelmReleaseStatus{
 					History: v2.Snapshots{
 						{
@@ -4089,9 +3824,7 @@ func Test_waitForHistoryCacheSync(t *testing.T) {
 		{
 			name: "does not exist",
 			rel: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "some-name",
-				},
+				Name: "some-name",
 			},
 			cacheRel: nil,
 			want:     true,
@@ -4255,10 +3988,8 @@ func TestValuesReferenceValidation(t *testing.T) {
 			values = &apiextensionsv1.JSON{Raw: v}
 
 			hr := v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test",
-					Namespace: "default",
-				},
+				Name:      "test",
+				Namespace: "default",
 				Spec: v2.HelmReleaseSpec{
 					Interval: metav1.Duration{Duration: 5 * time.Minute},
 					Chart: &v2.HelmChartTemplate{
@@ -4286,15 +4017,11 @@ func TestValuesReferenceValidation(t *testing.T) {
 
 func Test_isHelmChartReady(t *testing.T) {
 	mock := &sourcev1.HelmChart{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "HelmChart",
-			APIVersion: sourcev1.GroupVersion.String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "mock",
-			Namespace:  "default",
-			Generation: 2,
-		},
+		Kind:       "HelmChart",
+		APIVersion: sourcev1.GroupVersion.String(),
+		Name:       "mock",
+		Namespace:  "default",
+		Generation: 2,
 		Status: sourcev1.HelmChartStatus{
 			ObservedGeneration: 2,
 			Conditions: []metav1.Condition{
@@ -4376,15 +4103,11 @@ func Test_isHelmChartReady(t *testing.T) {
 
 func Test_isOCIRepositoryReady(t *testing.T) {
 	mock := &sourcev1.OCIRepository{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       sourcev1.OCIRepositoryKind,
-			APIVersion: sourcev1.GroupVersion.String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "mock",
-			Namespace:  "default",
-			Generation: 2,
-		},
+		Kind:       sourcev1.OCIRepositoryKind,
+		APIVersion: sourcev1.GroupVersion.String(),
+		Name:       "mock",
+		Namespace:  "default",
+		Generation: 2,
 		Status: sourcev1.OCIRepositoryStatus{
 			ObservedGeneration: 2,
 			Conditions: []metav1.Condition{
@@ -4542,7 +4265,7 @@ func TestSourceRefObject(t *testing.T) {
 		{
 			name: "chartRef with explicit namespace and apiVersion",
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{Namespace: "apps"},
+				Namespace: "apps",
 				Spec: v2.HelmReleaseSpec{
 					ChartRef: &v2.CrossNamespaceSourceReference{
 						APIVersion: sourcev1.GroupVersion.String(),
@@ -4553,17 +4276,15 @@ func TestSourceRefObject(t *testing.T) {
 				},
 			},
 			want: &metav1.PartialObjectMetadata{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       sourcev1.OCIRepositoryKind,
-					APIVersion: sourcev1.GroupVersion.String(),
-				},
-				ObjectMeta: metav1.ObjectMeta{Name: "oci", Namespace: "flux-system"},
+				Kind:       sourcev1.OCIRepositoryKind,
+				APIVersion: sourcev1.GroupVersion.String(),
+				Name:       "oci", Namespace: "flux-system",
 			},
 		},
 		{
 			name: "chartRef defaults namespace and apiVersion",
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{Namespace: "apps"},
+				Namespace: "apps",
 				Spec: v2.HelmReleaseSpec{
 					ChartRef: &v2.CrossNamespaceSourceReference{
 						Kind: sourcev1.HelmChartKind,
@@ -4572,16 +4293,14 @@ func TestSourceRefObject(t *testing.T) {
 				},
 			},
 			want: &metav1.PartialObjectMetadata{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       sourcev1.HelmChartKind,
-					APIVersion: sourcev1.GroupVersion.String(),
-				},
-				ObjectMeta: metav1.ObjectMeta{Name: "chart", Namespace: "apps"},
+				Kind:       sourcev1.HelmChartKind,
+				APIVersion: sourcev1.GroupVersion.String(),
+				Name:       "chart", Namespace: "apps",
 			},
 		},
 		{
 			name: "no chartRef",
-			obj:  &v2.HelmRelease{ObjectMeta: metav1.ObjectMeta{Namespace: "apps"}},
+			obj:  &v2.HelmRelease{Namespace: "apps"},
 		},
 	}
 

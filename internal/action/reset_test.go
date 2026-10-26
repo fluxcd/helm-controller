@@ -22,7 +22,6 @@ import (
 	. "github.com/onsi/gomega"
 	"helm.sh/helm/v4/pkg/chart/common"
 	chart "helm.sh/helm/v4/pkg/chart/v2"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fluxcd/pkg/apis/meta"
 
@@ -41,9 +40,7 @@ func TestMustResetFailures(t *testing.T) {
 		{
 			name: "on generation change",
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Generation: 1,
-				},
+				Generation: 1,
 				Status: v2.HelmReleaseStatus{
 					LastAttemptedGeneration: 2,
 				},
@@ -54,9 +51,7 @@ func TestMustResetFailures(t *testing.T) {
 		{
 			name: "on revision change",
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Generation: 1,
-				},
+				Generation: 1,
 				Status: v2.HelmReleaseStatus{
 					LastAttemptedGeneration: 1,
 					LastAttemptedRevision:   "1.0.0",
@@ -71,9 +66,7 @@ func TestMustResetFailures(t *testing.T) {
 		{
 			name: "on config digest change",
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Generation: 1,
-				},
+				Generation: 1,
 				Status: v2.HelmReleaseStatus{
 					LastAttemptedGeneration:   1,
 					LastAttemptedRevision:     "1.0.0",
@@ -92,9 +85,7 @@ func TestMustResetFailures(t *testing.T) {
 		{
 			name: "on (deprecated) values checksum change",
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Generation: 1,
-				},
+				Generation: 1,
 				Status: v2.HelmReleaseStatus{
 					LastAttemptedGeneration:     1,
 					LastAttemptedRevision:       "1.0.0",
@@ -113,12 +104,10 @@ func TestMustResetFailures(t *testing.T) {
 		{
 			name: "on reset request through annotation",
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Generation: 1,
-					Annotations: map[string]string{
-						meta.ReconcileRequestAnnotation: "a",
-						v2.ResetRequestAnnotation:       "a",
-					},
+				Generation: 1,
+				Annotations: map[string]string{
+					meta.ReconcileRequestAnnotation: "a",
+					v2.ResetRequestAnnotation:       "a",
 				},
 				Status: v2.HelmReleaseStatus{
 					LastAttemptedGeneration:   1,
@@ -138,9 +127,7 @@ func TestMustResetFailures(t *testing.T) {
 		{
 			name: "without change no reset",
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Generation: 1,
-				},
+				Generation: 1,
 				Status: v2.HelmReleaseStatus{
 					LastAttemptedGeneration:   1,
 					LastAttemptedRevision:     "1.0.0",
