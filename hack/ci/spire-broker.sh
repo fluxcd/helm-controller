@@ -482,5 +482,21 @@ spec:
 EOF
 kubectl -n "${SPIRE_NAMESPACE}" rollout status daemonset/spire-agent --timeout=5m
 
+log "Installing the SPIFFE CSI driver"
+helm repo add spiffe https://spiffe.github.io/helm-charts-hardened >/dev/null 2>&1 || true
+helm repo update spiffe >/dev/null
+helm upgrade --install spire-csi spiffe/spire \
+    --version "${SPIRE_CHART_VERSION:-0.30.3}" \
+    --namespace "${SPIRE_NAMESPACE}" \
+    --set global.spire.trustDomain="${SPIRE_TRUST_DOMAIN}" \
+    --set global.spire.namespaces.create=false \
+    --set spire-server.enabled=false \
+    --set spire-agent.enabled=false \
+    --set spiffe-csi-driver.enabled=true \
+    --set spiffe-csi-driver.agentSocketPath=/run/spire/agent-sockets/api.sock \
+    --set spiffe-oidc-discovery-provider.enabled=false \
+    --wait --timeout 5m
+kubectl -n "${SPIRE_NAMESPACE}" rollout status daemonset/spire-csi-spiffe-csi-driver --timeout=5m
+
 ##############################################################################
 }
