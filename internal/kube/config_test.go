@@ -23,7 +23,6 @@ import (
 
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -94,10 +93,8 @@ func TestConfigFromSecret(t *testing.T) {
 		g := NewWithT(t)
 
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "super-secret",
-				Namespace: "vault",
-			},
+			Name:      "super-secret",
+			Namespace: "vault",
 			Data: map[string][]byte{
 				DefaultKubeConfigSecretKey: []byte(kubeCfg),
 				// Also confirm priority.
@@ -113,10 +110,8 @@ func TestConfigFromSecret(t *testing.T) {
 		g := NewWithT(t)
 
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "super-secret",
-				Namespace: "vault",
-			},
+			Name:      "super-secret",
+			Namespace: "vault",
 			Data: map[string][]byte{
 				DefaultKubeConfigSecretKeyExt: []byte(kubeCfg),
 			},
@@ -131,10 +126,8 @@ func TestConfigFromSecret(t *testing.T) {
 
 		key := "cola.recipe"
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "super-secret",
-				Namespace: "vault",
-			},
+			Name:      "super-secret",
+			Namespace: "vault",
 			Data: map[string][]byte{
 				key: []byte(kubeCfg),
 			},
@@ -149,11 +142,9 @@ func TestConfigFromSecret(t *testing.T) {
 
 		key := "black-hole"
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "super-secret",
-				Namespace: "vault",
-			},
-			Data: map[string][]byte{},
+			Name:      "super-secret",
+			Namespace: "vault",
+			Data:      map[string][]byte{},
 		}
 		got, err := ConfigFromSecret(t.Context(), secret, key, client.KubeConfigOptions{})
 		g.Expect(err).To(HaveOccurred())
@@ -166,10 +157,8 @@ func TestConfigFromSecret(t *testing.T) {
 
 		key := "void"
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "super-secret",
-				Namespace: "vault",
-			},
+			Name:      "super-secret",
+			Namespace: "vault",
 			Data: map[string][]byte{
 				key: nil,
 			},
@@ -184,11 +173,9 @@ func TestConfigFromSecret(t *testing.T) {
 		g := NewWithT(t)
 
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "super-secret",
-				Namespace: "vault",
-			},
-			Data: map[string][]byte{},
+			Name:      "super-secret",
+			Namespace: "vault",
+			Data:      map[string][]byte{},
 		}
 
 		got, err := ConfigFromSecret(t.Context(), secret, "", client.KubeConfigOptions{})
@@ -210,10 +197,8 @@ func TestConfigFromSecret(t *testing.T) {
 		g := NewWithT(t)
 
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "super-secret",
-				Namespace: "vault",
-			},
+			Name:      "super-secret",
+			Namespace: "vault",
 			Data: map[string][]byte{
 				DefaultKubeConfigSecretKeyExt: []byte("bad"),
 			},
@@ -248,10 +233,8 @@ func TestConfigFromSecret(t *testing.T) {
 				g := NewWithT(t)
 
 				secret := &corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "super-secret",
-						Namespace: "vault",
-					},
+					Name:      "super-secret",
+					Namespace: "vault",
 					Data: map[string][]byte{
 						DefaultKubeConfigSecretKey: []byte(tt.kubeConfig),
 					},
@@ -269,10 +252,8 @@ func TestConfigFromSecret(t *testing.T) {
 		g := NewWithT(t)
 
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "super-secret",
-				Namespace: "vault",
-			},
+			Name:      "super-secret",
+			Namespace: "vault",
 			Data: map[string][]byte{
 				DefaultKubeConfigSecretKey: []byte(kubeCfg),
 			},

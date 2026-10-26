@@ -19,18 +19,14 @@ package v2
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/fluxcd/pkg/apis/meta"
 )
 
 func TestShouldHandleResetRequest(t *testing.T) {
 	obj := &HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				meta.ReconcileRequestAnnotation: "b",
-				ResetRequestAnnotation:          "b",
-			},
+		Annotations: map[string]string{
+			meta.ReconcileRequestAnnotation: "b",
+			ResetRequestAnnotation:          "b",
 		},
 		Status: HelmReleaseStatus{
 			LastHandledResetAt: "a",

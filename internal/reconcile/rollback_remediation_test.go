@@ -468,12 +468,10 @@ func TestRollbackRemediation_failure(t *testing.T) {
 				Reason:  v2.RollbackFailedReason,
 				Message: expectMsg,
 				Action:  v2.ActionHelmRollback.String(),
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						eventMetaGroupKey(eventv1.MetaRevisionKey): prev.Chart.Metadata.Version,
-						eventMetaGroupKey(metaAppVersionKey):       prev.Chart.Metadata.AppVersion,
-						eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
-					},
+				Annotations: map[string]string{
+					eventMetaGroupKey(eventv1.MetaRevisionKey): prev.Chart.Metadata.Version,
+					eventMetaGroupKey(metaAppVersionKey):       prev.Chart.Metadata.AppVersion,
+					eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
 				},
 			},
 		}))
@@ -529,12 +527,10 @@ func TestRollbackRemediation_success(t *testing.T) {
 			Reason:  v2.RollbackSucceededReason,
 			Action:  v2.ActionHelmRollback.String(),
 			Message: expectMsg,
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					eventMetaGroupKey(eventv1.MetaRevisionKey): prev.Chart.Metadata.Version,
-					eventMetaGroupKey(metaAppVersionKey):       prev.Chart.Metadata.AppVersion,
-					eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
-				},
+			Annotations: map[string]string{
+				eventMetaGroupKey(eventv1.MetaRevisionKey): prev.Chart.Metadata.Version,
+				eventMetaGroupKey(metaAppVersionKey):       prev.Chart.Metadata.AppVersion,
+				eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
 			},
 		},
 	}))

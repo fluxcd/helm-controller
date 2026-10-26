@@ -72,10 +72,8 @@ func TestHelmReleaseReconciler_WaitsForCustomHealthChecks(t *testing.T) {
 	}
 
 	hr := &v2.HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      hrKey.Name,
-			Namespace: hrKey.Namespace,
-		},
+		Name:      hrKey.Name,
+		Namespace: hrKey.Namespace,
 		Spec: v2.HelmReleaseSpec{
 			Interval: metav1.Duration{Duration: 10 * time.Minute},
 			ChartRef: &v2.CrossNamespaceSourceReference{
@@ -95,10 +93,8 @@ func TestHelmReleaseReconciler_WaitsForCustomHealthChecks(t *testing.T) {
 			HealthCheckExprs: []kustomize.CustomHealthCheck{{
 				APIVersion: "v1",
 				Kind:       "ConfigMap",
-				HealthCheckExpressions: kustomize.HealthCheckExpressions{
-					InProgress: "has(data.foo.bar)",
-					Current:    "true",
-				},
+				InProgress: "has(data.foo.bar)",
+				Current:    "true",
 			}},
 		},
 	}
@@ -153,10 +149,8 @@ func TestHelmReleaseReconciler_CancelHealthCheckOnNewRevision(t *testing.T) {
 	}
 
 	hr := &v2.HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      hrKey.Name,
-			Namespace: hrKey.Namespace,
-		},
+		Name:      hrKey.Name,
+		Namespace: hrKey.Namespace,
 		Spec: v2.HelmReleaseSpec{
 			Interval: metav1.Duration{Duration: 10 * time.Minute},
 			ChartRef: &v2.CrossNamespaceSourceReference{
@@ -285,10 +279,8 @@ func TestHelmReleaseReconciler_CancelHealthCheckWithRemediation(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 
 	hr := &v2.HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
-			Namespace: id,
-		},
+		Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
+		Namespace: id,
 		Spec: v2.HelmReleaseSpec{
 			Interval: metav1.Duration{Duration: 10 * time.Minute},
 			ChartRef: &v2.CrossNamespaceSourceReference{
@@ -426,10 +418,8 @@ func TestHelmReleaseReconciler_CancelHealthCheckWithRemediationOnReconcileReques
 	g.Expect(err).NotTo(HaveOccurred())
 
 	hr := &v2.HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
-			Namespace: id,
-		},
+		Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
+		Namespace: id,
 		Spec: v2.HelmReleaseSpec{
 			Interval: metav1.Duration{Duration: 10 * time.Minute},
 			ChartRef: &v2.CrossNamespaceSourceReference{
@@ -638,10 +628,8 @@ func TestHelmReleaseReconciler_CancelHealthCheckWithUninstallRemediation(t *test
 			}
 
 			hr := &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
-					Namespace: id,
-				},
+				Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
+				Namespace: id,
 				Spec: v2.HelmReleaseSpec{
 					Interval: metav1.Duration{Duration: 10 * time.Minute},
 					ChartRef: &v2.CrossNamespaceSourceReference{
@@ -802,10 +790,8 @@ func TestHelmReleaseReconciler_CancelHealthCheckWithRemediationBeyondMaxHistory(
 	g.Expect(err).NotTo(HaveOccurred())
 
 	hr := &v2.HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
-			Namespace: id,
-		},
+		Name:      fmt.Sprintf("cancel-%s", randStringRunes(5)),
+		Namespace: id,
 		Spec: v2.HelmReleaseSpec{
 			Interval: metav1.Duration{Duration: 10 * time.Minute},
 			ChartRef: &v2.CrossNamespaceSourceReference{

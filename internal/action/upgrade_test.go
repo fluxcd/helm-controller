@@ -33,10 +33,8 @@ func Test_newUpgrade(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "upgrade",
-				Namespace: "upgrade-ns",
-			},
+			Name:      "upgrade",
+			Namespace: "upgrade-ns",
 			Spec: v2.HelmReleaseSpec{
 				Timeout: &metav1.Duration{Duration: time.Minute},
 				Upgrade: &v2.Upgrade{
@@ -59,10 +57,8 @@ func Test_newUpgrade(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "upgrade",
-				Namespace: "upgrade-ns",
-			},
+			Name:      "upgrade",
+			Namespace: "upgrade-ns",
 			Spec: v2.HelmReleaseSpec{
 				Timeout: &metav1.Duration{Duration: time.Minute},
 			},
@@ -78,11 +74,9 @@ func Test_newUpgrade(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "upgrade",
-				Namespace: "upgrade-ns",
-			},
-			Spec: v2.HelmReleaseSpec{},
+			Name:      "upgrade",
+			Namespace: "upgrade-ns",
+			Spec:      v2.HelmReleaseSpec{},
 		}
 
 		got := newUpgrade(&helmaction.Configuration{}, obj, []UpgradeOption{
@@ -102,10 +96,8 @@ func Test_newUpgrade(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "upgrade",
-				Namespace: "upgrade-ns",
-			},
+			Name:      "upgrade",
+			Namespace: "upgrade-ns",
 			Spec: v2.HelmReleaseSpec{
 				Upgrade: &v2.Upgrade{
 					DisableTakeOwnership: true,
@@ -122,11 +114,9 @@ func Test_newUpgrade(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "upgrade",
-				Namespace: "upgrade-ns",
-			},
-			Spec: v2.HelmReleaseSpec{},
+			Name:      "upgrade",
+			Namespace: "upgrade-ns",
+			Spec:      v2.HelmReleaseSpec{},
 		}
 
 		// Save and restore UseHelm3Defaults
@@ -150,10 +140,8 @@ func Test_newUpgrade(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "upgrade",
-				Namespace: "upgrade-ns",
-			},
+			Name:      "upgrade",
+			Namespace: "upgrade-ns",
 			Spec: v2.HelmReleaseSpec{
 				Upgrade: &v2.Upgrade{
 					ServerSideApply: v2.ServerSideApplyEnabled,
@@ -180,11 +168,9 @@ func Test_newUpgrade(t *testing.T) {
 		UseHelm3Defaults = false
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "upgrade",
-				Namespace: "upgrade-ns",
-			},
-			Spec: v2.HelmReleaseSpec{},
+			Name:      "upgrade",
+			Namespace: "upgrade-ns",
+			Spec:      v2.HelmReleaseSpec{},
 		}
 
 		got := newUpgrade(&helmaction.Configuration{}, obj, nil)
@@ -201,11 +187,9 @@ func Test_newUpgrade(t *testing.T) {
 		UseHelm3Defaults = true
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "upgrade",
-				Namespace: "upgrade-ns",
-			},
-			Spec: v2.HelmReleaseSpec{},
+			Name:      "upgrade",
+			Namespace: "upgrade-ns",
+			Spec:      v2.HelmReleaseSpec{},
 		}
 
 		got := newUpgrade(&helmaction.Configuration{}, obj, nil)
@@ -217,10 +201,8 @@ func Test_newUpgrade(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "upgrade",
-				Namespace: "upgrade-ns",
-			},
+			Name:      "upgrade",
+			Namespace: "upgrade-ns",
 			Spec: v2.HelmReleaseSpec{
 				PostRenderStrategy: v2.PostRenderStrategyCombined,
 			},
@@ -235,10 +217,8 @@ func Test_newUpgrade(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "upgrade",
-				Namespace: "upgrade-ns",
-			},
+			Name:      "upgrade",
+			Namespace: "upgrade-ns",
 			Spec: v2.HelmReleaseSpec{
 				PostRenderStrategy: v2.PostRenderStrategySeparate,
 			},
@@ -253,10 +233,8 @@ func Test_newUpgrade(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "upgrade",
-				Namespace: "upgrade-ns",
-			},
+			Name:      "upgrade",
+			Namespace: "upgrade-ns",
 			Spec: v2.HelmReleaseSpec{
 				PostRenderStrategy: v2.PostRenderStrategyNoHooks,
 			},
