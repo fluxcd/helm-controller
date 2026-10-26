@@ -48,7 +48,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-tools=(docker kind kubectl kustomize openssl)
+tools=(docker kind kubectl kustomize openssl helm)
 for bin in "${tools[@]}"; do
     command -v "${bin}" >/dev/null 2>&1 || fail "required tool '${bin}' not found"
 done
@@ -371,8 +371,9 @@ spec:
               readOnly: true
       volumes:
         - name: spiffe-workload-api
-          hostPath:
-            path: /run/spire/agent-sockets
+          csi:
+            driver: csi.spiffe.io
+            readOnly: true
 EOF
 )" >/dev/null
 kubectl -n "${NS}" rollout status "deploy/${CONTROLLER}" --timeout=2m
