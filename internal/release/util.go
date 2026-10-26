@@ -17,6 +17,8 @@ limitations under the License.
 package release
 
 import (
+	"slices"
+
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 )
 
@@ -35,10 +37,8 @@ func GetTestHooks(rls *helmrelease.Release) map[string]*helmrelease.Hook {
 // IsHookForEvent returns if the given hook fires on the provided event.
 func IsHookForEvent(hook *helmrelease.Hook, event helmrelease.HookEvent) bool {
 	if hook != nil {
-		for _, e := range hook.Events {
-			if e == event {
-				return true
-			}
+		if slices.Contains(hook.Events, event) {
+			return true
 		}
 	}
 	return false

@@ -34,7 +34,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -140,10 +139,8 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 		releaseNamespace := namedNS.Name
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      mockReleaseName,
-				Namespace: releaseNamespace,
-			},
+			Name:      mockReleaseName,
+			Namespace: releaseNamespace,
 			Spec: v2.HelmReleaseSpec{
 				ReleaseName:     mockReleaseName,
 				TargetNamespace: releaseNamespace,
@@ -621,7 +618,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.Install = &v2.Install{
 					Remediation: &v2.InstallRemediation{
-						RemediateLastFailure: ptr.To(true),
+						RemediateLastFailure: new(true),
 					},
 				}
 				spec.Uninstall = &v2.Uninstall{
@@ -662,7 +659,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.Install = &v2.Install{
 					Remediation: &v2.InstallRemediation{
-						RemediateLastFailure: ptr.To(true),
+						RemediateLastFailure: new(true),
 					},
 				}
 				spec.Test = &v2.Test{
@@ -795,7 +792,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.Upgrade = &v2.Upgrade{
 					Remediation: &v2.UpgradeRemediation{
-						RemediateLastFailure: ptr.To(true),
+						RemediateLastFailure: new(true),
 					},
 				}
 			},
@@ -834,7 +831,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 				spec.Upgrade = &v2.Upgrade{
 					Remediation: &v2.UpgradeRemediation{
 						Strategy:             &strategy,
-						RemediateLastFailure: ptr.To(true),
+						RemediateLastFailure: new(true),
 					},
 				}
 				spec.Uninstall = &v2.Uninstall{
@@ -910,7 +907,7 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			spec: func(spec *v2.HelmReleaseSpec) {
 				spec.Upgrade = &v2.Upgrade{
 					Remediation: &v2.UpgradeRemediation{
-						RemediateLastFailure: ptr.To(true),
+						RemediateLastFailure: new(true),
 					},
 				}
 				spec.Test = &v2.Test{
@@ -1183,10 +1180,8 @@ func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {
 			}
 
 			obj := &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      mockReleaseName,
-					Namespace: releaseNamespace,
-				},
+				Name:      mockReleaseName,
+				Namespace: releaseNamespace,
 				Spec: v2.HelmReleaseSpec{
 					ReleaseName:      mockReleaseName,
 					TargetNamespace:  releaseNamespace,
@@ -1411,13 +1406,11 @@ func TestAtomicRelease_Reconcile_PostRenderers_Scenarios(t *testing.T) {
 			releases := tt.releases(releaseNamespace)
 
 			obj := &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      mockReleaseName,
-					Namespace: releaseNamespace,
-					// Set a higher generation value to allow setting
-					// observations in previous generations.
-					Generation: 2,
-				},
+				Name:      mockReleaseName,
+				Namespace: releaseNamespace,
+				// Set a higher generation value to allow setting
+				// observations in previous generations.
+				Generation: 2,
 				Spec: v2.HelmReleaseSpec{
 					ReleaseName:      mockReleaseName,
 					TargetNamespace:  releaseNamespace,
@@ -1503,13 +1496,11 @@ func TestAtomicRelease_Reconcile_PostRenderers_UpgradeFailureWithoutRelease(t *t
 
 	previousDigest := postrender.Digest(digest.Canonical, postRenderers).String()
 	obj := &v2.HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      mockReleaseName,
-			Namespace: releaseNamespace,
-			// A higher generation to allow observing a new post-renderers
-			// configuration.
-			Generation: 2,
-		},
+		Name:      mockReleaseName,
+		Namespace: releaseNamespace,
+		// A higher generation to allow observing a new post-renderers
+		// configuration.
+		Generation: 2,
 		Spec: v2.HelmReleaseSpec{
 			ReleaseName:      mockReleaseName,
 			TargetNamespace:  releaseNamespace,
@@ -1610,11 +1601,9 @@ func TestAtomicRelease_Reconcile_PostRenderers_RetriesExhaustedAfterRollback(t *
 
 	previousDigest := postrender.Digest(digest.Canonical, postRenderers).String()
 	obj := &v2.HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       mockReleaseName,
-			Namespace:  releaseNamespace,
-			Generation: 2,
-		},
+		Name:       mockReleaseName,
+		Namespace:  releaseNamespace,
+		Generation: 2,
 		Spec: v2.HelmReleaseSpec{
 			ReleaseName:      mockReleaseName,
 			TargetNamespace:  releaseNamespace,
@@ -2328,9 +2317,7 @@ func TestAtomicRelease_actionForState(t *testing.T) {
 			g := NewWithT(t)
 
 			obj := &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: tt.annotations,
-				},
+				Annotations: tt.annotations,
 				Spec: v2.HelmReleaseSpec{
 					ReleaseName:      mockReleaseName,
 					TargetNamespace:  mockReleaseNamespace,
@@ -2660,13 +2647,11 @@ func TestAtomicRelease_Reconcile_CommonMetadata_Scenarios(t *testing.T) {
 			releases := tt.releases(releaseNamespace)
 
 			obj := &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      mockReleaseName,
-					Namespace: releaseNamespace,
-					// Set a higher generation value to allow setting
-					// observations in previous generations.
-					Generation: 2,
-				},
+				Name:      mockReleaseName,
+				Namespace: releaseNamespace,
+				// Set a higher generation value to allow setting
+				// observations in previous generations.
+				Generation: 2,
 				Spec: v2.HelmReleaseSpec{
 					ReleaseName:      mockReleaseName,
 					TargetNamespace:  releaseNamespace,

@@ -32,10 +32,8 @@ func Test_newTest(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test",
-				Namespace: "test-ns",
-			},
+			Name:      "test",
+			Namespace: "test-ns",
 			Spec: v2.HelmReleaseSpec{
 				Timeout: &metav1.Duration{Duration: time.Minute},
 				Test: &v2.Test{
@@ -66,10 +64,8 @@ func Test_newTest(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test",
-				Namespace: "test-ns",
-			},
+			Name:      "test",
+			Namespace: "test-ns",
 			Spec: v2.HelmReleaseSpec{
 				Timeout: &metav1.Duration{Duration: time.Minute},
 			},
@@ -85,11 +81,9 @@ func Test_newTest(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test",
-				Namespace: "test-ns",
-			},
-			Spec: v2.HelmReleaseSpec{},
+			Name:      "test",
+			Namespace: "test-ns",
+			Spec:      v2.HelmReleaseSpec{},
 		}
 
 		got := newTest(&helmaction.Configuration{}, obj, []TestOption{

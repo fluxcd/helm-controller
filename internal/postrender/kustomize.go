@@ -39,10 +39,10 @@ type Kustomize struct {
 
 func (k *Kustomize) Run(renderedManifests *bytes.Buffer) (modifiedManifests *bytes.Buffer, err error) {
 	fs := filesys.MakeFsInMemory()
-	cfg := kustypes.Kustomization{}
-	cfg.APIVersion = kustypes.KustomizationVersion
-	cfg.Kind = kustypes.KustomizationKind
-	cfg.Images = adaptImages(k.Images)
+	cfg := kustypes.Kustomization{
+		APIVersion: kustypes.KustomizationVersion,
+		Kind:       kustypes.KustomizationKind,
+		Images:     adaptImages(k.Images)}
 
 	// Add rendered Helm output as input resource to the Kustomization.
 	const input = "helm-output.yaml"

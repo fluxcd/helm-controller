@@ -19,19 +19,15 @@ package v2beta2
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/fluxcd/pkg/apis/meta"
 )
 
 func TestShouldHandleResetRequest(t *testing.T) {
 	t.Run("should handle reset request", func(t *testing.T) {
 		obj := &HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					meta.ReconcileRequestAnnotation: "b",
-					ResetRequestAnnotation:          "b",
-				},
+			Annotations: map[string]string{
+				meta.ReconcileRequestAnnotation: "b",
+				ResetRequestAnnotation:          "b",
 			},
 			Status: HelmReleaseStatus{
 				LastHandledResetAt: "a",
@@ -54,11 +50,9 @@ func TestShouldHandleResetRequest(t *testing.T) {
 func TestShouldHandleForceRequest(t *testing.T) {
 	t.Run("should handle force request", func(t *testing.T) {
 		obj := &HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					meta.ReconcileRequestAnnotation: "b",
-					ForceRequestAnnotation:          "b",
-				},
+			Annotations: map[string]string{
+				meta.ReconcileRequestAnnotation: "b",
+				ForceRequestAnnotation:          "b",
 			},
 			Status: HelmReleaseStatus{
 				LastHandledForceAt: "a",
@@ -141,9 +135,7 @@ func Test_handleRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			obj := &HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: tt.annotations,
-				},
+				Annotations: tt.annotations,
 				Status: HelmReleaseStatus{
 					ReconcileRequestStatus: meta.ReconcileRequestStatus{
 						LastHandledReconcileAt: tt.lastHandledReconcile,

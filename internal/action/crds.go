@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"maps"
 	"time"
 
 	helmaction "helm.sh/helm/v4/pkg/action"
@@ -346,11 +347,7 @@ func resourceString(info *resource.Info) string {
 
 func mergeStrStrMaps(current, desired map[string]string) map[string]string {
 	result := make(map[string]string)
-	for k, v := range current {
-		result[k] = v
-	}
-	for k, desiredVal := range desired {
-		result[k] = desiredVal
-	}
+	maps.Copy(result, current)
+	maps.Copy(result, desired)
 	return result
 }

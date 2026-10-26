@@ -18,6 +18,7 @@ package reconcile
 
 import (
 	"context"
+	"slices"
 
 	helmchartutil "helm.sh/helm/v4/pkg/chart/common"
 	helmchart "helm.sh/helm/v4/pkg/chart/v2"
@@ -54,12 +55,7 @@ type ReconcilerTypeSet []ReconcilerType
 
 // Contains returns true if the set contains the given type.
 func (s ReconcilerTypeSet) Contains(t ReconcilerType) bool {
-	for _, r := range s {
-		if r == t {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, t)
 }
 
 // Count returns the number of elements matching the given type.

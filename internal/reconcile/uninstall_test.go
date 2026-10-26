@@ -616,12 +616,10 @@ func TestUninstall_failure(t *testing.T) {
 				Reason:  v2.UninstallFailedReason,
 				Action:  v2.ActionHelmUninstall.String(),
 				Message: expectMsg,
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						eventMetaGroupKey(eventv1.MetaRevisionKey): cur.Chart.Metadata.Version,
-						eventMetaGroupKey(metaAppVersionKey):       cur.Chart.Metadata.AppVersion,
-						eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, cur.Config).String(),
-					},
+				Annotations: map[string]string{
+					eventMetaGroupKey(eventv1.MetaRevisionKey): cur.Chart.Metadata.Version,
+					eventMetaGroupKey(metaAppVersionKey):       cur.Chart.Metadata.AppVersion,
+					eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, cur.Config).String(),
 				},
 			},
 		}))
@@ -686,12 +684,10 @@ func TestUninstall_success(t *testing.T) {
 			Reason:  v2.UninstallSucceededReason,
 			Action:  v2.ActionHelmUninstall.String(),
 			Message: expectMsg,
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					eventMetaGroupKey(eventv1.MetaRevisionKey): cur.Chart.Metadata.Version,
-					eventMetaGroupKey(metaAppVersionKey):       cur.Chart.Metadata.AppVersion,
-					eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, cur.Config).String(),
-				},
+			Annotations: map[string]string{
+				eventMetaGroupKey(eventv1.MetaRevisionKey): cur.Chart.Metadata.Version,
+				eventMetaGroupKey(metaAppVersionKey):       cur.Chart.Metadata.AppVersion,
+				eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, cur.Config).String(),
 			},
 		},
 	}))

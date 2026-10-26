@@ -31,7 +31,6 @@ import (
 	helmaction "helm.sh/helm/v4/pkg/action"
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	apierrutil "k8s.io/apimachinery/pkg/util/errors"
@@ -923,9 +922,7 @@ func newTestCluster(t *testing.T) (*rest.Config, func() error) {
 // returns the namespace object.
 func generateNamespace(ctx context.Context, c client.Client, generateName string) (*corev1.Namespace, error) {
 	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", generateName),
-		},
+		GenerateName: fmt.Sprintf("%s-", generateName),
 	}
 	if err := c.Create(ctx, ns); err != nil {
 		return nil, err

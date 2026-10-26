@@ -33,10 +33,8 @@ func Test_newUninstall(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "uninstall",
-				Namespace: "uninstall-ns",
-			},
+			Name:      "uninstall",
+			Namespace: "uninstall-ns",
 			Spec: v2.HelmReleaseSpec{
 				Timeout: &metav1.Duration{Duration: time.Minute},
 				Uninstall: &v2.Uninstall{
@@ -56,10 +54,8 @@ func Test_newUninstall(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "uninstall",
-				Namespace: "uninstall-ns",
-			},
+			Name:      "uninstall",
+			Namespace: "uninstall-ns",
 			Spec: v2.HelmReleaseSpec{
 				Timeout: &metav1.Duration{Duration: time.Minute},
 			},
@@ -74,11 +70,9 @@ func Test_newUninstall(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "uninstall",
-				Namespace: "uninstall-ns",
-			},
-			Spec: v2.HelmReleaseSpec{},
+			Name:      "uninstall",
+			Namespace: "uninstall-ns",
+			Spec:      v2.HelmReleaseSpec{},
 		}
 
 		got := newUninstall(&helmaction.Configuration{}, obj, []UninstallOption{
