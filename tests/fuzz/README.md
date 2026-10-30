@@ -76,7 +76,7 @@ For latest info on testing oss-fuzz locally, refer to the [upstream guide].
 
 [oss fuzz]: https://github.com/google/oss-fuzz
 [oss-fuzz repository]: https://github.com/google/oss-fuzz/tree/master/projects/fluxcd
-[github workflow]: .github/workflows/cifuzz.yaml
+[github workflow]: ../../.github/workflows/cifuzz.yaml
 [upstream guide]: https://google.github.io/oss-fuzz/getting-started/new-project-guide/#testing-locally
 [go-118-fuzz-build]: https://github.com/AdamKorcz/go-118-fuzz-build/blob/b2031950a318d4f2dcf3ec3e128f904d5cf84623/main.go#L40
 [compile_native_go_fuzzer]: https://github.com/google/oss-fuzz/blob/c2d827cb78529fdc757c9b0b4fea0f1238a54814/infra/base-images/base-builder/compile_native_go_fuzzer#L32
