@@ -52,7 +52,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/pprof"
 	"github.com/fluxcd/pkg/runtime/probes"
 	fluxspiffe "github.com/fluxcd/pkg/spiffe"
-	fluxbroker "github.com/fluxcd/pkg/spiffe/broker"
+	fluxbroker "github.com/fluxcd/pkg/spiffe/brokerapi"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
 	// +kubebuilder:scaffold:imports
