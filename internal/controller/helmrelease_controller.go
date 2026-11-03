@@ -62,7 +62,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/logger"
 	"github.com/fluxcd/pkg/runtime/object"
 	"github.com/fluxcd/pkg/runtime/patch"
-	fluxbroker "github.com/fluxcd/pkg/spiffe/broker"
+	fluxbroker "github.com/fluxcd/pkg/spiffe/brokerapi"
 	"github.com/fluxcd/pkg/ssa"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -740,7 +740,7 @@ func (r *HelmReleaseReconciler) buildRESTClientGetter(ctx context.Context, obj *
 		}
 		authOpts := []auth.Option{
 			auth.WithObject(v2.GroupVersion.Group, v2.HelmReleaseKind, obj),
-			auth.WithSPIFFEBroker(r.SPIFFEBroker),
+			auth.WithSPIFFEBrokerAPI(r.SPIFFEBroker),
 		}
 		if r.TokenCache != nil {
 			authOpts = append(authOpts,
