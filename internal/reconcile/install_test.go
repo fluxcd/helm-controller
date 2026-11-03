@@ -485,20 +485,16 @@ func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
 
 			// Assert main chart configmap is present.
 			mainChartCM := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "cm-main-chart",
-					Namespace: releaseNamespace,
-				},
+				Name:      "cm-main-chart",
+				Namespace: releaseNamespace,
 			}
 			err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(mainChartCM), mainChartCM)
 			g.Expect(err).NotTo(HaveOccurred())
 
 			// Assert subchart configmap is absent or present.
 			subChartCM := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "cm-sub-chart",
-					Namespace: releaseNamespace,
-				},
+				Name:      "cm-sub-chart",
+				Namespace: releaseNamespace,
 			}
 			err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(subChartCM), subChartCM)
 			if tt.subchartResourcesPresent {
@@ -509,9 +505,7 @@ func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
 
 			// Assert subchart CRD is absent or present.
 			subChartCRD := &apiextensionsv1.CustomResourceDefinition{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "crontabs.stable.example.com",
-				},
+				Name: "crontabs.stable.example.com",
 			}
 			err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(subChartCRD), subChartCRD)
 			if tt.subchartResourcesPresent {
@@ -529,14 +523,10 @@ func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
 func TestInstall_failure(t *testing.T) {
 	var (
 		obj = &v2.HelmRelease{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       v2.HelmReleaseKind,
-				APIVersion: v2.GroupVersion.String(),
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      mockReleaseName,
-				Namespace: mockReleaseNamespace,
-			},
+			Kind:       v2.HelmReleaseKind,
+			APIVersion: v2.GroupVersion.String(),
+			Name:       mockReleaseName,
+			Namespace:  mockReleaseNamespace,
 			Spec: v2.HelmReleaseSpec{
 				ReleaseName:     mockReleaseName,
 				TargetNamespace: mockReleaseNamespace,
@@ -546,14 +536,10 @@ func TestInstall_failure(t *testing.T) {
 			},
 		}
 		source = &sourcev1.GitRepository{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       sourcev1.GitRepositoryKind,
-				APIVersion: sourcev1.GroupVersion.String(),
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-source",
-				Namespace: mockReleaseNamespace,
-			},
+			Kind:       sourcev1.GitRepositoryKind,
+			APIVersion: sourcev1.GroupVersion.String(),
+			Name:       "test-source",
+			Namespace:  mockReleaseNamespace,
 		}
 		chrt = testutil.BuildChart()
 		err  = errors.New("installation error")
@@ -600,13 +586,11 @@ func TestInstall_failure(t *testing.T) {
 					Name:       "test-source",
 					Namespace:  mockReleaseNamespace,
 				},
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						eventMetaGroupKey(metaOCIDigestKey):        obj.Status.LastAttemptedRevisionDigest,
-						eventMetaGroupKey(eventv1.MetaRevisionKey): chrt.Metadata.Version,
-						eventMetaGroupKey(metaAppVersionKey):       chrt.Metadata.AppVersion,
-						eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
-					},
+				Annotations: map[string]string{
+					eventMetaGroupKey(metaOCIDigestKey):        obj.Status.LastAttemptedRevisionDigest,
+					eventMetaGroupKey(eventv1.MetaRevisionKey): chrt.Metadata.Version,
+					eventMetaGroupKey(metaAppVersionKey):       chrt.Metadata.AppVersion,
+					eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
 				},
 			},
 		}))
@@ -640,14 +624,10 @@ func TestInstall_success(t *testing.T) {
 			Chart:     testutil.BuildChart(),
 		})
 		obj = &v2.HelmRelease{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       v2.HelmReleaseKind,
-				APIVersion: v2.GroupVersion.String(),
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      mockReleaseName,
-				Namespace: mockReleaseNamespace,
-			},
+			Kind:       v2.HelmReleaseKind,
+			APIVersion: v2.GroupVersion.String(),
+			Name:       mockReleaseName,
+			Namespace:  mockReleaseNamespace,
 			Status: v2.HelmReleaseStatus{
 				History: v2.Snapshots{
 					release.ObservedToSnapshot(release.ObserveRelease(cur)),
@@ -655,14 +635,10 @@ func TestInstall_success(t *testing.T) {
 			},
 		}
 		source = &sourcev1.GitRepository{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       sourcev1.GitRepositoryKind,
-				APIVersion: sourcev1.GroupVersion.String(),
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-source",
-				Namespace: mockReleaseNamespace,
-			},
+			Kind:       sourcev1.GitRepositoryKind,
+			APIVersion: sourcev1.GroupVersion.String(),
+			Name:       "test-source",
+			Namespace:  mockReleaseNamespace,
 		}
 	)
 
@@ -705,12 +681,10 @@ func TestInstall_success(t *testing.T) {
 					Name:       "test-source",
 					Namespace:  mockReleaseNamespace,
 				},
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.Status.History.Latest().ChartVersion,
-						eventMetaGroupKey(metaAppVersionKey):       obj.Status.History.Latest().AppVersion,
-						eventMetaGroupKey(eventv1.MetaTokenKey):    obj.Status.History.Latest().ConfigDigest,
-					},
+				Annotations: map[string]string{
+					eventMetaGroupKey(eventv1.MetaRevisionKey): obj.Status.History.Latest().ChartVersion,
+					eventMetaGroupKey(metaAppVersionKey):       obj.Status.History.Latest().AppVersion,
+					eventMetaGroupKey(eventv1.MetaTokenKey):    obj.Status.History.Latest().ConfigDigest,
 				},
 			},
 		}))

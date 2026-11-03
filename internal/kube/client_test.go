@@ -192,7 +192,7 @@ func TestMemoryRESTClientGetter_ToRESTConfig(t *testing.T) {
 		})
 
 		// Call ToRESTConfig multiple times.
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			_, err := c.ToRESTConfig()
 			g.Expect(err).ToNot(HaveOccurred())
 		}

@@ -18,6 +18,7 @@ package diff
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	extjsondiff "github.com/wI2L/jsondiff"
@@ -167,10 +168,5 @@ func summarizeUpdate(diff *jsondiff.Diff) (added, changed, removed int) {
 
 // typeInSlice returns true if the given jsondiff.DiffType is in the slice.
 func typeInSlice(t jsondiff.DiffType, slice []jsondiff.DiffType) bool {
-	for _, s := range slice {
-		if t == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, t)
 }

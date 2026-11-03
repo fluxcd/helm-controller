@@ -217,17 +217,15 @@ func StartController() error {
 
 func createNamespace(name string) error {
 	namespace := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Name: name,
 	}
 	return k8sClient.Create(context.Background(), namespace)
 }
 
 func createKubeConfigSecret(namespace string) error {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kubeconfig",
-			Namespace: namespace,
-		},
+		Name:      "kubeconfig",
+		Namespace: namespace,
 		Data: map[string][]byte{
 			"value.yaml": kubeConfig,
 		},
@@ -237,14 +235,10 @@ func createKubeConfigSecret(namespace string) error {
 
 func applyHelmChart(objKey client.ObjectKey, artifact *meta.Artifact) error {
 	chart := &sourcev1.HelmChart{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       sourcev1.HelmChartKind,
-			APIVersion: sourcev1.GroupVersion.String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      objKey.Name,
-			Namespace: objKey.Namespace,
-		},
+		Kind:       sourcev1.HelmChartKind,
+		APIVersion: sourcev1.GroupVersion.String(),
+		Name:       objKey.Name,
+		Namespace:  objKey.Namespace,
 		Spec: sourcev1.HelmChartSpec{
 			Interval: metav1.Duration{Duration: time.Minute},
 			Chart:    "test-chart",
@@ -281,9 +275,7 @@ func applyHelmChart(objKey client.ObjectKey, artifact *meta.Artifact) error {
 	chart.Status = status
 
 	statusOpts := &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: "source-controller",
-		},
+		FieldManager: "source-controller",
 	}
 
 	if err := k8sClient.Status().Patch(context.Background(), chart, client.Apply, statusOpts); err != nil {

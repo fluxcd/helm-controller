@@ -22,7 +22,6 @@ import (
 
 	"helm.sh/helm/v4/pkg/registry"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -225,10 +224,8 @@ func (r *HelmChartTemplate) reconcileDelete(ctx context.Context, obj *v2.HelmRel
 func buildHelmChartFromTemplate(obj *v2.HelmRelease, ref *v2.HelmChartReference) *sourcev1.HelmChart {
 	template := obj.Spec.Chart.DeepCopy()
 	result := &sourcev1.HelmChart{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ref.Name,
-			Namespace: ref.Namespace,
-		},
+		Name:      ref.Name,
+		Namespace: ref.Namespace,
 		Spec: sourcev1.HelmChartSpec{
 			Chart:                    template.Spec.Chart,
 			Version:                  template.Spec.GetVersion(),
@@ -271,11 +268,9 @@ func buildOCIRepositoryFromTemplate(obj *v2.HelmRelease, ref *v2.HelmChartRefere
 		}
 	}
 	result := &sourcev1.OCIRepository{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ref.Name,
-			Namespace: ref.Namespace,
-		},
-		Spec: *spec,
+		Name:      ref.Name,
+		Namespace: ref.Namespace,
+		Spec:      *spec,
 	}
 	if metaTpl := obj.Spec.Chart.ObjectMeta; metaTpl != nil {
 		result.SetAnnotations(metaTpl.Annotations)

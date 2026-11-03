@@ -33,10 +33,8 @@ func Test_newInstall(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install",
-				Namespace: "install-ns",
-			},
+			Name:      "install",
+			Namespace: "install-ns",
 			Spec: v2.HelmReleaseSpec{
 				Timeout: &metav1.Duration{Duration: time.Minute},
 				Install: &v2.Install{
@@ -57,10 +55,8 @@ func Test_newInstall(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install",
-				Namespace: "install-ns",
-			},
+			Name:      "install",
+			Namespace: "install-ns",
 			Spec: v2.HelmReleaseSpec{
 				Timeout: &metav1.Duration{Duration: time.Minute},
 			},
@@ -76,11 +72,9 @@ func Test_newInstall(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install",
-				Namespace: "install-ns",
-			},
-			Spec: v2.HelmReleaseSpec{},
+			Name:      "install",
+			Namespace: "install-ns",
+			Spec:      v2.HelmReleaseSpec{},
 		}
 
 		got := newInstall(&helmaction.Configuration{}, obj, []InstallOption{
@@ -100,10 +94,8 @@ func Test_newInstall(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install",
-				Namespace: "install-ns",
-			},
+			Name:      "install",
+			Namespace: "install-ns",
 			Spec: v2.HelmReleaseSpec{
 				Install: &v2.Install{
 					DisableTakeOwnership: true,
@@ -125,11 +117,9 @@ func Test_newInstall(t *testing.T) {
 		UseHelm3Defaults = false
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install",
-				Namespace: "install-ns",
-			},
-			Spec: v2.HelmReleaseSpec{},
+			Name:      "install",
+			Namespace: "install-ns",
+			Spec:      v2.HelmReleaseSpec{},
 		}
 
 		got := newInstall(&helmaction.Configuration{}, obj, nil)
@@ -146,11 +136,9 @@ func Test_newInstall(t *testing.T) {
 		UseHelm3Defaults = true
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install",
-				Namespace: "install-ns",
-			},
-			Spec: v2.HelmReleaseSpec{},
+			Name:      "install",
+			Namespace: "install-ns",
+			Spec:      v2.HelmReleaseSpec{},
 		}
 
 		got := newInstall(&helmaction.Configuration{}, obj, nil)
@@ -168,10 +156,8 @@ func Test_newInstall(t *testing.T) {
 
 		ssa := true
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install",
-				Namespace: "install-ns",
-			},
+			Name:      "install",
+			Namespace: "install-ns",
 			Spec: v2.HelmReleaseSpec{
 				Install: &v2.Install{
 					ServerSideApply: &ssa,
@@ -194,10 +180,8 @@ func Test_newInstall(t *testing.T) {
 
 		ssa := false
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install",
-				Namespace: "install-ns",
-			},
+			Name:      "install",
+			Namespace: "install-ns",
 			Spec: v2.HelmReleaseSpec{
 				Install: &v2.Install{
 					ServerSideApply: &ssa,
@@ -219,11 +203,9 @@ func Test_newInstall(t *testing.T) {
 		UseHelm3Defaults = false
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install",
-				Namespace: "install-ns",
-			},
-			Spec: v2.HelmReleaseSpec{},
+			Name:      "install",
+			Namespace: "install-ns",
+			Spec:      v2.HelmReleaseSpec{},
 		}
 
 		got := newInstall(&helmaction.Configuration{}, obj, nil)
@@ -240,11 +222,9 @@ func Test_newInstall(t *testing.T) {
 		UseHelm3Defaults = true
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install",
-				Namespace: "install-ns",
-			},
-			Spec: v2.HelmReleaseSpec{},
+			Name:      "install",
+			Namespace: "install-ns",
+			Spec:      v2.HelmReleaseSpec{},
 		}
 
 		got := newInstall(&helmaction.Configuration{}, obj, nil)
@@ -256,10 +236,8 @@ func Test_newInstall(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install",
-				Namespace: "install-ns",
-			},
+			Name:      "install",
+			Namespace: "install-ns",
 			Spec: v2.HelmReleaseSpec{
 				PostRenderStrategy: v2.PostRenderStrategyCombined,
 			},
@@ -274,10 +252,8 @@ func Test_newInstall(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install",
-				Namespace: "install-ns",
-			},
+			Name:      "install",
+			Namespace: "install-ns",
 			Spec: v2.HelmReleaseSpec{
 				PostRenderStrategy: v2.PostRenderStrategySeparate,
 			},
@@ -292,10 +268,8 @@ func Test_newInstall(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "install",
-				Namespace: "install-ns",
-			},
+			Name:      "install",
+			Namespace: "install-ns",
 			Spec: v2.HelmReleaseSpec{
 				PostRenderStrategy: v2.PostRenderStrategyNoHooks,
 			},

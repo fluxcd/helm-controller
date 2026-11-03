@@ -801,14 +801,10 @@ func sourceRefObject(obj *v2.HelmRelease) runtime.Object {
 		namespace = obj.GetNamespace()
 	}
 	return &metav1.PartialObjectMetadata{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       kind,
-			APIVersion: apiVersion,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ref.Name,
-			Namespace: namespace,
-		},
+		Kind:       kind,
+		APIVersion: apiVersion,
+		Name:       ref.Name,
+		Namespace:  namespace,
 	}
 }
 

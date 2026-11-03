@@ -649,9 +649,7 @@ func TestUpgrade_Reconcile_withSubchartWithCRDs(t *testing.T) {
 			// deletion is asynchronous and the upgrade must not observe a
 			// terminating CRD (the Create policy skips existing CRDs).
 			subChartCRD := &apiextensionsv1.CustomResourceDefinition{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "crontabs.stable.example.com",
-				},
+				Name: "crontabs.stable.example.com",
 			}
 			_ = testEnv.Delete(context.TODO(), subChartCRD)
 			g.Eventually(func() bool {
@@ -676,20 +674,16 @@ func TestUpgrade_Reconcile_withSubchartWithCRDs(t *testing.T) {
 
 			// Assert main chart configmap is present.
 			mainChartCM := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "cm-main-chart",
-					Namespace: releaseNamespace,
-				},
+				Name:      "cm-main-chart",
+				Namespace: releaseNamespace,
 			}
 			err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(mainChartCM), mainChartCM)
 			g.Expect(err).NotTo(HaveOccurred())
 
 			// Assert subchart configmap is absent or present.
 			subChartCM := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "cm-sub-chart",
-					Namespace: releaseNamespace,
-				},
+				Name:      "cm-sub-chart",
+				Namespace: releaseNamespace,
 			}
 			err = testEnv.Get(context.TODO(), client.ObjectKeyFromObject(subChartCM), subChartCM)
 			if tt.subchartResourcesPresent {
@@ -751,13 +745,11 @@ func TestUpgrade_failure(t *testing.T) {
 				Reason:  v2.UpgradeFailedReason,
 				Action:  v2.ActionHelmUpgrade.String(),
 				Message: expectMsg,
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						eventMetaGroupKey(metaOCIDigestKey):        obj.Status.LastAttemptedRevisionDigest,
-						eventMetaGroupKey(eventv1.MetaRevisionKey): chrt.Metadata.Version,
-						eventMetaGroupKey(metaAppVersionKey):       chrt.Metadata.AppVersion,
-						eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
-					},
+				Annotations: map[string]string{
+					eventMetaGroupKey(metaOCIDigestKey):        obj.Status.LastAttemptedRevisionDigest,
+					eventMetaGroupKey(eventv1.MetaRevisionKey): chrt.Metadata.Version,
+					eventMetaGroupKey(metaAppVersionKey):       chrt.Metadata.AppVersion,
+					eventMetaGroupKey(eventv1.MetaTokenKey):    chartutil.DigestValues(digest.Canonical, req.Values).String(),
 				},
 			},
 		}))
@@ -825,12 +817,10 @@ func TestUpgrade_success(t *testing.T) {
 				Reason:  v2.UpgradeSucceededReason,
 				Action:  v2.ActionHelmUpgrade.String(),
 				Message: expectMsg,
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						eventMetaGroupKey(eventv1.MetaRevisionKey): obj.Status.History.Latest().ChartVersion,
-						eventMetaGroupKey(metaAppVersionKey):       obj.Status.History.Latest().AppVersion,
-						eventMetaGroupKey(eventv1.MetaTokenKey):    obj.Status.History.Latest().ConfigDigest,
-					},
+				Annotations: map[string]string{
+					eventMetaGroupKey(eventv1.MetaRevisionKey): obj.Status.History.Latest().ChartVersion,
+					eventMetaGroupKey(metaAppVersionKey):       obj.Status.History.Latest().AppVersion,
+					eventMetaGroupKey(eventv1.MetaTokenKey):    obj.Status.History.Latest().ConfigDigest,
 				},
 			},
 		}))

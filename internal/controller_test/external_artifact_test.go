@@ -42,9 +42,7 @@ func TestExternalArtifact_LifeCycle(t *testing.T) {
 
 	// Create a namespace for the test
 	ns := v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "external-artifact-test",
-		},
+		Name: "external-artifact-test",
 	}
 	err := k8sClient.Create(context.Background(), &ns)
 	g.Expect(err).ToNot(HaveOccurred())
@@ -60,14 +58,10 @@ func TestExternalArtifact_LifeCycle(t *testing.T) {
 
 	// Create a HelmRelease that references the ExternalArtifact
 	hr := &v2.HelmRelease{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: v2.GroupVersion.String(),
-			Kind:       v2.HelmReleaseKind,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: ns.Name,
-		},
+		APIVersion: v2.GroupVersion.String(),
+		Kind:       v2.HelmReleaseKind,
+		Name:       "test",
+		Namespace:  ns.Name,
 		Spec: v2.HelmReleaseSpec{
 			ChartRef: &v2.CrossNamespaceSourceReference{
 				Kind: sourcev1.ExternalArtifactKind,
@@ -190,14 +184,10 @@ func applyExternalArtifact(objKey client.ObjectKey, aVersion, aDigest string) (*
 	}
 
 	ea := &sourcev1.ExternalArtifact{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: sourcev1.GroupVersion.String(),
-			Kind:       sourcev1.ExternalArtifactKind,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      objKey.Name,
-			Namespace: objKey.Namespace,
-		},
+		APIVersion: sourcev1.GroupVersion.String(),
+		Kind:       sourcev1.ExternalArtifactKind,
+		Name:       objKey.Name,
+		Namespace:  objKey.Namespace,
 	}
 
 	patchOpts := []client.PatchOption{
@@ -228,9 +218,7 @@ func applyExternalArtifact(objKey client.ObjectKey, aVersion, aDigest string) (*
 	}
 
 	statusOpts := &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: "source-controller",
-		},
+		FieldManager: "source-controller",
 	}
 
 	err = k8sClient.Status().Patch(context.Background(), ea, client.Apply, statusOpts)

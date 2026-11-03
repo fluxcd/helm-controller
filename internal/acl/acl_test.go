@@ -19,7 +19,6 @@ package acl
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
@@ -37,10 +36,8 @@ func TestAllowsAccessTo(t *testing.T) {
 			name:  "allow cross-namespace reference",
 			allow: true,
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "some-name",
-					Namespace: "some-namespace",
-				},
+				Name:      "some-name",
+				Namespace: "some-namespace",
 			},
 			ref: v2.HelmChartReference{
 				Kind:      "mock",
@@ -53,10 +50,8 @@ func TestAllowsAccessTo(t *testing.T) {
 			name:  "disallow cross-namespace reference",
 			allow: false,
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "some-name",
-					Namespace: "some-namespace",
-				},
+				Name:      "some-name",
+				Namespace: "some-namespace",
 			},
 			ref: v2.HelmChartReference{
 				Kind:      "mock",
@@ -69,10 +64,8 @@ func TestAllowsAccessTo(t *testing.T) {
 			name:  "allow same-namespace reference",
 			allow: false,
 			obj: &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "some-name",
-					Namespace: "some-namespace",
-				},
+				Name:      "some-name",
+				Namespace: "some-namespace",
 			},
 			ref: v2.HelmChartReference{
 				Kind:      "mock",

@@ -223,10 +223,8 @@ func TestHelmReleaseChartTemplateValidation(t *testing.T) {
 
 			chart := tt.chart
 			obj := &v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf("chart-template-%d", i),
-					Namespace: ns.Name,
-				},
+				Name:      fmt.Sprintf("chart-template-%d", i),
+				Namespace: ns.Name,
 				Spec: v2.HelmReleaseSpec{
 					Interval: metav1.Duration{Duration: time.Minute},
 					Chart:    &chart,

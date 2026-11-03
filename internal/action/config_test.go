@@ -31,7 +31,6 @@ import (
 	helmrelease "helm.sh/helm/v4/pkg/release"
 	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	cmdtest "k8s.io/kubectl/pkg/cmd/testing"
@@ -357,7 +356,7 @@ func TestConfigFactory_StreamHookOutput(t *testing.T) {
 			cfg := factory.Build(buffer)
 			g.Expect(cfg.HookOutputFunc).NotTo(BeNil())
 			g.Expect(cfg.KubeClient.IsReachable()).To(Succeed())
-			pods := &corev1.PodList{Items: []corev1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: "hook"}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "main"}}}}}}
+			pods := &corev1.PodList{Items: []corev1.Pod{{Name: "hook", Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "main"}}}}}}
 			err := cfg.KubeClient.OutputContainerLogsForPodList(pods, "ns", cfg.HookOutputFunc)
 			if interrupted {
 				g.Expect(err).To(HaveOccurred())

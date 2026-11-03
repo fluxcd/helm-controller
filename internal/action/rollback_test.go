@@ -32,10 +32,8 @@ func Test_newRollback(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "rollback",
-				Namespace: "rollback-ns",
-			},
+			Name:      "rollback",
+			Namespace: "rollback-ns",
 			Spec: v2.HelmReleaseSpec{
 				Timeout: &metav1.Duration{Duration: time.Minute},
 				Rollback: &v2.Rollback{
@@ -58,10 +56,8 @@ func Test_newRollback(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "rollback",
-				Namespace: "rollback-ns",
-			},
+			Name:      "rollback",
+			Namespace: "rollback-ns",
 		}
 
 		toVersion := 3
@@ -74,10 +70,8 @@ func Test_newRollback(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "rollback",
-				Namespace: "rollback-ns",
-			},
+			Name:      "rollback",
+			Namespace: "rollback-ns",
 			Spec: v2.HelmReleaseSpec{
 				Timeout: &metav1.Duration{Duration: time.Minute},
 			},
@@ -92,11 +86,9 @@ func Test_newRollback(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "rollback",
-				Namespace: "rollback-ns",
-			},
-			Spec: v2.HelmReleaseSpec{},
+			Name:      "rollback",
+			Namespace: "rollback-ns",
+			Spec:      v2.HelmReleaseSpec{},
 		}
 
 		got := newRollback(&helmaction.Configuration{}, obj, 0, []RollbackOption{
@@ -116,11 +108,9 @@ func Test_newRollback(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "rollback",
-				Namespace: "rollback-ns",
-			},
-			Spec: v2.HelmReleaseSpec{},
+			Name:      "rollback",
+			Namespace: "rollback-ns",
+			Spec:      v2.HelmReleaseSpec{},
 		}
 
 		// Save and restore UseHelm3Defaults
@@ -144,10 +134,8 @@ func Test_newRollback(t *testing.T) {
 		g := NewWithT(t)
 
 		obj := &v2.HelmRelease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "rollback",
-				Namespace: "rollback-ns",
-			},
+			Name:      "rollback",
+			Namespace: "rollback-ns",
 			Spec: v2.HelmReleaseSpec{
 				Rollback: &v2.Rollback{
 					ServerSideApply: v2.ServerSideApplyEnabled,
