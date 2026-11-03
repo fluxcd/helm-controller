@@ -82,7 +82,14 @@ func (r *Upgrade) Reconcile(ctx context.Context, req *Request) error {
 	conditions.Delete(req.Object, v2.RemediatedCondition)
 
 	// Run the Helm upgrade action.
-	_, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values)
+	rls, err := action.Upgrade(ctx, cfg, req.Object, req.Chart, req.Values)
+
+	// PROOF OF CONCEPT: record the digest of the manifest actually applied,
+	// for comparison against a live re-render on a later reconciliation.
+	// See https://github.com/fluxcd/helm-controller/issues/1583.
+	if err == nil {
+		req.Object.Status.ObservedTemplateDigest = digest.Canonical.FromString(rls.Manifest).String()
+	}
 
 	// Record the action duration in status.
 	req.Object.Status.LastAttemptedReleaseActionDuration = &metav1.Duration{Duration: time.Since(startTime)}
