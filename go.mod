@@ -22,7 +22,7 @@ require (
 	github.com/fluxcd/pkg/apis/event v0.32.0
 	github.com/fluxcd/pkg/apis/kustomize v1.23.0
 	github.com/fluxcd/pkg/apis/meta v1.38.0
-	github.com/fluxcd/pkg/auth v0.69.0
+	github.com/fluxcd/pkg/auth v0.70.0
 	github.com/fluxcd/pkg/cache v0.19.0
 	github.com/fluxcd/pkg/chartutil v1.35.0
 	github.com/fluxcd/pkg/http/fetch v0.31.0
@@ -38,7 +38,7 @@ require (
 	github.com/onsi/gomega v1.44.0
 	github.com/opencontainers/go-digest v1.0.1-0.20231025023718-d50d2fec9c98
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20261015205711-63db54280247
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/spiffe/go-spiffe/v2 v2.9.0
 	github.com/wI2L/jsondiff v0.7.1
 	go.uber.org/zap v1.28.0
