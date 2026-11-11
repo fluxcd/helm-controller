@@ -22,12 +22,12 @@ require (
 	github.com/fluxcd/pkg/apis/event v0.32.0
 	github.com/fluxcd/pkg/apis/kustomize v1.23.0
 	github.com/fluxcd/pkg/apis/meta v1.38.0
-	github.com/fluxcd/pkg/auth v0.66.0
+	github.com/fluxcd/pkg/auth v0.69.0
 	github.com/fluxcd/pkg/cache v0.19.0
 	github.com/fluxcd/pkg/chartutil v1.35.0
 	github.com/fluxcd/pkg/http/fetch v0.31.0
 	github.com/fluxcd/pkg/runtime v0.122.0
-	github.com/fluxcd/pkg/spiffe v0.2.0
+	github.com/fluxcd/pkg/spiffe v0.4.0
 	github.com/fluxcd/pkg/ssa v0.83.0
 	github.com/fluxcd/pkg/testserver v0.15.0
 	github.com/fluxcd/source-controller/api v1.10.0
@@ -114,7 +114,7 @@ require (
 	github.com/extism/go-sdk v1.7.1 // indirect
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
-	github.com/fluxcd/pkg/apis/crypto v0.5.0 // indirect
+	github.com/fluxcd/pkg/apis/crypto v0.7.0 // indirect
 	github.com/fluxcd/pkg/tar v1.4.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.3 // indirect
