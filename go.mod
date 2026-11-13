@@ -22,7 +22,7 @@ require (
 	github.com/fluxcd/pkg/apis/event v0.32.0
 	github.com/fluxcd/pkg/apis/kustomize v1.23.0
 	github.com/fluxcd/pkg/apis/meta v1.38.0
-	github.com/fluxcd/pkg/auth v0.69.0
+	github.com/fluxcd/pkg/auth v0.70.0
 	github.com/fluxcd/pkg/cache v0.19.0
 	github.com/fluxcd/pkg/chartutil v1.35.0
 	github.com/fluxcd/pkg/http/fetch v0.31.0
@@ -38,11 +38,11 @@ require (
 	github.com/onsi/gomega v1.44.0
 	github.com/opencontainers/go-digest v1.0.1-0.20231025023718-d50d2fec9c98
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20261015205711-63db54280247
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/spiffe/go-spiffe/v2 v2.9.0
 	github.com/wI2L/jsondiff v0.7.1
 	go.uber.org/zap v1.28.0
-	golang.org/x/text v0.43.0
+	golang.org/x/text v0.44.0
 	helm.sh/helm/v4 v4.3.1
 	k8s.io/api v0.37.1
 	k8s.io/apiextensions-apiserver v0.37.1
@@ -212,7 +212,7 @@ require (
 	golang.org/x/exp v0.0.0-20260824195058-e88cd73687aa // indirect
 	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
