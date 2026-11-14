@@ -17,16 +17,186 @@ limitations under the License.
 package action
 
 import (
+	"context"
+	"errors"
+	"io"
+	"sync"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
 	"helm.sh/helm/v4/pkg/action"
 	helmaction "helm.sh/helm/v4/pkg/action"
+	"helm.sh/helm/v4/pkg/chart/common"
+	helmkube "helm.sh/helm/v4/pkg/kube"
+	helmkubefake "helm.sh/helm/v4/pkg/kube/fake"
+	helmbaserelease "helm.sh/helm/v4/pkg/release"
+	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
+	helmrelease "helm.sh/helm/v4/pkg/release/v1"
+	helmstorage "helm.sh/helm/v4/pkg/storage"
+	helmdriver "helm.sh/helm/v4/pkg/storage/driver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
+	"github.com/fluxcd/helm-controller/internal/testutil"
 )
+
+// cancelOnCreateDriver cancels the reconcile context after Helm has stored a
+// new release revision.
+type cancelOnCreateDriver struct {
+	helmdriver.Driver
+	cancel context.CancelFunc
+}
+
+func (d *cancelOnCreateDriver) Create(key string, rls helmbaserelease.Releaser) error {
+	if err := d.Driver.Create(key, rls); err != nil {
+		return err
+	}
+	d.cancel()
+	return nil
+}
+
+// blockingUpgradeClient keeps the resource update in flight until the test
+// explicitly allows it to finish.
+type blockingUpgradeClient struct {
+	*helmkubefake.PrintingKubeClient
+	started   chan struct{}
+	unblock   chan struct{}
+	startOnce sync.Once
+	stopOnce  sync.Once
+}
+
+func (c *blockingUpgradeClient) Update(_, _ helmkube.ResourceList, _ ...helmkube.ClientUpdateOption) (*helmkube.Result, error) {
+	c.startOnce.Do(func() { close(c.started) })
+	<-c.unblock
+	return &helmkube.Result{}, errBlockingUpgradeClient
+}
+
+// errBlockingUpgradeClient is returned by blockingUpgradeClient.Update. It
+// is distinct from the context errors, to tell the result of the upgrade
+// goroutine apart from the one of Helm's context handler.
+var errBlockingUpgradeClient = errors.New("resource update failed")
+
+func (c *blockingUpgradeClient) stop() {
+	c.stopOnce.Do(func() { close(c.unblock) })
+}
+
+func TestUpgrade_WaitsForInFlightActionAfterCancellation(t *testing.T) {
+	g := NewWithT(t)
+
+	const (
+		releaseName      = "cancelled-upgrade"
+		releaseNamespace = "default"
+	)
+
+	driver := helmdriver.NewMemory()
+	driver.SetNamespace(releaseNamespace)
+	store := helmstorage.Init(driver)
+	previous := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+		Name:      releaseName,
+		Namespace: releaseNamespace,
+		Version:   1,
+		Status:    helmreleasecommon.StatusDeployed,
+		Chart:     testutil.BuildChart(),
+	})
+	g.Expect(store.Create(previous)).To(Succeed())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	client := &blockingUpgradeClient{
+		PrintingKubeClient: &helmkubefake.PrintingKubeClient{Out: io.Discard, LogOutput: io.Discard},
+		started:            make(chan struct{}),
+		unblock:            make(chan struct{}),
+	}
+	t.Cleanup(client.stop)
+
+	cfg := helmaction.NewConfiguration()
+	cfg.Capabilities = common.DefaultCapabilities
+	cfg.KubeClient = client
+	cfg.Releases = helmstorage.Init(&cancelOnCreateDriver{Driver: driver, cancel: cancel})
+	cfg.HookOutputFunc = func(_, _, _ string) io.Writer { return io.Discard }
+
+	obj := &v2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{Name: releaseName, Namespace: releaseNamespace},
+		Spec: v2.HelmReleaseSpec{
+			ReleaseName:     releaseName,
+			TargetNamespace: releaseNamespace,
+			Timeout:         &metav1.Duration{Duration: time.Second},
+			Upgrade:         &v2.Upgrade{DisableHooks: true},
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := Upgrade(ctx, cfg, obj, testutil.BuildChart(), nil)
+		done <- err
+	}()
+
+	select {
+	case <-client.started:
+	case <-time.After(30 * time.Second):
+		t.Fatal("timed out waiting for the Helm resource update to start")
+	}
+
+	select {
+	case err := <-done:
+		t.Fatalf("upgrade returned before its resource update completed: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	client.stop()
+	select {
+	case err := <-done:
+		g.Expect(errors.Is(err, errBlockingUpgradeClient)).To(BeTrue())
+	case <-time.After(30 * time.Second):
+		t.Fatal("timed out waiting for the Helm upgrade to finish")
+	}
+}
+
+func TestUpgrade_DoesNotStartWithCanceledContext(t *testing.T) {
+	g := NewWithT(t)
+
+	const (
+		releaseName      = "cancelled-upgrade"
+		releaseNamespace = "default"
+	)
+
+	driver := helmdriver.NewMemory()
+	driver.SetNamespace(releaseNamespace)
+	store := helmstorage.Init(driver)
+	g.Expect(store.Create(testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+		Name:      releaseName,
+		Namespace: releaseNamespace,
+		Version:   1,
+		Status:    helmreleasecommon.StatusDeployed,
+		Chart:     testutil.BuildChart(),
+	}))).To(Succeed())
+
+	cfg := helmaction.NewConfiguration()
+	cfg.Capabilities = common.DefaultCapabilities
+	cfg.KubeClient = &helmkubefake.PrintingKubeClient{Out: io.Discard, LogOutput: io.Discard}
+	cfg.Releases = store
+	cfg.HookOutputFunc = func(_, _, _ string) io.Writer { return io.Discard }
+
+	obj := &v2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{Name: releaseName, Namespace: releaseNamespace},
+		Spec: v2.HelmReleaseSpec{
+			ReleaseName:     releaseName,
+			TargetNamespace: releaseNamespace,
+			Timeout:         &metav1.Duration{Duration: time.Second},
+			Upgrade:         &v2.Upgrade{DisableHooks: true},
+		},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := Upgrade(ctx, cfg, obj, testutil.BuildChart(), nil)
+	g.Expect(errors.Is(err, context.Canceled)).To(BeTrue())
+	history, err := store.History(releaseName)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(history).To(HaveLen(1))
+}
 
 func Test_newUpgrade(t *testing.T) {
 	t.Run("new upgrade", func(t *testing.T) {

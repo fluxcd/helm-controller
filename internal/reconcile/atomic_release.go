@@ -173,20 +173,27 @@ func (r *AtomicRelease) Reconcile(ctx context.Context, req *Request) error {
 		previous ReconcilerTypeSet
 		next     ActionReconciler
 	)
+
+	// If the context is done (due to e.g. a controller shutdown), we still
+	// need to persist any last observation before returning, as otherwise
+	// the Helm storage gets ahead of the object's history. Patches made with
+	// the done context fail, including the one made by the caller, so this
+	// is done on any return path using a bounded detached context. If the
+	// patch fails, we log the error and return the original error.
+	defer func() {
+		if ctx.Err() == nil {
+			return
+		}
+		patchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		if err := r.patchHelper.Patch(patchCtx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner(r.fieldManager)); err != nil {
+			log.Error(err, "failed to patch HelmRelease after context cancellation")
+		}
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
-			if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				// If the context is canceled, we still need to persist any
-				// last observation before returning. If the patch fails, we
-				// log the error and return the original context cancellation
-				// error.
-				if err := r.patchHelper.Patch(ctx, req.Object, patch.WithOwnedConditions{Conditions: OwnedConditions}, patch.WithFieldOwner(r.fieldManager)); err != nil {
-					log.Error(err, "failed to patch HelmRelease after context cancellation")
-				}
-				cancel()
-			}
 			return fmt.Errorf("atomic release canceled: %w", ctx.Err())
 		default:
 			// Determine the current state of the Helm release.

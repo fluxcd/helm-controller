@@ -386,6 +386,55 @@ func TestInstall_Reconcile(t *testing.T) {
 	}
 }
 
+func TestInstall_Reconcile_canceled(t *testing.T) {
+	g := NewWithT(t)
+
+	namedNS, err := testEnv.CreateNamespace(context.TODO(), mockReleaseNamespace)
+	g.Expect(err).NotTo(HaveOccurred())
+	t.Cleanup(func() {
+		_ = testEnv.Delete(context.TODO(), namedNS)
+	})
+	releaseNamespace := namedNS.Name
+
+	obj := &v2.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{Name: mockReleaseName, Namespace: releaseNamespace},
+		Spec: v2.HelmReleaseSpec{
+			ReleaseName:      mockReleaseName,
+			TargetNamespace:  releaseNamespace,
+			StorageNamespace: releaseNamespace,
+			Timeout:          &metav1.Duration{Duration: time.Second},
+		},
+	}
+
+	getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	driver := helmdriver.NewMemory()
+	driver.SetNamespace(releaseNamespace)
+
+	// Cancel the reconciliation once Helm has stored the install.
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	cfg, err := action.NewConfigFactory(getter,
+		action.WithDriver(&cancelAfterReleaseCreateDriver{Driver: driver, cancel: cancel}),
+		// Bind waits to the reconcile context, like the controller does.
+		action.WithResourceManager((&testutil.MockStatusReader{}).NewResourceManagerFuncWithClient(testEnv.Client, testEnv.Manager.GetRESTMapper())),
+		action.WithWaitContext(ctx),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	req := &Request{Object: obj, Chart: testutil.BuildChart()}
+	g.Expect(NewInstall(cfg, new(events.FakeRecorder), false).Reconcile(ctx, req)).To(Succeed())
+
+	// The canceled install is recorded in the history of the object,
+	// without being counted as an install failure.
+	g.Expect(conditions.IsFalse(obj, v2.ReleasedCondition)).To(BeTrue())
+	g.Expect(obj.Status.History).To(HaveLen(1))
+	g.Expect(obj.Status.History.Latest().Status).To(Equal(helmreleasecommon.StatusFailed.String()))
+	g.Expect(obj.Status.Failures).To(Equal(int64(1)))
+	g.Expect(obj.Status.InstallFailures).To(BeZero())
+}
+
 func TestInstall_Reconcile_withSubchartWithCRDs(t *testing.T) {
 	getValues := func(subchartValues map[string]any) helmchartutil.Values {
 		return helmchartutil.Values{"subchart": subchartValues}

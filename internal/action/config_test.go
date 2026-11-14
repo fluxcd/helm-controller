@@ -251,6 +251,24 @@ func TestConfigFactory_Build(t *testing.T) {
 		g.Expect(log.Called).To(BeTrue())
 	})
 
+	t.Run("with wait context", func(t *testing.T) {
+		g := NewWithT(t)
+
+		type ctxKey struct{}
+		ctx := context.WithValue(context.Background(), ctxKey{}, "wait")
+		factory := &ConfigFactory{
+			Getter:      &kube.MemoryRESTClientGetter{},
+			WaitContext: ctx,
+		}
+
+		cfg := factory.Build(nil)
+		g.Expect(cfg.KubeClient).To(BeAssignableToTypeOf(&Client{}))
+		client := cfg.KubeClient.(*Client)
+		g.Expect(client.waitContext).To(Equal(ctx))
+		// Helm's legacy waiter reads the context from the Helm client.
+		g.Expect(client.Client.WaitContext).To(Equal(ctx))
+	})
+
 	t.Run("with observe func", func(t *testing.T) {
 		g := NewWithT(t)
 

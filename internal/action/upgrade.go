@@ -87,8 +87,16 @@ func Upgrade(ctx context.Context, config *helmaction.Configuration, obj *v2.Helm
 		setOriginVisitor(v2.GroupVersion.Group, obj.Namespace, obj.Name)); err != nil {
 		return nil, fmt.Errorf("failed to apply CustomResourceDefinitions: %w", err)
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
-	rlsr, err := upgrade.RunWithContext(ctx, releaseName, chrt, vals.AsMap())
+	// Helm returns as soon as its context handler has recorded cancellation,
+	// while the upgrade goroutine may still be changing resources and release
+	// storage. Keep the action context alive until that goroutine reports its
+	// result. Resource and hook waits are bound to the wait context of the
+	// ConfigFactory instead, and still stop on cancellation.
+	rlsr, err := upgrade.RunWithContext(context.WithoutCancel(ctx), releaseName, chrt, vals.AsMap())
 	if err != nil {
 		return nil, err
 	}

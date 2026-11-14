@@ -26,6 +26,7 @@ import (
 	. "github.com/onsi/gomega"
 	extjsondiff "github.com/wI2L/jsondiff"
 	helmchart "helm.sh/helm/v4/pkg/chart/v2"
+	helmbaserelease "helm.sh/helm/v4/pkg/release"
 	helmreleasecommon "helm.sh/helm/v4/pkg/release/common"
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 	releaseutil "helm.sh/helm/v4/pkg/release/v1/util"
@@ -35,6 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -52,6 +54,51 @@ import (
 	"github.com/fluxcd/helm-controller/internal/storage"
 	"github.com/fluxcd/helm-controller/internal/testutil"
 )
+
+// cancelAfterReleaseCreateDriver cancels the reconcile context after Helm has
+// stored a new release revision.
+type cancelAfterReleaseCreateDriver struct {
+	helmdriver.Driver
+	cancel context.CancelFunc
+}
+
+func (d *cancelAfterReleaseCreateDriver) Create(key string, rls helmbaserelease.Releaser) error {
+	if err := d.Driver.Create(key, rls); err != nil {
+		return err
+	}
+	d.cancel()
+	return nil
+}
+
+// contextCheckingClient makes the controller-runtime fake client honor
+// canceled contexts in the same way a real Kubernetes client does.
+type contextCheckingClient struct {
+	client.Client
+}
+
+func (c *contextCheckingClient) Patch(ctx context.Context, obj client.Object, p client.Patch, opts ...client.PatchOption) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return c.Client.Patch(ctx, obj, p, opts...)
+}
+
+func (c *contextCheckingClient) Status() client.SubResourceWriter {
+	return &contextCheckingSubResourceWriter{SubResourceWriter: c.Client.Status()}
+}
+
+// contextCheckingSubResourceWriter makes status patches honor canceled
+// contexts when backed by the controller-runtime fake client.
+type contextCheckingSubResourceWriter struct {
+	client.SubResourceWriter
+}
+
+func (w *contextCheckingSubResourceWriter) Patch(ctx context.Context, obj client.Object, p client.Patch, opts ...client.SubResourcePatchOption) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return w.SubResourceWriter.Patch(ctx, obj, p, opts...)
+}
 
 func TestReleaseStrategy_CleanRelease_MustContinue(t *testing.T) {
 	tests := []struct {
@@ -213,6 +260,145 @@ func TestAtomicRelease_Reconcile(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(endState).To(Equal(ReleaseState{Status: ReleaseStatusInSync}))
 	})
+}
+
+func TestAtomicRelease_Reconcile_PersistsSettledUpgradeOnCancellation(t *testing.T) {
+	tests := []struct {
+		name string
+		// chart is the chart to upgrade to.
+		chart *helmchart.Chart
+		// upgrade is the upgrade configuration of the HelmRelease.
+		upgrade *v2.Upgrade
+		// expectNext asserts the result of the reconciliation following the
+		// canceled one.
+		expectNext func(g *WithT, obj *v2.HelmRelease, err error)
+	}{
+		{
+			name:    "upgrade is attempted again",
+			chart:   testutil.BuildChart(testutil.ChartWithVersion("0.2.0")),
+			upgrade: &v2.Upgrade{DisableHooks: true},
+			expectNext: func(g *WithT, obj *v2.HelmRelease, err error) {
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(obj.Status.History.Latest().Version).To(Equal(3))
+				g.Expect(obj.Status.History.Latest().Status).To(Equal(helmreleasecommon.StatusDeployed.String()))
+				g.Expect(obj.Status.History.Latest().ChartVersion).To(Equal("0.2.0"))
+				g.Expect(obj.Status.History.Previous(false).Version).To(Equal(1))
+			},
+		},
+		{
+			name:  "failing upgrade is rolled back to the release before the canceled upgrade",
+			chart: testutil.BuildChart(testutil.ChartWithVersion("0.2.0"), testutil.ChartWithFailingHook()),
+			upgrade: &v2.Upgrade{
+				Remediation: &v2.UpgradeRemediation{
+					Retries:              0,
+					Strategy:             ptr.To(v2.RollbackRemediationStrategy),
+					RemediateLastFailure: ptr.To(true),
+				},
+			},
+			expectNext: func(g *WithT, obj *v2.HelmRelease, err error) {
+				g.Expect(err).To(MatchError(ErrExceededMaxRetries))
+				g.Expect(conditions.IsTrue(obj, v2.RemediatedCondition)).To(BeTrue())
+				g.Expect(conditions.GetReason(obj, meta.StalledCondition)).To(Equal("RetriesExceeded"))
+				// The failed attempt (3) is followed by a rollback (4) to
+				// the release from before the canceled upgrade (1).
+				g.Expect(obj.Status.History.Latest().Version).To(Equal(4))
+				g.Expect(obj.Status.History.Latest().Status).To(Equal(helmreleasecommon.StatusDeployed.String()))
+				g.Expect(obj.Status.History.Latest().ChartVersion).To(Equal("0.1.0"))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			namedNS, err := testEnv.CreateNamespace(context.Background(), mockReleaseNamespace)
+			g.Expect(err).NotTo(HaveOccurred())
+			t.Cleanup(func() {
+				_ = testEnv.Delete(context.Background(), namedNS)
+			})
+			releaseNamespace := namedNS.Name
+
+			previousRelease := testutil.BuildRelease(&helmrelease.MockReleaseOptions{
+				Name:      mockReleaseName,
+				Namespace: releaseNamespace,
+				Version:   1,
+				Chart:     testutil.BuildChart(),
+				Status:    helmreleasecommon.StatusDeployed,
+			})
+
+			obj := &v2.HelmRelease{
+				ObjectMeta: metav1.ObjectMeta{Name: mockReleaseName, Namespace: releaseNamespace},
+				Spec: v2.HelmReleaseSpec{
+					ReleaseName:      mockReleaseName,
+					TargetNamespace:  releaseNamespace,
+					StorageNamespace: releaseNamespace,
+					Timeout:          &metav1.Duration{Duration: time.Second},
+					Upgrade:          tt.upgrade,
+				},
+				Status: v2.HelmReleaseStatus{
+					History: v2.Snapshots{
+						release.ObservedToSnapshot(release.ObserveRelease(previousRelease)),
+					},
+				},
+			}
+
+			getter, err := RESTClientGetterFromManager(testEnv.Manager, obj.GetReleaseNamespace())
+			g.Expect(err).NotTo(HaveOccurred())
+
+			driver := helmdriver.NewMemory()
+			driver.SetNamespace(releaseNamespace)
+			store := helmstorage.Init(driver)
+			g.Expect(store.Create(previousRelease)).To(Succeed())
+
+			// Cancel the reconciliation once Helm has stored the upgrade.
+			ctx, cancel := context.WithCancel(context.Background())
+			t.Cleanup(cancel)
+			cfg, err := action.NewConfigFactory(getter,
+				action.WithDriver(&cancelAfterReleaseCreateDriver{Driver: driver, cancel: cancel}),
+				// Bind waits to the reconcile context, like the controller does.
+				action.WithResourceManager((&testutil.MockStatusReader{}).NewResourceManagerFuncWithClient(testEnv.Client, testEnv.Manager.GetRESTMapper())),
+				action.WithWaitContext(ctx),
+			)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			apiClient := fake.NewClientBuilder().
+				WithScheme(testEnv.Scheme()).
+				WithObjects(obj).
+				WithStatusSubresource(&v2.HelmRelease{}).
+				Build()
+			patchHelper := patch.NewSerialPatcher(obj, &contextCheckingClient{Client: apiClient})
+
+			err = NewAtomicRelease(patchHelper, cfg, new(events.FakeRecorder), testFieldManager, nil, false).
+				Reconcile(ctx, &Request{Object: obj, Chart: tt.chart})
+			g.Expect(errors.Is(err, context.Canceled)).To(BeTrue())
+
+			// The canceled upgrade is persisted in the history of the
+			// object, without being counted as a failure.
+			storedReleases, err := storeHistory(store, mockReleaseName)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(storedReleases).To(HaveLen(2))
+
+			storedObject := &v2.HelmRelease{}
+			g.Expect(apiClient.Get(context.Background(), client.ObjectKeyFromObject(obj), storedObject)).To(Succeed())
+			g.Expect(storedObject.Status.History).To(HaveLen(2))
+			g.Expect(storedObject.Status.History.Latest().Version).To(Equal(2))
+			g.Expect(storedObject.Status.UpgradeFailures).To(BeZero())
+
+			req := &Request{Object: storedObject, Chart: tt.chart}
+			state, err := DetermineReleaseState(context.Background(), cfg, req, nil)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(state.Status).To(Equal(ReleaseStatusFailed))
+
+			// Reconcile again, like the controller does after a restart.
+			cfg, err = action.NewConfigFactory(getter, action.WithDriver(driver))
+			g.Expect(err).NotTo(HaveOccurred())
+			patchHelper = patch.NewSerialPatcher(storedObject, apiClient)
+			err = NewAtomicRelease(patchHelper, cfg, new(events.FakeRecorder), testFieldManager, nil, false).
+				Reconcile(context.Background(), req)
+			tt.expectNext(g, storedObject, err)
+		})
+	}
 }
 
 func TestAtomicRelease_Reconcile_Scenarios(t *testing.T) {

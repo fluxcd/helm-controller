@@ -116,6 +116,14 @@ func (r *Install) Reconcile(ctx context.Context, req *Request) error {
 		// without a new release in storage there is nothing to remediate,
 		// and the action can be retried immediately without causing
 		// storage drift.
+		//
+		// An install interrupted by the reconcile context being done (due
+		// to e.g. a controller shutdown) is not counted, as it says nothing
+		// about the release itself. The failed release is still recorded in
+		// the history, and the release is attempted again.
+		if ctx.Err() != nil {
+			return nil
+		}
 		req.Object.GetInstall().GetRemediation().IncrementFailureCount(req.Object)
 		return nil
 	}
