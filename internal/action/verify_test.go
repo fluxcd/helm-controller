@@ -28,7 +28,6 @@ import (
 	helmrelease "helm.sh/helm/v4/pkg/release/v1"
 	helmstorage "helm.sh/helm/v4/pkg/storage"
 	"helm.sh/helm/v4/pkg/storage/driver"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/helm-controller/internal/release"
@@ -213,12 +212,10 @@ func TestReleaseTargetChanged(t *testing.T) {
 			g := NewWithT(t)
 
 			reason, changed := ReleaseTargetChanged(&v2.HelmRelease{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: defaultNamespace,
-					Name:      defaultName,
-				},
-				Spec:   tt.spec,
-				Status: tt.status,
+				Namespace: defaultNamespace,
+				Name:      defaultName,
+				Spec:      tt.spec,
+				Status:    tt.status,
 			}, tt.chartName)
 			g.Expect(changed).To(Equal(tt.want))
 			g.Expect(reason).To(Equal(tt.wantReason))

@@ -18,6 +18,7 @@ package v2beta1
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"time"
 
@@ -1074,12 +1075,7 @@ func HelmReleaseRecordAttempt(hr *HelmRelease, revision string, releaseRevision 
 }
 
 func inStringSlice(str string, s []string) bool {
-	for _, v := range s {
-		if str == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, str)
 }
 
 func resetFailureCounts(hr *HelmRelease) {
