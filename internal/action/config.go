@@ -173,6 +173,8 @@ func (c *ConfigFactory) Build(log slog.Handler, observers ...storage.ObserveFunc
 	client := NewClient(c.Getter)
 	client.newResourceManager = c.NewResourceManager
 	client.waitContext = c.WaitContext
+	// Helm's legacy waiter only honors the context set on the Helm client.
+	client.Client.WaitContext = c.WaitContext
 
 	var opts []helmaction.ConfigurationOption
 	if log != nil {
