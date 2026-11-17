@@ -381,7 +381,7 @@ func main() {
 					setupLog.Error(err, "unable to close SPIFFE Broker client")
 				}
 			}()
-			setupLog.Info("object-level workload identity will use the SPIFFE Broker API",
+			setupLog.Info("SPIFFE Broker API",
 				"endpoint", spiffeBrokerEndpoint, "spiffeIDs", spiffeBrokerIDs)
 		}
 	}
