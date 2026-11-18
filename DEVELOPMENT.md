@@ -9,7 +9,7 @@
 There are a number of dependencies required to be able to run the controller and its test suite locally:
 
 - [Install Go](https://golang.org/doc/install)
-- [Install Kustomize](https://kubernetes-sigs.github.io/kustomize/installation/)
+- [Install Kustomize](https://kubectl.docs.kubernetes.io/installation/kustomize/)
 - [Install Docker](https://docs.docker.com/engine/install/)
 - (Optional) [Install Kubebuilder](https://book.kubebuilder.io/quick-start.html#installation)
 
