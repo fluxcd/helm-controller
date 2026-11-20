@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.7.2
+
+**Release date:** 2026-11-20
+
+This patch release fixes how provider credentials are cached by the authentication
+library. The cache key now includes the credential username and the GCP workload
+identity provider, so changing the `credential.auth.fluxcd.io/username`
+ServiceAccount annotation, or the GCP workload identity provider, takes effect on
+the next reconcile instead of continuing to use the previously cached
+authenticator until the cache entry expires or the controller restarts. This
+affects HelmReleases that authenticate to their target cluster with a kubeconfig
+from a ConfigMap.
+
+Fixes:
+- Update fluxcd/pkg dependencies
+  [#1648](https://github.com/fluxcd/helm-controller/pull/1648)
+
+Improvements:
+- Remove leftover object-level workload identity log message
+  [#1657](https://github.com/fluxcd/helm-controller/pull/1657)
+- Update fluxcd/pkg dependencies
+  [#1649](https://github.com/fluxcd/helm-controller/pull/1649)
+
 ## 1.7.1
 
 **Release date:** 2026-10-26
