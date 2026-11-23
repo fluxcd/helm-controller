@@ -21,14 +21,14 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.12.0
 	github.com/fluxcd/pkg/apis/event v0.32.0
 	github.com/fluxcd/pkg/apis/kustomize v1.23.0
-	github.com/fluxcd/pkg/apis/meta v1.38.0
-	github.com/fluxcd/pkg/auth v0.69.0
-	github.com/fluxcd/pkg/cache v0.19.0
-	github.com/fluxcd/pkg/chartutil v1.35.0
-	github.com/fluxcd/pkg/http/fetch v0.31.0
-	github.com/fluxcd/pkg/runtime v0.122.0
-	github.com/fluxcd/pkg/spiffe v0.4.0
-	github.com/fluxcd/pkg/ssa v0.83.0
+	github.com/fluxcd/pkg/apis/meta v1.39.0
+	github.com/fluxcd/pkg/auth v0.73.0
+	github.com/fluxcd/pkg/cache v0.20.0
+	github.com/fluxcd/pkg/chartutil v1.36.0
+	github.com/fluxcd/pkg/http/fetch v0.32.0
+	github.com/fluxcd/pkg/runtime v0.123.0
+	github.com/fluxcd/pkg/spiffe v0.5.0
+	github.com/fluxcd/pkg/ssa v0.85.0
 	github.com/fluxcd/pkg/testserver v0.15.0
 	github.com/fluxcd/source-controller/api v1.10.0
 	github.com/go-logr/logr v1.4.4
@@ -38,11 +38,11 @@ require (
 	github.com/onsi/gomega v1.44.0
 	github.com/opencontainers/go-digest v1.0.1-0.20231025023718-d50d2fec9c98
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20261015205711-63db54280247
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/spiffe/go-spiffe/v2 v2.9.0
 	github.com/wI2L/jsondiff v0.7.1
 	go.uber.org/zap v1.28.0
-	golang.org/x/text v0.43.0
+	golang.org/x/text v0.44.0
 	helm.sh/helm/v4 v4.3.1
 	k8s.io/api v0.37.1
 	k8s.io/apiextensions-apiserver v0.37.1
@@ -113,13 +113,13 @@ require (
 	github.com/extism/go-sdk v1.7.1 // indirect
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
-	github.com/fluxcd/pkg/apis/crypto v0.7.0 // indirect
+	github.com/fluxcd/pkg/apis/crypto v0.8.0 // indirect
 	github.com/fluxcd/pkg/tar v1.4.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.3 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-gorp/gorp/v3 v3.1.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.6 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.9 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v1.0.2 // indirect
@@ -211,7 +211,7 @@ require (
 	golang.org/x/exp v0.0.0-20260824195058-e88cd73687aa // indirect
 	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
